@@ -113,24 +113,3 @@ jobs:
         with:
           name: npm-audit
           path: npm-audit.json
-
-  dependency-graph:
-    name: Update Dependency Graph
-    runs-on: ubuntu-latest
-    
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-      
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 'lts/*'
-      
-      - name: Install dependencies
-        run: npm ci
-      
-      - name: Update dependency graph
-        uses: advanced-security/npm-dependency-graph@v1
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
