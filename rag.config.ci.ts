@@ -11,7 +11,10 @@ async function ghEmbed(input: string | string[]): Promise<number[][]> {
     },
     body: JSON.stringify({ model: 'openai/text-embedding-3-small', input }),
   });
-  if (!res.ok) throw new Error(`GitHub Models error: ${res.statusText}`);
+  if (!res.ok) {
+    const body = await res.text().catch(() => '');
+    throw new Error(`GitHub Models error: ${res.status} ${res.statusText}${body ? ` — ${body}` : ''}`);
+  }
   const json = (await res.json()) as { data: Array<{ embedding: number[] }> };
   return json.data.map((d) => d.embedding);
 }
