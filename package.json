@@ -1,6 +1,6 @@
 {
   "name": "@vivantel/rag-core",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "type": "module",
   "description": "Core RAG pipeline tools - universal chunking, embedding, vector store interfaces",
   "main": "dist/index.js",
