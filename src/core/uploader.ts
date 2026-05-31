@@ -6,6 +6,7 @@ import {
 import { readFile } from "fs/promises";
 import { createHash } from "crypto";
 import { UploadError } from "./errors.js";
+import { withRetry, RetryOptions } from "./utils.js";
 
 function contentHash(chunk: EmbeddedChunk): string {
   return (
@@ -16,9 +17,14 @@ function contentHash(chunk: EmbeddedChunk): string {
 
 export class Uploader {
   private vectorStore: VectorStore;
+  private retryOptions: RetryOptions;
 
-  constructor(vectorStore: VectorStore) {
+  constructor(
+    vectorStore: VectorStore,
+    options: { retry?: RetryOptions } = {},
+  ) {
     this.vectorStore = vectorStore;
+    this.retryOptions = options.retry ?? {};
   }
 
   private chunkToDocument(
@@ -117,7 +123,10 @@ export class Uploader {
     }
 
     if (toDelete.length > 0) {
-      await this.vectorStore.deleteBySourceFile(toDelete);
+      await withRetry(
+        () => this.vectorStore.deleteBySourceFile(toDelete),
+        this.retryOptions,
+      );
       console.log(`  🗑️ Deleted ${toDelete.length} obsolete documents`);
     }
 
@@ -127,7 +136,10 @@ export class Uploader {
       const batchSize = 50;
       for (let i = 0; i < documents.length; i += batchSize) {
         const batch = documents.slice(i, i + batchSize);
-        await this.vectorStore.upsert(batch);
+        await withRetry(
+          () => this.vectorStore.upsert(batch),
+          this.retryOptions,
+        );
         console.log(
           `  ✅ Uploaded batch ${Math.floor(i / batchSize) + 1}/${Math.ceil(documents.length / batchSize)}`,
         );

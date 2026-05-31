@@ -7,6 +7,7 @@ import { readFile, writeFile, mkdir } from "fs/promises";
 import { dirname } from "path";
 import { createHash } from "crypto";
 import { EmbedError } from "./errors.js";
+import { sleep, withRetry, withConcurrency, RetryOptions } from "./utils.js";
 
 function chunkContentHash(chunk: Chunk): string {
   if (chunk.contentHash) return chunk.contentHash;
@@ -17,22 +18,30 @@ export class EmbedderProcessor {
   private provider: EmbeddingProvider;
   private rateLimitMs: number;
   private batchSize: number;
+  private retryOptions: RetryOptions;
+  private concurrency: number;
 
   constructor(
     provider: EmbeddingProvider,
-    options: { rateLimitMs?: number; batchSize?: number } = {},
+    options: {
+      rateLimitMs?: number;
+      batchSize?: number;
+      retry?: RetryOptions;
+      concurrency?: number;
+    } = {},
   ) {
     this.provider = provider;
     this.rateLimitMs = options.rateLimitMs ?? 500;
     this.batchSize = options.batchSize ?? 10;
-  }
-
-  private async sleep(ms: number): Promise<void> {
-    return new Promise((resolve) => setTimeout(resolve, ms));
+    this.retryOptions = options.retry ?? {};
+    this.concurrency = options.concurrency ?? 1;
   }
 
   async embedChunk(chunk: Chunk): Promise<EmbeddedChunk> {
-    const embedding = await this.provider.embed(chunk.content);
+    const embedding = await withRetry(
+      () => this.provider.embed(chunk.content),
+      this.retryOptions,
+    );
 
     return {
       ...chunk,
@@ -42,11 +51,12 @@ export class EmbedderProcessor {
   }
 
   async embedBatch(chunks: Chunk[]): Promise<EmbeddedChunk[]> {
-    const results: EmbeddedChunk[] = [];
-
     if (this.provider.embedBatch && chunks.length >= this.batchSize) {
       const texts = chunks.map((c) => c.content);
-      const embeddings = await this.provider.embedBatch(texts);
+      const embeddings = await withRetry(
+        () => this.provider.embedBatch!(texts),
+        this.retryOptions,
+      );
 
       if (embeddings.length !== chunks.length) {
         throw new EmbedError(
@@ -58,34 +68,33 @@ export class EmbedderProcessor {
         );
       }
 
-      for (let i = 0; i < chunks.length; i++) {
-        results.push({
-          ...chunks[i],
-          embedding: embeddings[i],
-          embeddedAt: Date.now() / 1000,
-        });
-      }
-    } else {
-      for (let i = 0; i < chunks.length; i++) {
-        const chunk = chunks[i];
-        const eventType =
-          (chunk.metadata.event_type as string) ||
-          (chunk.metadata.title as string) ||
-          chunk.sourceFile.split("/").pop() ||
-          "unknown";
-
-        console.log(`  [${i + 1}/${chunks.length}] ${eventType}`);
-
-        const embedded = await this.embedChunk(chunk);
-        results.push(embedded);
-
-        if (this.rateLimitMs > 0 && i < chunks.length - 1) {
-          await this.sleep(this.rateLimitMs);
-        }
-      }
+      return chunks.map((chunk, i) => ({
+        ...chunk,
+        embedding: embeddings[i],
+        embeddedAt: Date.now() / 1000,
+      }));
     }
 
-    return results;
+    let completed = 0;
+    const tasks = chunks.map((chunk) => async (): Promise<EmbeddedChunk> => {
+      const label =
+        (chunk.metadata.event_type as string) ||
+        (chunk.metadata.title as string) ||
+        chunk.sourceFile.split("/").pop() ||
+        "unknown";
+
+      const embedded = await this.embedChunk(chunk);
+      completed++;
+      console.log(`  [${completed}/${chunks.length}] ${label}`);
+
+      if (this.rateLimitMs > 0) {
+        await sleep(this.rateLimitMs);
+      }
+
+      return embedded;
+    });
+
+    return withConcurrency(tasks, this.concurrency);
   }
 
   async getChunksToEmbed(

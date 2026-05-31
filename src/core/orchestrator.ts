@@ -2,6 +2,7 @@ import { GitTracker } from "./git-tracker.js";
 import { ChunkProcessor } from "./chunk-processor.js";
 import { EmbedderProcessor } from "./embedder.js";
 import { Uploader } from "./uploader.js";
+import { TelemetryCollector } from "./telemetry.js";
 import {
   FileChunker,
   EmbeddingProvider,
@@ -9,6 +10,7 @@ import {
   Chunk,
 } from "../interfaces/index.js";
 import { readFile } from "fs/promises";
+import { RetryOptions } from "./utils.js";
 
 export interface RAGPipelineConfig {
   chunkers: FileChunker[];
@@ -22,6 +24,10 @@ export interface RAGPipelineConfig {
     dryRun?: boolean;
     rateLimitMs?: number;
     batchSize?: number;
+    retry?: RetryOptions;
+    concurrency?: number;
+    telemetry?: boolean;
+    notifications?: { webhookUrl?: string };
   };
 }
 
@@ -44,6 +50,32 @@ async function loadPreviousState(
   }
 }
 
+async function loadExistingChunks(chunksFile: string): Promise<Chunk[]> {
+  try {
+    const content = await readFile(chunksFile, "utf-8");
+    const parsed: unknown = JSON.parse(content);
+    return Array.isArray(parsed) ? (parsed as Chunk[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+async function notifyWebhook(
+  url: string,
+  status: "success" | "error",
+  payload: Record<string, unknown>,
+): Promise<void> {
+  try {
+    await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status, ...payload }),
+    });
+  } catch {
+    // Notification failures are non-fatal
+  }
+}
+
 export class Orchestrator {
   private config: RAGPipelineConfig;
   private chunksFile: string;
@@ -57,75 +89,162 @@ export class Orchestrator {
   }
 
   async run(): Promise<void> {
-    console.log("🚀 Starting RAG pipeline...\n");
+    const opts = this.config.options ?? {};
+    const telemetry = opts.telemetry ? new TelemetryCollector() : null;
+    telemetry?.start();
 
-    console.log("📂 Step 1: Scanning for changes...");
-    const gitTracker = new GitTracker(this.config.chunkers);
-    const currentState = await gitTracker.getCurrentState();
+    let uploadStats = { uploaded: 0, deleted: 0 };
 
-    const previousState = this.config.options?.force
-      ? new Map<string, string>()
-      : await loadPreviousState(this.chunksFile);
+    try {
+      console.log("🚀 Starting RAG pipeline...\n");
 
-    const { toProcess, toDelete } =
-      await gitTracker.getChangedFiles(previousState);
+      // Step 1: Scan for changes
+      console.log("📂 Step 1: Scanning for changes...");
+      const t1 = Date.now();
+      const gitTracker = new GitTracker(this.config.chunkers);
+      const currentState = await gitTracker.getCurrentState();
 
-    if (
-      toProcess.length === 0 &&
-      toDelete.length === 0 &&
-      !this.config.options?.force
-    ) {
-      console.log("\n✨ No changes detected.");
-      return;
-    }
+      const previousState = opts.force
+        ? new Map<string, string>()
+        : await loadPreviousState(this.chunksFile);
 
-    console.log(
-      `\n📊 Changes: ${toProcess.length} to process, ${toDelete.length} to delete\n`,
-    );
+      const { toProcess, toDelete } =
+        await gitTracker.getChangedFiles(previousState);
 
-    console.log("🔪 Step 2: Generating chunks...");
-    const chunkProcessor = new ChunkProcessor(this.config.chunkers);
+      telemetry?.recordGitTracking({
+        durationMs: Date.now() - t1,
+        filesScanned: currentState.size,
+        toProcess: toProcess.length,
+        toDelete: toDelete.length,
+      });
 
-    const fileState = new Map();
-    for (const file of toProcess) {
-      const info = currentState.get(file);
-      if (info) fileState.set(file, info);
-    }
+      if (toProcess.length === 0 && toDelete.length === 0 && !opts.force) {
+        console.log("\n✨ No changes detected.");
+        return;
+      }
 
-    const chunks = await chunkProcessor.processFiles(toProcess, fileState);
-    await chunkProcessor.saveChunksLocal(chunks, this.chunksFile);
-
-    if (chunks.length === 0) {
-      console.log("\n⚠️ No chunks generated. Exiting.");
-      return;
-    }
-
-    console.log("\n🔢 Step 3: Generating embeddings...");
-    const embedder = new EmbedderProcessor(this.config.embedder, {
-      rateLimitMs: this.config.options?.rateLimitMs,
-      batchSize: this.config.options?.batchSize,
-    });
-
-    await embedder.run(this.chunksFile, this.config.options?.force || false);
-
-    if (this.config.options?.dryRun) {
-      const uploader = new Uploader(this.config.vectorStore);
-      const { toUpload, toDelete } = await uploader.getItemsToUpload(
-        this.embeddingsFile,
-        this.config.options?.force || false,
+      console.log(
+        `\n📊 Changes: ${toProcess.length} to process, ${toDelete.length} to delete\n`,
       );
-      console.log("\n📤 Step 4: Upload (dry-run — no changes written)");
-      console.log(`   Would upload: ${toUpload.length} document(s)`);
-      console.log(`   Would delete: ${toDelete.length} source file(s)`);
-    } else if (!this.config.options?.skipUpload) {
-      console.log("\n📤 Step 4: Uploading to vector store...");
-      const uploader = new Uploader(this.config.vectorStore);
-      await uploader.sync(
-        this.embeddingsFile,
-        this.config.options?.force || false,
-      );
-    }
 
-    console.log("\n✨ RAG pipeline complete!");
+      // Step 2: Generate chunks (with resume)
+      console.log("🔪 Step 2: Generating chunks...");
+      const t2 = Date.now();
+      const chunkProcessor = new ChunkProcessor(this.config.chunkers);
+
+      const fileState = new Map<
+        string,
+        { commitHash: string; chunker: FileChunker }
+      >();
+      for (const file of toProcess) {
+        const info = currentState.get(file);
+        if (info) fileState.set(file, info);
+      }
+
+      const existingChunks = opts.force
+        ? []
+        : await loadExistingChunks(this.chunksFile);
+
+      const chunks = await chunkProcessor.processFiles(
+        toProcess,
+        fileState,
+        existingChunks,
+      );
+      await chunkProcessor.saveChunksLocal(chunks, this.chunksFile);
+
+      telemetry?.recordChunking({
+        durationMs: Date.now() - t2,
+        filesProcessed: toProcess.length,
+        chunksGenerated: chunks.length,
+        errors: 0,
+      });
+
+      if (chunks.length === 0) {
+        console.log("\n⚠️ No chunks generated. Exiting.");
+        return;
+      }
+
+      // Step 3: Generate embeddings
+      console.log("\n🔢 Step 3: Generating embeddings...");
+      const t3 = Date.now();
+      const embedder = new EmbedderProcessor(this.config.embedder, {
+        rateLimitMs: opts.rateLimitMs,
+        batchSize: opts.batchSize,
+        retry: opts.retry,
+        concurrency: opts.concurrency,
+      });
+
+      const newEmbeddings = await embedder.run(
+        this.chunksFile,
+        opts.force || false,
+      );
+
+      telemetry?.recordEmbedding({
+        durationMs: Date.now() - t3,
+        chunksEmbedded: newEmbeddings.length,
+        chunksSkipped: chunks.length - newEmbeddings.length,
+      });
+
+      // Step 4: Upload
+      if (opts.dryRun) {
+        const uploader = new Uploader(this.config.vectorStore);
+        const { toUpload: dryUpload, toDelete: dryDelete } =
+          await uploader.getItemsToUpload(
+            this.embeddingsFile,
+            opts.force || false,
+          );
+        console.log("\n📤 Step 4: Upload (dry-run — no changes written)");
+        console.log(`   Would upload: ${dryUpload.length} document(s)`);
+        console.log(`   Would delete: ${dryDelete.length} source file(s)`);
+      } else if (!opts.skipUpload) {
+        console.log("\n📤 Step 4: Uploading to vector store...");
+        const t4 = Date.now();
+        const uploader = new Uploader(this.config.vectorStore, {
+          retry: opts.retry,
+        });
+        uploadStats = await uploader.sync(
+          this.embeddingsFile,
+          opts.force || false,
+        );
+
+        telemetry?.recordUpload({
+          durationMs: Date.now() - t4,
+          uploaded: uploadStats.uploaded,
+          deleted: uploadStats.deleted,
+        });
+      }
+
+      console.log("\n✨ RAG pipeline complete!");
+
+      if (telemetry) {
+        telemetry.finish();
+        telemetry.printSummary();
+        const telemetryFile = this.chunksFile.replace(
+          "chunks.json",
+          "telemetry.json",
+        );
+        await telemetry.save(telemetryFile);
+      }
+
+      if (opts.notifications?.webhookUrl) {
+        await notifyWebhook(opts.notifications.webhookUrl, "success", {
+          durationMs: telemetry?.getData().durationMs,
+          stages: telemetry?.getData().stages,
+          uploaded: uploadStats.uploaded,
+          deleted: uploadStats.deleted,
+        });
+      }
+    } catch (err) {
+      telemetry?.finish();
+
+      if (opts.notifications?.webhookUrl) {
+        await notifyWebhook(opts.notifications.webhookUrl, "error", {
+          error: err instanceof Error ? err.message : String(err),
+          durationMs: telemetry?.getData().durationMs,
+        });
+      }
+
+      throw err;
+    }
   }
 }

@@ -31,9 +31,27 @@ export class ChunkProcessor {
   async processFiles(
     files: string[],
     fileState: Map<string, { commitHash: string; chunker: FileChunker }>,
+    existingChunks: Chunk[] = [],
   ): Promise<Chunk[]> {
     const allChunks: Chunk[] = [];
     let errorCount = 0;
+
+    // Build resume cache: sourceFile → { commitHash, chunks }
+    const resumeCache = new Map<
+      string,
+      { commitHash: string; chunks: Chunk[] }
+    >();
+    for (const chunk of existingChunks) {
+      const entry = resumeCache.get(chunk.sourceFile);
+      if (!entry) {
+        resumeCache.set(chunk.sourceFile, {
+          commitHash: chunk.commitHash,
+          chunks: [chunk],
+        });
+      } else {
+        entry.chunks.push(chunk);
+      }
+    }
 
     for (let i = 0; i < files.length; i++) {
       const filePath = files[i];
@@ -41,6 +59,15 @@ export class ChunkProcessor {
 
       if (!info) {
         console.log(`  ⚠️ No chunker for: ${filePath}`);
+        continue;
+      }
+
+      // Resume: reuse cached chunks when commitHash matches
+      const cached = resumeCache.get(filePath);
+      if (cached && cached.commitHash === info.commitHash) {
+        console.log(`  [${i + 1}/${files.length}] ${filePath}`);
+        console.log(`    ⏭️  Cached (${cached.chunks.length} chunk(s))`);
+        allChunks.push(...cached.chunks);
         continue;
       }
 

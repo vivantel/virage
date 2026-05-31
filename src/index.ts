@@ -22,7 +22,10 @@ export {
   batchArray,
   extractFileName,
   extractDirectory,
+  withRetry,
+  withConcurrency,
 } from "./core/utils.js";
+export type { RetryOptions } from "./core/utils.js";
 
 // Strategies
 export {
