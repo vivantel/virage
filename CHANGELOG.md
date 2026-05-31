@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.3](https://github.com/vivantel/rag_core/compare/v1.1.2...v1.1.3) (2026-05-31)
+
+
+### Bug Fixes
+
+* resolve correctness bugs, error handling, and publish configuration ([1bbd19f](https://github.com/vivantel/rag_core/commit/1bbd19f3c795f0804c2627b339804ee4d5bf9096))
+
 ## [1.1.2](https://github.com/vivantel/rag_core/compare/v1.1.1...v1.1.2) (2026-05-31)
 
 
