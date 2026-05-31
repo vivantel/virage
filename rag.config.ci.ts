@@ -7,7 +7,7 @@ async function ghEmbed(input: string | string[]): Promise<number[][]> {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      Authorization: `Bearer ${process.env.GITHUB_MODELS_TOKEN}`,
+      Authorization: `Bearer ${process.env.MODELS_TOKEN}`,
     },
     body: JSON.stringify({ model: 'text-embedding-3-small', input }),
   });
