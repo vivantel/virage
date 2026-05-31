@@ -1,34 +1,8 @@
-import type { RAGPipelineConfig, EmbeddingProvider, VectorStore, VectorSearchResult } from './dist/index.js';
-import { createChunker, markdownHeadersStrategy, tokenStrategy, wholeFileStrategy } from './dist/index.js';
+import type { RAGPipelineConfig, VectorStore, VectorSearchResult } from './dist/index.js';
+import { GitHubModelsEmbedder, createChunker, markdownHeadersStrategy, tokenStrategy, wholeFileStrategy } from './dist/index.js';
 import { createClient } from '@supabase/supabase-js';
 
-async function ghEmbed(input: string | string[]): Promise<number[][]> {
-  const res = await fetch('https://models.github.ai/inference/embeddings', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${process.env.MODELS_TOKEN}`,
-    },
-    body: JSON.stringify({ model: 'openai/text-embedding-3-small', input }),
-  });
-  if (!res.ok) {
-    const body = await res.text().catch(() => '');
-    throw new Error(`GitHub Models error: ${res.status} ${res.statusText}${body ? ` — ${body}` : ''}`);
-  }
-  const json = (await res.json()) as { data: Array<{ embedding: number[] }> };
-  return json.data.map((d) => d.embedding);
-}
-
-const embedder: EmbeddingProvider = {
-  name: 'github-models',
-  dimensions: 1536,
-  async embed(text: string): Promise<number[]> {
-    return (await ghEmbed(text))[0];
-  },
-  async embedBatch(texts: string[]): Promise<number[][]> {
-    return ghEmbed(texts);
-  },
-};
+const embedder = new GitHubModelsEmbedder({ token: process.env.MODELS_TOKEN! });
 
 let _supabase: ReturnType<typeof createClient> | null = null;
 function getSupabase() {
@@ -59,7 +33,7 @@ const vectorStore: VectorStore = {
     await getSupabase().from('documents').delete().in('source_file', files);
   },
   async getCurrentState() {
-    const { data } = await supabase
+    const { data } = await getSupabase()
       .from('documents')
       .select('source_file, commit_hash');
     return new Map((data ?? []).map((r) => [r.source_file, r.commit_hash]));
@@ -90,6 +64,7 @@ const config: RAGPipelineConfig = {
     chunksFile: './docs/rag/chunks.json',
     embeddingsFile: './docs/rag/embeddings.json',
     batchSize: 20,
+    maxBatchChars: 100_000, // GitHub Models: 64K token limit ≈ 256K chars; 100K is a safe margin
   },
 };
 

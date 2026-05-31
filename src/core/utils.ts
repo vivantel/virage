@@ -68,6 +68,31 @@ export function batchArray<T>(array: T[], batchSize: number): T[][] {
   return batches;
 }
 
+export function batchBySize<T>(
+  items: T[],
+  maxItems: number,
+  getSize: (item: T) => number,
+  maxSize: number,
+): T[][] {
+  const batches: T[][] = [];
+  let current: T[] = [];
+  let currentSize = 0;
+
+  for (const item of items) {
+    const size = getSize(item);
+    if (current.length > 0 && (current.length >= maxItems || currentSize + size > maxSize)) {
+      batches.push(current);
+      current = [];
+      currentSize = 0;
+    }
+    current.push(item);
+    currentSize += size;
+  }
+
+  if (current.length > 0) batches.push(current);
+  return batches;
+}
+
 export function extractFileName(filePath: string): string {
   return filePath.split("/").pop() || filePath;
 }

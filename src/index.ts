@@ -20,6 +20,7 @@ export {
   computeContentHash,
   sleep,
   batchArray,
+  batchBySize,
   extractFileName,
   extractDirectory,
   withRetry,
@@ -49,6 +50,12 @@ export type { TokenStrategyOptions } from "./strategies/chunk/token.js";
 
 // Helpers
 export { createChunker } from "./helpers/create-chunker.js";
+
+// Providers
+export {
+  GitHubModelsEmbedder,
+} from "./providers/github-models.js";
+export type { GitHubModelsEmbedderOptions } from "./providers/github-models.js";
 
 // Config loader
 export { loadConfig } from "./config-loader.js";

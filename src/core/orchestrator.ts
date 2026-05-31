@@ -24,6 +24,7 @@ export interface RAGPipelineConfig {
     dryRun?: boolean;
     rateLimitMs?: number;
     batchSize?: number;
+    maxBatchChars?: number;
     retry?: RetryOptions;
     concurrency?: number;
     telemetry?: boolean;
@@ -170,6 +171,7 @@ export class Orchestrator {
       const embedder = new EmbedderProcessor(this.config.embedder, {
         rateLimitMs: opts.rateLimitMs,
         batchSize: opts.batchSize,
+        maxBatchChars: opts.maxBatchChars,
         retry: opts.retry,
         concurrency: opts.concurrency,
       });

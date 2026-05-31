@@ -1,25 +1,8 @@
-import type { RAGPipelineConfig, EmbeddingProvider, VectorStore, VectorSearchResult } from '@vivantel/rag-core';
-import { createChunker, markdownHeadersStrategy, tokenStrategy, wholeFileStrategy } from '@vivantel/rag-core';
+import type { RAGPipelineConfig, VectorStore, VectorSearchResult } from '@vivantel/rag-core';
+import { GitHubModelsEmbedder, createChunker, markdownHeadersStrategy, tokenStrategy, wholeFileStrategy } from '@vivantel/rag-core';
 
 // Requires GITHUB_TOKEN in your environment (.env or CI secret)
-
-const embedder: EmbeddingProvider = {
-  name: 'github-models',
-  dimensions: 1536, // text-embedding-3-small
-  async embed(text: string): Promise<number[]> {
-    const res = await fetch('https://models.github.ai/inference/embeddings', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${process.env.GITHUB_TOKEN}`,
-      },
-      body: JSON.stringify({ model: 'openai/text-embedding-3-small', input: text }),
-    });
-    if (!res.ok) throw new Error(`GitHub Models error: ${res.statusText}`);
-    const json = await res.json() as { data: Array<{ embedding: number[] }> };
-    return json.data[0].embedding;
-  },
-};
+const embedder = new GitHubModelsEmbedder({ token: process.env.GITHUB_TOKEN! });
 
 // Install: npm install @vivantel/rag-store-supabase @supabase/supabase-js
 // import { SupabaseVectorStore } from '@vivantel/rag-store-supabase';
@@ -37,7 +20,7 @@ const vectorStore: VectorStore = {
   async upsert(_docs) { throw new Error('Not implemented'); },
   async deleteBySourceFile(_files) { throw new Error('Not implemented'); },
   async getCurrentState() { return new Map(); },
-  async search(_embedding, _topK) { return []; },
+  async search(_embedding, _topK): Promise<VectorSearchResult[]> { return []; },
 };
 
 const config: RAGPipelineConfig = {

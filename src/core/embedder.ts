@@ -7,7 +7,7 @@ import { readFile, writeFile, mkdir } from "fs/promises";
 import { dirname } from "path";
 import { createHash } from "crypto";
 import { EmbedError } from "./errors.js";
-import { sleep, withRetry, withConcurrency, RetryOptions } from "./utils.js";
+import { sleep, withRetry, withConcurrency, batchBySize, RetryOptions } from "./utils.js";
 
 function chunkContentHash(chunk: Chunk): string {
   if (chunk.contentHash) return chunk.contentHash;
@@ -18,6 +18,7 @@ export class EmbedderProcessor {
   private provider: EmbeddingProvider;
   private rateLimitMs: number;
   private batchSize: number;
+  private maxBatchChars: number;
   private retryOptions: RetryOptions;
   private concurrency: number;
 
@@ -26,6 +27,7 @@ export class EmbedderProcessor {
     options: {
       rateLimitMs?: number;
       batchSize?: number;
+      maxBatchChars?: number;
       retry?: RetryOptions;
       concurrency?: number;
     } = {},
@@ -33,6 +35,7 @@ export class EmbedderProcessor {
     this.provider = provider;
     this.rateLimitMs = options.rateLimitMs ?? 500;
     this.batchSize = options.batchSize ?? 10;
+    this.maxBatchChars = options.maxBatchChars ?? Infinity;
     this.retryOptions = options.retry ?? {};
     this.concurrency = options.concurrency ?? 1;
   }
@@ -51,7 +54,7 @@ export class EmbedderProcessor {
   }
 
   async embedBatch(chunks: Chunk[]): Promise<EmbeddedChunk[]> {
-    if (this.provider.embedBatch && chunks.length >= this.batchSize) {
+    if (this.provider.embedBatch && chunks.length > 0) {
       const texts = chunks.map((c) => c.content);
       const embeddings = await withRetry(
         () => this.provider.embedBatch!(texts),
@@ -212,8 +215,15 @@ export class EmbedderProcessor {
 
     console.log(`\n📝 Need to embed ${chunksToEmbed.length} chunks`);
 
-    const newEmbeddings = await this.embedBatch(chunksToEmbed);
-    await this.saveEmbeddings(newEmbeddings, chunksFile, force);
+    const batches = batchBySize(chunksToEmbed, this.batchSize, (c) => c.content.length, this.maxBatchChars);
+    const newEmbeddings: EmbeddedChunk[] = [];
+
+    for (let i = 0; i < batches.length; i++) {
+      console.log(`\n🔢 Batch ${i + 1}/${batches.length} (${batches[i].length} chunks)`);
+      const embedded = await this.embedBatch(batches[i]);
+      newEmbeddings.push(...embedded);
+      await this.saveEmbeddings(embedded, chunksFile, force && i === 0);
+    }
 
     return newEmbeddings;
   }

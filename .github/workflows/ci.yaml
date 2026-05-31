@@ -151,6 +151,14 @@ jobs:
             rag-${{ github.ref_name }}-
             rag-
 
+      - name: Restore embedding progress
+        uses: actions/cache/restore@v4
+        with:
+          path: docs/rag/embeddings.json
+          key: rag-embeddings-${{ github.ref_name }}-${{ github.sha }}
+          restore-keys: |
+            rag-embeddings-${{ github.ref_name }}-
+
       - name: Run RAG pipeline
         run: node dist/bin/rag-update.js --config rag.config.ci.ts
         env:
@@ -163,3 +171,10 @@ jobs:
         with:
           path: docs/rag/
           key: rag-${{ github.ref_name }}-${{ github.sha }}
+
+      - name: Save embedding progress
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: docs/rag/embeddings.json
+          key: rag-embeddings-${{ github.ref_name }}-${{ github.sha }}
