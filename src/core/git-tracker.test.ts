@@ -10,7 +10,6 @@ describe("GitTracker", () => {
   let testDir: string;
   let originalCwd: string;
 
-  // Определяем mockChunker на уровне describe
   const mockChunker: FileChunker = {
     name: "test",
     patterns: ["**/*.txt", "**/*.yaml", "**/*.json"],
@@ -59,12 +58,6 @@ describe("GitTracker", () => {
   it("should getCurrentState", async () => {
     const tracker = new GitTracker([mockChunker]);
     const state = await tracker.getCurrentState();
-
-    // Выводим отладку
-    console.log("State size:", state.size);
-    for (const [file, info] of state) {
-      console.log("  File:", file, "Hash:", info.commitHash);
-    }
 
     expect(state.size).toBeGreaterThan(0);
   });

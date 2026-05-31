@@ -2,15 +2,13 @@ import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
   test: {
-    // ✅ Вместо poolOptions (удалено в v4)
-    maxWorkers: 4,           // было maxThreads/maxForks
-    isolate: false,          // было singleThread/singleFork: true
+    maxWorkers: 4,
+    isolate: false,
 
-    // ✅ Настройки покрытия (coverage.all удалён)
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],
-      include: ['src/**/*.ts'],     // обязательно для v4
+      include: ['src/**/*.ts'],
       exclude: ['src/**/*.test.ts'],
     },
     exclude: ['node_modules', '.git'],

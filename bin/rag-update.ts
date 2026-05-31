@@ -5,7 +5,6 @@ import { config } from 'dotenv';
 import { loadConfig } from '../src/config-loader.js';
 import { Orchestrator } from '../src/core/orchestrator.js';
 
-// Load .env file if present
 config();
 
 const program = new Command();

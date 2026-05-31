@@ -46,7 +46,7 @@ export class GitTracker {
   private uncommittedCache: boolean | null = null;
 
   constructor(chunkers: FileChunker[]) {
-    this.git = simpleGit(); // ← теперь работает
+    this.git = simpleGit();
     this.chunkers = chunkers;
     this.allPatterns = chunkers.flatMap((c) => c.patterns);
   }
@@ -86,7 +86,6 @@ export class GitTracker {
   }
 
   private matchesPattern(filePath: string, pattern: string): boolean {
-    // Нормализуем путь для кросс-платформенности
     const normalizedPath = filePath.split(path.sep).join("/");
     const normalizedPattern = pattern.split(path.sep).join("/");
 
@@ -122,7 +121,6 @@ export class GitTracker {
           }
         }
 
-        // Any file not found gets current HEAD
         for (const file of batch) {
           if (!commitMap.has(file)) {
             commitMap.set(file, currentHead);

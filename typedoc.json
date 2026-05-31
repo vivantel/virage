@@ -6,6 +6,6 @@
   "skipErrorChecking": true,
   "validation": {
     "invalidLink": false,
-    "notExported": false  // ← подавляет варнинги о неэкспортированных типах
+    "notExported": false
   }
 }

@@ -146,16 +146,16 @@ export class EmbedderProcessor {
         const content = await readFile(embeddingsFile, "utf-8");
         existing = JSON.parse(content);
       } catch {
-        // No existing
+        // No existing embeddings
       }
     }
 
     const final = force
       ? []
       : existing.filter((e) => {
-          const hash = e.contentHash || chunkContentHash(e);
-          return !newByHash.has(hash);
-        });
+        const hash = e.contentHash || chunkContentHash(e);
+        return !newByHash.has(hash);
+      });
 
     final.push(...newEmbeddings);
 
