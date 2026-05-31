@@ -10,6 +10,7 @@ import {
   markdownHeadersStrategy,
   tokenStrategy,
   semanticStrategy,
+  wholeFileStrategy,
 } from "@vivantel/rag-core";
 
 // Stubbed providers — replace with real implementations
@@ -44,20 +45,13 @@ const vectorStore: VectorStore = {
 
 const config: RAGPipelineConfig = {
   chunkers: [
+    // Different .md directories can use different strategies
+    createChunker({ patterns: ["docs/**/*.md"], strategy: markdownHeadersStrategy() }),
+    createChunker({ patterns: ["rules/**/*.md"], strategy: wholeFileStrategy() }),
+    createChunker({ patterns: ["blog/**/*.md"], strategy: semanticStrategy() }),
     createChunker({
-      name: "docs",
-      patterns: ["docs/**/*.md"],
-      process: async (content) => markdownHeadersStrategy()(content),
-    }),
-    createChunker({
-      name: "source",
-      patterns: ["src/**/*.ts"],
-      process: async (content) => tokenStrategy({ maxTokens: 400, overlap: 40 })(content),
-    }),
-    createChunker({
-      name: "blog",
-      patterns: ["blog/**/*.md"],
-      process: async (content) => semanticStrategy()(content),
+      patterns: ["src/**/*.ts", "src/**/*.tsx"],
+      strategy: tokenStrategy({ maxTokens: 400, overlap: 40 }),
     }),
   ],
   embedder,

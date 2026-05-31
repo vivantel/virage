@@ -1,39 +1,77 @@
 import { checkbox, select, input } from "@inquirer/prompts";
 import { writeFile } from "fs/promises";
 import { existsSync } from "fs";
+import { readdir } from "fs/promises";
+import { join, extname } from "path";
+
+interface ExtGroup {
+  exts: string[];
+  strategyFn: string;
+  name: string;
+}
+
+const EXT_GROUPS: ExtGroup[] = [
+  {
+    exts: [".md", ".mdx"],
+    strategyFn: "markdownHeadersStrategy",
+    name: "markdown",
+  },
+  { exts: [".ts", ".tsx"], strategyFn: "tokenStrategy", name: "typescript" },
+  { exts: [".js", ".jsx"], strategyFn: "tokenStrategy", name: "javascript" },
+  { exts: [".py"], strategyFn: "tokenStrategy", name: "python" },
+  { exts: [".go"], strategyFn: "tokenStrategy", name: "go" },
+  { exts: [".cs"], strategyFn: "tokenStrategy", name: "csharp" },
+  { exts: [".java"], strategyFn: "tokenStrategy", name: "java" },
+  { exts: [".yaml", ".yml"], strategyFn: "wholeFileStrategy", name: "yaml" },
+  { exts: [".txt"], strategyFn: "semanticStrategy", name: "text" },
+];
+
+const IGNORED_DIRS = new Set([
+  "node_modules",
+  ".git",
+  "dist",
+  "build",
+  "coverage",
+  ".cache",
+  ".next",
+  "out",
+  ".turbo",
+]);
+
+async function collectExtensions(
+  dir: string,
+  found: Set<string>,
+): Promise<void> {
+  let entries;
+  try {
+    entries = await readdir(dir, { withFileTypes: true });
+  } catch {
+    return;
+  }
+  for (const entry of entries) {
+    if (entry.isDirectory()) {
+      if (!IGNORED_DIRS.has(entry.name)) {
+        await collectExtensions(join(dir, entry.name), found);
+      }
+    } else {
+      const ext = extname(entry.name).toLowerCase();
+      if (ext) found.add(ext);
+    }
+  }
+}
+
+export async function detectFileExtensions(cwd: string): Promise<ExtGroup[]> {
+  const found = new Set<string>();
+  await collectExtensions(cwd, found);
+  return EXT_GROUPS.filter((g) => g.exts.some((e) => found.has(e)));
+}
 
 interface InitAnswers {
-  strategies: string[];
+  groups: ExtGroup[];
   embedder: string;
   vectorStore: string;
   outputPath: string;
 }
-
-const STRATEGY_INFO: Record<
-  string,
-  { fn: string; description: string; patterns: string[] }
-> = {
-  token: {
-    fn: "tokenStrategy",
-    description: "Token-based chunking (source code, structured text)",
-    patterns: ["src/**/*.ts", "src/**/*.js"],
-  },
-  markdown: {
-    fn: "markdownHeadersStrategy",
-    description: "Markdown header-aware chunking (documentation)",
-    patterns: ["docs/**/*.md", "*.md"],
-  },
-  semantic: {
-    fn: "semanticStrategy",
-    description: "Semantic paragraph chunking (prose, articles)",
-    patterns: ["**/*.txt"],
-  },
-  "whole-file": {
-    fn: "wholeFileStrategy",
-    description: "Treat each file as one chunk (small configs, YAML)",
-    patterns: ["**/*.yaml", "**/*.yml"],
-  },
-};
 
 function buildEmbedderSection(provider: string): string {
   switch (provider) {
@@ -162,30 +200,22 @@ const vectorStore: VectorStore = {
   }
 }
 
-function buildChunkersSection(strategies: string[]): string {
-  if (strategies.length === 0) {
-    strategies = ["token"];
+function buildChunkersSection(groups: ExtGroup[]): string {
+  if (groups.length === 0) {
+    groups = [EXT_GROUPS.find((g) => g.name === "typescript")!];
   }
 
-  const entries = strategies.map((s) => {
-    const info = STRATEGY_INFO[s];
-    const patterns = JSON.stringify(info.patterns);
-    return `    createChunker({
-      name: '${s}',
-      patterns: ${patterns},
-      process: async (content) => ${info.fn}()(content),
-    }),`;
-  });
-
-  return entries.join("\n");
+  return groups
+    .map((g) => {
+      const patterns = JSON.stringify(g.exts.map((e) => `**/*${e}`));
+      return `    createChunker({ patterns: ${patterns}, strategy: ${g.strategyFn}() }),`;
+    })
+    .join("\n");
 }
 
 function generateConfig(answers: InitAnswers): string {
-  const selectedStrategies =
-    answers.strategies.length > 0 ? answers.strategies : ["token"];
-  const strategyFns = [
-    ...new Set(selectedStrategies.map((s) => STRATEGY_INFO[s].fn)),
-  ];
+  const strategyFns = [...new Set(answers.groups.map((g) => g.strategyFn))];
+  if (strategyFns.length === 0) strategyFns.push("tokenStrategy");
 
   const imports = [
     "RAGPipelineConfig",
@@ -198,7 +228,7 @@ function generateConfig(answers: InitAnswers): string {
 
   const embedderSection = buildEmbedderSection(answers.embedder);
   const vectorStoreSection = buildVectorStoreSection(answers.vectorStore);
-  const chunkersSection = buildChunkersSection(selectedStrategies);
+  const chunkersSection = buildChunkersSection(answers.groups);
 
   return `import { ${imports} } from '@vivantel/rag-core';
 
@@ -225,15 +255,32 @@ export default config;
 export async function runInit(): Promise<void> {
   console.log("\n🚀 RAG Config Generator\n");
 
-  const strategies = await checkbox({
-    message: "Which chunking strategies do you need?",
-    choices: [
-      { name: "Token (source code, structured text)", value: "token" },
-      { name: "Markdown headers (documentation)", value: "markdown" },
-      { name: "Semantic paragraphs (prose, articles)", value: "semantic" },
-      { name: "Whole file (small configs, YAML)", value: "whole-file" },
-    ],
-  });
+  console.log("Scanning project for file types...");
+  const detectedGroups = await detectFileExtensions(process.cwd());
+
+  let selectedGroups: ExtGroup[];
+
+  if (detectedGroups.length > 0) {
+    const confirmed = await checkbox({
+      message: "Detected file types — select which to index:",
+      choices: detectedGroups.map((g) => ({
+        name: `${g.name} (${g.exts.join(", ")}) → ${g.strategyFn}`,
+        value: g,
+        checked: true,
+      })),
+    });
+    selectedGroups = confirmed as ExtGroup[];
+  } else {
+    console.log("No known file types detected. Choose strategies manually:");
+    const strategyNames = await checkbox({
+      message: "Which chunking strategies do you need?",
+      choices: EXT_GROUPS.map((g) => ({
+        name: `${g.name} (${g.strategyFn})`,
+        value: g,
+      })),
+    });
+    selectedGroups = strategyNames as ExtGroup[];
+  }
 
   const embedder = await select({
     message: "Which embedding provider?",
@@ -279,7 +326,7 @@ export async function runInit(): Promise<void> {
   }
 
   const config = generateConfig({
-    strategies,
+    groups: selectedGroups,
     embedder,
     vectorStore,
     outputPath,

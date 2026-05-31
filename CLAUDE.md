@@ -53,11 +53,24 @@ Four built-in `ChunkStrategy` implementations returned as factory functions: `to
 
 ### `createChunker` helper (`src/helpers/create-chunker.ts`)
 
-Wraps the `FileChunker` interface: accepts a `process(content, filePath, commitHash)` callback so consumers write a plain function instead of implementing the full interface. `canProcess` is optional.
+Wraps the `FileChunker` interface. Two usage styles, enforced by a TypeScript discriminated union:
+
+- **Strategy shorthand** (common case): pass `strategy: ChunkStrategy` and optional `name`. Name auto-derives as `"${strategy.name}:${patterns[0]}"` if omitted.
+  ```typescript
+  createChunker({ patterns: ["docs/**/*.md"], strategy: markdownHeadersStrategy() })
+  ```
+- **Custom process** (advanced): pass `process(content, filePath, commitHash)` and a required `name`. Gives full control over chunking logic.
+  ```typescript
+  createChunker({ name: "custom", patterns: ["**/*.txt"], process: async (content) => [...] })
+  ```
+
+`canProcess` is optional on both paths.
 
 ### CLI (`bin/rag-update.ts`)
 
 `rag-update --config rag.config.ts` is the consumer-facing CLI. It calls `loadConfig` (dynamic `import()` of the config file) then `Orchestrator.run()`. Flags: `--force`, `--skip-upload`, `--chunks-file`, `--embeddings-file`.
+
+`rag-update init` generates a `rag.config.ts` interactively (`src/cli/init.ts`). It scans the working directory for known file types, presents a pre-checked confirmation prompt, and generates chunkers using the strategy shorthand. Falls back to manual strategy selection if no known types are found. Known extension groups: `.md`/`.mdx` → `markdownHeadersStrategy`, `.ts`/`.tsx`/`.js`/`.jsx`/`.py`/`.go`/`.cs`/`.java` → `tokenStrategy`, `.yaml`/`.yml` → `wholeFileStrategy`, `.txt` → `semanticStrategy`.
 
 ### Module import style
 

@@ -38,16 +38,8 @@ const vectorStore: VectorStore = {
 
 const config: RAGPipelineConfig = {
   chunkers: [
-    createChunker({
-      name: "docs",
-      patterns: ["docs/**/*.md"],
-      process: async (content) => markdownHeadersStrategy()(content),
-    }),
-    createChunker({
-      name: "source",
-      patterns: ["src/**/*.ts"],
-      process: async (content) => tokenStrategy()(content),
-    }),
+    createChunker({ patterns: ["docs/**/*.md"], strategy: markdownHeadersStrategy() }),
+    createChunker({ patterns: ["src/**/*.ts", "src/**/*.tsx"], strategy: tokenStrategy() }),
   ],
   embedder,
   vectorStore,

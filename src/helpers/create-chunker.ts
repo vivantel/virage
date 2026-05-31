@@ -1,19 +1,45 @@
-import { FileChunker, Chunk } from "../interfaces/index.js";
+import { FileChunker, ChunkStrategy, Chunk } from "../interfaces/index.js";
 
-export interface CreateChunkerOptions {
-  name: string;
-  patterns: string[];
+type WithStrategy = {
+  strategy: ChunkStrategy;
+  process?: never;
+  name?: string;
+};
+
+type WithProcess = {
   process: (
     content: string,
     filePath: string,
     commitHash: string,
   ) => Promise<Chunk[]>;
+  strategy?: never;
+  name: string;
+};
+
+export type CreateChunkerOptions = {
+  patterns: string[];
   canProcess?: (filePath: string, content?: string) => Promise<boolean>;
-}
+} & (WithStrategy | WithProcess);
 
 export function createChunker(options: CreateChunkerOptions): FileChunker {
+  let name: string;
+  let processContent: (
+    content: string,
+    filePath: string,
+    commitHash: string,
+  ) => Promise<Chunk[]>;
+
+  if (options.strategy != null) {
+    name = options.name ?? `${options.strategy.name}:${options.patterns[0]}`;
+    const strategy = options.strategy;
+    processContent = (content, filePath) => strategy.chunk(content, filePath);
+  } else {
+    name = options.name;
+    processContent = options.process;
+  }
+
   return {
-    name: options.name,
+    name,
     patterns: options.patterns,
 
     async chunk(filePath: string, commitHash: string): Promise<Chunk[]> {
@@ -27,7 +53,7 @@ export function createChunker(options: CreateChunkerOptions): FileChunker {
         }
       }
 
-      return options.process(content, filePath, commitHash);
+      return processContent(content, filePath, commitHash);
     },
 
     async canProcess(filePath: string, content?: string): Promise<boolean> {
