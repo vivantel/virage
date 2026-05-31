@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.2.0](https://github.com/vivantel/rag_core/compare/v2.1.3...v2.2.0) (2026-05-31)
+
+
+### Features
+
+* add RAG pipeline job to CI ([de0ddd2](https://github.com/vivantel/rag_core/commit/de0ddd29c0b138e0a256cff79ba8e90e45747fd6))
+
+
+### Bug Fixes
+
+* remove GITHUB_ prefix for github secret ([bdf2426](https://github.com/vivantel/rag_core/commit/bdf2426cf71f53d77bdf151bbe9f4beec531dd08))
+* use GITHUB_MODELS_TOKEN for GitHub Models API ([df3b4ad](https://github.com/vivantel/rag_core/commit/df3b4ad77b33f0fc0a5a423b415361995c37ff85))
+* use tsx/esm/api to load .ts config files; lazy Supabase client ([5c012a4](https://github.com/vivantel/rag_core/commit/5c012a40f6078ed8e2bc3a4c1e4c80afdc0a1e82))
+
 ## [2.1.3](https://github.com/vivantel/rag_core/compare/v2.1.2...v2.1.3) (2026-05-31)
 
 
