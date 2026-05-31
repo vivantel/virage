@@ -159,7 +159,6 @@ jobs:
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
 
       - name: Save RAG cache
-        if: always()
         uses: actions/cache/save@v4
         with:
           path: docs/rag/
