@@ -2,6 +2,10 @@
   "name": "@vivantel/rag-core",
   "version": "1.1.0",
   "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/vivantel/rag-core.git"
+  },
   "description": "Core RAG pipeline tools - universal chunking, embedding, vector store interfaces",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
