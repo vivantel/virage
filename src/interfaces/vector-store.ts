@@ -58,6 +58,9 @@ export interface VectorStore {
     collection?: string,
   ): Promise<VectorSearchResult[]>;
 
+  /** Batch delete by document IDs (more efficient than per-file delete when IDs are known) */
+  batchDelete?(ids: string[]): Promise<void>;
+
   /** Optional: delete entire collection */
   deleteCollection?(collection: string): Promise<void>;
 

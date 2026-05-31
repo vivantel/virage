@@ -20,6 +20,9 @@ export interface EmbeddingProvider {
   /** Batch convert (optional, for performance) */
   embedBatch?(texts: string[]): Promise<number[][]>;
 
+  /** Stream embeddings one-by-one as they arrive (optional, for large batches) */
+  embedStream?(texts: string[]): AsyncIterable<number[]>;
+
   /** Check if provider is available (e.g., valid API key) */
   healthCheck?(): Promise<boolean>;
 }

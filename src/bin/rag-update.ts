@@ -12,52 +12,107 @@ config();
 
 const program = new Command();
 
+function handleError(error: unknown): never {
+  console.error("❌ Error:", error instanceof Error ? error.message : error);
+  if (error instanceof RagError && error.suggestion) {
+    console.error("   💡", error.suggestion);
+  }
+  process.exit(1);
+}
+
+async function runOnce(options: {
+  config: string;
+  force: boolean;
+  noUpload: boolean;
+  dryRun: boolean;
+  chunksOut?: string;
+  embeddingsOut?: string;
+}): Promise<void> {
+  const cfg = await loadConfig(options.config);
+  const orchestrator = new Orchestrator({
+    ...cfg,
+    options: {
+      ...cfg.options,
+      force: options.force || cfg.options?.force,
+      skipUpload: options.noUpload || cfg.options?.skipUpload,
+      dryRun: options.dryRun || cfg.options?.dryRun,
+      chunksFile: options.chunksOut || cfg.options?.chunksFile,
+      embeddingsFile: options.embeddingsOut || cfg.options?.embeddingsFile,
+    },
+  });
+  await orchestrator.run();
+}
+
 program
   .name("rag-update")
   .description("Update RAG index with latest changes")
-  .version("1.0.0")
+  .version("2.0.0")
   .option("-c, --config <path>", "Path to config file", "./rag.config.ts")
   .option("-f, --force", "Force full rebuild", false)
-  .option("--skip-upload", "Skip upload to vector store", false)
+  .option("--no-upload", "Skip upload to vector store", false)
   .option("--dry-run", "Show what would change without uploading", false)
-  .option("--chunks-file <path>", "Output path for chunks.json")
-  .option("--embeddings-file <path>", "Output path for embeddings.json")
+  .option("--chunks-out <path>", "Output path for chunks.json")
+  .option("--embeddings-out <path>", "Output path for embeddings.json")
+  .option("--watch", "Re-run pipeline on file changes", false)
   .action(async () => {
-    const options = program.opts<{
+    const opts = program.opts<{
       config: string;
       force: boolean;
-      skipUpload: boolean;
+      upload: boolean; // commander inverts --no-upload → opts.upload = false
       dryRun: boolean;
-      chunksFile?: string;
-      embeddingsFile?: string;
+      chunksOut?: string;
+      embeddingsOut?: string;
+      watch: boolean;
     }>();
+
+    const runOptions = {
+      config: opts.config,
+      force: opts.force,
+      noUpload: !opts.upload,
+      dryRun: opts.dryRun,
+      chunksOut: opts.chunksOut,
+      embeddingsOut: opts.embeddingsOut,
+    };
 
     console.log("🚀 RAG Update Tool\n");
 
     try {
-      const cfg = await loadConfig(options.config);
-      const orchestrator = new Orchestrator({
-        ...cfg,
-        options: {
-          ...cfg.options,
-          force: options.force || cfg.options?.force,
-          skipUpload: options.skipUpload || cfg.options?.skipUpload,
-          dryRun: options.dryRun || cfg.options?.dryRun,
-          chunksFile: options.chunksFile || cfg.options?.chunksFile,
-          embeddingsFile: options.embeddingsFile || cfg.options?.embeddingsFile,
-        },
-      });
-      await orchestrator.run();
+      await runOnce(runOptions);
     } catch (error) {
-      console.error(
-        "❌ Error:",
-        error instanceof Error ? error.message : error,
-      );
-      if (error instanceof RagError && error.suggestion) {
-        console.error("   💡", error.suggestion);
-      }
-      process.exit(1);
+      handleError(error);
     }
+
+    if (!opts.watch) return;
+
+    // Watch mode
+    const { default: chokidar } = await import("chokidar");
+    const cfg = await loadConfig(opts.config).catch(() => null);
+    const patterns: string[] = cfg
+      ? cfg.chunkers.flatMap((c) => c.patterns)
+      : [];
+
+    const watched = [opts.config, ...patterns];
+    console.log("\n👁️  Watching for changes...");
+
+    let debounce: ReturnType<typeof setTimeout> | null = null;
+    chokidar
+      .watch(watched, { ignoreInitial: true })
+      .on("all", (event, path) => {
+        if (debounce) clearTimeout(debounce);
+        debounce = setTimeout(async () => {
+          console.log(
+            `\n🔄 Change detected (${event}: ${path}), re-running...\n`,
+          );
+          try {
+            await runOnce(runOptions);
+          } catch (error) {
+            console.error(
+              "❌ Error:",
+              error instanceof Error ? error.message : error,
+            );
+          }
+        }, 500);
+      });
   });
 
 program
@@ -71,11 +126,7 @@ program
         console.log("\nCancelled.");
         process.exit(0);
       }
-      console.error(
-        "❌ Error:",
-        error instanceof Error ? error.message : error,
-      );
-      process.exit(1);
+      handleError(error);
     }
   });
 
@@ -87,14 +138,7 @@ program
     try {
       await runValidate(opts.config);
     } catch (error) {
-      console.error(
-        "❌ Error:",
-        error instanceof Error ? error.message : error,
-      );
-      if (error instanceof RagError && error.suggestion) {
-        console.error("   💡", error.suggestion);
-      }
-      process.exit(1);
+      handleError(error);
     }
   });
 
