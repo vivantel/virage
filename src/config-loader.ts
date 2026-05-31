@@ -1,16 +1,31 @@
 import { pathToFileURL } from "url";
 import { RAGPipelineConfig } from "./core/orchestrator.js";
+import { ConfigError } from "./core/errors.js";
 
 export async function loadConfig(
   configPath: string,
 ): Promise<RAGPipelineConfig> {
-  const configUrl = pathToFileURL(configPath).href;
-  const configModule = await import(configUrl);
-  const config = configModule.default;
+  let configModule;
+  try {
+    const configUrl = pathToFileURL(configPath).href;
+    configModule = await import(configUrl);
+  } catch (err) {
+    throw new ConfigError(`Cannot load config file: ${configPath}`, {
+      suggestion:
+        "Run `rag-update init` to generate a starter config, or check that the path is correct.",
+      cause: err,
+    });
+  }
 
-  if (!config.chunkers || !config.embedder || !config.vectorStore) {
-    throw new Error(
-      "Invalid config: missing chunkers, embedder, or vectorStore",
+  const config = configModule.default as RAGPipelineConfig | undefined;
+
+  if (!config || !config.chunkers || !config.embedder || !config.vectorStore) {
+    throw new ConfigError(
+      "Config is missing required fields: chunkers, embedder, or vectorStore",
+      {
+        suggestion:
+          "Ensure your config file has a default export with chunkers, embedder, and vectorStore.",
+      },
     );
   }
 

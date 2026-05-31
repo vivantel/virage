@@ -6,6 +6,7 @@ import {
 import { readFile, writeFile, mkdir } from "fs/promises";
 import { dirname } from "path";
 import { createHash } from "crypto";
+import { EmbedError } from "./errors.js";
 
 function chunkContentHash(chunk: Chunk): string {
   if (chunk.contentHash) return chunk.contentHash;
@@ -48,8 +49,12 @@ export class EmbedderProcessor {
       const embeddings = await this.provider.embedBatch(texts);
 
       if (embeddings.length !== chunks.length) {
-        throw new Error(
+        throw new EmbedError(
           `embedBatch returned ${embeddings.length} embeddings for ${chunks.length} chunks`,
+          {
+            suggestion:
+              "Check that your EmbeddingProvider.embedBatch() returns one vector per input text.",
+          },
         );
       }
 
@@ -98,9 +103,13 @@ export class EmbedderProcessor {
       }
       chunks = parsed as Chunk[];
     } catch (err) {
-      throw new Error(
+      throw new EmbedError(
         `Failed to load chunks from ${chunksFile}: ${err instanceof Error ? err.message : String(err)}`,
-        { cause: err },
+        {
+          suggestion:
+            "Run the pipeline without --skip-upload to regenerate chunks first.",
+          cause: err,
+        },
       );
     }
 

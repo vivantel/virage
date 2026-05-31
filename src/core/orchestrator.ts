@@ -19,6 +19,7 @@ export interface RAGPipelineConfig {
     embeddingsFile?: string;
     force?: boolean;
     skipUpload?: boolean;
+    dryRun?: boolean;
     rateLimitMs?: number;
     batchSize?: number;
   };
@@ -107,7 +108,16 @@ export class Orchestrator {
 
     await embedder.run(this.chunksFile, this.config.options?.force || false);
 
-    if (!this.config.options?.skipUpload) {
+    if (this.config.options?.dryRun) {
+      const uploader = new Uploader(this.config.vectorStore);
+      const { toUpload, toDelete } = await uploader.getItemsToUpload(
+        this.embeddingsFile,
+        this.config.options?.force || false,
+      );
+      console.log("\n📤 Step 4: Upload (dry-run — no changes written)");
+      console.log(`   Would upload: ${toUpload.length} document(s)`);
+      console.log(`   Would delete: ${toDelete.length} source file(s)`);
+    } else if (!this.config.options?.skipUpload) {
       console.log("\n📤 Step 4: Uploading to vector store...");
       const uploader = new Uploader(this.config.vectorStore);
       await uploader.sync(

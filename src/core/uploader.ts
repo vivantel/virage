@@ -5,6 +5,7 @@ import {
 } from "../interfaces/index.js";
 import { readFile } from "fs/promises";
 import { createHash } from "crypto";
+import { UploadError } from "./errors.js";
 
 function contentHash(chunk: EmbeddedChunk): string {
   return (
@@ -51,9 +52,13 @@ export class Uploader {
       }
       embeddings = parsed as EmbeddedChunk[];
     } catch (err) {
-      throw new Error(
+      throw new UploadError(
         `Failed to load embeddings from ${embeddingsFile}: ${err instanceof Error ? err.message : String(err)}`,
-        { cause: err },
+        {
+          suggestion:
+            "Run the pipeline without --skip-upload to regenerate embeddings first.",
+          cause: err,
+        },
       );
     }
 

@@ -1,6 +1,15 @@
 // Interfaces
 export * from "./interfaces/index.js";
 
+// Errors
+export {
+  RagError,
+  ConfigError,
+  ChunkError,
+  EmbedError,
+  UploadError,
+} from "./core/errors.js";
+
 // Core
 export { GitTracker } from "./core/git-tracker.js";
 export { ChunkProcessor } from "./core/chunk-processor.js";
