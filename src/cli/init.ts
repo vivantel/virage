@@ -217,20 +217,14 @@ function generateConfig(answers: InitAnswers): string {
   const strategyFns = [...new Set(answers.groups.map((g) => g.strategyFn))];
   if (strategyFns.length === 0) strategyFns.push("tokenStrategy");
 
-  const imports = [
-    "RAGPipelineConfig",
-    "EmbeddingProvider",
-    "VectorStore",
-    "VectorSearchResult",
-    "createChunker",
-    ...strategyFns,
-  ].join(", ");
+  const valueImports = ["createChunker", ...strategyFns].join(", ");
 
   const embedderSection = buildEmbedderSection(answers.embedder);
   const vectorStoreSection = buildVectorStoreSection(answers.vectorStore);
   const chunkersSection = buildChunkersSection(answers.groups);
 
-  return `import { ${imports} } from '@vivantel/rag-core';
+  return `import type { RAGPipelineConfig, EmbeddingProvider, VectorStore, VectorSearchResult } from '@vivantel/rag-core';
+import { ${valueImports} } from '@vivantel/rag-core';
 
 ${embedderSection}
 

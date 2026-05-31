@@ -2,15 +2,8 @@
  * Minimal RAG config example.
  * Copy to rag.config.ts and fill in the TODO sections.
  */
-import {
-  RAGPipelineConfig,
-  EmbeddingProvider,
-  VectorStore,
-  VectorSearchResult,
-  createChunker,
-  markdownHeadersStrategy,
-  tokenStrategy,
-} from "@vivantel/rag-core";
+import type { RAGPipelineConfig, EmbeddingProvider, VectorStore, VectorSearchResult } from "@vivantel/rag-core";
+import { createChunker, markdownHeadersStrategy, tokenStrategy } from "@vivantel/rag-core";
 
 // Replace with your embedding provider (e.g. OpenAI, GitHub Models)
 const embedder: EmbeddingProvider = {
