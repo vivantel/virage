@@ -26,12 +26,8 @@ Scans your project for known file types and generates a `rag.config.ts` with the
 ### 2. Or write a config manually (`rag.config.ts`)
 
 ```typescript
-import {
-  RAGPipelineConfig,
-  createChunker,
-  markdownHeadersStrategy,
-  tokenStrategy,
-} from '@vivantel/rag-core';
+import type { RAGPipelineConfig } from '@vivantel/rag-core';
+import { createChunker, markdownHeadersStrategy, tokenStrategy, wholeFileStrategy } from '@vivantel/rag-core';
 
 const config: RAGPipelineConfig = {
   chunkers: [
