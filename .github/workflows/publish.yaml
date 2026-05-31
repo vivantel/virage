@@ -1,53 +1,57 @@
-name: Manual Publish
+name: Release
 
 on:
-  workflow_dispatch:
-    inputs:
-      version_type:
-        description: 'Version type'
-        required: true
-        default: 'patch'
-        type: choice
-        options:
-          - patch
-          - minor
-          - major
-          - prepatch
-          - preminor
-          - premajor
-          - prerelease
-      dist_tag:
-        description: 'npm dist-tag'
-        required: true
-        default: 'latest'
-        type: string
-      dry_run:
-        description: 'Dry run (no actual publish)'
-        required: false
-        default: false
-        type: boolean
+  push:
+    branches:
+      - master
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+  packages: write
 
 jobs:
-  manual-publish:
-    name: Manual Publish
+  release-please:
+    name: Release Please
+    runs-on: ubuntu-latest
+    
+    outputs:
+      release_created: ${{ steps.release.outputs.release_created }}
+      tag_name: ${{ steps.release.outputs.tag_name }}
+      version: ${{ steps.release.outputs.version }}
+    
+    steps:
+      - name: Run Release Please
+        id: release
+        uses: googleapis/release-please-action@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          release-type: node
+          package-name: '@vivantel/rag-core'
+          config-file: .github/config/release-please.json
+          manifest-file: .release-please-manifest.json
+
+  publish-npm:
+    name: Publish to npm
+    needs: release-please
+    if: ${{ needs.release-please.outputs.release_created == 'true' }}
     runs-on: ubuntu-latest
     
     permissions:
-      contents: write
-      id-token: write
-      packages: write
+      contents: read
+      id-token: write  # для npm provenance
     
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0
-          token: ${{ secrets.GITHUB_TOKEN }}
+          ref: ${{ needs.release-please.outputs.tag_name }}
       
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20.x'
+          node-version: 'lts/*'
           registry-url: 'https://registry.npmjs.org'
           cache: 'npm'
       
@@ -60,51 +64,88 @@ jobs:
       - name: Run tests
         run: npm test
       
-      - name: Bump version
-        run: |
-          npm version ${{ github.event.inputs.version_type }} --no-git-tag-version
-          NEW_VERSION=$(node -p "require('./package.json').version")
-          echo "NEW_VERSION=$NEW_VERSION" >> $GITHUB_ENV
-      
-      - name: Update CHANGELOG
-        run: npx conventional-changelog-cli -p angular -i CHANGELOG.md -s -r 1
-      
-      - name: Commit changes
-        if: ${{ github.event.inputs.dry_run != 'true' }}
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add package.json CHANGELOG.md
-          git commit -m "chore: release v${{ env.NEW_VERSION }}"
-          git tag v${{ env.NEW_VERSION }}
-          git push origin main --tags
-      
-      - name: Dry run publish
-        if: ${{ github.event.inputs.dry_run == 'true' }}
-        run: npm publish --dry-run
+      - name: Check package size
+        run: npx package-size
       
       - name: Publish to npm
-        if: ${{ github.event.inputs.dry_run != 'true' }}
-        run: npm publish --provenance --access public --tag ${{ github.event.inputs.dist_tag }}
+        run: npm publish --provenance --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
       
       - name: Create GitHub Release
-        if: ${{ github.event.inputs.dry_run != 'true' }}
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
-          tag_name: v${{ env.NEW_VERSION }}
-          name: Release v${{ env.NEW_VERSION }}
+          tag_name: ${{ needs.release-please.outputs.tag_name }}
+          name: Release ${{ needs.release-please.outputs.version }}
           body_path: CHANGELOG.md
           draft: false
-          prerelease: ${{ contains(github.event.inputs.version_type, 'pre') }}
+          prerelease: false
+          generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  create-github-package:
+    name: Publish to GitHub Packages
+    needs: release-please
+    if: ${{ needs.release-please.outputs.release_created == 'true' }}
+    runs-on: ubuntu-latest
+    
+    permissions:
+      contents: read
+      packages: write
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.release-please.outputs.tag_name }}
       
-      - name: Create summary
-        run: |
-          echo "## Release Summary" >> $GITHUB_STEP_SUMMARY
-          echo "- Version: ${{ env.NEW_VERSION }}" >> $GITHUB_STEP_SUMMARY
-          echo "- Tag: v${{ env.NEW_VERSION }}" >> $GITHUB_STEP_SUMMARY
-          echo "- Dist tag: ${{ github.event.inputs.dist_tag }}" >> $GITHUB_STEP_SUMMARY
-          echo "- Published to: npm registry" >> $GITHUB_STEP_SUMMARY
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 'lts/*'
+          registry-url: 'https://npm.pkg.github.com'
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Build
+        run: npm run build
+      
+      - name: Publish to GitHub Packages
+        run: npm publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  update-docs:
+    name: Update Documentation
+    needs: release-please
+    if: ${{ needs.release-please.outputs.release_created == 'true' }}
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.release-please.outputs.tag_name }}
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 'lts/*'
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Generate API documentation
+        run: npm run docs:generate
+      
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./docs/api
+          destination_dir: ${{ needs.release-please.outputs.version }}
+          keep_files: false
