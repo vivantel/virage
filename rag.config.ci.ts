@@ -3,13 +3,13 @@ import { createChunker, markdownHeadersStrategy, tokenStrategy, wholeFileStrateg
 import { createClient } from '@supabase/supabase-js';
 
 async function ghEmbed(input: string | string[]): Promise<number[][]> {
-  const res = await fetch('https://models.inference.ai.azure.com/embeddings', {
+  const res = await fetch('https://models.github.ai/inference/embeddings', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       Authorization: `Bearer ${process.env.MODELS_TOKEN}`,
     },
-    body: JSON.stringify({ model: 'text-embedding-3-small', input }),
+    body: JSON.stringify({ model: 'openai/text-embedding-3-small', input }),
   });
   if (!res.ok) throw new Error(`GitHub Models error: ${res.statusText}`);
   const json = (await res.json()) as { data: Array<{ embedding: number[] }> };

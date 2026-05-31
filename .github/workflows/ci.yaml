@@ -154,7 +154,7 @@ jobs:
       - name: Run RAG pipeline
         run: node dist/bin/rag-update.js --config rag.config.ci.ts
         env:
-          MODELS_TOKEN: ${{ secrets.MODELS_TOKEN }}
+          MODELS_TOKEN: ${{ github.token }}
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
 
