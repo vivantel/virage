@@ -19,11 +19,18 @@ function makeSuccessResponse(
 ): Response {
   return new Response(
     JSON.stringify({ data: embeddings.map((embedding) => ({ embedding })) }),
-    { status: 200, headers: { "Content-Type": "application/json", ...headers } },
+    {
+      status: 200,
+      headers: { "Content-Type": "application/json", ...headers },
+    },
   );
 }
 
-function makeErrorResponse(status: number, body: unknown, headers: Record<string, string> = {}): Response {
+function makeErrorResponse(
+  status: number,
+  body: unknown,
+  headers: Record<string, string> = {},
+): Response {
   return new Response(JSON.stringify(body), {
     status,
     headers: { "Content-Type": "application/json", ...headers },
@@ -44,22 +51,32 @@ describe("GitHubModelsEmbedder", () => {
 
   describe("embed()", () => {
     it("returns the first embedding vector from the response", async () => {
-      vi.mocked(fetch).mockResolvedValue(makeSuccessResponse([[0.1, 0.2, 0.3]]));
+      vi.mocked(fetch).mockResolvedValue(
+        makeSuccessResponse([[0.1, 0.2, 0.3]]),
+      );
       const result = await embedder.embed("hello");
       expect(result).toEqual(FAKE_EMBEDDING);
     });
 
     it("sends the text as a string (not array) in the request body", async () => {
-      vi.mocked(fetch).mockResolvedValue(makeSuccessResponse([[0.1, 0.2, 0.3]]));
+      vi.mocked(fetch).mockResolvedValue(
+        makeSuccessResponse([[0.1, 0.2, 0.3]]),
+      );
       await embedder.embed("single text");
-      const body = JSON.parse((vi.mocked(fetch).mock.calls[0][1] as RequestInit).body as string);
+      const body = JSON.parse(
+        (vi.mocked(fetch).mock.calls[0][1] as RequestInit).body as string,
+      );
       expect(body.input).toEqual(["single text"]);
     });
   });
 
   describe("embedBatch()", () => {
     it("returns one embedding vector per input text", async () => {
-      const embeddings = [[1, 0, 0], [0, 1, 0], [0, 0, 1]];
+      const embeddings = [
+        [1, 0, 0],
+        [0, 1, 0],
+        [0, 0, 1],
+      ];
       vi.mocked(fetch).mockResolvedValue(makeSuccessResponse(embeddings));
       const result = await embedder.embedBatch(["a", "b", "c"]);
       expect(result).toEqual(embeddings);
@@ -70,7 +87,9 @@ describe("GitHubModelsEmbedder", () => {
     it("logs remaining quota when x-ratelimit-remaining is present", async () => {
       const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
       vi.mocked(fetch).mockResolvedValue(
-        makeSuccessResponse([[0.1, 0.2, 0.3]], { "x-ratelimit-remaining": "42" }),
+        makeSuccessResponse([[0.1, 0.2, 0.3]], {
+          "x-ratelimit-remaining": "42",
+        }),
       );
       await embedder.embed("text");
       expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining("42"));
@@ -94,7 +113,9 @@ describe("GitHubModelsEmbedder", () => {
 
     it("does not sleep when x-ratelimit-remaining is positive", async () => {
       vi.mocked(fetch).mockResolvedValue(
-        makeSuccessResponse([[0.1, 0.2, 0.3]], { "x-ratelimit-remaining": "5" }),
+        makeSuccessResponse([[0.1, 0.2, 0.3]], {
+          "x-ratelimit-remaining": "5",
+        }),
       );
       await embedder.embed("text");
       expect(mockSleep).not.toHaveBeenCalled();
@@ -104,7 +125,11 @@ describe("GitHubModelsEmbedder", () => {
   describe("429 handling", () => {
     it("sleeps for retry-after seconds then throws so withRetry can retry", async () => {
       vi.mocked(fetch).mockResolvedValue(
-        makeErrorResponse(429, { error: "rate limited" }, { "retry-after": "30" }),
+        makeErrorResponse(
+          429,
+          { error: "rate limited" },
+          { "retry-after": "30" },
+        ),
       );
       await expect(embedder.embed("text")).rejects.toThrow("429");
       expect(mockSleep).toHaveBeenCalledWith(30_000);
@@ -137,11 +162,18 @@ describe("GitHubModelsEmbedder", () => {
 
   describe("constructor options", () => {
     it("uses default model and endpoint when not specified", async () => {
-      vi.mocked(fetch).mockResolvedValue(makeSuccessResponse([[0.1, 0.2, 0.3]]));
+      vi.mocked(fetch).mockResolvedValue(
+        makeSuccessResponse([[0.1, 0.2, 0.3]]),
+      );
       await embedder.embed("text");
-      const [url, init] = vi.mocked(fetch).mock.calls[0] as [string, RequestInit];
+      const [url, init] = vi.mocked(fetch).mock.calls[0] as [
+        string,
+        RequestInit,
+      ];
       expect(url).toContain("models.github.ai");
-      expect(JSON.parse(init.body as string).model).toBe("openai/text-embedding-3-small");
+      expect(JSON.parse(init.body as string).model).toBe(
+        "openai/text-embedding-3-small",
+      );
     });
 
     it("uses custom model and endpoint when specified", async () => {
@@ -152,7 +184,10 @@ describe("GitHubModelsEmbedder", () => {
       });
       vi.mocked(fetch).mockResolvedValue(makeSuccessResponse([[0.1]]));
       await custom.embed("text");
-      const [url, init] = vi.mocked(fetch).mock.calls[0] as [string, RequestInit];
+      const [url, init] = vi.mocked(fetch).mock.calls[0] as [
+        string,
+        RequestInit,
+      ];
       expect(url).toBe("https://custom.example.com/embeddings");
       expect(JSON.parse(init.body as string).model).toBe("custom/model");
     });

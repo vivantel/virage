@@ -52,9 +52,7 @@ export type { TokenStrategyOptions } from "./strategies/chunk/token.js";
 export { createChunker } from "./helpers/create-chunker.js";
 
 // Providers
-export {
-  GitHubModelsEmbedder,
-} from "./providers/github-models.js";
+export { GitHubModelsEmbedder } from "./providers/github-models.js";
 export type { GitHubModelsEmbedderOptions } from "./providers/github-models.js";
 
 // Config loader

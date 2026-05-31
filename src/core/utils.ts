@@ -80,7 +80,10 @@ export function batchBySize<T>(
 
   for (const item of items) {
     const size = getSize(item);
-    if (current.length > 0 && (current.length >= maxItems || currentSize + size > maxSize)) {
+    if (
+      current.length > 0 &&
+      (current.length >= maxItems || currentSize + size > maxSize)
+    ) {
       batches.push(current);
       current = [];
       currentSize = 0;

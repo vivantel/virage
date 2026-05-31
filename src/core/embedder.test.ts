@@ -14,14 +14,18 @@ function makeChunk(content: string, sourceFile = "test.ts") {
   return { content, metadata: {}, sourceFile, commitHash: "abc123" };
 }
 
-function makeProvider(overrides: Partial<EmbeddingProvider> = {}): EmbeddingProvider {
+function makeProvider(
+  overrides: Partial<EmbeddingProvider> = {},
+): EmbeddingProvider {
   return {
     name: "mock",
     dimensions: 3,
     embed: vi.fn().mockResolvedValue([1, 2, 3]),
-    embedBatch: vi.fn().mockImplementation(async (texts: string[]) =>
-      texts.map(() => [1, 2, 3]),
-    ),
+    embedBatch: vi
+      .fn()
+      .mockImplementation(async (texts: string[]) =>
+        texts.map(() => [1, 2, 3]),
+      ),
     ...overrides,
   };
 }
@@ -49,7 +53,8 @@ describe("EmbedderProcessor", () => {
     // batchSize=2 → batches [a,b] and [c]; embedBatch called twice
     expect(provider.embedBatch).toHaveBeenCalledTimes(2);
     // second call gets just one item (the tail batch — no fallback to individual embed)
-    const secondCall = (provider.embedBatch as ReturnType<typeof vi.fn>).mock.calls[1][0];
+    const secondCall = (provider.embedBatch as ReturnType<typeof vi.fn>).mock
+      .calls[1][0];
     expect(secondCall).toHaveLength(1);
     expect(provider.embed).not.toHaveBeenCalled();
   });
@@ -70,7 +75,9 @@ describe("EmbedderProcessor", () => {
       batchSize: 1,
       retry: { maxRetries: 0 },
     });
-    await expect(processor.run(chunksFile)).rejects.toThrow("API error on batch 3");
+    await expect(processor.run(chunksFile)).rejects.toThrow(
+      "API error on batch 3",
+    );
 
     // Batches 1 and 2 were saved before the failure
     const saved = JSON.parse(await readFile(embeddingsFile, "utf-8"));
@@ -123,9 +130,10 @@ describe("EmbedderProcessor", () => {
   it("force mode re-embeds all chunks and replaces existing embeddings.json", async () => {
     const chunks = [makeChunk("a"), makeChunk("b")];
     await writeFile(chunksFile, JSON.stringify(chunks));
-    await writeFile(embeddingsFile, JSON.stringify([
-      { ...chunks[0], embedding: [9, 9, 9], embeddedAt: 0 },
-    ]));
+    await writeFile(
+      embeddingsFile,
+      JSON.stringify([{ ...chunks[0], embedding: [9, 9, 9], embeddedAt: 0 }]),
+    );
 
     const provider = makeProvider();
     const processor = new EmbedderProcessor(provider, { batchSize: 10 });
@@ -134,17 +142,21 @@ describe("EmbedderProcessor", () => {
     const saved = JSON.parse(await readFile(embeddingsFile, "utf-8"));
     // force=true: existing embedding replaced, both chunks re-embedded
     expect(saved).toHaveLength(2);
-    expect(saved.every((e: { embedding: number[] }) =>
-      JSON.stringify(e.embedding) === JSON.stringify([1, 2, 3]),
-    )).toBe(true);
+    expect(
+      saved.every(
+        (e: { embedding: number[] }) =>
+          JSON.stringify(e.embedding) === JSON.stringify([1, 2, 3]),
+      ),
+    ).toBe(true);
   });
 
   it("returns empty and skips embedding when all chunks are already in embeddings.json", async () => {
     const chunk = makeChunk("hello");
     await writeFile(chunksFile, JSON.stringify([chunk]));
-    await writeFile(embeddingsFile, JSON.stringify([
-      { ...chunk, embedding: [1, 2, 3], embeddedAt: 0 },
-    ]));
+    await writeFile(
+      embeddingsFile,
+      JSON.stringify([{ ...chunk, embedding: [1, 2, 3], embeddedAt: 0 }]),
+    );
 
     const provider = makeProvider();
     const processor = new EmbedderProcessor(provider, { batchSize: 10 });

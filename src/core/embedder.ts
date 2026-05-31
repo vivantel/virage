@@ -7,7 +7,13 @@ import { readFile, writeFile, mkdir } from "fs/promises";
 import { dirname } from "path";
 import { createHash } from "crypto";
 import { EmbedError } from "./errors.js";
-import { sleep, withRetry, withConcurrency, batchBySize, RetryOptions } from "./utils.js";
+import {
+  sleep,
+  withRetry,
+  withConcurrency,
+  batchBySize,
+  RetryOptions,
+} from "./utils.js";
 
 function chunkContentHash(chunk: Chunk): string {
   if (chunk.contentHash) return chunk.contentHash;
@@ -215,11 +221,18 @@ export class EmbedderProcessor {
 
     console.log(`\n📝 Need to embed ${chunksToEmbed.length} chunks`);
 
-    const batches = batchBySize(chunksToEmbed, this.batchSize, (c) => c.content.length, this.maxBatchChars);
+    const batches = batchBySize(
+      chunksToEmbed,
+      this.batchSize,
+      (c) => c.content.length,
+      this.maxBatchChars,
+    );
     const newEmbeddings: EmbeddedChunk[] = [];
 
     for (let i = 0; i < batches.length; i++) {
-      console.log(`\n🔢 Batch ${i + 1}/${batches.length} (${batches[i].length} chunks)`);
+      console.log(
+        `\n🔢 Batch ${i + 1}/${batches.length} (${batches[i].length} chunks)`,
+      );
       const embedded = await this.embedBatch(batches[i]);
       newEmbeddings.push(...embedded);
       await this.saveEmbeddings(embedded, chunksFile, force && i === 0);

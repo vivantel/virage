@@ -3,7 +3,10 @@ import { batchArray, batchBySize } from "./utils.js";
 
 describe("batchArray", () => {
   it("splits evenly", () => {
-    expect(batchArray([1, 2, 3, 4], 2)).toEqual([[1, 2], [3, 4]]);
+    expect(batchArray([1, 2, 3, 4], 2)).toEqual([
+      [1, 2],
+      [3, 4],
+    ]);
   });
 
   it("last batch is smaller when count is not divisible", () => {
@@ -21,7 +24,10 @@ describe("batchBySize", () => {
   it("splits by item count when size limit is not reached", () => {
     const items = ["a", "b", "c", "d"];
     const batches = batchBySize(items, 2, sizeOf, Infinity);
-    expect(batches).toEqual([["a", "b"], ["c", "d"]]);
+    expect(batches).toEqual([
+      ["a", "b"],
+      ["c", "d"],
+    ]);
   });
 
   it("splits by total size when item count limit is not reached", () => {
@@ -44,7 +50,10 @@ describe("batchBySize", () => {
     const items = ["aa", "bb", "cc", "dd"]; // 2 chars each
     const batches = batchBySize(items, 2, sizeOf, 100);
     // count limit (2) triggers before size limit
-    expect(batches).toEqual([["aa", "bb"], ["cc", "dd"]]);
+    expect(batches).toEqual([
+      ["aa", "bb"],
+      ["cc", "dd"],
+    ]);
   });
 
   it("places an oversized single item in its own batch rather than dropping it", () => {
@@ -65,6 +74,9 @@ describe("batchBySize", () => {
     const nums = [10, 20, 30, 5];
     const batches = batchBySize(nums, 10, (n) => n, 35);
     // 10+20=30 ≤ 35; 30+30=60 > 35 → new batch; 30+5=35 ≤ 35
-    expect(batches).toEqual([[10, 20], [30, 5]]);
+    expect(batches).toEqual([
+      [10, 20],
+      [30, 5],
+    ]);
   });
 });
