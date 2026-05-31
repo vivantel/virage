@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.0](https://github.com/vivantel/rag_core/compare/v2.0.0...v2.1.0) (2026-05-31)
+
+
+### Features
+
+* per-pattern strategy shorthand in createChunker + smart init auto-detection ([41b0e8e](https://github.com/vivantel/rag_core/commit/41b0e8e505f8299075c2510a9aee67232ecdf842))
+
 ## [2.0.0](https://github.com/vivantel/rag_core/compare/v1.1.3...v2.0.0) (2026-05-31)
 
 
