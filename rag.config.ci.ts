@@ -27,13 +27,22 @@ const embedder: EmbeddingProvider = {
   },
 };
 
-const supabase = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_KEY!);
+let _supabase: ReturnType<typeof createClient> | null = null;
+function getSupabase() {
+  if (!_supabase) {
+    const url = process.env.SUPABASE_URL;
+    const key = process.env.SUPABASE_KEY;
+    if (!url || !key) throw new Error('SUPABASE_URL and SUPABASE_KEY env vars are required');
+    _supabase = createClient(url, key);
+  }
+  return _supabase;
+}
 
 const vectorStore: VectorStore = {
   name: 'supabase',
   async initialize() {},
   async upsert(docs) {
-    await supabase.from('documents').upsert(
+    await getSupabase().from('documents').upsert(
       docs.map((d) => ({
         content: d.content,
         embedding: d.embedding,
@@ -44,7 +53,7 @@ const vectorStore: VectorStore = {
     );
   },
   async deleteBySourceFile(files) {
-    await supabase.from('documents').delete().in('source_file', files);
+    await getSupabase().from('documents').delete().in('source_file', files);
   },
   async getCurrentState() {
     const { data } = await supabase
@@ -53,7 +62,7 @@ const vectorStore: VectorStore = {
     return new Map((data ?? []).map((r) => [r.source_file, r.commit_hash]));
   },
   async search(embedding, topK): Promise<VectorSearchResult[]> {
-    const { data } = await supabase.rpc('match_documents', {
+    const { data } = await getSupabase().rpc('match_documents', {
       query_embedding: embedding,
       match_count: topK,
     });

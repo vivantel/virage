@@ -90,7 +90,12 @@ export async function loadConfig(
   let configModule;
   try {
     const configUrl = pathToFileURL(configPath).href;
-    configModule = await import(configUrl);
+    if (configPath.endsWith(".ts")) {
+      const { tsImport } = await import("tsx/esm/api");
+      configModule = await tsImport(configUrl, import.meta.url);
+    } else {
+      configModule = await import(configUrl);
+    }
   } catch (err) {
     throw new ConfigError(`Cannot load config file: ${configPath}`, {
       suggestion:
