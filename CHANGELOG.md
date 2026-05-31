@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.0](https://github.com/vivantel/rag_core/compare/v1.1.3...v2.0.0) (2026-05-31)
+
+
+### ⚠ BREAKING CHANGES
+
+* v2.0.0 — plugin ecosystem, monorepo, watch mode, config validation
+
+### Features
+
+* v1.2.0 — CLI init/validate commands, error classes, dry-run, examples ([d192b89](https://github.com/vivantel/rag_core/commit/d192b894dbf5fcf711322cf14e5defe51bcec311))
+* v1.3.0 — retry, parallel embeddings, resume, telemetry, notifications ([da2280f](https://github.com/vivantel/rag_core/commit/da2280f331defefc8d90f53b1f471cd3180a7b9b))
+* v2.0.0 — plugin ecosystem, monorepo, watch mode, config validation ([554d196](https://github.com/vivantel/rag_core/commit/554d1967c1f9dd52b1dd54a812d5a597c737e39c))
+
 ## [1.1.3](https://github.com/vivantel/rag_core/compare/v1.1.2...v1.1.3) (2026-05-31)
 
 
