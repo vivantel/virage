@@ -47,6 +47,12 @@ export class EmbedderProcessor {
       const texts = chunks.map((c) => c.content);
       const embeddings = await this.provider.embedBatch(texts);
 
+      if (embeddings.length !== chunks.length) {
+        throw new Error(
+          `embedBatch returned ${embeddings.length} embeddings for ${chunks.length} chunks`,
+        );
+      }
+
       for (let i = 0; i < chunks.length; i++) {
         results.push({
           ...chunks[i],
@@ -86,9 +92,15 @@ export class EmbedderProcessor {
     let chunks: Chunk[];
     try {
       const content = await readFile(chunksFile, "utf-8");
-      chunks = JSON.parse(content);
-    } catch {
-      throw new Error(`Chunks file not found: ${chunksFile}`);
+      const parsed: unknown = JSON.parse(content);
+      if (!Array.isArray(parsed)) {
+        throw new Error("chunks file does not contain a JSON array");
+      }
+      chunks = parsed as Chunk[];
+    } catch (err) {
+      throw new Error(
+        `Failed to load chunks from ${chunksFile}: ${err instanceof Error ? err.message : String(err)}`,
+      );
     }
 
     console.log(`📖 Loaded ${chunks.length} chunks from ${chunksFile}`);

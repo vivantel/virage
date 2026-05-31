@@ -29,6 +29,12 @@ Thumbs.db
 coverage/
 .nyc_output/
 
+# Test artifacts
+test-*.json
+npm-audit*.json
+npm-outdated*.json
+*.tgz
+
 # Logs
 logs/
 *.log

@@ -17,20 +17,15 @@ export class ChunkProcessor {
     commitHash: string,
     chunker: FileChunker,
   ): Promise<Chunk[]> {
-    try {
-      const chunks = await chunker.chunk(filePath, commitHash);
+    const chunks = await chunker.chunk(filePath, commitHash);
 
-      for (const chunk of chunks) {
-        chunk.contentHash = computeContentHash(chunk.content);
-        chunk.sourceFile = filePath;
-        chunk.commitHash = commitHash;
-      }
-
-      return chunks;
-    } catch (error) {
-      console.error(`  ❌ Error processing ${filePath}: ${error}`);
-      return [];
+    for (const chunk of chunks) {
+      chunk.contentHash = computeContentHash(chunk.content);
+      chunk.sourceFile = filePath;
+      chunk.commitHash = commitHash;
     }
+
+    return chunks;
   }
 
   async processFiles(
@@ -38,6 +33,7 @@ export class ChunkProcessor {
     fileState: Map<string, { commitHash: string; chunker: FileChunker }>,
   ): Promise<Chunk[]> {
     const allChunks: Chunk[] = [];
+    let errorCount = 0;
 
     for (let i = 0; i < files.length; i++) {
       const filePath = files[i];
@@ -50,18 +46,27 @@ export class ChunkProcessor {
 
       console.log(`  [${i + 1}/${files.length}] ${filePath}`);
 
-      const chunks = await this.processFile(
-        filePath,
-        info.commitHash,
-        info.chunker,
-      );
+      try {
+        const chunks = await this.processFile(
+          filePath,
+          info.commitHash,
+          info.chunker,
+        );
 
-      if (chunks.length > 0) {
-        allChunks.push(...chunks);
-        console.log(`    ✅ Generated ${chunks.length} chunk(s)`);
-      } else {
-        console.log(`    ⚠️ No chunks generated (skipped)`);
+        if (chunks.length > 0) {
+          allChunks.push(...chunks);
+          console.log(`    ✅ Generated ${chunks.length} chunk(s)`);
+        } else {
+          console.log(`    ⚠️ No chunks generated (skipped)`);
+        }
+      } catch (error) {
+        errorCount++;
+        console.error(`    ❌ Error processing ${filePath}: ${error}`);
       }
+    }
+
+    if (errorCount > 0) {
+      console.warn(`\n⚠️ ${errorCount} file(s) failed during chunking.`);
     }
 
     return allChunks;
@@ -76,9 +81,12 @@ export class ChunkProcessor {
     let existing: Chunk[] = [];
     try {
       const content = await readFile(outputFile, "utf-8");
-      existing = JSON.parse(content);
+      const parsed: unknown = JSON.parse(content);
+      if (Array.isArray(parsed)) {
+        existing = parsed as Chunk[];
+      }
     } catch {
-      // File doesn't exist
+      // File doesn't exist or is not valid JSON — start fresh
     }
 
     const processedFiles = new Set(chunks.map((c) => c.sourceFile));

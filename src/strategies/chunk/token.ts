@@ -55,7 +55,7 @@ export function tokenStrategy(
           });
         }
 
-        start = end - overlapChars;
+        start = Math.max(end - overlapChars, start + 1);
       }
 
       return chunks;

@@ -4,6 +4,14 @@ import {
   EmbeddedChunk,
 } from "../interfaces/index.js";
 import { readFile } from "fs/promises";
+import { createHash } from "crypto";
+
+function contentHash(chunk: EmbeddedChunk): string {
+  return (
+    chunk.contentHash ??
+    createHash("sha256").update(chunk.content).digest("hex").slice(0, 16)
+  );
+}
 
 export class Uploader {
   private vectorStore: VectorStore;
@@ -22,7 +30,7 @@ export class Uploader {
       embedding: chunk.embedding,
       sourceFile: chunk.sourceFile,
       commitHash: chunk.commitHash,
-      contentHash: chunk.contentHash!,
+      contentHash: contentHash(chunk),
       collection,
     };
   }
@@ -37,9 +45,15 @@ export class Uploader {
     let embeddings: EmbeddedChunk[];
     try {
       const content = await readFile(embeddingsFile, "utf-8");
-      embeddings = JSON.parse(content);
-    } catch {
-      throw new Error(`Embeddings file not found: ${embeddingsFile}`);
+      const parsed: unknown = JSON.parse(content);
+      if (!Array.isArray(parsed)) {
+        throw new Error("embeddings file does not contain a JSON array");
+      }
+      embeddings = parsed as EmbeddedChunk[];
+    } catch (err) {
+      throw new Error(
+        `Failed to load embeddings from ${embeddingsFile}: ${err instanceof Error ? err.message : String(err)}`,
+      );
     }
 
     console.log(

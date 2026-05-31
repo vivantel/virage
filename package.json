@@ -7,6 +7,10 @@
     "url": "https://github.com/vivantel/rag_core"
   },
   "description": "Core RAG pipeline tools - universal chunking, embedding, vector store interfaces",
+  "files": [
+    "dist",
+    "README.md"
+  ],
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "bin": {

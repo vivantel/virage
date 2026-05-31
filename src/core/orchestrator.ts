@@ -6,7 +6,9 @@ import {
   FileChunker,
   EmbeddingProvider,
   VectorStore,
+  Chunk,
 } from "../interfaces/index.js";
+import { readFile } from "fs/promises";
 
 export interface RAGPipelineConfig {
   chunkers: FileChunker[];
@@ -20,6 +22,25 @@ export interface RAGPipelineConfig {
     rateLimitMs?: number;
     batchSize?: number;
   };
+}
+
+async function loadPreviousState(
+  chunksFile: string,
+): Promise<Map<string, string>> {
+  try {
+    const content = await readFile(chunksFile, "utf-8");
+    const parsed = JSON.parse(content);
+    if (!Array.isArray(parsed)) return new Map();
+    const state = new Map<string, string>();
+    for (const chunk of parsed as Chunk[]) {
+      if (chunk.sourceFile && chunk.commitHash) {
+        state.set(chunk.sourceFile, chunk.commitHash);
+      }
+    }
+    return state;
+  } catch {
+    return new Map();
+  }
 }
 
 export class Orchestrator {
@@ -41,7 +62,10 @@ export class Orchestrator {
     const gitTracker = new GitTracker(this.config.chunkers);
     const currentState = await gitTracker.getCurrentState();
 
-    const previousState = new Map<string, string>();
+    const previousState = this.config.options?.force
+      ? new Map<string, string>()
+      : await loadPreviousState(this.chunksFile);
+
     const { toProcess, toDelete } =
       await gitTracker.getChangedFiles(previousState);
 

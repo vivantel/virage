@@ -4,40 +4,6 @@ import { FileChunker } from "../interfaces/index.js";
 import { minimatch } from "minimatch";
 import path from "path";
 
-const MAX_FILES_PER_BATCH = 100;
-const MAX_CMD_LEN = 32000;
-
-function batchFiles(files: string[]): string[][] {
-  const batches: string[][] = [];
-  let currentBatch: string[] = [];
-  let currentLen = 0;
-  const baseCmdLen = "git log -1 --format=%H --all -- ".length;
-
-  for (const file of files) {
-    const fileLen = file.length + 1;
-
-    if (
-      currentBatch.length >= MAX_FILES_PER_BATCH ||
-      currentLen + fileLen > MAX_CMD_LEN
-    ) {
-      if (currentBatch.length > 0) {
-        batches.push(currentBatch);
-        currentBatch = [];
-        currentLen = baseCmdLen;
-      }
-    }
-
-    currentBatch.push(file);
-    currentLen += fileLen;
-  }
-
-  if (currentBatch.length > 0) {
-    batches.push(currentBatch);
-  }
-
-  return batches;
-}
-
 export class GitTracker {
   private git: SimpleGit;
   private chunkers: FileChunker[];
@@ -53,23 +19,15 @@ export class GitTracker {
 
   private async getCurrentHead(): Promise<string> {
     if (!this.currentHeadCache) {
-      try {
-        this.currentHeadCache = await this.git.revparse(["HEAD"]);
-      } catch {
-        this.currentHeadCache = "dev_0000000000000000000000000000000000000000";
-      }
+      this.currentHeadCache = await this.git.revparse(["HEAD"]);
     }
     return this.currentHeadCache;
   }
 
   private async hasUncommittedChanges(): Promise<boolean> {
     if (this.uncommittedCache === null) {
-      try {
-        const status = await this.git.status();
-        this.uncommittedCache = status.files.length > 0;
-      } catch {
-        this.uncommittedCache = false;
-      }
+      const status = await this.git.status();
+      this.uncommittedCache = status.files.length > 0;
     }
     return this.uncommittedCache;
   }
@@ -99,39 +57,24 @@ export class GitTracker {
 
   async getCommitHashes(files: string[]): Promise<Map<string, string>> {
     const commitMap = new Map<string, string>();
-    const batches = batchFiles(files);
-    const currentHead = await this.getCurrentHead();
 
-    for (const batch of batches) {
-      try {
-        const output = await this.git.raw([
-          "log",
-          "-1",
-          "--format=%H",
-          "--all",
-          "--",
-          ...batch,
-        ]);
-        const lines = output.trim().split("\n");
-
-        for (let i = 0; i < lines.length && i < batch.length; i++) {
-          const hash = lines[i].trim();
-          if (hash) {
-            commitMap.set(batch[i], hash);
-          }
+    await Promise.all(
+      files.map(async (file) => {
+        try {
+          const output = await this.git.raw([
+            "log",
+            "-1",
+            "--format=%H",
+            "--",
+            file,
+          ]);
+          const hash = output.trim();
+          commitMap.set(file, hash || (await this.getCurrentHead()));
+        } catch {
+          commitMap.set(file, await this.getCurrentHead());
         }
-
-        for (const file of batch) {
-          if (!commitMap.has(file)) {
-            commitMap.set(file, currentHead);
-          }
-        }
-      } catch {
-        for (const file of batch) {
-          commitMap.set(file, currentHead);
-        }
-      }
-    }
+      }),
+    );
 
     return commitMap;
   }
