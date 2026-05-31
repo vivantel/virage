@@ -1,22 +1,23 @@
 import type { RAGPipelineConfig, EmbeddingProvider, VectorStore, VectorSearchResult } from '@vivantel/rag-core';
 import { createChunker, markdownHeadersStrategy, tokenStrategy, wholeFileStrategy } from '@vivantel/rag-core';
 
-// Install: npm install openai
-// import OpenAI from 'openai';
-// const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+// Requires GITHUB_TOKEN in your environment (.env or CI secret)
 
 const embedder: EmbeddingProvider = {
-  name: 'openai',
+  name: 'github-models',
   dimensions: 1536, // text-embedding-3-small
   async embed(text: string): Promise<number[]> {
-    // const res = await openai.embeddings.create({ model: 'text-embedding-3-small', input: text });
-    // return res.data[0].embedding;
-    throw new Error('Configure your OpenAI embedder — uncomment and adapt the lines above');
-  },
-  async embedBatch(texts: string[]): Promise<number[][]> {
-    // const res = await openai.embeddings.create({ model: 'text-embedding-3-small', input: texts });
-    // return res.data.map(d => d.embedding);
-    throw new Error('Configure your OpenAI embedder — uncomment and adapt the lines above');
+    const res = await fetch('https://models.github.ai/inference/embeddings', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${process.env.GITHUB_TOKEN}`,
+      },
+      body: JSON.stringify({ model: 'openai/text-embedding-3-small', input: text }),
+    });
+    if (!res.ok) throw new Error(`GitHub Models error: ${res.statusText}`);
+    const json = await res.json() as { data: Array<{ embedding: number[] }> };
+    return json.data[0].embedding;
   },
 };
 
