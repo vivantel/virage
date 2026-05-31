@@ -153,9 +153,9 @@ export class EmbedderProcessor {
     const final = force
       ? []
       : existing.filter((e) => {
-        const hash = e.contentHash || chunkContentHash(e);
-        return !newByHash.has(hash);
-      });
+          const hash = e.contentHash || chunkContentHash(e);
+          return !newByHash.has(hash);
+        });
 
     final.push(...newEmbeddings);
 

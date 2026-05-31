@@ -40,7 +40,7 @@
     "outdated": "npm outdated",
     "postpublish": "echo \"✅ Published to npm\"",
     "postversion": "git push && git push --tags",
-    "precommit": "npm run type-check && npm run format && npm run lint && npm audit fix --force",
+    "precommit": "npm run type-check && npm run format:check && npm run lint && npm audit",
     "prepublishOnly": "npm run build && npm test",
     "prepush": "npm run test:run && npm run audit && npm run format:check",
     "release:major": "npm version major && npm publish",
