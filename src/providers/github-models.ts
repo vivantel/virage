@@ -6,6 +6,7 @@ export interface GitHubModelsEmbedderOptions {
   model?: string;
   dimensions?: number;
   endpoint?: string;
+  maxRetryWaitMs?: number;
 }
 
 export class GitHubModelsEmbedder implements EmbeddingProvider {
@@ -15,6 +16,7 @@ export class GitHubModelsEmbedder implements EmbeddingProvider {
   private readonly token: string;
   private readonly model: string;
   private readonly endpoint: string;
+  private readonly maxRetryWaitMs: number;
 
   constructor(options: GitHubModelsEmbedderOptions) {
     this.token = options.token;
@@ -22,6 +24,7 @@ export class GitHubModelsEmbedder implements EmbeddingProvider {
     this.dimensions = options.dimensions ?? 1536;
     this.endpoint =
       options.endpoint ?? "https://models.github.ai/inference/embeddings";
+    this.maxRetryWaitMs = options.maxRetryWaitMs ?? 5 * 60 * 1000;
   }
 
   private async request(input: string | string[]): Promise<number[][]> {
@@ -36,9 +39,14 @@ export class GitHubModelsEmbedder implements EmbeddingProvider {
     });
 
     if (res.status === 429) {
-      const waitSec = parseInt(res.headers.get("retry-after") ?? "60", 10);
-      console.warn(`⏳ GitHub Models rate limited — waiting ${waitSec}s`);
-      await sleep(waitSec * 1000);
+      const waitMs = parseInt(res.headers.get("retry-after") ?? "60", 10) * 1000;
+      if (waitMs > this.maxRetryWaitMs) {
+        throw new Error(
+          `GitHub Models 429 — retry-after ${waitMs / 1000}s exceeds maxRetryWaitMs ${this.maxRetryWaitMs / 1000}s`,
+        );
+      }
+      console.warn(`⏳ GitHub Models rate limited — waiting ${waitMs / 1000}s`);
+      await sleep(waitMs);
       throw new Error("GitHub Models 429 — rate limited");
     }
 
@@ -57,6 +65,11 @@ export class GitHubModelsEmbedder implements EmbeddingProvider {
 
     if (remaining === 0 && reset > 0) {
       const waitMs = Math.max(0, reset * 1000 - Date.now()) + 500;
+      if (waitMs > this.maxRetryWaitMs) {
+        throw new Error(
+          `GitHub Models rate limit exhausted — reset in ${Math.ceil(waitMs / 1000)}s exceeds maxRetryWaitMs ${this.maxRetryWaitMs / 1000}s`,
+        );
+      }
       console.warn(
         `⏳ Rate limit window exhausted — waiting ${Math.ceil(waitMs / 1000)}s`,
       );

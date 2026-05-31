@@ -120,6 +120,35 @@ describe("GitHubModelsEmbedder", () => {
       await embedder.embed("text");
       expect(mockSleep).not.toHaveBeenCalled();
     });
+
+    it("throws immediately without sleeping when reset wait exceeds maxRetryWaitMs", async () => {
+      const strict = new GitHubModelsEmbedder({
+        token: "tok",
+        maxRetryWaitMs: 30_000, // 30s limit
+      });
+      const resetAt = Math.floor(Date.now() / 1000) + 600; // 10 min from now
+      vi.mocked(fetch).mockResolvedValue(
+        makeSuccessResponse([[0.1, 0.2, 0.3]], {
+          "x-ratelimit-remaining": "0",
+          "x-ratelimit-reset": String(resetAt),
+        }),
+      );
+      await expect(strict.embed("text")).rejects.toThrow("exceeds maxRetryWaitMs");
+      expect(mockSleep).not.toHaveBeenCalled();
+    });
+
+    it("sleeps until reset when wait is within maxRetryWaitMs", async () => {
+      const resetAt = Math.floor(Date.now() / 1000) + 10; // 10s from now
+      vi.mocked(fetch).mockResolvedValue(
+        makeSuccessResponse([[0.1, 0.2, 0.3]], {
+          "x-ratelimit-remaining": "0",
+          "x-ratelimit-reset": String(resetAt),
+        }),
+      );
+      // default maxRetryWaitMs is 5min — 10s is within limit
+      await embedder.embed("text");
+      expect(mockSleep).toHaveBeenCalledOnce();
+    });
   });
 
   describe("429 handling", () => {
@@ -139,6 +168,30 @@ describe("GitHubModelsEmbedder", () => {
       vi.mocked(fetch).mockResolvedValue(makeErrorResponse(429, {}));
       await expect(embedder.embed("text")).rejects.toThrow();
       expect(mockSleep).toHaveBeenCalledWith(60_000);
+    });
+
+    it("throws immediately without sleeping when retry-after exceeds maxRetryWaitMs", async () => {
+      const strict = new GitHubModelsEmbedder({
+        token: "tok",
+        maxRetryWaitMs: 10_000, // 10s limit
+      });
+      vi.mocked(fetch).mockResolvedValue(
+        makeErrorResponse(429, {}, { "retry-after": "120" }), // 120s > 10s
+      );
+      await expect(strict.embed("text")).rejects.toThrow("exceeds maxRetryWaitMs");
+      expect(mockSleep).not.toHaveBeenCalled();
+    });
+
+    it("sleeps and throws when retry-after is within maxRetryWaitMs", async () => {
+      const strict = new GitHubModelsEmbedder({
+        token: "tok",
+        maxRetryWaitMs: 120_000, // 2 min limit
+      });
+      vi.mocked(fetch).mockResolvedValue(
+        makeErrorResponse(429, {}, { "retry-after": "30" }), // 30s < 2min
+      );
+      await expect(strict.embed("text")).rejects.toThrow("429");
+      expect(mockSleep).toHaveBeenCalledWith(30_000);
     });
   });
 
