@@ -27,7 +27,9 @@ const mockVectorStore: VectorStore = {
   search: vi.fn().mockResolvedValue([]),
 };
 
-function makeConfig(overrides?: Partial<RAGPipelineConfig["options"]>): RAGPipelineConfig {
+function makeConfig(
+  overrides?: Partial<RAGPipelineConfig["options"]>,
+): RAGPipelineConfig {
   return {
     chunkers: [mockChunker],
     embedder: mockEmbedder,

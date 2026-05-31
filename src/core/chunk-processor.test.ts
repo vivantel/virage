@@ -23,7 +23,11 @@ describe("ChunkProcessor", () => {
 
   it("processFile: populates contentHash, sourceFile, and commitHash on returned chunks", async () => {
     const processor = new ChunkProcessor([mockChunker]);
-    const chunks = await processor.processFile("file.txt", "hash123", mockChunker);
+    const chunks = await processor.processFile(
+      "file.txt",
+      "hash123",
+      mockChunker,
+    );
 
     expect(chunks).toHaveLength(1);
     expect(chunks[0].contentHash).toBeDefined();
@@ -40,7 +44,11 @@ describe("ChunkProcessor", () => {
       chunk: vi.fn().mockResolvedValue([]),
     };
     const processor = new ChunkProcessor([emptyChunker]);
-    const chunks = await processor.processFile("file.txt", "hash123", emptyChunker);
+    const chunks = await processor.processFile(
+      "file.txt",
+      "hash123",
+      emptyChunker,
+    );
     expect(chunks).toHaveLength(0);
   });
 
@@ -68,7 +76,10 @@ describe("ChunkProcessor", () => {
 
   it("processFiles: skips files with no entry in fileState", async () => {
     const processor = new ChunkProcessor([mockChunker]);
-    const fileState = new Map<string, { commitHash: string; chunker: FileChunker }>();
+    const fileState = new Map<
+      string,
+      { commitHash: string; chunker: FileChunker }
+    >();
     const chunks = await processor.processFiles(["a.txt"], fileState);
     expect(chunks).toHaveLength(0);
   });
@@ -84,7 +95,10 @@ describe("ChunkProcessor", () => {
       ["bad.txt", { commitHash: "h1", chunker: failingChunker }],
       ["good.txt", { commitHash: "h2", chunker: mockChunker }],
     ]);
-    const chunks = await processor.processFiles(["bad.txt", "good.txt"], fileState);
+    const chunks = await processor.processFiles(
+      ["bad.txt", "good.txt"],
+      fileState,
+    );
     expect(chunks).toHaveLength(1);
     expect(chunks[0].sourceFile).toBe("good.txt");
   });
