@@ -51,7 +51,20 @@ export class GitTracker {
   }
 
   async getAllTrackedFiles(): Promise<string[]> {
-    const files = await glob(this.allPatterns, { nodir: true });
+    const files = await glob(this.allPatterns, {
+      nodir: true,
+      ignore: [
+        "node_modules/**",
+        "dist/**",
+        "build/**",
+        "out/**",
+        "coverage/**",
+        ".git/**",
+        ".next/**",
+        ".turbo/**",
+        ".cache/**",
+      ],
+    });
     return [...new Set(files)].sort();
   }
 
