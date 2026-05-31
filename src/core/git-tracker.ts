@@ -1,6 +1,8 @@
-import simpleGit, { SimpleGit } from "simple-git";
+import { simpleGit, SimpleGit } from "simple-git";
 import { glob } from "glob";
 import { FileChunker } from "../interfaces/index.js";
+import { minimatch } from "minimatch";
+import path from "path";
 
 const MAX_FILES_PER_BATCH = 100;
 const MAX_CMD_LEN = 32000;
@@ -44,7 +46,7 @@ export class GitTracker {
   private uncommittedCache: boolean | null = null;
 
   constructor(chunkers: FileChunker[]) {
-    this.git = simpleGit();
+    this.git = simpleGit(); // ← теперь работает
     this.chunkers = chunkers;
     this.allPatterns = chunkers.flatMap((c) => c.patterns);
   }
@@ -84,13 +86,11 @@ export class GitTracker {
   }
 
   private matchesPattern(filePath: string, pattern: string): boolean {
-    const regexPattern = pattern
-      .replace(/\./g, "\\.")
-      .replace(/\*\*/g, ".*")
-      .replace(/\*/g, "[^/]*")
-      .replace(/\?/g, ".");
-    const regex = new RegExp(`^${regexPattern}$`);
-    return regex.test(filePath);
+    // Нормализуем путь для кросс-платформенности
+    const normalizedPath = filePath.split(path.sep).join("/");
+    const normalizedPattern = pattern.split(path.sep).join("/");
+
+    return minimatch(normalizedPath, normalizedPattern);
   }
 
   async getAllTrackedFiles(): Promise<string[]> {

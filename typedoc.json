@@ -1,0 +1,11 @@
+{
+  "entryPoints": ["src/index.ts"],
+  "out": "docs/api",
+  "excludePrivate": true,
+  "excludeProtected": true,
+  "skipErrorChecking": true,
+  "validation": {
+    "invalidLink": false,
+    "notExported": false  // ← подавляет варнинги о неэкспортированных типах
+  }
+}
