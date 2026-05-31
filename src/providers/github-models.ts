@@ -39,7 +39,8 @@ export class GitHubModelsEmbedder implements EmbeddingProvider {
     });
 
     if (res.status === 429) {
-      const waitMs = parseInt(res.headers.get("retry-after") ?? "60", 10) * 1000;
+      const waitMs =
+        parseInt(res.headers.get("retry-after") ?? "60", 10) * 1000;
       if (waitMs > this.maxRetryWaitMs) {
         throw new Error(
           `GitHub Models 429 — retry-after ${waitMs / 1000}s exceeds maxRetryWaitMs ${this.maxRetryWaitMs / 1000}s`,

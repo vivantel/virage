@@ -133,7 +133,9 @@ describe("GitHubModelsEmbedder", () => {
           "x-ratelimit-reset": String(resetAt),
         }),
       );
-      await expect(strict.embed("text")).rejects.toThrow("exceeds maxRetryWaitMs");
+      await expect(strict.embed("text")).rejects.toThrow(
+        "exceeds maxRetryWaitMs",
+      );
       expect(mockSleep).not.toHaveBeenCalled();
     });
 
@@ -178,7 +180,9 @@ describe("GitHubModelsEmbedder", () => {
       vi.mocked(fetch).mockResolvedValue(
         makeErrorResponse(429, {}, { "retry-after": "120" }), // 120s > 10s
       );
-      await expect(strict.embed("text")).rejects.toThrow("exceeds maxRetryWaitMs");
+      await expect(strict.embed("text")).rejects.toThrow(
+        "exceeds maxRetryWaitMs",
+      );
       expect(mockSleep).not.toHaveBeenCalled();
     });
 
