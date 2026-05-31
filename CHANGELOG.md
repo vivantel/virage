@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.3](https://github.com/vivantel/rag_core/compare/v2.1.2...v2.1.3) (2026-05-31)
+
+
+### Bug Fixes
+
+* exclude build artifacts and deps from glob in GitTracker ([6cd0c01](https://github.com/vivantel/rag_core/commit/6cd0c0156e656b1b2782d9749b96f9cd93c676db))
+
 ## [2.1.2](https://github.com/vivantel/rag_core/compare/v2.1.1...v2.1.2) (2026-05-31)
 
 
