@@ -1,0 +1,38 @@
+{
+  "release-type": "node",
+  "bootstrap-sha": "main",
+  "separate-pull-requests": true,
+  "include-component-in-tag": false,
+  "tag-separator": "@",
+  "packages": {
+    ".": {
+      "package-name": "@vivantel/rag-core",
+      "changelog-path": "CHANGELOG.md",
+      "release-type": "node",
+      "bump-minor-pre-major": true,
+      "bump-patch-for-minor-pre-major": true,
+      "draft": false,
+      "prerelease": false
+    }
+  },
+  "plugins": [
+    {
+      "type": "node-workspace",
+      "merge": false
+    },
+    {
+      "type": "sentence-case",
+      "pull-request-title-pattern": "chore: release ${version}"
+    }
+  ],
+  "changelog-sections": [
+    {"type": "feat", "section": "Features", "hidden": false},
+    {"type": "fix", "section": "Bug Fixes", "hidden": false},
+    {"type": "perf", "section": "Performance Improvements", "hidden": false},
+    {"type": "refactor", "section": "Code Refactoring", "hidden": false},
+    {"type": "docs", "section": "Documentation", "hidden": false},
+    {"type": "style", "section": "Styles", "hidden": true},
+    {"type": "test", "section": "Tests", "hidden": true},
+    {"type": "chore", "section": "Miscellaneous Chores", "hidden": true}
+  ]
+}
