@@ -1,6 +1,5 @@
 {
   "name": "vivantel-rag-monorepo",
-  "version": "2.5.1",
   "private": true,
   "type": "module",
   "workspaces": [
