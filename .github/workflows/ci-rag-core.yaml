@@ -8,7 +8,7 @@ on:
       - 'eslint.config.js'
       - 'package.json'
       - 'package-lock.json'
-      - '.github/workflows/ci.yaml'
+      - '.github/workflows/ci-rag-core.yaml'
   pull_request:
     branches: [master]
     paths:
@@ -16,7 +16,7 @@ on:
       - 'eslint.config.js'
       - 'package.json'
       - 'package-lock.json'
-      - '.github/workflows/ci.yaml'
+      - '.github/workflows/ci-rag-core.yaml'
 
 jobs:
   build-and-test:
