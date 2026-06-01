@@ -5,6 +5,14 @@
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.4.2](https://github.com/vivantel/rag_core/compare/v2.4.1...v2.4.2) (2026-06-01)
+
+
+### Bug Fixes
+
+* invoke rag-update binary directly in CI instead of via npx ([51f73df](https://github.com/vivantel/rag_core/commit/51f73dfb538dc288f720effd6103bf797ca7ad39))
+* use direct node path to rag-update binary after monorepo move ([9dcaaee](https://github.com/vivantel/rag_core/commit/9dcaaeef9264ff22837138b70ceefa299e5497e2))
+
 ## [2.4.1](https://github.com/vivantel/rag_core/compare/v2.4.0...v2.4.1) (2026-06-01)
 
 
