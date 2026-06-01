@@ -34,6 +34,9 @@ jobs:
         # --ignore-scripts skips onnxruntime-node GPU binary download; CPU-only works fine in CI
         run: npm ci --ignore-scripts
 
+      - name: Build rag-core
+        run: npm run build --workspace packages/rag-core
+
       - name: Type check
         run: npm run type-check --workspace packages/rag-embedder-fastembed
 

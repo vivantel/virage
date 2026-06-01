@@ -72,6 +72,7 @@ jobs:
           registry-url: 'https://registry.npmjs.org'
           cache: "npm"
       - run: npm ci
+      - run: npm run build --workspace packages/rag-core
       - run: npm run build --workspace packages/rag-strategies
       - name: Publish
         run: npm publish --provenance --access public
@@ -95,6 +96,7 @@ jobs:
           registry-url: 'https://registry.npmjs.org'
           cache: "npm"
       - run: npm ci
+      - run: npm run build --workspace packages/rag-core
       - run: npm test --workspace packages/rag-embedder-openai
       - run: npm run build --workspace packages/rag-embedder-openai
       - name: Publish
@@ -119,6 +121,7 @@ jobs:
           registry-url: 'https://registry.npmjs.org'
           cache: "npm"
       - run: npm ci --ignore-scripts
+      - run: npm run build --workspace packages/rag-core
       - run: npm test --workspace packages/rag-embedder-transformers
       - run: npm run build --workspace packages/rag-embedder-transformers
       - name: Publish
@@ -143,6 +146,7 @@ jobs:
           registry-url: 'https://registry.npmjs.org'
           cache: "npm"
       - run: npm ci --ignore-scripts
+      - run: npm run build --workspace packages/rag-core
       - run: npm test --workspace packages/rag-embedder-fastembed
       - run: npm run build --workspace packages/rag-embedder-fastembed
       - name: Publish
