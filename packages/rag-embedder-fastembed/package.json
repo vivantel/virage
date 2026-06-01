@@ -51,8 +51,8 @@
     "@vivantel/rag-core": "^2.0.0"
   },
   "devDependencies": {
-    "@vivantel/rag-core": "file:../rag-core",
     "@types/node": "^25.9.1",
+    "@vivantel/rag-core": "file:../rag-core",
     "typescript": "^6.0.3",
     "vitest": "^4.1.7"
   },
