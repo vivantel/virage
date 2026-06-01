@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.4.0](https://github.com/vivantel/rag_core/compare/rag-core@v2.3.0...rag-core@v2.4.0) (2026-06-01)
+
+
+### Features
+
+* Replace rag-store-supabase with rag-store-postgres ([9f97807](https://github.com/vivantel/rag_core/commit/9f97807067c1d0cd732257d8f9da2bd824d57169))
+* Test trusted publisher automation ([7fd08b9](https://github.com/vivantel/rag_core/commit/7fd08b96f32e7f7c2c2c02ec7e2eebb761d5fa7f))
+* Test trusted publisher automation ([c524461](https://github.com/vivantel/rag_core/commit/c5244615cf7e5e91457446b43d62efdd7928273c))
+
+
+### Bug Fixes
+
+* Post-restructuring audit fixes ([2708505](https://github.com/vivantel/rag_core/commit/2708505f5ec18a316e704b0393252153c9718970))
+* Remove prepare script from workspace packages ([d00e877](https://github.com/vivantel/rag_core/commit/d00e877fb782230ac3f81648fb9a08b209a3d739))
+* Use variable import specifier for optional @vivantel/rag-strategies ([59ee02a](https://github.com/vivantel/rag_core/commit/59ee02a2a287594b547ba8ba1ebb55e8f31e6c3e))
+
 ## [2.3.0](https://github.com/vivantel/rag_core/compare/v2.2.0...v2.3.0) (2026-06-01)
 
 
