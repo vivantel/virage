@@ -5,6 +5,13 @@
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.5.1](https://github.com/vivantel/rag_core/compare/v2.5.0...v2.5.1) (2026-06-01)
+
+
+### Bug Fixes
+
+* fix release-please monorepo config so packages are released independently ([9c97db3](https://github.com/vivantel/rag_core/commit/9c97db34f931bc0d477e6f2e3af2204501baf567))
+
 ## [2.5.0](https://github.com/vivantel/rag_core/compare/v2.4.2...v2.5.0) (2026-06-01)
 
 
