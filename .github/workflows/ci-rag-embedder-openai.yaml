@@ -5,11 +5,13 @@ on:
     branches: [master, develop]
     paths:
       - 'packages/rag-embedder-openai/**'
+      - 'packages/rag-core/**'
       - '.github/workflows/ci-rag-embedder-openai.yaml'
   pull_request:
     branches: [master]
     paths:
       - 'packages/rag-embedder-openai/**'
+      - 'packages/rag-core/**'
       - '.github/workflows/ci-rag-embedder-openai.yaml'
 
 jobs:
