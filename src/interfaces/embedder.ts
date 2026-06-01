@@ -17,6 +17,9 @@ export interface EmbeddingProvider {
   /** Convert text to embedding vector */
   embed(text: string): Promise<number[]>;
 
+  /** Suggested batch size for this provider (used as default when batchSize is not explicitly configured) */
+  readonly preferredBatchSize?: number;
+
   /** Batch convert (optional, for performance) */
   embedBatch?(texts: string[]): Promise<number[][]>;
 

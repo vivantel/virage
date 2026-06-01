@@ -63,8 +63,8 @@ const config: RAGPipelineConfig = {
   options: {
     chunksFile: './docs/rag/chunks.json',
     embeddingsFile: './docs/rag/embeddings.json',
-    batchSize: 20,
-    maxBatchChars: 100_000, // GitHub Models: 64K token limit ≈ 256K chars; 100K is a safe margin
+    maxBatchChars: 200_000, // GitHub Models: 64K token limit ≈ 256K chars; 200K (~50K tokens) is a safe margin
+    // batchSize auto-detected from GitHubModelsEmbedder.preferredBatchSize = 100
   },
 };
 

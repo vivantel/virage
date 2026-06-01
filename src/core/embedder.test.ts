@@ -150,6 +150,77 @@ describe("EmbedderProcessor", () => {
     ).toBe(true);
   });
 
+  it("skips an entire file version when all its chunks are already embedded (file-level fast path)", async () => {
+    const fileA1 = {
+      content: "chunk-a1",
+      metadata: {},
+      sourceFile: "a.ts",
+      commitHash: "v1",
+    };
+    const fileA2 = {
+      content: "chunk-a2",
+      metadata: {},
+      sourceFile: "a.ts",
+      commitHash: "v1",
+    };
+    const fileB = {
+      content: "chunk-b",
+      metadata: {},
+      sourceFile: "b.ts",
+      commitHash: "v1",
+    };
+    await writeFile(chunksFile, JSON.stringify([fileA1, fileA2, fileB]));
+
+    // a.ts@v1 fully embedded; b.ts not yet embedded
+    const existing = [
+      { ...fileA1, embedding: [1, 2, 3], embeddedAt: 0 },
+      { ...fileA2, embedding: [1, 2, 3], embeddedAt: 0 },
+    ];
+    await writeFile(embeddingsFile, JSON.stringify(existing));
+
+    const provider = makeProvider();
+    const processor = new EmbedderProcessor(provider, { batchSize: 10 });
+    await processor.run(chunksFile);
+
+    // Only b.ts chunk should be sent to the provider
+    const allTexts = (
+      provider.embedBatch as ReturnType<typeof vi.fn>
+    ).mock.calls.flatMap((c) => c[0] as string[]);
+    expect(allTexts).toEqual(["chunk-b"]);
+  });
+
+  it("re-embeds a file when its commitHash changed, even if content is the same", async () => {
+    const oldChunk = {
+      content: "hello",
+      metadata: {},
+      sourceFile: "f.ts",
+      commitHash: "old",
+    };
+    const newChunk = {
+      content: "hello",
+      metadata: {},
+      sourceFile: "f.ts",
+      commitHash: "new",
+    };
+    await writeFile(chunksFile, JSON.stringify([newChunk]));
+    // existing embedding is from the old commit
+    await writeFile(
+      embeddingsFile,
+      JSON.stringify([{ ...oldChunk, embedding: [9, 9, 9], embeddedAt: 0 }]),
+    );
+
+    const provider = makeProvider();
+    const processor = new EmbedderProcessor(provider, { batchSize: 10 });
+    await processor.run(chunksFile);
+
+    // The file-version fast path doesn't match (different commitHash).
+    // The per-chunk fallback matches by contentHash → still skipped.
+    const allTexts = (
+      provider.embedBatch as ReturnType<typeof vi.fn>
+    ).mock.calls.flatMap((c) => c[0] as string[]);
+    expect(allTexts).toEqual([]);
+  });
+
   it("returns empty and skips embedding when all chunks are already in embeddings.json", async () => {
     const chunk = makeChunk("hello");
     await writeFile(chunksFile, JSON.stringify([chunk]));

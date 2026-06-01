@@ -40,7 +40,7 @@ export class EmbedderProcessor {
   ) {
     this.provider = provider;
     this.rateLimitMs = options.rateLimitMs ?? 500;
-    this.batchSize = options.batchSize ?? 10;
+    this.batchSize = options.batchSize ?? provider.preferredBatchSize ?? 10;
     this.maxBatchChars = options.maxBatchChars ?? Infinity;
     this.retryOptions = options.retry ?? {};
     this.concurrency = options.concurrency ?? 1;
@@ -147,20 +147,70 @@ export class EmbedderProcessor {
       // No existing embeddings
     }
 
-    const existingState = new Map<string, EmbeddedChunk>();
+    // Two-level index:
+    //   (sourceFile::commitHash) → Set<contentHash>  — for file-level fast path
+    //   contentHash (global)                          — for per-chunk fallback
+    const embeddedFileVersions = new Map<string, Set<string>>();
+    const embeddedByContentHash = new Set<string>();
     for (const emb of existingEmbeddings) {
+      const key = `${emb.sourceFile}::${emb.commitHash}`;
       const hash = emb.contentHash || chunkContentHash(emb);
-      existingState.set(hash, emb);
+      embeddedByContentHash.add(hash);
+      const entry = embeddedFileVersions.get(key);
+      if (entry) {
+        entry.add(hash);
+      } else {
+        embeddedFileVersions.set(key, new Set([hash]));
+      }
     }
 
-    console.log(`📊 Existing embeddings: ${existingState.size} chunks`);
+    console.log(
+      `📊 Existing embeddings: ${existingEmbeddings.length} chunks across ${embeddedFileVersions.size} file version(s)`,
+    );
+
+    // Group incoming chunks by (sourceFile, commitHash)
+    const chunksByFileVersion = new Map<string, Chunk[]>();
+    for (const chunk of chunks) {
+      const key = `${chunk.sourceFile}::${chunk.commitHash}`;
+      const group = chunksByFileVersion.get(key);
+      if (group) {
+        group.push(chunk);
+      } else {
+        chunksByFileVersion.set(key, [chunk]);
+      }
+    }
 
     const chunksToEmbed: Chunk[] = [];
-    for (const chunk of chunks) {
-      const chunkHash = chunkContentHash(chunk);
-      if (!existingState.has(chunkHash)) {
-        chunksToEmbed.push(chunk);
+    let skippedFiles = 0;
+    let skippedChunks = 0;
+
+    for (const [key, fileChunks] of chunksByFileVersion) {
+      const fileVersionHashes = embeddedFileVersions.get(key);
+
+      // Fast path: every chunk for this (sourceFile, commitHash) is already embedded
+      if (
+        fileVersionHashes &&
+        fileVersionHashes.size === fileChunks.length &&
+        fileChunks.every((c) => fileVersionHashes.has(chunkContentHash(c)))
+      ) {
+        skippedFiles++;
+        skippedChunks += fileChunks.length;
+        continue;
       }
+
+      // Per-chunk fallback: check globally by contentHash (handles partial embeddings
+      // from interrupted runs, or content-identical chunks at a different commit)
+      for (const chunk of fileChunks) {
+        if (!embeddedByContentHash.has(chunkContentHash(chunk))) {
+          chunksToEmbed.push(chunk);
+        }
+      }
+    }
+
+    if (skippedFiles > 0) {
+      console.log(
+        `  ⏭️  Skipped ${skippedFiles} unchanged file version(s) (${skippedChunks} chunks)`,
+      );
     }
 
     return { chunksToEmbed };

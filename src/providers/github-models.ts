@@ -12,6 +12,7 @@ export interface GitHubModelsEmbedderOptions {
 export class GitHubModelsEmbedder implements EmbeddingProvider {
   readonly name = "github-models";
   readonly dimensions: number;
+  readonly preferredBatchSize = 100;
 
   private readonly token: string;
   private readonly model: string;
