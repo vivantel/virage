@@ -37,9 +37,12 @@ export async function resolveStrategy(
 
   let mod: StrategyModule | null = null;
 
-  // Prefer the dedicated package
+  // Prefer the dedicated package. Use a variable specifier so TypeScript does not
+  // attempt static module resolution — @vivantel/rag-strategies is an optional
+  // runtime dependency that may not be installed.
+  const strategiesPkg = "@vivantel/rag-strategies";
   try {
-    mod = (await import("@vivantel/rag-strategies")) as StrategyModule;
+    mod = (await import(strategiesPkg)) as StrategyModule;
   } catch {
     // Fall back to re-exports from core
     try {
