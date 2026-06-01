@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.3.0](https://github.com/vivantel/rag_core/compare/v2.2.0...v2.3.0) (2026-06-01)
+
+
+### Features
+
+* cap rate-limit wait with maxRetryWaitMs in GitHubModelsEmbedder ([2996d8d](https://github.com/vivantel/rag_core/commit/2996d8d9efea7b9ce41604dcb25145cc657c978b))
+* commit-hash file-level embedding skip + GitHub Models batch optimization ([8945a1d](https://github.com/vivantel/rag_core/commit/8945a1df448bc5d5daf1ce52931454d545ca0f56))
+* rate-limit-aware GitHub Models embedder + incremental checkpoint saves ([0cf30c0](https://github.com/vivantel/rag_core/commit/0cf30c055120669d9c01392063aea881446c8269))
+
+
+### Bug Fixes
+
+* apply prettier ([e4c2714](https://github.com/vivantel/rag_core/commit/e4c27142415741f1551b46a4e85faace75eec5e7))
+* apply prettier ([352faa3](https://github.com/vivantel/rag_core/commit/352faa358efd9915c70b49d59db07ebea5f5ff02))
+* correct GitHub Models endpoint and model name ([079b4c2](https://github.com/vivantel/rag_core/commit/079b4c2a99da6a193c021178dcf3fb6aea61f05a))
+* correct GitHub Models endpoint in rag.config.ts; gitignore docs/rag/ ([de21720](https://github.com/vivantel/rag_core/commit/de217204b373d07233da23f4bebd3f6bda577103))
+* only save RAG cache on pipeline success ([bf2e174](https://github.com/vivantel/rag_core/commit/bf2e1748a0cc74ce08428b2a73dd2d2052dd9774))
+* show response body in embed errors; revert to MODELS_TOKEN secret ([6c745b7](https://github.com/vivantel/rag_core/commit/6c745b78d43cd2eab86e15d667e062e39beaed20))
+
 ## [2.2.0](https://github.com/vivantel/rag_core/compare/v2.1.3...v2.2.0) (2026-05-31)
 
 
