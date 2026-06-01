@@ -23,10 +23,16 @@
     "build": "tsc",
     "type-check": "tsc --noEmit",
     "test": "vitest run",
-    "prepare": "npm run build",
     "prepublishOnly": "npm run build"
   },
-  "keywords": ["rag", "embeddings", "transformers", "huggingface", "local", "offline"],
+  "keywords": [
+    "rag",
+    "embeddings",
+    "transformers",
+    "huggingface",
+    "local",
+    "offline"
+  ],
   "author": "Vivantel",
   "license": "MIT",
   "repository": {

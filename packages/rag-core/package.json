@@ -40,7 +40,6 @@
     "test": "vitest run --config vitest.config.ts",
     "test:watch": "vitest watch --config vitest.config.ts",
     "test:coverage": "vitest --coverage --config vitest.config.ts",
-    "prepare": "npm run build",
     "prepublishOnly": "npm run build && npm test",
     "docs:generate": "typedoc"
   },

@@ -23,10 +23,15 @@
     "build": "tsc",
     "type-check": "tsc --noEmit",
     "test": "vitest run",
-    "prepare": "npm run build",
     "prepublishOnly": "npm run build"
   },
-  "keywords": ["rag", "embeddings", "openai", "azure", "github-models"],
+  "keywords": [
+    "rag",
+    "embeddings",
+    "openai",
+    "azure",
+    "github-models"
+  ],
   "author": "Vivantel",
   "license": "MIT",
   "repository": {
