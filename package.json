@@ -12,6 +12,7 @@
   "description": "Core RAG pipeline tools - universal chunking, embedding, vector store interfaces",
   "files": [
     "dist",
+    "schemas",
     "README.md"
   ],
   "main": "dist/index.js",

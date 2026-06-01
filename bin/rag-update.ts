@@ -2,7 +2,7 @@
 
 import { Command } from 'commander';
 import { config } from 'dotenv';
-import { loadConfig } from '../src/config-loader.js';
+import { loadConfig, autoDetectConfig } from '../src/config-loader.js';
 import { Orchestrator } from '../src/core/orchestrator.js';
 
 config();
@@ -13,7 +13,7 @@ program
   .name('rag-update')
   .description('Update RAG index with latest changes')
   .version('1.0.0')
-  .option('-c, --config <path>', 'Path to config file', './rag.config.ts')
+  .option('-c, --config <path>', 'Path to config file (auto-detects rag.config.json then rag.config.ts)', autoDetectConfig())
   .option('-f, --force', 'Force full rebuild', false)
   .option('--skip-upload', 'Skip upload to vector store', false)
   .option('--chunks-file <path>', 'Output path for chunks.json')

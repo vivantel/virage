@@ -9,13 +9,21 @@ export interface GitHubModelsEmbedderOptions {
   maxRetryWaitMs?: number;
 }
 
+/**
+ * @deprecated Use `@vivantel/rag-embedder-openai` instead:
+ * ```ts
+ * import { createGitHubModelsEmbedder } from '@vivantel/rag-embedder-openai';
+ * const embedder = createGitHubModelsEmbedder({ token: process.env.GITHUB_TOKEN! });
+ * ```
+ * `GitHubModelsEmbedder` will be removed in v3.0.
+ */
 export class GitHubModelsEmbedder implements EmbeddingProvider {
   readonly name = "github-models";
   readonly dimensions: number;
+  readonly model: string;
   readonly preferredBatchSize = 100;
 
   private readonly token: string;
-  private readonly model: string;
   private readonly endpoint: string;
   private readonly maxRetryWaitMs: number;
 

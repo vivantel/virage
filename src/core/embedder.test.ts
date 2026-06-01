@@ -4,7 +4,23 @@ import { join } from "path";
 import { tmpdir } from "os";
 import { randomBytes } from "crypto";
 import { EmbedderProcessor } from "./embedder.js";
-import type { EmbeddingProvider } from "../interfaces/index.js";
+import type {
+  EmbeddingProvider,
+  EmbeddingsFileFormat,
+} from "../interfaces/index.js";
+
+/** Read embeddings.json and return the chunks array (handles both legacy and v2 format). */
+async function readSavedChunks(path: string): Promise<unknown[]> {
+  const raw = JSON.parse(await readFile(path, "utf-8")) as unknown;
+  if (Array.isArray(raw)) return raw;
+  return (raw as EmbeddingsFileFormat).chunks;
+}
+
+async function readSavedMeta(path: string) {
+  const raw = JSON.parse(await readFile(path, "utf-8")) as unknown;
+  if (Array.isArray(raw)) return null;
+  return (raw as EmbeddingsFileFormat)._meta ?? null;
+}
 
 function tmpDir(): string {
   return join(tmpdir(), "embedder-test-" + randomBytes(6).toString("hex"));
@@ -80,7 +96,7 @@ describe("EmbedderProcessor", () => {
     );
 
     // Batches 1 and 2 were saved before the failure
-    const saved = JSON.parse(await readFile(embeddingsFile, "utf-8"));
+    const saved = await readSavedChunks(embeddingsFile);
     expect(saved).toHaveLength(2);
   });
 
@@ -139,13 +155,14 @@ describe("EmbedderProcessor", () => {
     const processor = new EmbedderProcessor(provider, { batchSize: 10 });
     await processor.run(chunksFile, true);
 
-    const saved = JSON.parse(await readFile(embeddingsFile, "utf-8"));
+    const saved = await readSavedChunks(embeddingsFile);
     // force=true: existing embedding replaced, both chunks re-embedded
     expect(saved).toHaveLength(2);
     expect(
       saved.every(
-        (e: { embedding: number[] }) =>
-          JSON.stringify(e.embedding) === JSON.stringify([1, 2, 3]),
+        (e) =>
+          JSON.stringify((e as { embedding: number[] }).embedding) ===
+          JSON.stringify([1, 2, 3]),
       ),
     ).toBe(true);
   });
@@ -236,5 +253,157 @@ describe("EmbedderProcessor", () => {
     expect(result).toHaveLength(0);
     expect(provider.embedBatch).not.toHaveBeenCalled();
     expect(provider.embed).not.toHaveBeenCalled();
+  });
+
+  it("writes _meta with providerName, model, and dimensions to embeddings.json", async () => {
+    const chunk = makeChunk("hello");
+    await writeFile(chunksFile, JSON.stringify([chunk]));
+
+    const provider = makeProvider({
+      name: "openai",
+      dimensions: 1536,
+      model: "text-embedding-3-small",
+    });
+    await new EmbedderProcessor(provider, {
+      batchSize: 10,
+      vectorStoreName: "supabase",
+    }).run(chunksFile);
+
+    const meta = await readSavedMeta(embeddingsFile);
+    expect(meta?.providerName).toBe("openai");
+    expect(meta?.model).toBe("text-embedding-3-small");
+    expect(meta?.providerDimensions).toBe(1536);
+    expect(meta?.vectorStoreName).toBe("supabase");
+    expect(meta?.schemaVersion).toBe(1);
+  });
+
+  it("re-embeds all chunks when the model changes", async () => {
+    const chunk = makeChunk("hello");
+    await writeFile(chunksFile, JSON.stringify([chunk]));
+
+    // Pre-populate with embeddings from old-model
+    const oldMeta = {
+      schemaVersion: 1,
+      providerName: "openai",
+      providerDimensions: 1536,
+      model: "text-embedding-3-small",
+      createdAt: 1000,
+      updatedAt: 1000,
+    };
+    const existingFile = {
+      _meta: oldMeta,
+      chunks: [{ ...chunk, embedding: [9, 9, 9], embeddedAt: 0 }],
+    };
+    await writeFile(embeddingsFile, JSON.stringify(existingFile));
+
+    // Switch to a different model
+    const provider = makeProvider({
+      name: "openai",
+      dimensions: 3072,
+      model: "text-embedding-3-large",
+    });
+    await new EmbedderProcessor(provider, { batchSize: 10 }).run(chunksFile);
+
+    expect(provider.embedBatch).toHaveBeenCalledTimes(1);
+    const saved = await readSavedChunks(embeddingsFile);
+    expect(saved).toHaveLength(1);
+    // new embedding from mock provider
+    expect((saved[0] as { embedding: number[] }).embedding).toEqual([1, 2, 3]);
+  });
+
+  it("re-embeds all chunks when dimensions change, regardless of model name", async () => {
+    const chunk = makeChunk("hello");
+    await writeFile(chunksFile, JSON.stringify([chunk]));
+
+    const oldMeta = {
+      schemaVersion: 1,
+      providerName: "openai",
+      providerDimensions: 1536,
+      model: "text-embedding-3-small",
+      createdAt: 1000,
+      updatedAt: 1000,
+    };
+    await writeFile(
+      embeddingsFile,
+      JSON.stringify({
+        _meta: oldMeta,
+        chunks: [{ ...chunk, embedding: Array(1536).fill(0), embeddedAt: 0 }],
+      }),
+    );
+
+    // Same model name, but with dimension truncation (256d)
+    const provider = makeProvider({
+      name: "openai",
+      dimensions: 256,
+      model: "text-embedding-3-small",
+    });
+    await new EmbedderProcessor(provider, { batchSize: 10 }).run(chunksFile);
+
+    expect(provider.embedBatch).toHaveBeenCalledTimes(1);
+  });
+
+  it("does NOT re-embed when only providerName changes but model and dimensions stay the same", async () => {
+    // Same model (text-embedding-3-small) accessible via different provider wrappers
+    // produces identical vectors — the provider name change is irrelevant.
+    const chunk = makeChunk("hello");
+    await writeFile(chunksFile, JSON.stringify([chunk]));
+
+    const oldMeta = {
+      schemaVersion: 1,
+      providerName: "github-models",
+      providerDimensions: 1536,
+      model: "text-embedding-3-small",
+      createdAt: 1000,
+      updatedAt: 1000,
+    };
+    await writeFile(
+      embeddingsFile,
+      JSON.stringify({
+        _meta: oldMeta,
+        chunks: [{ ...chunk, embedding: [9, 9, 9], embeddedAt: 0 }],
+      }),
+    );
+
+    // Switch provider wrapper but keep same model + dimensions
+    const provider = makeProvider({
+      name: "openai",
+      dimensions: 1536,
+      model: "text-embedding-3-small",
+    });
+    const result = await new EmbedderProcessor(provider, { batchSize: 10 }).run(
+      chunksFile,
+    );
+
+    // Cache should still be valid — no re-embedding
+    expect(result).toHaveLength(0);
+    expect(provider.embedBatch).not.toHaveBeenCalled();
+  });
+
+  it("migrates legacy bare-array embeddings.json to the new format on next save", async () => {
+    const chunkA = makeChunk("a");
+    const chunkB = makeChunk("b");
+    await writeFile(chunksFile, JSON.stringify([chunkA, chunkB]));
+
+    // Legacy format: bare array
+    await writeFile(
+      embeddingsFile,
+      JSON.stringify([{ ...chunkA, embedding: [9, 9, 9], embeddedAt: 0 }]),
+    );
+
+    const provider = makeProvider({
+      name: "openai",
+      dimensions: 3,
+      model: "test-model",
+    });
+    await new EmbedderProcessor(provider, { batchSize: 10 }).run(chunksFile);
+
+    // After run, file should be in new format with _meta
+    const meta = await readSavedMeta(embeddingsFile);
+    expect(meta?.schemaVersion).toBe(1);
+    expect(meta?.model).toBe("test-model");
+
+    // Both chunks should be present
+    const saved = await readSavedChunks(embeddingsFile);
+    expect(saved).toHaveLength(2);
   });
 });

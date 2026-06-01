@@ -1,0 +1,46 @@
+{
+  "name": "@vivantel/rag-embedder-fastembed",
+  "version": "1.0.0",
+  "description": "FastEmbed ONNX-based local embedding provider for @vivantel/rag-core",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "type-check": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "keywords": ["rag", "embeddings", "fastembed", "onnx", "local", "offline"],
+  "author": "Vivantel",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/vivantel/rag_core",
+    "directory": "packages/rag-embedder-fastembed"
+  },
+  "dependencies": {
+    "fastembed": "^1.0.0"
+  },
+  "peerDependencies": {
+    "@vivantel/rag-core": "^2.0.0"
+  },
+  "devDependencies": {
+    "@vivantel/rag-core": "file:../..",
+    "@types/node": "^25.9.1",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.7"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

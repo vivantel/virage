@@ -3,10 +3,10 @@ import {
   VectorDocument,
   EmbeddedChunk,
 } from "../interfaces/index.js";
-import { readFile } from "fs/promises";
 import { createHash } from "crypto";
 import { UploadError } from "./errors.js";
 import { withRetry, RetryOptions } from "./utils.js";
+import { readEmbeddingsFile } from "./embeddings-io.js";
 
 function contentHash(chunk: EmbeddedChunk): string {
   return (
@@ -49,14 +49,9 @@ export class Uploader {
     toUpload: EmbeddedChunk[];
     toDelete: string[];
   }> {
-    let embeddings: EmbeddedChunk[];
+    let result: Awaited<ReturnType<typeof readEmbeddingsFile>>;
     try {
-      const content = await readFile(embeddingsFile, "utf-8");
-      const parsed: unknown = JSON.parse(content);
-      if (!Array.isArray(parsed)) {
-        throw new Error("embeddings file does not contain a JSON array");
-      }
-      embeddings = parsed as EmbeddedChunk[];
+      result = await readEmbeddingsFile(embeddingsFile);
     } catch (err) {
       throw new UploadError(
         `Failed to load embeddings from ${embeddingsFile}: ${err instanceof Error ? err.message : String(err)}`,
@@ -68,11 +63,35 @@ export class Uploader {
       );
     }
 
+    const { meta, chunks: embeddings } = result;
+
+    if (embeddings.length === 0 && !result) {
+      throw new UploadError(`No embeddings found at ${embeddingsFile}`, {
+        suggestion:
+          "Run the pipeline without --skip-upload to regenerate embeddings first.",
+      });
+    }
+
     console.log(
       `📖 Loaded ${embeddings.length} embeddings from ${embeddingsFile}`,
     );
 
-    if (force) {
+    // If the vector store changed since the last run, force a full re-upload to ensure
+    // the new store starts with consistent state.
+    let effectiveForce = force;
+    if (
+      !force &&
+      meta?.vectorStoreName &&
+      meta.vectorStoreName !== this.vectorStore.name
+    ) {
+      console.log(`\n⚠️  Vector store changed!`);
+      console.log(`    Previous: ${meta.vectorStoreName}`);
+      console.log(`    Current:  ${this.vectorStore.name}`);
+      console.log(`    Forcing full re-upload to the new store.\n`);
+      effectiveForce = true;
+    }
+
+    if (effectiveForce) {
       const allSourceFiles = [...new Set(embeddings.map((e) => e.sourceFile))];
       return { toUpload: embeddings, toDelete: allSourceFiles };
     }

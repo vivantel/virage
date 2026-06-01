@@ -1,0 +1,104 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/vivantel/rag_core/schemas/rag.config.schema.json",
+  "title": "RAG Pipeline Config",
+  "description": "Declarative JSON configuration for @vivantel/rag-core",
+  "type": "object",
+  "required": ["chunkers", "embedder", "vectorStore"],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "chunkers": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["patterns", "strategy"],
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Optional name for this chunker. Auto-derived from strategy and pattern if omitted."
+          },
+          "patterns": {
+            "type": "array",
+            "minItems": 1,
+            "items": { "type": "string" },
+            "description": "Glob patterns for files this chunker handles."
+          },
+          "strategy": {
+            "type": "string",
+            "enum": ["markdownHeaders", "token", "wholeFile", "semantic"],
+            "description": "Built-in strategy name."
+          },
+          "strategyOptions": {
+            "type": "object",
+            "description": "Optional options passed to the strategy factory.",
+            "properties": {
+              "maxTokens": { "type": "number" },
+              "overlap": { "type": "number" }
+            },
+            "additionalProperties": true
+          }
+        }
+      }
+    },
+    "embedder": {
+      "type": "object",
+      "required": ["package"],
+      "additionalProperties": false,
+      "properties": {
+        "package": {
+          "type": "string",
+          "description": "npm package that exports createEmbedder(config). E.g. '@vivantel/rag-embedder-openai'"
+        },
+        "config": {
+          "type": "object",
+          "description": "Config passed to the package's createEmbedder() factory. Supports ${ENV_VAR} expansion.",
+          "additionalProperties": true
+        }
+      }
+    },
+    "vectorStore": {
+      "type": "object",
+      "required": ["package"],
+      "additionalProperties": false,
+      "properties": {
+        "package": {
+          "type": "string",
+          "description": "npm package that exports createVectorStore(config). E.g. '@vivantel/rag-store-supabase'"
+        },
+        "config": {
+          "type": "object",
+          "description": "Config passed to the package's createVectorStore() factory. Supports ${ENV_VAR} expansion.",
+          "additionalProperties": true
+        }
+      }
+    },
+    "options": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "chunksFile": { "type": "string", "description": "Path to chunks.json output." },
+        "embeddingsFile": { "type": "string", "description": "Path to embeddings.json output." },
+        "force": { "type": "boolean" },
+        "skipUpload": { "type": "boolean" },
+        "dryRun": { "type": "boolean" },
+        "rateLimitMs": { "type": "number" },
+        "batchSize": { "type": "number" },
+        "maxBatchChars": { "type": "number" },
+        "concurrency": { "type": "number" },
+        "telemetry": { "type": "boolean" },
+        "notifications": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "webhookUrl": { "type": "string" }
+          }
+        }
+      }
+    }
+  }
+}

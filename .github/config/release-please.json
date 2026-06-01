@@ -13,6 +13,33 @@
       "bump-patch-for-minor-pre-major": true,
       "draft": false,
       "prerelease": false
+    },
+    "packages/rag-embedder-openai": {
+      "package-name": "@vivantel/rag-embedder-openai",
+      "changelog-path": "CHANGELOG.md",
+      "release-type": "node",
+      "bump-minor-pre-major": true,
+      "bump-patch-for-minor-pre-major": true,
+      "draft": false,
+      "prerelease": false
+    },
+    "packages/rag-embedder-transformers": {
+      "package-name": "@vivantel/rag-embedder-transformers",
+      "changelog-path": "CHANGELOG.md",
+      "release-type": "node",
+      "bump-minor-pre-major": true,
+      "bump-patch-for-minor-pre-major": true,
+      "draft": false,
+      "prerelease": false
+    },
+    "packages/rag-embedder-fastembed": {
+      "package-name": "@vivantel/rag-embedder-fastembed",
+      "changelog-path": "CHANGELOG.md",
+      "release-type": "node",
+      "bump-minor-pre-major": true,
+      "bump-patch-for-minor-pre-major": true,
+      "draft": false,
+      "prerelease": false
     }
   },
   "plugins": [

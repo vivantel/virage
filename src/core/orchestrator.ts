@@ -174,6 +174,7 @@ export class Orchestrator {
         maxBatchChars: opts.maxBatchChars,
         retry: opts.retry,
         concurrency: opts.concurrency,
+        vectorStoreName: this.config.vectorStore.name,
       });
 
       const newEmbeddings = await embedder.run(

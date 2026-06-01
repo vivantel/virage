@@ -1,10 +1,10 @@
 import {
   EmbeddingProvider,
   EmbeddedChunk,
+  EmbeddingsMeta,
   Chunk,
 } from "../interfaces/index.js";
-import { readFile, writeFile, mkdir } from "fs/promises";
-import { dirname } from "path";
+import { readFile } from "fs/promises";
 import { createHash } from "crypto";
 import { EmbedError } from "./errors.js";
 import {
@@ -14,6 +14,7 @@ import {
   batchBySize,
   RetryOptions,
 } from "./utils.js";
+import { readEmbeddingsFile, writeEmbeddingsFile } from "./embeddings-io.js";
 
 function chunkContentHash(chunk: Chunk): string {
   if (chunk.contentHash) return chunk.contentHash;
@@ -27,6 +28,7 @@ export class EmbedderProcessor {
   private maxBatchChars: number;
   private retryOptions: RetryOptions;
   private concurrency: number;
+  private vectorStoreName?: string;
 
   constructor(
     provider: EmbeddingProvider,
@@ -36,6 +38,7 @@ export class EmbedderProcessor {
       maxBatchChars?: number;
       retry?: RetryOptions;
       concurrency?: number;
+      vectorStoreName?: string;
     } = {},
   ) {
     this.provider = provider;
@@ -44,6 +47,7 @@ export class EmbedderProcessor {
     this.maxBatchChars = options.maxBatchChars ?? Infinity;
     this.retryOptions = options.retry ?? {};
     this.concurrency = options.concurrency ?? 1;
+    this.vectorStoreName = options.vectorStoreName;
   }
 
   async embedChunk(chunk: Chunk): Promise<EmbeddedChunk> {
@@ -111,6 +115,8 @@ export class EmbedderProcessor {
     force: boolean = false,
   ): Promise<{
     chunksToEmbed: Chunk[];
+    existingMeta: EmbeddingsMeta | null;
+    isNewEmbeddingSpace: boolean;
   }> {
     let chunks: Chunk[];
     try {
@@ -135,16 +141,47 @@ export class EmbedderProcessor {
 
     if (force) {
       console.log("  ⚠️ Force mode: embedding all chunks");
-      return { chunksToEmbed: chunks };
+      return {
+        chunksToEmbed: chunks,
+        existingMeta: null,
+        isNewEmbeddingSpace: true,
+      };
     }
 
-    let existingEmbeddings: EmbeddedChunk[] = [];
     const embeddingsFile = chunksFile.replace("chunks", "embeddings");
-    try {
-      const content = await readFile(embeddingsFile, "utf-8");
-      existingEmbeddings = JSON.parse(content);
-    } catch {
-      // No existing embeddings
+    const { meta, chunks: existingEmbeddings } =
+      await readEmbeddingsFile(embeddingsFile);
+
+    // Check if the embedding model or dimensions changed — if so, all cached embeddings
+    // are invalid for the new model's vector space.
+    // Discriminators: model + dimensions. providerName is informational only (the same
+    // model served via OpenAI, Azure, or GitHub Models produces identical vectors).
+    const isNewEmbeddingSpace = false;
+    if (meta && existingEmbeddings.length > 0) {
+      const modelChanged =
+        meta.model !== undefined &&
+        this.provider.model !== undefined &&
+        meta.model !== this.provider.model;
+      const dimensionsChanged =
+        meta.providerDimensions !== this.provider.dimensions;
+
+      if (modelChanged || dimensionsChanged) {
+        const prevModel = meta.model ?? "(unknown)";
+        const curModel = this.provider.model ?? "(unknown)";
+        const prevDims = meta.providerDimensions;
+        const curDims = this.provider.dimensions;
+        console.log(`\n⚠️  Embedding model changed!`);
+        console.log(`    Previous: ${prevModel} (${prevDims}d)`);
+        console.log(`    Current:  ${curModel} (${curDims}d)`);
+        console.log(
+          `    Discarding existing embeddings — all chunks will be re-embedded.\n`,
+        );
+        return {
+          chunksToEmbed: chunks,
+          existingMeta: null,
+          isNewEmbeddingSpace: true,
+        };
+      }
     }
 
     // Two-level index:
@@ -213,16 +250,18 @@ export class EmbedderProcessor {
       );
     }
 
-    return { chunksToEmbed };
+    return { chunksToEmbed, existingMeta: meta, isNewEmbeddingSpace };
   }
 
   async saveEmbeddings(
     newEmbeddings: EmbeddedChunk[],
     chunksFile: string,
-    force: boolean = false,
+    existingMeta: EmbeddingsMeta | null,
+    isFirstBatch: boolean,
+    forceFirstBatch: boolean,
   ): Promise<void> {
     const embeddingsFile = chunksFile.replace("chunks", "embeddings");
-    await mkdir(dirname(embeddingsFile), { recursive: true });
+    const now = Math.floor(Date.now() / 1000);
 
     const newByHash = new Map<string, EmbeddedChunk>();
     for (const emb of newEmbeddings) {
@@ -230,29 +269,44 @@ export class EmbedderProcessor {
       newByHash.set(hash, emb);
     }
 
-    let existing: EmbeddedChunk[] = [];
-    if (!force) {
-      try {
-        const content = await readFile(embeddingsFile, "utf-8");
-        existing = JSON.parse(content);
-      } catch {
-        // No existing embeddings
-      }
+    // When force-clearing (force flag or model mismatch detected), discard existing chunks
+    // on the first batch; subsequent batches always merge incrementally.
+    const discardExisting = isFirstBatch && forceFirstBatch;
+
+    let keepChunks: EmbeddedChunk[] = [];
+    let createdAt = now;
+    if (!discardExisting) {
+      const { meta, chunks: existing } =
+        await readEmbeddingsFile(embeddingsFile);
+      if (meta) createdAt = meta.createdAt;
+      keepChunks = existing.filter((e) => {
+        const hash = e.contentHash || chunkContentHash(e);
+        return !newByHash.has(hash);
+      });
     }
 
-    const final = force
-      ? []
-      : existing.filter((e) => {
-          const hash = e.contentHash || chunkContentHash(e);
-          return !newByHash.has(hash);
-        });
+    const final = [...keepChunks, ...newEmbeddings];
 
-    final.push(...newEmbeddings);
+    const meta: EmbeddingsMeta = {
+      schemaVersion: 1,
+      providerName: this.provider.name,
+      providerDimensions: this.provider.dimensions,
+      ...(this.provider.model !== undefined
+        ? { model: this.provider.model }
+        : {}),
+      ...(this.vectorStoreName !== undefined
+        ? { vectorStoreName: this.vectorStoreName }
+        : {}),
+      // Preserve createdAt from the existing meta when available and not overwriting
+      createdAt:
+        existingMeta && !discardExisting ? existingMeta.createdAt : createdAt,
+      updatedAt: now,
+    };
 
-    await writeFile(embeddingsFile, JSON.stringify(final, null, 2));
+    await writeEmbeddingsFile(embeddingsFile, meta, final);
     console.log(`\n💾 Saved ${final.length} embeddings to ${embeddingsFile}`);
     console.log(
-      `   New: ${newEmbeddings.length}, Existing: ${final.length - newEmbeddings.length}`,
+      `   New: ${newEmbeddings.length}, Existing: ${keepChunks.length}`,
     );
   }
 
@@ -262,7 +316,11 @@ export class EmbedderProcessor {
   ): Promise<EmbeddedChunk[]> {
     console.log("🔢 Starting incremental embedding generation...");
 
-    const { chunksToEmbed } = await this.getChunksToEmbed(chunksFile, force);
+    const { chunksToEmbed, existingMeta, isNewEmbeddingSpace } =
+      await this.getChunksToEmbed(chunksFile, force);
+
+    // Treat a model-space change the same as --force for the save step
+    const effectiveForce = force || isNewEmbeddingSpace;
 
     if (chunksToEmbed.length === 0) {
       console.log("\n✨ No chunks need embedding.");
@@ -285,7 +343,13 @@ export class EmbedderProcessor {
       );
       const embedded = await this.embedBatch(batches[i]);
       newEmbeddings.push(...embedded);
-      await this.saveEmbeddings(embedded, chunksFile, force && i === 0);
+      await this.saveEmbeddings(
+        embedded,
+        chunksFile,
+        existingMeta,
+        i === 0,
+        i === 0 && effectiveForce,
+      );
     }
 
     return newEmbeddings;

@@ -66,11 +66,19 @@ export async function detectFileExtensions(cwd: string): Promise<ExtGroup[]> {
   return EXT_GROUPS.filter((g) => g.exts.some((e) => found.has(e)));
 }
 
+const STRATEGY_FN_TO_JSON: Record<string, string> = {
+  markdownHeadersStrategy: "markdownHeaders",
+  tokenStrategy: "token",
+  wholeFileStrategy: "wholeFile",
+  semanticStrategy: "semantic",
+};
+
 interface InitAnswers {
   groups: ExtGroup[];
   embedder: string;
   vectorStore: string;
   outputPath: string;
+  format: "json" | "ts";
 }
 
 function buildEmbedderSection(provider: string): string {
@@ -213,6 +221,87 @@ function buildChunkersSection(groups: ExtGroup[]): string {
     .join("\n");
 }
 
+function generateJsonConfig(answers: InitAnswers): string {
+  const effectiveGroups =
+    answers.groups.length > 0
+      ? answers.groups
+      : [EXT_GROUPS.find((g) => g.name === "typescript")!];
+
+  const chunkers = effectiveGroups.map((g) => {
+    const strategyName = STRATEGY_FN_TO_JSON[g.strategyFn] ?? g.strategyFn;
+    return {
+      name: g.name,
+      patterns: g.exts.map((e) => `**/*${e}`),
+      strategy: strategyName,
+    };
+  });
+
+  let embedderPackage: string;
+  let embedderConfig: Record<string, unknown>;
+  switch (answers.embedder) {
+    case "openai":
+      embedderPackage = "@vivantel/rag-embedder-openai";
+      embedderConfig = {
+        apiKey: "${OPENAI_API_KEY}",
+        model: "text-embedding-3-small",
+        dimensions: 1536,
+      };
+      break;
+    case "github-models":
+      embedderPackage = "@vivantel/rag-embedder-openai";
+      embedderConfig = {
+        apiKey: "${GITHUB_TOKEN}",
+        baseURL: "https://models.github.ai/inference",
+        model: "openai/text-embedding-3-small",
+        dimensions: 1536,
+      };
+      break;
+    default:
+      embedderPackage = "@your-org/rag-embedder-custom";
+      embedderConfig = {
+        apiKey: "${YOUR_API_KEY}",
+        model: "your-model-name",
+        dimensions: 1536,
+      };
+  }
+
+  let vectorStorePackage: string;
+  let vectorStoreConfig: Record<string, unknown>;
+  switch (answers.vectorStore) {
+    case "supabase":
+      vectorStorePackage = "@vivantel/rag-store-supabase";
+      vectorStoreConfig = {
+        url: "${SUPABASE_URL}",
+        key: "${SUPABASE_KEY}",
+        table: "documents",
+      };
+      break;
+    case "pinecone":
+      vectorStorePackage = "@vivantel/rag-store-pinecone";
+      vectorStoreConfig = {
+        apiKey: "${PINECONE_API_KEY}",
+        index: "${PINECONE_INDEX}",
+      };
+      break;
+    default:
+      vectorStorePackage = "@your-org/rag-store-custom";
+      vectorStoreConfig = {};
+  }
+
+  const config = {
+    $schema: "./node_modules/@vivantel/rag-core/schemas/rag.config.schema.json",
+    chunkers,
+    embedder: { package: embedderPackage, config: embedderConfig },
+    vectorStore: { package: vectorStorePackage, config: vectorStoreConfig },
+    options: {
+      chunksFile: "./docs/rag/chunks.json",
+      embeddingsFile: "./docs/rag/embeddings.json",
+    },
+  };
+
+  return JSON.stringify(config, null, 2) + "\n";
+}
+
 function generateConfig(answers: InitAnswers): string {
   const strategyFns = [...new Set(answers.groups.map((g) => g.strategyFn))];
   if (strategyFns.length === 0) strategyFns.push("tokenStrategy");
@@ -300,9 +389,25 @@ export async function runInit(): Promise<void> {
     ],
   });
 
+  const format = (await select({
+    message: "Which config format?",
+    choices: [
+      {
+        name: "JSON (rag.config.json) — declarative, no TypeScript required (recommended)",
+        value: "json",
+      },
+      {
+        name: "TypeScript (rag.config.ts) — escape hatch for custom providers",
+        value: "ts",
+      },
+    ],
+  })) as "json" | "ts";
+
+  const defaultOutput =
+    format === "json" ? "./rag.config.json" : "./rag.config.ts";
   const outputPath = await input({
     message: "Output path for the config file?",
-    default: "./rag.config.ts",
+    default: defaultOutput,
   });
 
   if (existsSync(outputPath)) {
@@ -319,17 +424,31 @@ export async function runInit(): Promise<void> {
     }
   }
 
-  const config = generateConfig({
+  const answers: InitAnswers = {
     groups: selectedGroups,
     embedder,
     vectorStore,
     outputPath,
-  });
+    format,
+  };
+
+  const config =
+    format === "json" ? generateJsonConfig(answers) : generateConfig(answers);
   await writeFile(outputPath, config, "utf-8");
 
   console.log(`\n✅ Created ${outputPath}`);
-  console.log("\nNext steps:");
-  console.log("  1. Fill in the TODO sections in the config file");
-  console.log("  2. Run `rag-update validate` to check the config");
-  console.log("  3. Run `rag-update` to start indexing\n");
+  if (format === "json") {
+    console.log("\nNext steps:");
+    console.log(
+      "  1. Install the embedder package: npm install @vivantel/rag-embedder-openai",
+    );
+    console.log("  2. Install the vector store package (when available)");
+    console.log("  3. Add the required env vars to your .env file");
+    console.log("  4. Run `rag-update` to start indexing\n");
+  } else {
+    console.log("\nNext steps:");
+    console.log("  1. Fill in the TODO sections in the config file");
+    console.log("  2. Run `rag-update validate` to check the config");
+    console.log("  3. Run `rag-update` to start indexing\n");
+  }
 }
