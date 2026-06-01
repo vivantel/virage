@@ -1,8 +1,7 @@
 {
   "release-type": "node",
-  "bootstrap-sha": "main",
   "separate-pull-requests": true,
-  "include-component-in-tag": false,
+  "include-component-in-tag": true,
   "tag-separator": "@",
   "packages": {
     "packages/rag-core": {
