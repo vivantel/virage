@@ -1,6 +1,9 @@
 export {
   PostgresVectorStore,
   type PostgresVectorStoreOptions,
+  type IndexType,
+  type IVFFlatParams,
+  type HNSWParams,
 } from "./store.js";
 
 import type { VectorStore } from "@vivantel/rag-core";

@@ -23,6 +23,10 @@ interface TelemetryData {
     embedding?: StageStats & {
       chunksEmbedded: number;
       chunksSkipped: number;
+      /** Per-embed call latency in ms (for p50/p95/p99 reporting). */
+      latencySamples?: number[];
+      /** Number of rate-limit events (retries due to 429 responses). */
+      rateLimitEvents?: number;
     };
     upload?: StageStats & {
       uploaded: number;
@@ -66,6 +70,8 @@ export class TelemetryCollector {
     chunksEmbedded: number;
     chunksSkipped: number;
     durationMs: number;
+    latencySamples?: number[];
+    rateLimitEvents?: number;
   }): void {
     this.data.stages.embedding = stats;
   }

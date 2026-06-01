@@ -1,4 +1,6 @@
 import { ChunkStrategy, Chunk } from "../../interfaces/index.js";
+import type { ChunkQualityMetrics } from "../../interfaces/quality.js";
+import { computeChunkQualityMetrics } from "./quality-metrics.js";
 
 export interface MarkdownHeadersOptions {
   minChunkSize?: number;
@@ -101,6 +103,10 @@ export function markdownHeadersStrategy(
         first_header: headerMatch?.[2],
         line_count: text.split("\n").length,
       };
+    },
+
+    getQualityMetrics(chunks: Chunk[]): ChunkQualityMetrics {
+      return computeChunkQualityMetrics(chunks);
     },
   };
 }

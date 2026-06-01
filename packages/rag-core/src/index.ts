@@ -68,3 +68,23 @@ export type { EmbeddingsReadResult } from "./core/embeddings-io.js";
 
 // Config loader
 export { loadConfig, autoDetectConfig } from "./config-loader.js";
+
+// Evaluation framework
+export { EvalRunner } from "./eval/runner.js";
+export { RAGASRunner } from "./eval/ragas.js";
+export type { EvalRunResult } from "./eval/runner.js";
+export { ExperimentStore, makeRunId } from "./eval/experiment-store.js";
+export {
+  precisionAtK,
+  recallAtK,
+  reciprocalRank,
+  hitRateAtK,
+  aggregateEvalResults,
+  computeEvalResult,
+} from "./eval/metrics.js";
+export { bootstrapPairedTest } from "./eval/statistics.js";
+export type { StatTestResult } from "./eval/statistics.js";
+export {
+  loadEvalDataset,
+  saveEvalDataset,
+} from "./eval/dataset-io.js";

@@ -1,4 +1,6 @@
 import { ChunkStrategy, Chunk } from "../../interfaces/index.js";
+import type { ChunkQualityMetrics } from "../../interfaces/quality.js";
+import { computeChunkQualityMetrics } from "./quality-metrics.js";
 
 export interface SemanticStrategyOptions {
   maxChars?: number;
@@ -75,6 +77,10 @@ export function semanticStrategy(
         sentence_count: text.split(/[.!?]+/).length,
         char_count: text.length,
       };
+    },
+
+    getQualityMetrics(chunks: Chunk[]): ChunkQualityMetrics {
+      return computeChunkQualityMetrics(chunks);
     },
   };
 }

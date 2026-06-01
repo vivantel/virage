@@ -1,4 +1,6 @@
 import { ChunkStrategy, Chunk } from "../../interfaces/index.js";
+import type { ChunkQualityMetrics } from "../../interfaces/quality.js";
+import { computeChunkQualityMetrics } from "./quality-metrics.js";
 
 export interface TokenStrategyOptions {
   maxTokens?: number;
@@ -67,6 +69,10 @@ export function tokenStrategy(
         char_count: text.length,
         estimated_tokens: Math.ceil(text.length / charsPerToken),
       };
+    },
+
+    getQualityMetrics(chunks: Chunk[]): ChunkQualityMetrics {
+      return computeChunkQualityMetrics(chunks);
     },
   };
 }

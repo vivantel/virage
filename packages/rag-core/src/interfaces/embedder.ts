@@ -3,6 +3,7 @@
  */
 
 import { Chunk } from "./chunker.js";
+import type { EmbeddingMetrics } from "./quality.js";
 
 export interface EmbeddingProvider {
   /** Provider name (e.g., 'github-models', 'openai') */
@@ -36,6 +37,9 @@ export interface EmbeddingProvider {
 
   /** Check if provider is available (e.g., valid API key) */
   healthCheck?(): Promise<boolean>;
+
+  /** Compute quality metrics for an already-generated set of embeddings */
+  getMetrics?(embeddings: number[][]): Promise<EmbeddingMetrics>;
 }
 
 export interface EmbeddingConfig {

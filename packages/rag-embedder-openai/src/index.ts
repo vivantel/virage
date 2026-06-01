@@ -3,6 +3,15 @@ export {
   type OpenAICompatibleEmbedderOptions,
 } from "./embedder.js";
 export {
+  computeEmbeddingMetrics,
+  cosineSimilarity,
+  computeIntrinsicDimension,
+  computeAvgCosineSimRandomPairs,
+  detectOutliers,
+} from "./embedding-metrics.js";
+export { OpenAIJudge, type OpenAIJudgeOptions } from "./judge.js";
+export { SemanticCache, type SemanticCacheConfig } from "./semantic-cache.js";
+export {
   createGitHubModelsEmbedder,
   createAzureOpenAIEmbedder,
   createOllamaEmbedder,

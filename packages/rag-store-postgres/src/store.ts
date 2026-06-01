@@ -1,8 +1,29 @@
-import type { VectorStore, VectorSearchResult } from "@vivantel/rag-core";
+import type {
+  VectorStore,
+  VectorSearchResult,
+  IndexStats,
+  QueryPerfReport,
+} from "@vivantel/rag-core";
 import pg from "pg";
 import pgvector from "pgvector/pg";
+import { getIndexStats } from "./stats.js";
+import { getQueryPerfReport } from "./query-perf.js";
 
 const { Pool } = pg;
+
+export type IndexType = "ivfflat" | "hnsw";
+
+export interface IVFFlatParams {
+  /** Number of IVFFlat lists. Defaults to 100. */
+  lists?: number;
+}
+
+export interface HNSWParams {
+  /** HNSW M parameter (connections per layer). Defaults to 16. */
+  m?: number;
+  /** HNSW ef_construction parameter. Defaults to 64. */
+  efConstruction?: number;
+}
 
 export interface PostgresVectorStoreOptions {
   connectionString: string;
@@ -12,6 +33,10 @@ export interface PostgresVectorStoreOptions {
   dimensions?: number;
   /** Enable SSL. Defaults to false. */
   ssl?: boolean;
+  /** Index algorithm. Defaults to "ivfflat". */
+  indexType?: IndexType;
+  /** Index-specific parameters. */
+  indexParams?: IVFFlatParams | HNSWParams;
 }
 
 export class PostgresVectorStore implements VectorStore {
@@ -21,6 +46,8 @@ export class PostgresVectorStore implements VectorStore {
   private readonly dimensions: number;
   private readonly connectionString: string;
   private readonly ssl: boolean;
+  private readonly indexType: IndexType;
+  private readonly indexParams: IVFFlatParams | HNSWParams;
   private _pool: InstanceType<typeof Pool> | null = null;
 
   constructor(options: PostgresVectorStoreOptions) {
@@ -31,6 +58,8 @@ export class PostgresVectorStore implements VectorStore {
     this.table = options.table ?? "documents";
     this.dimensions = options.dimensions ?? 1536;
     this.ssl = options.ssl ?? false;
+    this.indexType = options.indexType ?? "ivfflat";
+    this.indexParams = options.indexParams ?? {};
   }
 
   private get pool(): InstanceType<typeof Pool> {
@@ -58,10 +87,7 @@ export class PostgresVectorStore implements VectorStore {
           commit_hash TEXT NOT NULL
         )
       `);
-      await client.query(`
-        CREATE INDEX IF NOT EXISTS ${this.table}_embedding_idx
-        ON ${this.table} USING ivfflat (embedding vector_cosine_ops)
-      `);
+      await client.query(this.buildIndexSQL());
     } finally {
       client.release();
     }
@@ -115,6 +141,27 @@ export class PostgresVectorStore implements VectorStore {
     return new Map(rows.map((r) => [r.source_file, r.commit_hash]));
   }
 
+  private buildIndexSQL(): string {
+    const idxName = `${this.table}_embedding_idx`;
+    if (this.indexType === "hnsw") {
+      const p = this.indexParams as HNSWParams;
+      const m = p.m ?? 16;
+      const efConstruction = p.efConstruction ?? 64;
+      return (
+        `CREATE INDEX IF NOT EXISTS ${idxName} ` +
+        `ON ${this.table} USING hnsw (embedding vector_cosine_ops) ` +
+        `WITH (m = ${m}, ef_construction = ${efConstruction})`
+      );
+    }
+    const p = this.indexParams as IVFFlatParams;
+    const lists = p.lists ?? 100;
+    return (
+      `CREATE INDEX IF NOT EXISTS ${idxName} ` +
+      `ON ${this.table} USING ivfflat (embedding vector_cosine_ops) ` +
+      `WITH (lists = ${lists})`
+    );
+  }
+
   async search(
     embedding: number[],
     topK: number,
@@ -146,5 +193,13 @@ export class PostgresVectorStore implements VectorStore {
     } finally {
       client.release();
     }
+  }
+
+  async getIndexStats(): Promise<IndexStats> {
+    return getIndexStats(this.pool, this.table);
+  }
+
+  async getQueryPerfReport(timeframeHours: number): Promise<QueryPerfReport> {
+    return getQueryPerfReport(this.pool, this.table, timeframeHours);
   }
 }

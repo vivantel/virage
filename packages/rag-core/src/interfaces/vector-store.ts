@@ -2,6 +2,8 @@
  * Vector store interfaces
  */
 
+import type { IndexStats, QueryPerfReport } from "./quality.js";
+
 export interface VectorDocument {
   /** Unique ID (optional, auto-generated if not provided) */
   id?: string;
@@ -66,6 +68,12 @@ export interface VectorStore {
 
   /** Optional: get store statistics */
   getStats?(): Promise<{ documentCount: number; collections: string[] }>;
+
+  /** Optional: get vector index quality metrics */
+  getIndexStats?(): Promise<IndexStats>;
+
+  /** Optional: get query performance report */
+  getQueryPerfReport?(timeframeHours: number): Promise<QueryPerfReport>;
 }
 
 export interface VectorStoreConfig {

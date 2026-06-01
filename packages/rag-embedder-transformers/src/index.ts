@@ -1,7 +1,9 @@
 export {
   TransformersEmbedder,
   type TransformersEmbedderOptions,
+  type QuantizationOptions,
 } from "./embedder.js";
+export { benchmarkEmbedder, type BenchmarkResult } from "./benchmark.js";
 
 import type { EmbeddingProvider } from "@vivantel/rag-core";
 import {

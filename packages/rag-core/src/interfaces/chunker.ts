@@ -2,6 +2,8 @@
  * Chunk interfaces - core building blocks for document processing
  */
 
+import type { ChunkQualityMetrics } from "./quality.js";
+
 export interface Chunk {
   /** The actual text content of the chunk */
   content: string;
@@ -48,6 +50,9 @@ export interface ChunkStrategy {
 
   /** Optional: extract metadata without full chunking */
   extractMetadata?(text: string, filePath?: string): Record<string, unknown>;
+
+  /** Optional: compute quality metrics for an already-generated set of chunks */
+  getQualityMetrics?(chunks: Chunk[]): ChunkQualityMetrics;
 }
 
 export interface ChunkTransformer {
