@@ -14,7 +14,11 @@ jobs:
   release-please:
     runs-on: ubuntu-latest
     outputs:
-      release_created: ${{ steps.release.outputs.release_created }}
+      core_released: ${{ steps.release.outputs['packages/rag-core--release_created'] }}
+      strategies_released: ${{ steps.release.outputs['packages/rag-strategies--release_created'] }}
+      openai_released: ${{ steps.release.outputs['packages/rag-embedder-openai--release_created'] }}
+      transformers_released: ${{ steps.release.outputs['packages/rag-embedder-transformers--release_created'] }}
+      fastembed_released: ${{ steps.release.outputs['packages/rag-embedder-fastembed--release_created'] }}
     steps:
       - name: Run Release Please
         id: release
@@ -25,34 +29,121 @@ jobs:
           config-file: .github/config/release-please.json
           manifest-file: .release-please-manifest.json
 
-  publish-npm:
+  publish-core:
+    name: Publish @vivantel/rag-core
     needs: release-please
-    if: ${{ needs.release-please.outputs.release_created == 'true' }}
+    if: ${{ needs.release-please.outputs.core_released == 'true' }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
       id-token: write
     steps:
       - uses: actions/checkout@v6
-        with:
-          fetch-depth: 0
-
       - uses: actions/setup-node@v6
         with:
           node-version: '20.x'
           registry-url: 'https://registry.npmjs.org'
           cache: "npm"
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Run tests
-        run: npm test
-
-      - name: Build
-        run: npm run build
-
-      - name: Publish to npm
+      - run: npm ci
+      - run: npm test --workspace packages/rag-core
+      - run: npm run build --workspace packages/rag-core
+      - name: Publish
         run: npm publish --provenance --access public
+        working-directory: packages/rag-core
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+  publish-strategies:
+    name: Publish @vivantel/rag-strategies
+    needs: release-please
+    if: ${{ needs.release-please.outputs.strategies_released == 'true' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '20.x'
+          registry-url: 'https://registry.npmjs.org'
+          cache: "npm"
+      - run: npm ci
+      - run: npm run build --workspace packages/rag-strategies
+      - name: Publish
+        run: npm publish --provenance --access public
+        working-directory: packages/rag-strategies
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+  publish-embedder-openai:
+    name: Publish @vivantel/rag-embedder-openai
+    needs: release-please
+    if: ${{ needs.release-please.outputs.openai_released == 'true' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '20.x'
+          registry-url: 'https://registry.npmjs.org'
+          cache: "npm"
+      - run: npm ci
+      - run: npm test --workspace packages/rag-embedder-openai
+      - run: npm run build --workspace packages/rag-embedder-openai
+      - name: Publish
+        run: npm publish --provenance --access public
+        working-directory: packages/rag-embedder-openai
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+  publish-embedder-transformers:
+    name: Publish @vivantel/rag-embedder-transformers
+    needs: release-please
+    if: ${{ needs.release-please.outputs.transformers_released == 'true' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '20.x'
+          registry-url: 'https://registry.npmjs.org'
+          cache: "npm"
+      - run: npm ci --ignore-scripts
+      - run: npm test --workspace packages/rag-embedder-transformers
+      - run: npm run build --workspace packages/rag-embedder-transformers
+      - name: Publish
+        run: npm publish --provenance --access public
+        working-directory: packages/rag-embedder-transformers
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+  publish-embedder-fastembed:
+    name: Publish @vivantel/rag-embedder-fastembed
+    needs: release-please
+    if: ${{ needs.release-please.outputs.fastembed_released == 'true' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '20.x'
+          registry-url: 'https://registry.npmjs.org'
+          cache: "npm"
+      - run: npm ci --ignore-scripts
+      - run: npm test --workspace packages/rag-embedder-fastembed
+      - run: npm run build --workspace packages/rag-embedder-fastembed
+      - name: Publish
+        run: npm publish --provenance --access public
+        working-directory: packages/rag-embedder-fastembed
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

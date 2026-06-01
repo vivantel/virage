@@ -5,8 +5,17 @@
   "include-component-in-tag": false,
   "tag-separator": "@",
   "packages": {
-    ".": {
+    "packages/rag-core": {
       "package-name": "@vivantel/rag-core",
+      "changelog-path": "CHANGELOG.md",
+      "release-type": "node",
+      "bump-minor-pre-major": true,
+      "bump-patch-for-minor-pre-major": true,
+      "draft": false,
+      "prerelease": false
+    },
+    "packages/rag-strategies": {
+      "package-name": "@vivantel/rag-strategies",
       "changelog-path": "CHANGELOG.md",
       "release-type": "node",
       "bump-minor-pre-major": true,

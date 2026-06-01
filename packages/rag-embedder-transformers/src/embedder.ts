@@ -11,7 +11,10 @@ export interface TransformersEmbedderOptions {
 }
 
 type Pipeline = {
-  (texts: string[] | string, opts?: { pooling?: string; normalize?: boolean }): Promise<{
+  (
+    texts: string[] | string,
+    opts?: { pooling?: string; normalize?: boolean },
+  ): Promise<{
     data: Float32Array;
   }>;
 };
@@ -63,7 +66,9 @@ export class TransformersEmbedder implements EmbeddingProvider {
     const result: number[][] = [];
     for (let i = 0; i < texts.length; i++) {
       result.push(
-        Array.from(output.data.slice(i * stride, i * stride + this.dimensions)) as number[],
+        Array.from(
+          output.data.slice(i * stride, i * stride + this.dimensions),
+        ) as number[],
       );
     }
     return result;

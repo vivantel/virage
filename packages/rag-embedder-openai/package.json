@@ -15,10 +15,16 @@
     "dist",
     "README.md"
   ],
+  "sideEffects": false,
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "build": "tsc",
     "type-check": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "prepare": "npm run build",
+    "prepublishOnly": "npm run build"
   },
   "keywords": ["rag", "embeddings", "openai", "azure", "github-models"],
   "author": "Vivantel",
@@ -35,7 +41,7 @@
     "@vivantel/rag-core": "^2.0.0"
   },
   "devDependencies": {
-    "@vivantel/rag-core": "file:../..",
+    "@vivantel/rag-core": "file:../rag-core",
     "@types/node": "^25.9.1",
     "typescript": "^6.0.3",
     "vitest": "^4.1.7"

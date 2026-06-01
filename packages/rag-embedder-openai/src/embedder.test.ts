@@ -45,7 +45,11 @@ describe("OpenAICompatibleEmbedder", () => {
 
   it("embed() calls the API and returns a single vector", async () => {
     mockCreate.mockResolvedValueOnce({ data: [{ embedding: [1, 2, 3] }] });
-    const embedder = new OpenAICompatibleEmbedder({ apiKey: "k", model: "m", dimensions: 3 });
+    const embedder = new OpenAICompatibleEmbedder({
+      apiKey: "k",
+      model: "m",
+      dimensions: 3,
+    });
     const result = await embedder.embed("hello");
     expect(result).toEqual([1, 2, 3]);
   });
@@ -54,16 +58,27 @@ describe("OpenAICompatibleEmbedder", () => {
     mockCreate.mockResolvedValueOnce({
       data: [{ embedding: [1, 0, 0] }, { embedding: [0, 1, 0] }],
     });
-    const embedder = new OpenAICompatibleEmbedder({ apiKey: "k", model: "m", dimensions: 3 });
+    const embedder = new OpenAICompatibleEmbedder({
+      apiKey: "k",
+      model: "m",
+      dimensions: 3,
+    });
     const result = await embedder.embedBatch(["a", "b"]);
-    expect(result).toEqual([[1, 0, 0], [0, 1, 0]]);
+    expect(result).toEqual([
+      [1, 0, 0],
+      [0, 1, 0],
+    ]);
     expect(mockCreate).toHaveBeenCalledWith(
       expect.objectContaining({ input: ["a", "b"] }),
     );
   });
 
   it("healthCheck() returns true on success and false on error", async () => {
-    const embedder = new OpenAICompatibleEmbedder({ apiKey: "k", model: "m", dimensions: 3 });
+    const embedder = new OpenAICompatibleEmbedder({
+      apiKey: "k",
+      model: "m",
+      dimensions: 3,
+    });
     mockCreate.mockResolvedValueOnce({ data: [{ embedding: [1, 2, 3] }] });
     expect(await embedder.healthCheck()).toBe(true);
 
@@ -74,7 +89,9 @@ describe("OpenAICompatibleEmbedder", () => {
 
 describe("createEmbedder factory", () => {
   it("throws if apiKey is missing", () => {
-    expect(() => createEmbedder({ model: "text-embedding-3-small" })).toThrow("apiKey");
+    expect(() => createEmbedder({ model: "text-embedding-3-small" })).toThrow(
+      "apiKey",
+    );
   });
 
   it("throws if model is missing", () => {
@@ -100,7 +117,10 @@ describe("presets", () => {
   });
 
   it("createOllamaEmbedder uses ollama baseURL", () => {
-    const embedder = createOllamaEmbedder({ model: "nomic-embed-text", dimensions: 768 });
+    const embedder = createOllamaEmbedder({
+      model: "nomic-embed-text",
+      dimensions: 768,
+    });
     expect(embedder.name).toContain("localhost");
     expect(embedder.dimensions).toBe(768);
   });

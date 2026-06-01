@@ -22,7 +22,10 @@ describe("FastEmbedEmbedder", () => {
   });
 
   it("exposes name, model, and dimensions", () => {
-    const embedder = new FastEmbedEmbedder({ model: "BAAI/bge-small-en-v1.5", dimensions: 384 });
+    const embedder = new FastEmbedEmbedder({
+      model: "BAAI/bge-small-en-v1.5",
+      dimensions: 384,
+    });
     expect(embedder.name).toBe("fastembed");
     expect(embedder.model).toBe("BAAI/bge-small-en-v1.5");
     expect(embedder.dimensions).toBe(384);
@@ -42,15 +45,26 @@ describe("FastEmbedEmbedder", () => {
   });
 
   it("embedBatch() returns one vector per text", async () => {
-    mockEmbed.mockReturnValueOnce(mockEmbedGen([[1, 0, 0], [0, 1, 0]]));
+    mockEmbed.mockReturnValueOnce(
+      mockEmbedGen([
+        [1, 0, 0],
+        [0, 1, 0],
+      ]),
+    );
     const embedder = new FastEmbedEmbedder({ model: "test", dimensions: 3 });
     const result = await embedder.embedBatch(["a", "b"]);
-    expect(result).toEqual([[1, 0, 0], [0, 1, 0]]);
+    expect(result).toEqual([
+      [1, 0, 0],
+      [0, 1, 0],
+    ]);
   });
 
   it("initializes the model lazily (only on first embed call)", async () => {
     mockEmbed.mockReturnValue(mockEmbedGen([[0.1]]));
-    const embedder = new FastEmbedEmbedder({ model: "BAAI/bge-small-en-v1.5", dimensions: 1 });
+    const embedder = new FastEmbedEmbedder({
+      model: "BAAI/bge-small-en-v1.5",
+      dimensions: 1,
+    });
     // Not called yet
     expect(mockEmbed).toHaveBeenCalledTimes(0);
     await embedder.embed("hello");
@@ -69,11 +83,16 @@ describe("FastEmbedEmbedder", () => {
     const fastembed = await import("fastembed");
     const origClass = fastembed.EmbeddingModel;
     // Override temporarily to throw
-    vi.spyOn(fastembed, "EmbeddingModel" as never).mockImplementationOnce(() => {
-      throw new Error("Download failed");
-    });
+    vi.spyOn(fastembed, "EmbeddingModel" as never).mockImplementationOnce(
+      () => {
+        throw new Error("Download failed");
+      },
+    );
 
-    const embedder = new FastEmbedEmbedder({ model: "bad-model", dimensions: 3 });
+    const embedder = new FastEmbedEmbedder({
+      model: "bad-model",
+      dimensions: 3,
+    });
     expect(await embedder.healthCheck()).toBe(false);
 
     vi.spyOn(fastembed, "EmbeddingModel" as never).mockRestore();

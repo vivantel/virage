@@ -23,21 +23,18 @@ export function createEmbedder(
 ): EmbeddingProvider {
   const apiKey = config.apiKey;
   if (typeof apiKey !== "string" || !apiKey) {
-    throw new Error(
-      "@vivantel/rag-embedder-openai: config.apiKey is required",
-    );
+    throw new Error("@vivantel/rag-embedder-openai: config.apiKey is required");
   }
   const model = config.model;
   if (typeof model !== "string" || !model) {
-    throw new Error(
-      "@vivantel/rag-embedder-openai: config.model is required",
-    );
+    throw new Error("@vivantel/rag-embedder-openai: config.model is required");
   }
 
   const opts: OpenAICompatibleEmbedderOptions = {
     apiKey,
     model,
-    dimensions: typeof config.dimensions === "number" ? config.dimensions : undefined,
+    dimensions:
+      typeof config.dimensions === "number" ? config.dimensions : undefined,
     baseURL: typeof config.baseURL === "string" ? config.baseURL : undefined,
     organizationId:
       typeof config.organizationId === "string"

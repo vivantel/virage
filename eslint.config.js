@@ -6,15 +6,15 @@ export default tseslint.config(
   ...tseslint.configs.recommended,
   {
     ignores: [
-      'dist/**',
-      'node_modules/**',
-      'coverage/**',
+      '**/dist/**',
+      '**/node_modules/**',
+      '**/coverage/**',
       '*.config.js',
       '*.config.ts'
     ]
   },
   {
-    files: ['src/**/*.ts'],
+    files: ['packages/*/src/**/*.ts'],
     rules: {
       '@typescript-eslint/no-explicit-any': 'warn',
       '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],

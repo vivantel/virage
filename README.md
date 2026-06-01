@@ -1,93 +1,118 @@
-# @vivantel/rag-core
+# vivantel/rag-core
 
-Core RAG pipeline tools - universal chunking, embedding, and vector store orchestration.
+Monorepo for `@vivantel/rag-core` — a Git-aware RAG pipeline that turns your codebase into a searchable vector store.
 
 [![CI](https://github.com/vivantel/rag_core/actions/workflows/ci.yaml/badge.svg)](https://github.com/vivantel/rag_core/actions/workflows/ci.yaml)
 [![Release](https://github.com/vivantel/rag_core/actions/workflows/release.yaml/badge.svg)](https://github.com/vivantel/rag_core/actions/workflows/release.yaml)
-[![npm version](https://img.shields.io/npm/v/@vivantel/rag-core.svg)](https://www.npmjs.com/package/@vivantel/rag-core)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-## Installation
+## Packages
+
+| Package | Version | Description |
+| --- | --- | --- |
+| [`@vivantel/rag-core`](packages/rag-core) | [![npm](https://img.shields.io/npm/v/@vivantel/rag-core.svg)](https://www.npmjs.com/package/@vivantel/rag-core) | Pipeline orchestrator, interfaces, CLI |
+| [`@vivantel/rag-strategies`](packages/rag-strategies) | [![npm](https://img.shields.io/npm/v/@vivantel/rag-strategies.svg)](https://www.npmjs.com/package/@vivantel/rag-strategies) | Built-in chunking strategies |
+| [`@vivantel/rag-embedder-openai`](packages/rag-embedder-openai) | [![npm](https://img.shields.io/npm/v/@vivantel/rag-embedder-openai.svg)](https://www.npmjs.com/package/@vivantel/rag-embedder-openai) | OpenAI-compatible embedder (OpenAI, Azure, GitHub Models, Ollama) |
+| [`@vivantel/rag-embedder-transformers`](packages/rag-embedder-transformers) | [![npm](https://img.shields.io/npm/v/@vivantel/rag-embedder-transformers.svg)](https://www.npmjs.com/package/@vivantel/rag-embedder-transformers) | Local embeddings via `@huggingface/transformers` |
+| [`@vivantel/rag-embedder-fastembed`](packages/rag-embedder-fastembed) | [![npm](https://img.shields.io/npm/v/@vivantel/rag-embedder-fastembed.svg)](https://www.npmjs.com/package/@vivantel/rag-embedder-fastembed) | Fast local ONNX embeddings via FastEmbed |
+
+## Quick start
 
 ```bash
-npm install @vivantel/rag-core
+npm install @vivantel/rag-core @vivantel/rag-strategies @vivantel/rag-embedder-openai
 ```
 
-## Quick Start
-
-### 1. Generate a config (recommended)
+Generate a config:
 
 ```bash
-rag-update init
+npx rag-update init
 ```
 
-Scans your project for known file types and generates a `rag.config.ts` with the right strategy per pattern. You then fill in your embedding provider and vector store.
+The init wizard scans your project for known file types and lets you pick a config format:
 
-### 2. Or write a config manually (`rag.config.ts`)
+- **JSON** (`rag.config.json`) — declarative, no TypeScript required
+- **TypeScript** (`rag.config.ts`) — escape hatch for custom providers
+
+Then run the pipeline:
+
+```bash
+npx rag-update
+```
+
+## Config formats
+
+### JSON config (recommended)
+
+```json
+{
+  "$schema": "./node_modules/@vivantel/rag-core/schemas/rag.config.schema.json",
+  "chunkers": [
+    { "patterns": ["**/*.md"], "strategy": "markdownHeaders" },
+    { "patterns": ["src/**/*.ts"], "strategy": "token" }
+  ],
+  "embedder": {
+    "package": "@vivantel/rag-embedder-openai",
+    "config": {
+      "apiKey": "${GITHUB_TOKEN}",
+      "baseURL": "https://models.github.ai/inference",
+      "model": "openai/text-embedding-3-small",
+      "dimensions": 1536
+    }
+  },
+  "vectorStore": {
+    "package": "@vivantel/rag-store-supabase",
+    "config": { "url": "${SUPABASE_URL}", "key": "${SUPABASE_KEY}" }
+  }
+}
+```
+
+`${ENV_VAR}` patterns are expanded from the environment at runtime.
+
+### TypeScript config (custom providers)
 
 ```typescript
 import type { RAGPipelineConfig } from "@vivantel/rag-core";
-import {
-  createChunker,
-  markdownHeadersStrategy,
-  tokenStrategy,
-  wholeFileStrategy,
-} from "@vivantel/rag-core";
+import { createChunker } from "@vivantel/rag-core";
+import { markdownHeadersStrategy, tokenStrategy } from "@vivantel/rag-strategies";
+import { createGitHubModelsEmbedder } from "@vivantel/rag-embedder-openai";
 
 const config: RAGPipelineConfig = {
   chunkers: [
-    // Different directories can use different strategies
-    createChunker({
-      patterns: ["docs/**/*.md"],
-      strategy: markdownHeadersStrategy(),
-    }),
-    createChunker({
-      patterns: ["rules/**/*.md"],
-      strategy: wholeFileStrategy(),
-    }),
-    createChunker({
-      patterns: ["src/**/*.ts", "src/**/*.tsx"],
-      strategy: tokenStrategy(),
-    }),
+    createChunker({ patterns: ["docs/**/*.md"], strategy: markdownHeadersStrategy() }),
+    createChunker({ patterns: ["src/**/*.ts"], strategy: tokenStrategy() }),
   ],
-  embedder: new MyEmbedderProvider({ apiKey: process.env.API_KEY }),
-  vectorStore: new MyVectorStore({ url: process.env.DB_URL }),
+  embedder: createGitHubModelsEmbedder({ token: process.env.GITHUB_TOKEN! }),
+  vectorStore: myVectorStore,
 };
 
 export default config;
 ```
 
-For custom chunking logic, use the `process` callback instead of `strategy`:
+## Built-in strategies
 
-```typescript
-createChunker({
-  name: "custom",
-  patterns: ["**/*.txt"],
-  process: async (content, filePath, commitHash) => [
-    {
-      content,
-      metadata: { file: filePath },
-      sourceFile: filePath,
-      commitHash,
-    },
-  ],
-});
+| Strategy | Best for |
+| --- | --- |
+| `markdownHeaders` | Markdown documentation |
+| `token` | Source code, structured text |
+| `semantic` | Prose, articles |
+| `wholeFile` | Small configs, YAML, rule files |
+
+## CLI flags
+
 ```
+rag-update [options]
 
-### 3. Run the pipeline
+Options:
+  -c, --config <path>          Config file (auto-detects rag.config.json then rag.config.ts)
+  -f, --force                  Force full rebuild
+  --skip-upload                Skip upload to vector store
+  --chunks-file <path>         Override chunks.json path
+  --embeddings-file <path>     Override embeddings.json path
+  -h, --help                   Show help
 
-```bash
-rag-update --config rag.config.ts
+Commands:
+  init                         Generate a starter config interactively
 ```
-
-## Built-in Strategies
-
-| Factory                                   | Best for                        |
-| ----------------------------------------- | ------------------------------- |
-| `tokenStrategy({ maxTokens?, overlap? })` | Source code, structured text    |
-| `markdownHeadersStrategy()`               | Markdown documentation          |
-| `semanticStrategy()`                      | Prose, articles                 |
-| `wholeFileStrategy()`                     | Small configs, rule files, YAML |
 
 ## License
 

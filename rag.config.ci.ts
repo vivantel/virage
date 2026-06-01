@@ -1,5 +1,5 @@
-import type { RAGPipelineConfig, VectorStore, VectorSearchResult } from './dist/index.js';
-import { GitHubModelsEmbedder, createChunker, markdownHeadersStrategy, tokenStrategy, wholeFileStrategy } from './dist/index.js';
+import type { RAGPipelineConfig, VectorStore, VectorSearchResult } from '@vivantel/rag-core';
+import { GitHubModelsEmbedder, createChunker, markdownHeadersStrategy, tokenStrategy, wholeFileStrategy } from '@vivantel/rag-core';
 import { createClient } from '@supabase/supabase-js';
 
 const embedder = new GitHubModelsEmbedder({ token: process.env.MODELS_TOKEN! });

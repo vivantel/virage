@@ -1,10 +1,22 @@
-name: CI
+name: CI — @vivantel/rag-core
 
 on:
   push:
     branches: [master, develop]
+    paths:
+      - 'packages/rag-core/**'
+      - 'eslint.config.js'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/ci.yaml'
   pull_request:
     branches: [master]
+    paths:
+      - 'packages/rag-core/**'
+      - 'eslint.config.js'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/ci.yaml'
 
 jobs:
   build-and-test:
@@ -32,25 +44,22 @@ jobs:
         run: npm ci
 
       - name: Type check
-        run: npm run type-check
+        run: npm run type-check --workspace packages/rag-core
 
       - name: Lint
         run: npm run lint
 
       - name: Run tests
-        run: npm test
+        run: npm test --workspace packages/rag-core
 
       - name: Build
-        run: npm run build:all
-
-      - name: Run workspace tests
-        run: npm test --workspaces --if-present
+        run: npm run build --workspace packages/rag-core
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: dist-node-${{ matrix.node-version }}
-          path: dist/
+          name: dist-rag-core-node-${{ matrix.node-version }}
+          path: packages/rag-core/dist/
           retention-days: 7
 
   code-quality:
@@ -71,13 +80,13 @@ jobs:
         run: npm ci
 
       - name: Check formatting
-        run: npx prettier --check "src/**/*.ts"
+        run: npm run format:check
 
-      - name: Run lint with fix check
-        run: npx eslint src/ --max-warnings 0
+      - name: Run lint
+        run: npm run lint
 
       - name: Type coverage
-        run: npx type-coverage --at-least 90
+        run: npx type-coverage --at-least 90 --project packages/rag-core/tsconfig.json
 
       - name: Audit dependencies
         run: npm audit --audit-level=moderate
@@ -143,7 +152,7 @@ jobs:
         run: npm ci
 
       - name: Build
-        run: npm run build
+        run: npm run build --workspace packages/rag-core
 
       - name: Restore RAG cache
         uses: actions/cache@v4
@@ -163,7 +172,7 @@ jobs:
             rag-embeddings-${{ github.ref_name }}-
 
       - name: Run RAG pipeline
-        run: node dist/bin/rag-update.js --config rag.config.ci.ts
+        run: npx rag-update --config rag.config.ci.ts
         env:
           MODELS_TOKEN: ${{ secrets.MODELS_TOKEN }}
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}

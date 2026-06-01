@@ -1,119 +1,32 @@
 {
-  "name": "@vivantel/rag-core",
-  "version": "2.3.0",
+  "name": "vivantel-rag-monorepo",
+  "version": "0.0.0",
+  "private": true,
   "type": "module",
   "workspaces": [
     "packages/*"
   ],
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/vivantel/rag_core"
-  },
-  "description": "Core RAG pipeline tools - universal chunking, embedding, vector store interfaces",
-  "files": [
-    "dist",
-    "schemas",
-    "README.md"
-  ],
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
-  "bin": {
-    "rag-update": "./dist/bin/rag-update.js"
-  },
+  "description": "Monorepo for @vivantel/rag-core and related packages",
   "scripts": {
-    "audit:fix": "npm audit fix",
-    "audit:report": "npm audit --json > npm-audit-report.json",
-    "audit": "npm audit",
-    "build:all": "npm run build && npm run build --workspaces --if-present",
-    "build:clean": "rm -rf dist && npm run build",
-    "build:verbose": "tsc --listEmittedFiles",
-    "build": "tsc && echo \"✅ Build completed successfully\"",
-    "check:full": "npm run check && npm run test:coverage && npm run type-coverage",
-    "check:quick": "npm run type-check && npm run lint",
-    "check": "npm run type-check && npm run lint && npm run format:check && npm run audit",
-    "clean:cache": "npm cache clean --force",
-    "clean:rebuild": "npm run clean && npm install && npm run build",
-    "clean": "rm -rf dist node_modules coverage docs",
-    "dev:debug": "tsx --inspect-brk src/index.ts",
-    "dev": "tsx watch src/index.ts",
-    "docs:generate": "typedoc",
-    "docs:open": "npm run docs:generate && open docs/index.html",
-    "docs:serve": "npm run docs:generate && npx http-server docs -p 8080",
-    "fix:aggressive": "npm run fix:all && npm run update:apply && npm run clean:rebuild",
-    "fix:all": "npm run fix && npm run audit:fix",
+    "build:all": "npm run build --workspaces --if-present",
+    "test": "npm test --workspaces --if-present",
+    "type-check": "npm run type-check --workspaces --if-present",
+    "lint": "eslint packages/rag-core/src/ packages/*/src/",
+    "lint:fix": "eslint packages/rag-core/src/ packages/*/src/ --fix",
+    "format": "prettier --write \"packages/*/src/**/*.ts\"",
+    "format:check": "prettier --check \"packages/*/src/**/*.ts\"",
     "fix": "npm run lint:fix && npm run format",
-    "format:check": "prettier --check \"src/**/*.ts\"",
-    "format": "prettier --write \"src/**/*.ts\"",
-    "help": "echo 'Available commands:' && grep -E '^\\s+\"[a-z]' package.json | sed 's/\"//g' | sed 's/://g' | column -t",
-    "info": "echo 'Node: $(node --version) | npm: $(npm --version)' && npm list --depth=0",
-    "lint:fix": "eslint src/ --fix",
-    "lint:strict": "eslint src/ --max-warnings 0",
-    "lint": "eslint src/",
-    "outdated:report": "npm outdated --json > npm-outdated-report.json",
-    "outdated": "npm outdated",
-    "postpublish": "echo \"✅ Published to npm\"",
-    "postversion": "git push && git push --tags",
-    "precommit": "npm run type-check && npm run format:check && npm run lint && npm audit",
-    "prepare": "npm run build",
-    "prepublishOnly": "npm run build && npm test",
-    "prepush": "npm run test:run && npm run audit && npm run format:check",
-    "release:major": "npm version major && npm publish",
-    "release:minor": "npm version minor && npm publish",
-    "release:patch": "npm version patch && npm publish",
-    "release:pre": "npm version prerelease && npm publish --tag next",
-    "status": "npm run outdated && npm run audit",
-    "test:coverage": "vitest --coverage --config vitest.config.ts",
-    "test:debug": "vitest --inspect-brk --config vitest.config.ts",
-    "test:run": "vitest run --config vitest.config.ts",
-    "test:update": "vitest -u --config vitest.config.ts",
-    "test:watch": "vitest watch --config vitest.config.ts",
-    "test": "vitest run --config vitest.config.ts",
-    "type-check:watch": "tsc --noEmit --watch",
-    "type-check": "tsc --noEmit",
-    "type-coverage:report": "type-coverage --detail",
-    "type-coverage": "type-coverage --at-least 90",
-    "update:apply": "npx npm-check-updates -u && npm install",
-    "update:check": "npx npm-check-updates",
-    "update": "npm update",
-    "version": "conventional-changelog -p angular -i CHANGELOG.md -s && git add CHANGELOG.md",
-    "watch:test": "vitest --watch --config vitest.config.ts",
-    "watch": "tsc --watch"
-  },
-  "keywords": [
-    "rag",
-    "embeddings",
-    "vector",
-    "git",
-    "pipeline"
-  ],
-  "author": "Vivantel",
-  "license": "MIT",
-  "dependencies": {
-    "@inquirer/prompts": "^8.5.1",
-    "chokidar": "^5.0.0",
-    "commander": "^15.0.0",
-    "dotenv": "^17.4.2",
-    "glob": "^13.0.6",
-    "simple-git": "^3.25.0",
-    "tsx": "^4.22.4"
+    "clean": "rm -rf packages/*/dist packages/*/node_modules node_modules coverage"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
-    "@supabase/supabase-js": "^2.106.2",
     "@types/node": "^25.9.1",
     "eslint": "^10.4.1",
     "prettier": "^3.8.3",
-    "typedoc": "^0.28.19",
-    "typedoc-plugin-markdown": "^4.11.0",
     "typescript": "^6.0.3",
-    "typescript-eslint": "^8.60.0",
-    "vitest": "^4.1.7"
+    "typescript-eslint": "^8.60.0"
   },
   "engines": {
     "node": ">=18.0.0"
-  },
-  "vitest": {
-    "environment": "node",
-    "globals": false
   }
 }

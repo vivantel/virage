@@ -32,9 +32,14 @@ describe("TransformersEmbedder", () => {
     const { pipeline } = await import("@huggingface/transformers");
     (pipeline as ReturnType<typeof vi.fn>).mockClear();
 
-    mockPipeline.mockResolvedValueOnce({ data: new Float32Array([0.1, 0.2, 0.3]) });
+    mockPipeline.mockResolvedValueOnce({
+      data: new Float32Array([0.1, 0.2, 0.3]),
+    });
 
-    const embedder = new TransformersEmbedder({ model: "test-model", dimensions: 3 });
+    const embedder = new TransformersEmbedder({
+      model: "test-model",
+      dimensions: 3,
+    });
     const result = await embedder.embed("hello");
 
     expect(Array.isArray(result)).toBe(true);
@@ -49,7 +54,10 @@ describe("TransformersEmbedder", () => {
 
     mockPipeline.mockResolvedValue({ data: new Float32Array([0.1, 0.2, 0.3]) });
 
-    const embedder = new TransformersEmbedder({ model: "test-model", dimensions: 3 });
+    const embedder = new TransformersEmbedder({
+      model: "test-model",
+      dimensions: 3,
+    });
     await embedder.embed("a");
     await embedder.embed("b");
 
@@ -81,7 +89,10 @@ describe("TransformersEmbedder", () => {
       new Error("Model not found"),
     );
 
-    const embedder = new TransformersEmbedder({ model: "bad-model", dimensions: 3 });
+    const embedder = new TransformersEmbedder({
+      model: "bad-model",
+      dimensions: 3,
+    });
     expect(await embedder.healthCheck()).toBe(false);
   });
 });

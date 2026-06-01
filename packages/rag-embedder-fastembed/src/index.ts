@@ -17,8 +17,7 @@ export function createEmbedder(
     model: typeof config.model === "string" ? config.model : undefined,
     dimensions:
       typeof config.dimensions === "number" ? config.dimensions : undefined,
-    cacheDir:
-      typeof config.cacheDir === "string" ? config.cacheDir : undefined,
+    cacheDir: typeof config.cacheDir === "string" ? config.cacheDir : undefined,
     showDownloadProgress:
       typeof config.showDownloadProgress === "boolean"
         ? config.showDownloadProgress

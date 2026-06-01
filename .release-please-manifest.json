@@ -1,5 +1,6 @@
 {
-  ".": "2.3.0",
+  "packages/rag-core": "2.3.0",
+  "packages/rag-strategies": "2.0.0",
   "packages/rag-embedder-openai": "1.0.0",
   "packages/rag-embedder-transformers": "1.0.0",
   "packages/rag-embedder-fastembed": "1.0.0"

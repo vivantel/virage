@@ -1,4 +1,7 @@
-import { OpenAICompatibleEmbedder, OpenAICompatibleEmbedderOptions } from "./embedder.js";
+import {
+  OpenAICompatibleEmbedder,
+  OpenAICompatibleEmbedderOptions,
+} from "./embedder.js";
 
 export interface GitHubModelsPresetOptions {
   token: string;
