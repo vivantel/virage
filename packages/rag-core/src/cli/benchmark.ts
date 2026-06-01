@@ -21,7 +21,8 @@ export async function runBenchmarkEmbedder(
   }>;
 
   try {
-    const mod = await import("@vivantel/rag-embedder-transformers");
+    const pkg = "@vivantel/rag-embedder-transformers";
+    const mod = await import(pkg);
     benchmarkEmbedder = mod.benchmarkEmbedder as typeof benchmarkEmbedder;
   } catch {
     console.error(
