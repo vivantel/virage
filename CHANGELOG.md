@@ -5,6 +5,14 @@
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.5.2](https://github.com/vivantel/rag_core/compare/v2.5.1...v2.5.2) (2026-06-01)
+
+
+### Bug Fixes
+
+* stop release-please from tracking monorepo root as a versioned package ([7883f7d](https://github.com/vivantel/rag_core/commit/7883f7dd85437bfe247ae52f0e2a0a22b4478f77))
+* suppress GitHub release for monorepo root in release-please config ([7e89f1f](https://github.com/vivantel/rag_core/commit/7e89f1f6e8cc3214c73ca5f069702d7ce1f7036a))
+
 ## [2.5.1](https://github.com/vivantel/rag_core/compare/v2.5.0...v2.5.1) (2026-06-01)
 
 
