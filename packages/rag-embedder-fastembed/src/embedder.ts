@@ -54,8 +54,9 @@ export class FastEmbedEmbedder implements EmbeddingProvider {
     // Lazy import — consumers must install fastembed.
     // Variable specifier prevents TS from erroring when fastembed isn't installed.
     const mod = "fastembed";
-    const { EmbeddingModel } =
-      (await import(mod)) as unknown as FastEmbedModule;
+    const { EmbeddingModel } = (await import(
+      mod
+    )) as unknown as FastEmbedModule;
     this._inner = new EmbeddingModel({
       model: this.model,
       cacheDir: this.cacheDir,
