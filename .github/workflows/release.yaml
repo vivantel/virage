@@ -9,6 +9,9 @@ permissions:
   contents: write
   pull-requests: write
   issues: write
+  packages: write
+  pages: write
+  id-token: write
 
 jobs:
   release-please:
@@ -147,3 +150,50 @@ jobs:
         working-directory: packages/rag-embedder-fastembed
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+  publish-github-packages:
+    name: Publish @vivantel/rag-core to GitHub Packages
+    needs: release-please
+    if: ${{ needs.release-please.outputs.core_released == 'true' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '20.x'
+          registry-url: 'https://npm.pkg.github.com'
+          cache: "npm"
+      - run: npm ci
+      - run: npm run build --workspace packages/rag-core
+      - name: Publish to GitHub Packages
+        run: npm publish
+        working-directory: packages/rag-core
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  deploy-docs:
+    name: Deploy API Docs
+    needs: release-please
+    if: ${{ needs.release-please.outputs.core_released == 'true' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '20.x'
+          cache: "npm"
+      - run: npm ci
+      - run: npm run build --workspace packages/rag-core
+      - name: Generate API documentation
+        run: npm run docs:generate --workspace packages/rag-core
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./docs/api
+          keep_files: false
