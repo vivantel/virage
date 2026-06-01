@@ -1,0 +1,65 @@
+name: Run RAG Pipeline
+
+on:
+  push:
+    branches: [master]
+
+jobs:
+  rag-update:
+    name: RAG Pipeline
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "lts/*"
+
+      - name: Install RAG packages from npm
+        run: |
+          npm install --prefix ./rag-runner \
+            @vivantel/rag-core@latest \
+            @vivantel/rag-embedder-fastembed@latest \
+            @vivantel/rag-store-postgres@latest
+
+      - name: Restore RAG cache
+        uses: actions/cache@v4
+        with:
+          path: docs/rag/
+          key: rag-${{ github.ref_name }}-${{ github.sha }}
+          restore-keys: |
+            rag-${{ github.ref_name }}-
+            rag-
+
+      - name: Restore embedding progress
+        uses: actions/cache/restore@v4
+        with:
+          path: docs/rag/embeddings.json
+          key: rag-embeddings-${{ github.ref_name }}-${{ github.sha }}
+          restore-keys: |
+            rag-embeddings-${{ github.ref_name }}-
+
+      - name: Run RAG pipeline
+        run: ./rag-runner/node_modules/.bin/rag-update --config rag.config.ci.json
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
+      - name: Save RAG cache
+        uses: actions/cache/save@v4
+        with:
+          path: docs/rag/
+          key: rag-${{ github.ref_name }}-${{ github.sha }}
+
+      - name: Save embedding progress
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: docs/rag/embeddings.json
+          key: rag-embeddings-${{ github.ref_name }}-${{ github.sha }}
