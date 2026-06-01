@@ -1,0 +1,61 @@
+{
+  "name": "@vivantel/rag-store-postgres",
+  "version": "1.0.0",
+  "description": "PostgreSQL + pgvector store for @vivantel/rag-core",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "sideEffects": false,
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "tsc",
+    "type-check": "tsc --noEmit",
+    "prepublishOnly": "npm run build",
+    "lint": "eslint src/",
+    "lint:fix": "eslint src/ --fix",
+    "format": "prettier --write \"src/**/*.ts\"",
+    "fix": "npm run lint:fix && npm run format"
+  },
+  "keywords": [
+    "rag",
+    "vector-store",
+    "postgres",
+    "postgresql",
+    "pgvector"
+  ],
+  "author": "Vivantel",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/vivantel/rag_core",
+    "directory": "packages/rag-store-postgres"
+  },
+  "dependencies": {
+    "pg": "^8.0.0",
+    "pgvector": "^0.2.0"
+  },
+  "peerDependencies": {
+    "@vivantel/rag-core": "^2.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^25.9.1",
+    "@types/pg": "^8.0.0",
+    "@vivantel/rag-core": "file:../rag-core",
+    "typescript": "^6.0.3"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

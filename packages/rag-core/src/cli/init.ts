@@ -144,19 +144,15 @@ const embedder: EmbeddingProvider = {
 
 function buildVectorStoreSection(store: string): string {
   switch (store) {
-    case "supabase":
-      return `// Install: npm install @vivantel/rag-store-supabase @supabase/supabase-js
-// import { SupabaseVectorStore } from '@vivantel/rag-store-supabase';
-// const vectorStore = new SupabaseVectorStore({
-//   url: process.env.SUPABASE_URL!,
-//   key: process.env.SUPABASE_KEY!,
-//   table: 'documents',
-// });
+    case "postgres":
+      return `// Install: npm install @vivantel/rag-store-postgres
+// import { PostgresVectorStore } from '@vivantel/rag-store-postgres';
+// const vectorStore = new PostgresVectorStore({ connectionString: process.env.DATABASE_URL! });
 
 const vectorStore: VectorStore = {
-  name: 'supabase',
+  name: 'postgres',
   async initialize() {
-    throw new Error('Configure your Supabase vector store — uncomment the lines above');
+    throw new Error('Configure your PostgreSQL vector store — uncomment the lines above');
   },
   async upsert(_docs) { throw new Error('Not implemented'); },
   async deleteBySourceFile(_files) { throw new Error('Not implemented'); },
@@ -268,12 +264,10 @@ function generateJsonConfig(answers: InitAnswers): string {
   let vectorStorePackage: string;
   let vectorStoreConfig: Record<string, unknown>;
   switch (answers.vectorStore) {
-    case "supabase":
-      vectorStorePackage = "@vivantel/rag-store-supabase";
+    case "postgres":
+      vectorStorePackage = "@vivantel/rag-store-postgres";
       vectorStoreConfig = {
-        url: "${SUPABASE_URL}",
-        key: "${SUPABASE_KEY}",
-        table: "documents",
+        connectionString: "${DATABASE_URL}",
       };
       break;
     case "pinecone":
@@ -381,8 +375,8 @@ export async function runInit(): Promise<void> {
     message: "Which vector store?",
     choices: [
       {
-        name: "Supabase pgvector (@vivantel/rag-store-supabase)",
-        value: "supabase",
+        name: "PostgreSQL / pgvector (@vivantel/rag-store-postgres)",
+        value: "postgres",
       },
       { name: "Pinecone (@pinecone-database/pinecone)", value: "pinecone" },
       { name: "Custom (implement the interface yourself)", value: "custom" },

@@ -49,6 +49,15 @@
       "bump-patch-for-minor-pre-major": true,
       "draft": false,
       "prerelease": false
+    },
+    "packages/rag-store-postgres": {
+      "package-name": "@vivantel/rag-store-postgres",
+      "changelog-path": "CHANGELOG.md",
+      "release-type": "node",
+      "bump-minor-pre-major": true,
+      "bump-patch-for-minor-pre-major": true,
+      "draft": false,
+      "prerelease": false
     }
   },
   "plugins": [

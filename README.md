@@ -60,8 +60,8 @@ npx rag-update
     }
   },
   "vectorStore": {
-    "package": "@vivantel/rag-store-supabase",
-    "config": { "url": "${SUPABASE_URL}", "key": "${SUPABASE_KEY}" }
+    "package": "@vivantel/rag-store-postgres",
+    "config": { "connectionString": "${DATABASE_URL}" }
   }
 }
 ```

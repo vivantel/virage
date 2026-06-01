@@ -121,7 +121,7 @@ import { tokenStrategy } from '@vivantel/rag-strategies';
 | `@vivantel/rag-strategies` | Built-in chunking strategies | Planned |
 | `@vivantel/rag-embedder-github` | GitHub Models provider | Planned |
 | `@vivantel/rag-embedder-openai` | OpenAI provider | Planned |
-| `@vivantel/rag-store-supabase` | Supabase pgvector store | Existing |
+| `@vivantel/rag-store-postgres` | PostgreSQL / pgvector store | Existing |
 | `@vivantel/rag-store-pinecone` | Pinecone store | Planned |
 | `@vivantel/rag-chunker-event` | Event YAML chunker (Vivantel-specific) | Planned |
 

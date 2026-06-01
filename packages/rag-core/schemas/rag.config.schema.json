@@ -68,7 +68,7 @@
       "properties": {
         "package": {
           "type": "string",
-          "description": "npm package that exports createVectorStore(config). E.g. '@vivantel/rag-store-supabase'"
+          "description": "npm package that exports createVectorStore(config). E.g. '@vivantel/rag-store-postgres'"
         },
         "config": {
           "type": "object",

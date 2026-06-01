@@ -15,7 +15,7 @@ const embedder: EmbeddingProvider = {
   },
 };
 
-// Replace with your vector store (e.g. @vivantel/rag-store-supabase)
+// Replace with your vector store (e.g. @vivantel/rag-store-postgres)
 const vectorStore: VectorStore = {
   name: "my-store",
   async initialize() {},

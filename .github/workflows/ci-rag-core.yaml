@@ -172,11 +172,9 @@ jobs:
             rag-embeddings-${{ github.ref_name }}-
 
       - name: Run RAG pipeline
-        run: node packages/rag-core/dist/bin/rag-update.js --config rag.config.ci.ts
+        run: node packages/rag-core/dist/bin/rag-update.js --config rag.config.ci.json
         env:
-          MODELS_TOKEN: ${{ secrets.MODELS_TOKEN }}
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
 
       - name: Save RAG cache
         uses: actions/cache/save@v4
