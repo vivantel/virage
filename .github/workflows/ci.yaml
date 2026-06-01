@@ -172,7 +172,7 @@ jobs:
             rag-embeddings-${{ github.ref_name }}-
 
       - name: Run RAG pipeline
-        run: ./node_modules/.bin/rag-update --config rag.config.ci.ts
+        run: node packages/rag-core/dist/bin/rag-update.js --config rag.config.ci.ts
         env:
           MODELS_TOKEN: ${{ secrets.MODELS_TOKEN }}
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
