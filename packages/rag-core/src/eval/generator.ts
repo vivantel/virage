@@ -1,5 +1,9 @@
 import type { Chunk } from "../interfaces/chunker.js";
-import type { LLMJudge, EvalDataset, EvalQuery } from "../interfaces/quality.js";
+import type {
+  LLMJudge,
+  EvalDataset,
+  EvalQuery,
+} from "../interfaces/quality.js";
 import { saveEvalDataset } from "./dataset-io.js";
 
 export interface GeneratorOptions {
@@ -12,7 +16,12 @@ export interface GeneratorOptions {
  * Tokenise text by splitting on whitespace (used for TF-IDF keyword overlap).
  */
 function tokenSet(text: string): Set<string> {
-  return new Set(text.toLowerCase().split(/\s+/).filter((t) => t.length > 2));
+  return new Set(
+    text
+      .toLowerCase()
+      .split(/\s+/)
+      .filter((t) => t.length > 2),
+  );
 }
 
 /**
@@ -74,8 +83,10 @@ export async function generateEvalDataset(
       if (furthestIdx === -1 || minSim > 0.3) continue;
 
       // Create a negative query: ask about a distant chunk using the CURRENT chunk's language
-      const negativeQuery =
-        chunks[furthestIdx].content.slice(0, 80).replace(/\s+/g, " ").trim();
+      const negativeQuery = chunks[furthestIdx].content
+        .slice(0, 80)
+        .replace(/\s+/g, " ")
+        .trim();
       if (!negativeQuery || !chunks[i].contentHash) continue;
 
       queries.push({
@@ -118,7 +129,9 @@ export async function generateEvalDataset(
 
   if (outputPath) {
     await saveEvalDataset(outputPath, dataset);
-    console.log(`✅ Eval dataset saved to "${outputPath}" (${queries.length} queries)`);
+    console.log(
+      `✅ Eval dataset saved to "${outputPath}" (${queries.length} queries)`,
+    );
   }
 
   return dataset;

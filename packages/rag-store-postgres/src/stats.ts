@@ -62,8 +62,7 @@ async function computeIndexStats(
   const nDead = parseInt(statRow?.n_dead_tup ?? "0", 10);
   const deadTupleFraction = nLive + nDead > 0 ? nDead / (nLive + nDead) : 0;
 
-  const lastVacuum =
-    statRow?.last_vacuum ?? statRow?.last_autovacuum ?? null;
+  const lastVacuum = statRow?.last_vacuum ?? statRow?.last_autovacuum ?? null;
   const indexAgeHours = lastVacuum
     ? (Date.now() - new Date(lastVacuum).getTime()) / 3_600_000
     : -1;

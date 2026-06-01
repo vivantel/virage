@@ -62,8 +62,12 @@ export async function runExperimentCompare(
 
   console.log(`\n📊 Comparing experiments`);
   console.log("─".repeat(50));
-  console.log(`  Baseline  : ${baseline.id} (MRR: ${baseline.evalResult.mrr.toFixed(4)})`);
-  console.log(`  Candidate : ${candidate.id} (MRR: ${candidate.evalResult.mrr.toFixed(4)})`);
+  console.log(
+    `  Baseline  : ${baseline.id} (MRR: ${baseline.evalResult.mrr.toFixed(4)})`,
+  );
+  console.log(
+    `  Candidate : ${candidate.id} (MRR: ${candidate.evalResult.mrr.toFixed(4)})`,
+  );
 
   if (!baseline.perQueryRrScores || !candidate.perQueryRrScores) {
     const delta = candidate.evalResult.mrr - baseline.evalResult.mrr;
@@ -106,7 +110,9 @@ export async function runExperimentCompare(
         : "⚠️ ";
 
   console.log("─".repeat(50));
-  console.log(`  MRR delta  : ${stat.mrrDelta >= 0 ? "+" : ""}${stat.mrrDelta.toFixed(4)}`);
+  console.log(
+    `  MRR delta  : ${stat.mrrDelta >= 0 ? "+" : ""}${stat.mrrDelta.toFixed(4)}`,
+  );
   console.log(`  p-value    : ${stat.pValue.toFixed(4)}`);
   console.log(
     `  95% CI     : [${stat.confidenceInterval95[0].toFixed(4)}, ${stat.confidenceInterval95[1].toFixed(4)}]`,

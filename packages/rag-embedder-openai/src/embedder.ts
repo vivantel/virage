@@ -1,10 +1,7 @@
 import type { EmbeddingProvider, EmbeddingMetrics } from "@vivantel/rag-core";
 import OpenAI from "openai";
 import { computeEmbeddingMetrics } from "./embedding-metrics.js";
-import {
-  SemanticCache,
-  type SemanticCacheConfig,
-} from "./semantic-cache.js";
+import { SemanticCache, type SemanticCacheConfig } from "./semantic-cache.js";
 
 export interface OpenAICompatibleEmbedderOptions {
   apiKey: string;

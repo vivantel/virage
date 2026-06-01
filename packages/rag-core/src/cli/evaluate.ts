@@ -45,8 +45,12 @@ export async function runEvaluate(opts: EvaluateOptions): Promise<void> {
   printEvalResult(evalResult);
 
   if (opts.withLlmJudge) {
-    console.log("\n⚖️  LLM-as-judge (RAGAS) requires a judge configured in config.");
-    console.log("   Add a judge to your pipeline config to enable RAGAS metrics.");
+    console.log(
+      "\n⚖️  LLM-as-judge (RAGAS) requires a judge configured in config.",
+    );
+    console.log(
+      "   Add a judge to your pipeline config to enable RAGAS metrics.",
+    );
   }
 
   // Save to experiment store

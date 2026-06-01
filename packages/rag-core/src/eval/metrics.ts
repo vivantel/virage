@@ -68,9 +68,7 @@ interface PerQueryMetrics {
 /**
  * Average per-query metrics into a single EvalResult.
  */
-export function aggregateEvalResults(
-  perQuery: PerQueryMetrics[],
-): EvalResult {
+export function aggregateEvalResults(perQuery: PerQueryMetrics[]): EvalResult {
   if (perQuery.length === 0) {
     return {
       precisionAt5: 0,

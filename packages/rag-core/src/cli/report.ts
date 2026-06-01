@@ -13,8 +13,18 @@ interface TelemetryRecord {
   runAt: string;
   durationMs: number;
   stages: {
-    gitTracking?: { durationMs: number; filesScanned: number; toProcess: number; toDelete: number };
-    chunking?: { durationMs: number; filesProcessed: number; chunksGenerated: number; errors: number };
+    gitTracking?: {
+      durationMs: number;
+      filesScanned: number;
+      toProcess: number;
+      toDelete: number;
+    };
+    chunking?: {
+      durationMs: number;
+      filesProcessed: number;
+      chunksGenerated: number;
+      errors: number;
+    };
     embedding?: EmbeddingStage;
     upload?: { durationMs: number; uploaded: number; deleted: number };
   };
@@ -92,10 +102,12 @@ export async function runReport(dir: string): Promise<void> {
   if (s.embedding) {
     const e = s.embedding;
     const total = e.chunksEmbedded + e.chunksSkipped;
-    const hitRate = total > 0 ? (e.chunksSkipped / total) : 0;
+    const hitRate = total > 0 ? e.chunksSkipped / total : 0;
     console.log(`\n  Embedding         : ${fmt(e.durationMs)}`);
     console.log(`    Chunks embedded : ${e.chunksEmbedded}`);
-    console.log(`    Chunks skipped  : ${e.chunksSkipped} (cache hit rate: ${(hitRate * 100).toFixed(1)}%)`);
+    console.log(
+      `    Chunks skipped  : ${e.chunksSkipped} (cache hit rate: ${(hitRate * 100).toFixed(1)}%)`,
+    );
 
     if (e.rateLimitEvents !== undefined && e.rateLimitEvents > 0) {
       console.log(`    Rate limit events: ${e.rateLimitEvents}`);

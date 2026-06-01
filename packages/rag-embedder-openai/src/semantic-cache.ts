@@ -11,7 +11,9 @@ export interface SemanticCacheConfig {
 }
 
 function cosineSimilarity(a: number[], b: number[]): number {
-  let dot = 0, normA = 0, normB = 0;
+  let dot = 0,
+    normA = 0,
+    normB = 0;
   for (let i = 0; i < a.length; i++) {
     dot += a[i] * b[i];
     normA += a[i] * a[i];
@@ -130,7 +132,7 @@ export class SemanticCache {
     try {
       // eslint-disable-next-line @typescript-eslint/ban-ts-comment
       // @ts-ignore — better-sqlite3 is an optional peer dependency
-      const { default: Database } = await import("better-sqlite3") as {
+      const { default: Database } = (await import("better-sqlite3")) as {
         default: new (path: string) => SqliteDb;
       };
       const db = new Database(this.config.sqlitePath);
@@ -155,7 +157,9 @@ export class SemanticCache {
     const db: SqliteDb | null = await this.initDb();
     if (!db) return null;
     try {
-      const row = db.prepare("SELECT embedding FROM embeddings WHERE key = ?").get(key) as { embedding: Buffer } | undefined;
+      const row = db
+        .prepare("SELECT embedding FROM embeddings WHERE key = ?")
+        .get(key) as { embedding: Buffer } | undefined;
       if (!row) return null;
       return Array.from(new Float32Array(row.embedding.buffer));
     } catch {
@@ -168,7 +172,9 @@ export class SemanticCache {
     if (!db) return;
     try {
       const buf = Buffer.from(new Float32Array(embedding).buffer);
-      db.prepare("INSERT OR REPLACE INTO embeddings (key, embedding) VALUES (?, ?)").run(key, buf);
+      db.prepare(
+        "INSERT OR REPLACE INTO embeddings (key, embedding) VALUES (?, ?)",
+      ).run(key, buf);
     } catch {
       // Non-fatal
     }

@@ -37,10 +37,7 @@ function normalize(v: number[]): number[] {
 }
 
 /** Power iteration to find the top-2 principal components. */
-function pca2d(
-  vectors: number[][],
-  iterations = 100,
-): Array<[number, number]> {
+function pca2d(vectors: number[][], iterations = 100): Array<[number, number]> {
   const centered = vectors.map((v) => subtract(v, mean(vectors)));
   const d = centered[0].length;
 
@@ -69,7 +66,9 @@ function pca2d(
   return centered.map((c) => [dot(c, pc1), dot(c, pc2)]);
 }
 
-export async function runVizEmbeddings(opts: VizEmbeddingsOptions): Promise<void> {
+export async function runVizEmbeddings(
+  opts: VizEmbeddingsOptions,
+): Promise<void> {
   console.log(`📂 Reading embeddings from "${opts.embeddingsFile}"...`);
 
   const { chunks } = await readEmbeddingsFile(opts.embeddingsFile);
@@ -88,7 +87,11 @@ export async function runVizEmbeddings(opts: VizEmbeddingsOptions): Promise<void
     try {
       // eslint-disable-next-line @typescript-eslint/ban-ts-comment
       // @ts-ignore — umap-js is an optional peer dependency
-      const { UMAP } = await import("umap-js") as { UMAP: new (opts: unknown) => { fitAsync: (data: number[][]) => Promise<number[][]> } };
+      const { UMAP } = (await import("umap-js")) as {
+        UMAP: new (opts: unknown) => {
+          fitAsync: (data: number[][]) => Promise<number[][]>;
+        };
+      };
       console.log("🗺️  Computing UMAP projection...");
       const umap = new UMAP({ nComponents: 2, nNeighbors: 15, minDist: 0.1 });
       const result = await umap.fitAsync(chunks.map((c) => c.embedding));
@@ -124,11 +127,23 @@ interface PlotPoint {
   preview: string;
 }
 
-function buildHtml(points: PlotPoint[], source: string, projection: string): string {
+function buildHtml(
+  points: PlotPoint[],
+  source: string,
+  projection: string,
+): string {
   const extensions = [...new Set(points.map((p) => p.ext))];
   const colors = [
-    "#4e79a7","#f28e2b","#e15759","#76b7b2","#59a14f",
-    "#edc948","#b07aa1","#ff9da7","#9c755f","#bab0ac",
+    "#4e79a7",
+    "#f28e2b",
+    "#e15759",
+    "#76b7b2",
+    "#59a14f",
+    "#edc948",
+    "#b07aa1",
+    "#ff9da7",
+    "#9c755f",
+    "#bab0ac",
   ];
   const colorMap: Record<string, string> = {};
   extensions.forEach((ext, i) => {

@@ -53,7 +53,9 @@ export async function getQueryPerfReport(
         p95LatencyMs: 0,
         p99LatencyMs: 0,
         slowQueryCount: 0,
-        suggestedIndexes: [`No queries found for table "${table}" in pg_stat_statements`],
+        suggestedIndexes: [
+          `No queries found for table "${table}" in pg_stat_statements`,
+        ],
       };
     }
 
@@ -81,9 +83,7 @@ export async function getQueryPerfReport(
         `${slowQueryCount} slow queries (>100ms) found. Consider reviewing index configuration.`,
       );
     }
-    if (
-      res.rows.some((r) => r.query.toLowerCase().includes("seq scan"))
-    ) {
+    if (res.rows.some((r) => r.query.toLowerCase().includes("seq scan"))) {
       suggestedIndexes.push(
         `Sequential scans detected. Ensure the embedding index is being used.`,
       );

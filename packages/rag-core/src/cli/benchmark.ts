@@ -31,7 +31,9 @@ export async function runBenchmarkEmbedder(
     process.exit(1);
   }
 
-  console.log("⏳ Running benchmark (this may take a moment for model download)...\n");
+  console.log(
+    "⏳ Running benchmark (this may take a moment for model download)...\n",
+  );
 
   const result = await benchmarkEmbedder(opts.model, { device: opts.device });
 

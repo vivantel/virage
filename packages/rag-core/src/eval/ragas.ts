@@ -1,7 +1,4 @@
-import type {
-  EmbeddingProvider,
-  VectorStore,
-} from "../interfaces/index.js";
+import type { EmbeddingProvider, VectorStore } from "../interfaces/index.js";
 import type {
   EvalDataset,
   LLMJudge,

@@ -64,8 +64,7 @@ export function bootstrapPairedTest(
 
   // One-tailed: P(bootstrap delta ≤ 0) — probability of no improvement by chance.
   // Low value → candidate is significantly better than baseline.
-  const pValue =
-    bootstrapDeltas.filter((d) => d <= 0).length / iterations;
+  const pValue = bootstrapDeltas.filter((d) => d <= 0).length / iterations;
 
   const loIdx = Math.max(0, Math.floor(0.025 * iterations) - 1);
   const hiIdx = Math.min(iterations - 1, Math.ceil(0.975 * iterations));

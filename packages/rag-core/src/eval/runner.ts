@@ -1,7 +1,4 @@
-import type {
-  EmbeddingProvider,
-  VectorStore,
-} from "../interfaces/index.js";
+import type { EmbeddingProvider, VectorStore } from "../interfaces/index.js";
 import type { EvalDataset, EvalResult } from "../interfaces/quality.js";
 import { computeEvalResult, reciprocalRank } from "./metrics.js";
 
@@ -48,7 +45,8 @@ export class EvalRunner {
           for (const result of searchResults) {
             if (result.content.includes(expected)) {
               relevantIds.add(
-                (result.metadata.contentHash as string | undefined) ?? result.id,
+                (result.metadata.contentHash as string | undefined) ??
+                  result.id,
               );
             }
           }

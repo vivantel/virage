@@ -7,7 +7,11 @@ interface ChunksFileEntry {
 }
 
 function isChunkArray(val: unknown): val is ChunksFileEntry[] {
-  return Array.isArray(val) && val.length > 0 && typeof (val[0] as ChunksFileEntry).content === "string";
+  return (
+    Array.isArray(val) &&
+    val.length > 0 &&
+    typeof (val[0] as ChunksFileEntry).content === "string"
+  );
 }
 
 function computeCohesion(chunks: ChunksFileEntry[]): {
@@ -68,7 +72,8 @@ export async function runChunksReport(chunksFile: string): Promise<void> {
   // Group by strategy
   const byStrategy = new Map<string, ChunksFileEntry[]>();
   for (const chunk of chunks) {
-    const strategy = (chunk.metadata?.strategy as string | undefined) ?? "unknown";
+    const strategy =
+      (chunk.metadata?.strategy as string | undefined) ?? "unknown";
     const group = byStrategy.get(strategy) ?? [];
     group.push(chunk);
     byStrategy.set(strategy, group);

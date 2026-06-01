@@ -84,7 +84,4 @@ export {
 } from "./eval/metrics.js";
 export { bootstrapPairedTest } from "./eval/statistics.js";
 export type { StatTestResult } from "./eval/statistics.js";
-export {
-  loadEvalDataset,
-  saveEvalDataset,
-} from "./eval/dataset-io.js";
+export { loadEvalDataset, saveEvalDataset } from "./eval/dataset-io.js";

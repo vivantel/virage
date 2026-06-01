@@ -8,10 +8,7 @@ import { RagError } from "../core/errors.js";
 import { runInit } from "../cli/init.js";
 import { runValidate } from "../cli/validate.js";
 import { runEvaluate } from "../cli/evaluate.js";
-import {
-  runExperimentRun,
-  runExperimentCompare,
-} from "../cli/experiment.js";
+import { runExperimentRun, runExperimentCompare } from "../cli/experiment.js";
 import { runBenchmarkEmbedder } from "../cli/benchmark.js";
 import { runStoreStats, runStorePerf } from "../cli/store-cmd.js";
 import { runReport } from "../cli/report.js";
@@ -190,7 +187,11 @@ program
 program
   .command("report")
   .description("Show observability report from telemetry files")
-  .option("--dir <path>", "Directory containing telemetry.json files", "./docs/rag")
+  .option(
+    "--dir <path>",
+    "Directory containing telemetry.json files",
+    "./docs/rag",
+  )
   .action(async (opts: { dir: string }) => {
     try {
       await runReport(opts.dir);
@@ -251,7 +252,11 @@ viz
   .option("--output <path>", "Output HTML file", "umap.html")
   .option("--projection <type>", "Projection type: umap or tsne", "umap")
   .action(
-    async (opts: { embeddings: string; output: string; projection: string }) => {
+    async (opts: {
+      embeddings: string;
+      output: string;
+      projection: string;
+    }) => {
       try {
         await runVizEmbeddings({
           embeddingsFile: opts.embeddings,
@@ -281,11 +286,7 @@ program
   .command("dashboard")
   .description("Start a local RAG monitoring dashboard")
   .option("--port <n>", "Port to serve on", parseInt, 3000)
-  .option(
-    "--chunks <path>",
-    "Chunks file path",
-    "./docs/rag/chunks.json",
-  )
+  .option("--chunks <path>", "Chunks file path", "./docs/rag/chunks.json")
   .option(
     "--embeddings <path>",
     "Embeddings file path",
@@ -325,9 +326,7 @@ benchmark
     }
   });
 
-const store = program
-  .command("store")
-  .description("Vector store diagnostics");
+const store = program.command("store").description("Vector store diagnostics");
 
 store
   .command("stats")
@@ -367,19 +366,17 @@ experiment
   .requiredOption("--name <name>", "Experiment name")
   .option("-c, --config <path>", "Path to config file", "./rag.config.ts")
   .option("-d, --dataset <path>", "Eval dataset path", "./eval/queries.json")
-  .action(
-    async (opts: { name: string; config: string; dataset: string }) => {
-      try {
-        await runExperimentRun({
-          name: opts.name,
-          config: opts.config,
-          dataset: opts.dataset,
-        });
-      } catch (error) {
-        handleError(error);
-      }
-    },
-  );
+  .action(async (opts: { name: string; config: string; dataset: string }) => {
+    try {
+      await runExperimentRun({
+        name: opts.name,
+        config: opts.config,
+        dataset: opts.dataset,
+      });
+    } catch (error) {
+      handleError(error);
+    }
+  });
 
 experiment
   .command("compare")

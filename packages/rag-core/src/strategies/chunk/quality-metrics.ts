@@ -10,7 +10,9 @@ function tokenise(text: string): string[] {
   return text.split(/[\s\p{P}]+/u).filter(Boolean);
 }
 
-export function computeChunkQualityMetrics(chunks: Chunk[]): ChunkQualityMetrics {
+export function computeChunkQualityMetrics(
+  chunks: Chunk[],
+): ChunkQualityMetrics {
   if (chunks.length === 0) {
     return {
       avgChunkSize: 0,

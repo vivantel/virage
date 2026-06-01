@@ -67,8 +67,20 @@ describe("hitRateAtK", () => {
 describe("aggregateEvalResults", () => {
   it("averages metrics across queries", () => {
     const result = aggregateEvalResults([
-      { precisionAt5: 0.4, precisionAt10: 0.3, recallAt10: 0.5, rr: 1.0, hitRateAt5: 1 },
-      { precisionAt5: 0.2, precisionAt10: 0.1, recallAt10: 0.3, rr: 0.5, hitRateAt5: 0 },
+      {
+        precisionAt5: 0.4,
+        precisionAt10: 0.3,
+        recallAt10: 0.5,
+        rr: 1.0,
+        hitRateAt5: 1,
+      },
+      {
+        precisionAt5: 0.2,
+        precisionAt10: 0.1,
+        recallAt10: 0.3,
+        rr: 0.5,
+        hitRateAt5: 0,
+      },
     ]);
     expect(result.mrr).toBeCloseTo(0.75);
     expect(result.precisionAt5).toBeCloseTo(0.3);
