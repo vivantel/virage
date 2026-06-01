@@ -2,7 +2,7 @@
 
 Monorepo for `@vivantel/rag-core` — a Git-aware RAG pipeline that turns your codebase into a searchable vector store.
 
-[![CI](https://github.com/vivantel/rag_core/actions/workflows/ci.yaml/badge.svg)](https://github.com/vivantel/rag_core/actions/workflows/ci.yaml)
+[![CI](https://github.com/vivantel/rag_core/actions/workflows/ci-rag-core.yaml/badge.svg)](https://github.com/vivantel/rag_core/actions/workflows/ci-rag-core.yaml)
 [![Release](https://github.com/vivantel/rag_core/actions/workflows/release.yaml/badge.svg)](https://github.com/vivantel/rag_core/actions/workflows/release.yaml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 

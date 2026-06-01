@@ -1,6 +1,6 @@
 # @vivantel/rag-core
 
-[![CI](https://github.com/vivantel/rag_core/actions/workflows/ci.yaml/badge.svg)](https://github.com/vivantel/rag_core/actions/workflows/ci.yaml)
+[![CI](https://github.com/vivantel/rag_core/actions/workflows/ci-rag-core.yaml/badge.svg)](https://github.com/vivantel/rag_core/actions/workflows/ci-rag-core.yaml)
 [![npm version](https://img.shields.io/npm/v/@vivantel/rag-core.svg)](https://www.npmjs.com/package/@vivantel/rag-core)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
