@@ -73,7 +73,7 @@ describe("wholeFileStrategy", () => {
   });
 
   it("extractMetadata returns char_count and line_count", () => {
-    const meta = strategy.extractMetadata("a\nb\nc");
+    const meta = strategy.extractMetadata!("a\nb\nc");
     expect(meta.char_count).toBe(5);
     expect(meta.line_count).toBe(3);
   });
@@ -83,7 +83,7 @@ describe("wholeFileStrategy", () => {
       "The quick brown fox jumps over the lazy dog.",
       "f.txt",
     );
-    const metrics = strategy.getQualityMetrics(chunks);
+    const metrics = strategy.getQualityMetrics!(chunks);
 
     expect(metrics.avgChunkSize).toBeGreaterThan(0);
     expect(metrics.semanticCoherence).toBeGreaterThanOrEqual(0);
@@ -166,14 +166,14 @@ describe("tokenStrategy", () => {
   });
 
   it("extractMetadata returns char_count and estimated_tokens", () => {
-    const meta = tokenStrategy().extractMetadata("hello world");
+    const meta = tokenStrategy().extractMetadata!("hello world");
     expect(typeof meta.char_count).toBe("number");
     expect(typeof meta.estimated_tokens).toBe("number");
     expect(Number(meta.estimated_tokens)).toBeGreaterThan(0);
   });
 
   it("getQualityMetrics on empty chunks returns zero metrics", () => {
-    const metrics = tokenStrategy().getQualityMetrics([]);
+    const metrics = tokenStrategy().getQualityMetrics!([]);
     expect(metrics.avgChunkSize).toBe(0);
     expect(metrics.informationDensity).toBe(0);
   });
@@ -253,7 +253,7 @@ describe("markdownHeadersStrategy", () => {
 
   it("extractMetadata detects the first header and line count", () => {
     const text = "## Title\nSome body.";
-    const meta = strategy.extractMetadata(text);
+    const meta = strategy.extractMetadata!(text);
 
     expect(meta.has_headers).toBe(true);
     expect(meta.first_header).toBe("Title");
@@ -261,7 +261,7 @@ describe("markdownHeadersStrategy", () => {
   });
 
   it("extractMetadata reports has_headers = false for plain text", () => {
-    expect(strategy.extractMetadata("plain text").has_headers).toBe(false);
+    expect(strategy.extractMetadata!("plain text").has_headers).toBe(false);
   });
 });
 
@@ -334,7 +334,7 @@ describe("semanticStrategy", () => {
   });
 
   it("extractMetadata returns sentence_count and char_count", () => {
-    const meta = strategy.extractMetadata("Hello. World!");
+    const meta = strategy.extractMetadata!("Hello. World!");
     expect(typeof meta.sentence_count).toBe("number");
     expect(typeof meta.char_count).toBe("number");
   });
@@ -345,7 +345,7 @@ describe("semanticStrategy", () => {
       text,
       "f.txt",
     );
-    const metrics = strategy.getQualityMetrics(chunks);
+    const metrics = strategy.getQualityMetrics!(chunks);
 
     expect(metrics.avgChunkSize).toBeGreaterThanOrEqual(0);
     expect(metrics.stdDevChunkSize).toBeGreaterThanOrEqual(0);

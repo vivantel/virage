@@ -10,6 +10,7 @@
     "build:all": "npm run build --workspaces --if-present",
     "test": "npm test --workspaces --if-present",
     "type-check": "npm run type-check --workspaces --if-present",
+    "type-check:ci": "npm run type-check -w packages/rag-core -w packages/rag-strategies -w packages/rag-store-postgres -w packages/rag-store-qdrant -w packages/rag-store-lancedb -w packages/rag-store-chromadb -w packages/rag-embedder-fastembed",
     "lint": "eslint packages/rag-core/src/ packages/*/src/",
     "lint:fix": "eslint packages/rag-core/src/ packages/*/src/ --fix",
     "format": "prettier --write \"packages/*/src/**/*.ts\"",

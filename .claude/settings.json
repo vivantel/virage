@@ -2,13 +2,12 @@
   "hooks": {
     "PreToolUse": [
       {
-        "matcher": "Bash",
+        "matcher": "Bash(git commit*)",
         "hooks": [
           {
             "type": "command",
-            "if": "Bash(git commit*)",
-            "command": "cd /home/ubuntu/data/projects/vivantel/rag_core && npm run fix 2>&1; npm run lint 2>&1",
-            "statusMessage": "Running lint:fix + format + lint check before commit..."
+            "command": "cd /home/ubuntu/data/projects/vivantel/rag_core && npm run fix 2>&1; npm run lint 2>&1 && npm run type-check:ci 2>&1",
+            "statusMessage": "Running lint:fix + format + lint + type-check before commit..."
           }
         ]
       }

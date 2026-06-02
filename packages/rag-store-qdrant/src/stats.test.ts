@@ -138,7 +138,7 @@ describe("getIndexStats (Qdrant)", () => {
 
     it("is -1 when vector size cannot be determined (no config)", async () => {
       const info = makeCollectionInfo({ points_count: 100 });
-      (info as CollectionInfo & { config: null }).config = null as never;
+      (info as Record<string, unknown>).config = null;
       const client = makeClient(info);
 
       const stats = await getIndexStats(client, "documents");

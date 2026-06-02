@@ -89,7 +89,7 @@ export class OpenAICompatibleEmbedder implements EmbeddingProvider {
       input: texts,
       dimensions: this.dimensions !== 1536 ? this.dimensions : undefined,
     });
-    return res.data.map((d) => d.embedding);
+    return res.data.map((d: { embedding: number[] }) => d.embedding);
   }
 
   async healthCheck(): Promise<boolean> {

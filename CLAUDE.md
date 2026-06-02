@@ -96,14 +96,17 @@ All internal imports use `.js` extensions (NodeNext requirement), e.g. `from "./
 
 ## Pre-commit rule
 
-**Always run `npm run fix` before `git commit`.** The project pre-commit hook (`PreToolUse` on `Bash(git commit*)`) does this automatically, but you must verify that no unfixable lint errors remain:
+**Always run the following sequence before `git commit`.** The project pre-commit hook (`PreToolUse` on `Bash(git commit*)`) does this automatically:
 
 ```bash
-npm run fix   # ESLint auto-fix + Prettier across all packages
-npm run lint  # fails if any errors survive the auto-fix — resolve these before committing
+npm run fix             # ESLint auto-fix + Prettier across all packages
+npm run lint            # fails if any errors survive auto-fix — resolve before committing
+npm run type-check:ci   # TypeScript check on all packages with working type files
 ```
 
-Never commit when `npm run lint` reports errors. The `|| true` safety valve was removed from the hook — a failing lint check now blocks the commit.
+Never commit when `npm run lint` or `npm run type-check:ci` report errors.
+
+`rag-embedder-openai` and `rag-embedder-transformers` are excluded from `type-check:ci` because their third-party type declaration files (`openai/index.d.mts`, `@huggingface/transformers/types/transformers.d.ts`) are empty in this environment — a corrupted npm install that predates this project. Run `npm ci` in those packages to restore them.
 
 ## Release process
 
