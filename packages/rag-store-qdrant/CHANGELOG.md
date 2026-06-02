@@ -1,0 +1,14 @@
+# Changelog
+
+## [2.0.0](https://github.com/vivantel/rag_core/compare/rag-store-qdrant@v1.0.0...rag-store-qdrant@v2.0.0) (2026-06-02)
+
+
+### ⚠ BREAKING CHANGES
+
+* TypeScript config files (rag.config.ts) are no longer supported. loadConfig() throws a ConfigError with a migration hint when given a .ts path. tsx removed from runtime dependencies. Default CLI config path changed from rag.config.ts to rag.config.json. gitignore updated accordingly.
+
+### Features
+
+* Add rag-store-qdrant, overhaul init wizard, drop rag.config.ts support ([cf32f27](https://github.com/vivantel/rag_core/commit/cf32f27aabd43d92c05e344cf73fc4ad8a1cbd97))
+* Test trusted publisher automation ([7fd08b9](https://github.com/vivantel/rag_core/commit/7fd08b96f32e7f7c2c2c02ec7e2eebb761d5fa7f))
+* Test trusted publisher automation ([c524461](https://github.com/vivantel/rag_core/commit/c5244615cf7e5e91457446b43d62efdd7928273c))
