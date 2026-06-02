@@ -1,4 +1,6 @@
 import type { EmbeddingProvider } from "@vivantel/rag-core";
+import { mkdir } from "fs/promises";
+import path from "path";
 
 export interface FastEmbedEmbedderOptions {
   /** FastEmbed model name, e.g. "BAAI/bge-small-en-v1.5" */
@@ -52,6 +54,13 @@ export class FastEmbedEmbedder implements EmbeddingProvider {
 
   private async getModel(): Promise<FastEmbedModel> {
     if (this._inner) return this._inner;
+
+    // Ensure the cache directory exists before fastembed tries to download to it.
+    // fastembed doesn't create intermediate directories, so a model name like
+    // "BAAI/bge-small-en-v1.5" needs "cacheDir/BAAI/" to pre-exist.
+    if (this.cacheDir) {
+      await mkdir(path.join(this.cacheDir, this.model), { recursive: true });
+    }
 
     // Lazy import — consumers must install fastembed.
     // Variable specifier prevents TS from erroring when fastembed isn't installed.

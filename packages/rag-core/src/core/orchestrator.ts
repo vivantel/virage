@@ -11,6 +11,7 @@ import {
 } from "../interfaces/index.js";
 import { readFile } from "fs/promises";
 import { RetryOptions } from "./utils.js";
+import { readEmbeddingsFile } from "./embeddings-io.js";
 
 export interface RAGPipelineConfig {
   chunkers: FileChunker[];
@@ -33,22 +34,16 @@ export interface RAGPipelineConfig {
 }
 
 async function loadPreviousState(
-  chunksFile: string,
+  embeddingsFile: string,
 ): Promise<Map<string, string>> {
-  try {
-    const content = await readFile(chunksFile, "utf-8");
-    const parsed = JSON.parse(content);
-    if (!Array.isArray(parsed)) return new Map();
-    const state = new Map<string, string>();
-    for (const chunk of parsed as Chunk[]) {
-      if (chunk.sourceFile && chunk.commitHash) {
-        state.set(chunk.sourceFile, chunk.commitHash);
-      }
+  const { chunks } = await readEmbeddingsFile(embeddingsFile);
+  const state = new Map<string, string>();
+  for (const chunk of chunks) {
+    if (chunk.sourceFile && chunk.commitHash) {
+      state.set(chunk.sourceFile, chunk.commitHash);
     }
-    return state;
-  } catch {
-    return new Map();
   }
+  return state;
 }
 
 async function loadExistingChunks(chunksFile: string): Promise<Chunk[]> {
@@ -107,7 +102,7 @@ export class Orchestrator {
 
       const previousState = opts.force
         ? new Map<string, string>()
-        : await loadPreviousState(this.chunksFile);
+        : await loadPreviousState(this.embeddingsFile);
 
       const { toProcess, toDelete } =
         await gitTracker.getChangedFiles(previousState);
