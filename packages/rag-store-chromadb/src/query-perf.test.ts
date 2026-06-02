@@ -29,7 +29,11 @@ function makeCollection(
 
 describe("getQueryPerfReport (ChromaDB)", () => {
   it("returns valid latency percentiles (p50 ≤ p95 ≤ p99)", async () => {
-    const report = await getQueryPerfReport(makeCollection({ queryDelayMs: 2 }), 384, 24);
+    const report = await getQueryPerfReport(
+      makeCollection({ queryDelayMs: 2 }),
+      384,
+      24,
+    );
 
     expect(report.timeframeHours).toBe(24);
     expect(report.p50LatencyMs).toBeGreaterThanOrEqual(0);
@@ -43,12 +47,20 @@ describe("getQueryPerfReport (ChromaDB)", () => {
   });
 
   it("slowQueryCount is 0 for fast queries (< 100 ms)", async () => {
-    const report = await getQueryPerfReport(makeCollection({ queryDelayMs: 1 }), 384, 24);
+    const report = await getQueryPerfReport(
+      makeCollection({ queryDelayMs: 1 }),
+      384,
+      24,
+    );
     expect(report.slowQueryCount).toBe(0);
   });
 
   it("returns healthy suggestion when p95 ≤ 100 ms", async () => {
-    const report = await getQueryPerfReport(makeCollection({ queryDelayMs: 1 }), 384, 24);
+    const report = await getQueryPerfReport(
+      makeCollection({ queryDelayMs: 1 }),
+      384,
+      24,
+    );
     expect(report.suggestedIndexes[0]).toMatch(/healthy/i);
   });
 
@@ -56,7 +68,9 @@ describe("getQueryPerfReport (ChromaDB)", () => {
     const fakeEmbeddings = [Array(4).fill(0.1), Array(4).fill(0.2)];
     const querySpy = vi.fn().mockResolvedValue({ ids: [[]] });
     const collection = makeCollection({
-      get: vi.fn().mockResolvedValue({ embeddings: fakeEmbeddings, ids: ["a", "b"] }),
+      get: vi
+        .fn()
+        .mockResolvedValue({ embeddings: fakeEmbeddings, ids: ["a", "b"] }),
       query: querySpy,
     });
 
@@ -64,7 +78,9 @@ describe("getQueryPerfReport (ChromaDB)", () => {
 
     // Exactly 2 real embeddings → exactly 2 query calls
     expect(querySpy).toHaveBeenCalledTimes(2);
-    const firstArg = querySpy.mock.calls[0][0] as { queryEmbeddings: number[][] };
+    const firstArg = querySpy.mock.calls[0][0] as {
+      queryEmbeddings: number[][];
+    };
     expect(firstArg.queryEmbeddings[0]).toEqual(expect.arrayContaining([0.1]));
   });
 
@@ -83,7 +99,11 @@ describe("getQueryPerfReport (ChromaDB)", () => {
   });
 
   it("suggests HNSW tuning when p95 > 100 ms", async () => {
-    const report = await getQueryPerfReport(makeCollection({ queryDelayMs: 120 }), 384, 24);
+    const report = await getQueryPerfReport(
+      makeCollection({ queryDelayMs: 120 }),
+      384,
+      24,
+    );
 
     expect(report.suggestedIndexes[0]).toMatch(/HNSW|hnsw/i);
   }, 15_000);

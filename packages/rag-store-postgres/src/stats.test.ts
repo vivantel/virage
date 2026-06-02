@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { getIndexStats } from "./stats.js";
 import type pg from "pg";
 
@@ -22,7 +22,9 @@ function makePool(queryResults: { rows: Row[] }[]) {
   for (const result of queryResults) {
     client.query.mockResolvedValueOnce(result);
   }
-  const pool = { connect: vi.fn().mockResolvedValue(client) } as unknown as pg.Pool;
+  const pool = {
+    connect: vi.fn().mockResolvedValue(client),
+  } as unknown as pg.Pool;
   return { pool, client };
 }
 
@@ -34,7 +36,11 @@ const STAT_ROW_CLEAN = {
 };
 
 // Minimal 4-query sequence: no ANN recall (embedding column absent)
-function noAnnResponses(count: number, indexRows: Row[] = [], statRow: Row = STAT_ROW_CLEAN) {
+function noAnnResponses(
+  count: number,
+  indexRows: Row[] = [],
+  statRow: Row = STAT_ROW_CLEAN,
+) {
   return [
     { rows: [{ count: String(count) }] },
     { rows: indexRows },
@@ -86,7 +92,12 @@ describe("getIndexStats (PostgreSQL)", () => {
   describe("indexType detection", () => {
     it("detects hnsw from pg_indexes indexdef", async () => {
       const { pool } = makePool(
-        noAnnResponses(100, [{ indexname: "emb_idx", indexdef: "CREATE INDEX emb_idx USING hnsw (embedding)" }]),
+        noAnnResponses(100, [
+          {
+            indexname: "emb_idx",
+            indexdef: "CREATE INDEX emb_idx USING hnsw (embedding)",
+          },
+        ]),
       );
 
       const stats = await getIndexStats(pool, "documents");
@@ -96,7 +107,12 @@ describe("getIndexStats (PostgreSQL)", () => {
 
     it("detects ivfflat from pg_indexes indexdef", async () => {
       const { pool } = makePool(
-        noAnnResponses(100, [{ indexname: "emb_idx", indexdef: "CREATE INDEX emb_idx USING ivfflat (embedding)" }]),
+        noAnnResponses(100, [
+          {
+            indexname: "emb_idx",
+            indexdef: "CREATE INDEX emb_idx USING ivfflat (embedding)",
+          },
+        ]),
       );
 
       const stats = await getIndexStats(pool, "documents");
@@ -106,7 +122,12 @@ describe("getIndexStats (PostgreSQL)", () => {
 
     it("detects flat from btree indexdef", async () => {
       const { pool } = makePool(
-        noAnnResponses(100, [{ indexname: "pkey", indexdef: "CREATE UNIQUE INDEX pkey USING btree (id)" }]),
+        noAnnResponses(100, [
+          {
+            indexname: "pkey",
+            indexdef: "CREATE UNIQUE INDEX pkey USING btree (id)",
+          },
+        ]),
       );
 
       const stats = await getIndexStats(pool, "documents");
@@ -126,8 +147,14 @@ describe("getIndexStats (PostgreSQL)", () => {
       // hnsw row comes first → detected as hnsw even though ivfflat row also present
       const { pool } = makePool(
         noAnnResponses(100, [
-          { indexname: "hnsw_idx", indexdef: "CREATE INDEX USING hnsw (embedding)" },
-          { indexname: "ivf_idx", indexdef: "CREATE INDEX USING ivfflat (embedding)" },
+          {
+            indexname: "hnsw_idx",
+            indexdef: "CREATE INDEX USING hnsw (embedding)",
+          },
+          {
+            indexname: "ivf_idx",
+            indexdef: "CREATE INDEX USING ivfflat (embedding)",
+          },
         ]),
       );
 
@@ -140,7 +167,12 @@ describe("getIndexStats (PostgreSQL)", () => {
   describe("deadTupleFraction", () => {
     it("is computed as dead / (live + dead)", async () => {
       const { pool } = makePool(
-        noAnnResponses(100, [], { n_live_tup: "300", n_dead_tup: "100", last_vacuum: null, last_autovacuum: null }),
+        noAnnResponses(100, [], {
+          n_live_tup: "300",
+          n_dead_tup: "100",
+          last_vacuum: null,
+          last_autovacuum: null,
+        }),
       );
 
       const stats = await getIndexStats(pool, "documents");
@@ -150,7 +182,12 @@ describe("getIndexStats (PostgreSQL)", () => {
 
     it("is 0 when no tuples exist", async () => {
       const { pool } = makePool(
-        noAnnResponses(0, [], { n_live_tup: "0", n_dead_tup: "0", last_vacuum: null, last_autovacuum: null }),
+        noAnnResponses(0, [], {
+          n_live_tup: "0",
+          n_dead_tup: "0",
+          last_vacuum: null,
+          last_autovacuum: null,
+        }),
       );
 
       const stats = await getIndexStats(pool, "documents");
@@ -175,7 +212,11 @@ describe("getIndexStats (PostgreSQL)", () => {
     it("falls back to last_autovacuum when last_vacuum is null", async () => {
       const lastAutoVacuum = new Date(Date.now() - 3 * 3_600_000).toISOString();
       const { pool } = makePool(
-        noAnnResponses(100, [], { ...STAT_ROW_CLEAN, last_vacuum: null, last_autovacuum: lastAutoVacuum }),
+        noAnnResponses(100, [], {
+          ...STAT_ROW_CLEAN,
+          last_vacuum: null,
+          last_autovacuum: lastAutoVacuum,
+        }),
       );
 
       const stats = await getIndexStats(pool, "documents");
@@ -208,7 +249,7 @@ describe("getIndexStats (PostgreSQL)", () => {
         { rows: [] },
         { rows: [STAT_ROW_CLEAN] },
         { rows: [{ data_type: "USER-DEFINED" }] }, // embedding col present
-        { rows: [{ count: "5" }] },                 // but count < 10
+        { rows: [{ count: "5" }] }, // but count < 10
       ]);
 
       const stats = await getIndexStats(pool, "documents");
@@ -233,7 +274,9 @@ describe("getIndexStats (PostgreSQL)", () => {
 
     it("is 1.0 when ANN and exact results are identical", async () => {
       const ids = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
-      const { pool } = makePool(withAnnResponses(100, [], STAT_ROW_CLEAN, 4, ids, ids));
+      const { pool } = makePool(
+        withAnnResponses(100, [], STAT_ROW_CLEAN, 4, ids, ids),
+      );
 
       const stats = await getIndexStats(pool, "documents");
 
@@ -243,7 +286,9 @@ describe("getIndexStats (PostgreSQL)", () => {
     it("computes partial recall correctly", async () => {
       const exactIds = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
       const annIds = [1, 2, 3, 4, 5, 11, 12, 13, 14, 15]; // 5 hits
-      const { pool } = makePool(withAnnResponses(100, [], STAT_ROW_CLEAN, 4, exactIds, annIds));
+      const { pool } = makePool(
+        withAnnResponses(100, [], STAT_ROW_CLEAN, 4, exactIds, annIds),
+      );
 
       const stats = await getIndexStats(pool, "documents");
 
@@ -252,7 +297,8 @@ describe("getIndexStats (PostgreSQL)", () => {
 
     it("is -1 when the search query throws", async () => {
       const client = {
-        query: vi.fn()
+        query: vi
+          .fn()
           .mockResolvedValueOnce({ rows: [{ count: "100" }] })
           .mockResolvedValueOnce({ rows: [] })
           .mockResolvedValueOnce({ rows: [STAT_ROW_CLEAN] })
@@ -262,7 +308,9 @@ describe("getIndexStats (PostgreSQL)", () => {
           .mockRejectedValueOnce(new Error("operator does not exist")),
         release: vi.fn(),
       };
-      const pool = { connect: vi.fn().mockResolvedValue(client) } as unknown as pg.Pool;
+      const pool = {
+        connect: vi.fn().mockResolvedValue(client),
+      } as unknown as pg.Pool;
 
       const stats = await getIndexStats(pool, "documents");
 
@@ -273,7 +321,12 @@ describe("getIndexStats (PostgreSQL)", () => {
   describe("suggestions", () => {
     it("recommends REINDEX when dead tuple fraction > 10%", async () => {
       const { pool } = makePool(
-        noAnnResponses(100, [], { n_live_tup: "800", n_dead_tup: "200", last_vacuum: null, last_autovacuum: null }),
+        noAnnResponses(100, [], {
+          n_live_tup: "800",
+          n_dead_tup: "200",
+          last_vacuum: null,
+          last_autovacuum: null,
+        }),
       );
 
       const stats = await getIndexStats(pool, "documents");
@@ -283,7 +336,12 @@ describe("getIndexStats (PostgreSQL)", () => {
 
     it("suggests switching to HNSW for ivfflat index with > 100k vectors", async () => {
       const { pool } = makePool(
-        noAnnResponses(150_000, [{ indexname: "idx", indexdef: "CREATE INDEX USING ivfflat (embedding)" }]),
+        noAnnResponses(150_000, [
+          {
+            indexname: "idx",
+            indexdef: "CREATE INDEX USING ivfflat (embedding)",
+          },
+        ]),
       );
 
       const stats = await getIndexStats(pool, "documents");
@@ -293,12 +351,16 @@ describe("getIndexStats (PostgreSQL)", () => {
 
     it("does not suggest HNSW for hnsw index with > 100k vectors", async () => {
       const { pool } = makePool(
-        noAnnResponses(150_000, [{ indexname: "idx", indexdef: "CREATE INDEX USING hnsw (embedding)" }]),
+        noAnnResponses(150_000, [
+          { indexname: "idx", indexdef: "CREATE INDEX USING hnsw (embedding)" },
+        ]),
       );
 
       const stats = await getIndexStats(pool, "documents");
 
-      expect(stats.suggestions.every((s) => !/switch.*HNSW/i.test(s))).toBe(true);
+      expect(stats.suggestions.every((s) => !/switch.*HNSW/i.test(s))).toBe(
+        true,
+      );
     });
 
     it("suggests VACUUM ANALYZE when index is older than 168 hours", async () => {
@@ -314,7 +376,9 @@ describe("getIndexStats (PostgreSQL)", () => {
 
     it("returns healthy suggestion when no issues detected", async () => {
       const { pool } = makePool(
-        noAnnResponses(100, [{ indexname: "idx", indexdef: "CREATE INDEX USING hnsw (embedding)" }]),
+        noAnnResponses(100, [
+          { indexname: "idx", indexdef: "CREATE INDEX USING hnsw (embedding)" },
+        ]),
       );
 
       const stats = await getIndexStats(pool, "documents");
@@ -329,9 +393,13 @@ describe("getIndexStats (PostgreSQL)", () => {
         query: vi.fn().mockRejectedValue(new Error("connection lost")),
         release: vi.fn(),
       };
-      const pool = { connect: vi.fn().mockResolvedValue(client) } as unknown as pg.Pool;
+      const pool = {
+        connect: vi.fn().mockResolvedValue(client),
+      } as unknown as pg.Pool;
 
-      await expect(getIndexStats(pool, "documents")).rejects.toThrow("connection lost");
+      await expect(getIndexStats(pool, "documents")).rejects.toThrow(
+        "connection lost",
+      );
 
       expect(client.release).toHaveBeenCalledOnce();
     });

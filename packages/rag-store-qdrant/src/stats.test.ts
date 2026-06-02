@@ -4,14 +4,19 @@ import type { QdrantClient } from "@qdrant/js-client-rest";
 
 type CollectionInfo = Awaited<ReturnType<QdrantClient["getCollection"]>>;
 
-function makeCollectionInfo(overrides: Partial<CollectionInfo> = {}): CollectionInfo {
+function makeCollectionInfo(
+  overrides: Partial<CollectionInfo> = {},
+): CollectionInfo {
   return {
     points_count: 100,
     segments_count: 3,
     status: "green",
     config: {
       params: {
-        vectors: { size: 4, distance: "Cosine" } as unknown as CollectionInfo["config"]["params"]["vectors"],
+        vectors: {
+          size: 4,
+          distance: "Cosine",
+        } as unknown as CollectionInfo["config"]["params"]["vectors"],
         shard_number: 1,
         replication_factor: 1,
         write_consistency_factor: 1,
@@ -25,7 +30,10 @@ function makeCollectionInfo(overrides: Partial<CollectionInfo> = {}): Collection
   } as CollectionInfo;
 }
 
-function makeClient(info: CollectionInfo, searchResults: { id: string | number; score: number }[][] = [[], []]) {
+function makeClient(
+  info: CollectionInfo,
+  searchResults: { id: string | number; score: number }[][] = [[], []],
+) {
   return {
     getCollection: vi.fn().mockResolvedValue(info),
     search: vi
@@ -54,7 +62,9 @@ describe("getIndexStats (Qdrant)", () => {
     });
 
     it("totalVectors defaults to 0 when points_count is undefined", async () => {
-      const client = makeClient(makeCollectionInfo({ points_count: undefined }));
+      const client = makeClient(
+        makeCollectionInfo({ points_count: undefined }),
+      );
 
       const stats = await getIndexStats(client, "documents");
 
@@ -89,7 +99,9 @@ describe("getIndexStats (Qdrant)", () => {
     });
 
     it("returns healthy suggestion when status is green and segments < 20", async () => {
-      const client = makeClient(makeCollectionInfo({ status: "green", segments_count: 5 }));
+      const client = makeClient(
+        makeCollectionInfo({ status: "green", segments_count: 5 }),
+      );
 
       const stats = await getIndexStats(client, "documents");
 
@@ -137,7 +149,10 @@ describe("getIndexStats (Qdrant)", () => {
     it("is 1.0 when exact and ANN results are identical (single-vector mode)", async () => {
       const ids = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
       const resultSet = ids.map((id) => ({ id, score: 0.9 }));
-      const client = makeClient(makeCollectionInfo({ points_count: 100 }), [resultSet, resultSet]);
+      const client = makeClient(makeCollectionInfo({ points_count: 100 }), [
+        resultSet,
+        resultSet,
+      ]);
 
       const stats = await getIndexStats(client, "documents");
 
@@ -145,9 +160,18 @@ describe("getIndexStats (Qdrant)", () => {
     });
 
     it("computes partial recall correctly", async () => {
-      const exactResults = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((id) => ({ id, score: 0.9 }));
-      const annResults = [1, 2, 3, 4, 5, 11, 12, 13, 14, 15].map((id) => ({ id, score: 0.85 }));
-      const client = makeClient(makeCollectionInfo({ points_count: 100 }), [exactResults, annResults]);
+      const exactResults = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((id) => ({
+        id,
+        score: 0.9,
+      }));
+      const annResults = [1, 2, 3, 4, 5, 11, 12, 13, 14, 15].map((id) => ({
+        id,
+        score: 0.85,
+      }));
+      const client = makeClient(makeCollectionInfo({ points_count: 100 }), [
+        exactResults,
+        annResults,
+      ]);
 
       const stats = await getIndexStats(client, "documents");
 
@@ -171,7 +195,9 @@ describe("getIndexStats (Qdrant)", () => {
 
     it("is -1 when search() throws", async () => {
       const client = {
-        getCollection: vi.fn().mockResolvedValue(makeCollectionInfo({ points_count: 100 })),
+        getCollection: vi
+          .fn()
+          .mockResolvedValue(makeCollectionInfo({ points_count: 100 })),
         search: vi.fn().mockRejectedValue(new Error("collection not found")),
       } as unknown as QdrantClient;
 

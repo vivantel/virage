@@ -94,6 +94,17 @@ The `package` field is auto-filled from the containing `package.json`'s `name`.
 
 All internal imports use `.js` extensions (NodeNext requirement), e.g. `from "./git-tracker.js"` even though files are `.ts`. Keep this convention when adding new imports.
 
+## Pre-commit rule
+
+**Always run `npm run fix` before `git commit`.** The project pre-commit hook (`PreToolUse` on `Bash(git commit*)`) does this automatically, but you must verify that no unfixable lint errors remain:
+
+```bash
+npm run fix   # ESLint auto-fix + Prettier across all packages
+npm run lint  # fails if any errors survive the auto-fix — resolve these before committing
+```
+
+Never commit when `npm run lint` reports errors. The `|| true` safety valve was removed from the hook — a failing lint check now blocks the commit.
+
 ## Release process
 
 Releases are automated via release-please (`.github/workflows/release.yaml`). Commit messages must follow Conventional Commits (`feat:`, `fix:`, `chore:`, etc.) — this drives version bumping and CHANGELOG generation. The `prepublishOnly` script runs `build && test` before any publish.

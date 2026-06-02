@@ -17,14 +17,20 @@ function makePool(queryResults: { rows: Row[] }[]) {
   for (const result of queryResults) {
     client.query.mockResolvedValueOnce(result);
   }
-  const pool = { connect: vi.fn().mockResolvedValue(client) } as unknown as pg.Pool;
+  const pool = {
+    connect: vi.fn().mockResolvedValue(client),
+  } as unknown as pg.Pool;
   return { pool, client };
 }
 
 const EXTENSION_ABSENT = [{ rows: [{ count: "0" }] }];
 const EXTENSION_PRESENT = { rows: [{ count: "1" }] };
 
-function makeStatRow(mean_exec_time: number, calls: number, query = "SELECT id FROM documents"): Row {
+function makeStatRow(
+  mean_exec_time: number,
+  calls: number,
+  query = "SELECT id FROM documents",
+): Row {
   return { mean_exec_time, stddev_exec_time: 5, calls, query };
 }
 
@@ -80,7 +86,10 @@ describe("getQueryPerfReport (PostgreSQL)", () => {
     });
 
     it("timeframeHours is passed through to the report", async () => {
-      const { pool } = makePool([EXTENSION_PRESENT, { rows: [makeStatRow(5, 1)] }]);
+      const { pool } = makePool([
+        EXTENSION_PRESENT,
+        { rows: [makeStatRow(5, 1)] },
+      ]);
 
       const report = await getQueryPerfReport(pool, "documents", 72);
 
@@ -92,9 +101,9 @@ describe("getQueryPerfReport (PostgreSQL)", () => {
         EXTENSION_PRESENT,
         {
           rows: [
-            makeStatRow(50, 3),   // fast
-            makeStatRow(150, 2),  // slow
-            makeStatRow(200, 1),  // slow
+            makeStatRow(50, 3), // fast
+            makeStatRow(150, 2), // slow
+            makeStatRow(200, 1), // slow
           ],
         },
       ]);
@@ -122,14 +131,21 @@ describe("getQueryPerfReport (PostgreSQL)", () => {
         EXTENSION_PRESENT,
         {
           rows: [
-            { mean_exec_time: 50, stddev_exec_time: 5, calls: 1, query: "seq scan on documents" },
+            {
+              mean_exec_time: 50,
+              stddev_exec_time: 5,
+              calls: 1,
+              query: "seq scan on documents",
+            },
           ],
         },
       ]);
 
       const report = await getQueryPerfReport(pool, "documents", 24);
 
-      expect(report.suggestedIndexes.some((s) => /sequential/i.test(s))).toBe(true);
+      expect(report.suggestedIndexes.some((s) => /sequential/i.test(s))).toBe(
+        true,
+      );
     });
 
     it("caps per-row weight at 10 samples regardless of call count", async () => {
@@ -151,9 +167,13 @@ describe("getQueryPerfReport (PostgreSQL)", () => {
         query: vi.fn().mockRejectedValue(new Error("connection reset")),
         release: vi.fn(),
       };
-      const pool = { connect: vi.fn().mockResolvedValue(client) } as unknown as pg.Pool;
+      const pool = {
+        connect: vi.fn().mockResolvedValue(client),
+      } as unknown as pg.Pool;
 
-      await expect(getQueryPerfReport(pool, "documents", 24)).rejects.toThrow("connection reset");
+      await expect(getQueryPerfReport(pool, "documents", 24)).rejects.toThrow(
+        "connection reset",
+      );
 
       expect(client.release).toHaveBeenCalledOnce();
     });

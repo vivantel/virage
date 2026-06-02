@@ -7,8 +7,8 @@
           {
             "type": "command",
             "if": "Bash(git commit*)",
-            "command": "cd /home/ubuntu/data/projects/vivantel/rag_core && npm run fix 2>&1 || true",
-            "statusMessage": "Running lint:fix + format before commit..."
+            "command": "cd /home/ubuntu/data/projects/vivantel/rag_core && npm run fix 2>&1; npm run lint 2>&1",
+            "statusMessage": "Running lint:fix + format + lint check before commit..."
           }
         ]
       }

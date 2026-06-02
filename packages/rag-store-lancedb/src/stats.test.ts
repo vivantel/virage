@@ -24,17 +24,23 @@ describe("getIndexStats (LanceDB)", () => {
 
   describe("flat index with various vector counts", () => {
     it("returns healthy suggestion for a small table (≤ 10 000 vectors, no index)", async () => {
-      const stats = await getIndexStats(makeTable({ countRows: vi.fn().mockResolvedValue(500) }));
+      const stats = await getIndexStats(
+        makeTable({ countRows: vi.fn().mockResolvedValue(500) }),
+      );
       expect(stats.suggestions[0]).toMatch(/healthy/i);
     });
 
     it("returns healthy suggestion at exactly 10 000 vectors (boundary)", async () => {
-      const stats = await getIndexStats(makeTable({ countRows: vi.fn().mockResolvedValue(10_000) }));
+      const stats = await getIndexStats(
+        makeTable({ countRows: vi.fn().mockResolvedValue(10_000) }),
+      );
       expect(stats.suggestions[0]).toMatch(/healthy/i);
     });
 
     it("suggests creating an IVF-PQ index when > 10 000 vectors and no index", async () => {
-      const stats = await getIndexStats(makeTable({ countRows: vi.fn().mockResolvedValue(15_000) }));
+      const stats = await getIndexStats(
+        makeTable({ countRows: vi.fn().mockResolvedValue(15_000) }),
+      );
 
       expect(stats.totalVectors).toBe(15_000);
       expect(stats.indexType).toBe("flat");
@@ -46,7 +52,9 @@ describe("getIndexStats (LanceDB)", () => {
     it("detects hnsw from HNSW indexType", async () => {
       const table = makeTable({
         countRows: vi.fn().mockResolvedValue(1000),
-        listIndices: vi.fn().mockResolvedValue([{ name: "emb_idx", indexType: "HNSW" }]),
+        listIndices: vi
+          .fn()
+          .mockResolvedValue([{ name: "emb_idx", indexType: "HNSW" }]),
       });
 
       const stats = await getIndexStats(table);
@@ -58,7 +66,9 @@ describe("getIndexStats (LanceDB)", () => {
     it("detects ivfflat from IVF_PQ indexType", async () => {
       const table = makeTable({
         countRows: vi.fn().mockResolvedValue(20_000),
-        listIndices: vi.fn().mockResolvedValue([{ name: "emb_idx", indexType: "IVF_PQ" }]),
+        listIndices: vi
+          .fn()
+          .mockResolvedValue([{ name: "emb_idx", indexType: "IVF_PQ" }]),
       });
 
       const stats = await getIndexStats(table);
@@ -71,12 +81,16 @@ describe("getIndexStats (LanceDB)", () => {
     it("does not suggest IVF-PQ creation when a non-flat index is present (even > 10k)", async () => {
       const table = makeTable({
         countRows: vi.fn().mockResolvedValue(50_000),
-        listIndices: vi.fn().mockResolvedValue([{ name: "idx", indexType: "IVF_PQ" }]),
+        listIndices: vi
+          .fn()
+          .mockResolvedValue([{ name: "idx", indexType: "IVF_PQ" }]),
       });
 
       const stats = await getIndexStats(table);
 
-      expect(stats.suggestions.every((s) => !/IVF-PQ creation/i.test(s))).toBe(true);
+      expect(stats.suggestions.every((s) => !/IVF-PQ creation/i.test(s))).toBe(
+        true,
+      );
     });
 
     it("falls back to flat when listIndices throws", async () => {
@@ -104,7 +118,9 @@ describe("getIndexStats (LanceDB)", () => {
 
   describe("fixed metadata fields", () => {
     it("always returns annRecallAt10 = -1, indexAgeHours = -1, deadTupleFraction = 0", async () => {
-      const stats = await getIndexStats(makeTable({ countRows: vi.fn().mockResolvedValue(100) }));
+      const stats = await getIndexStats(
+        makeTable({ countRows: vi.fn().mockResolvedValue(100) }),
+      );
 
       expect(stats.annRecallAt10).toBe(-1);
       expect(stats.indexAgeHours).toBe(-1);
