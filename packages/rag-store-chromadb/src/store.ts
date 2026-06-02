@@ -4,6 +4,7 @@ import type {
   VectorStore,
   IndexStats,
   QueryPerfReport,
+  Logger,
 } from "@vivantel/rag-core";
 import { ChromaClient, IncludeEnum, type Collection } from "chromadb";
 import { getIndexStats } from "./stats.js";
@@ -30,6 +31,7 @@ export class ChromaVectorStore implements VectorStore {
   private readonly apiKey: string | undefined;
   private client!: ChromaClient;
   private collection!: Collection;
+  private logger: Logger | null = null;
 
   constructor(options: ChromaVectorStoreOptions) {
     this.path = options.path ?? "http://localhost:8000";
@@ -38,7 +40,14 @@ export class ChromaVectorStore implements VectorStore {
     this.apiKey = options.apiKey;
   }
 
+  setLogger(logger: Logger): void {
+    this.logger = logger.withTag("chromadb");
+  }
+
   async initialize(): Promise<void> {
+    this.logger?.info(
+      `Connecting to chromadb at ${this.path}, collection: ${this.collectionName}`,
+    );
     this.client = new ChromaClient({
       path: this.path,
       auth: this.apiKey
@@ -50,13 +59,20 @@ export class ChromaVectorStore implements VectorStore {
       name: this.collectionName,
       metadata: { "hnsw:space": "cosine" },
     });
+    this.logger?.debug(
+      `Collection "${this.collectionName}" ready (cosine, ${this.dimensions}d)`,
+    );
   }
 
   async upsert(documents: VectorDocument[]): Promise<void> {
+    this.logger?.verbose(
+      `Upserting ${documents.length} docs into "${this.collectionName}"`,
+    );
     for (let i = 0; i < documents.length; i += UPSERT_BATCH_SIZE) {
       const batch = documents.slice(i, i + UPSERT_BATCH_SIZE);
+      const ids = batch.map((doc) => doc.id ?? crypto.randomUUID());
       await this.collection.upsert({
-        ids: batch.map((doc) => doc.id ?? crypto.randomUUID()),
+        ids,
         embeddings: batch.map((doc) => doc.embedding),
         documents: batch.map((doc) => doc.content),
         metadatas: batch.map((doc) => ({
@@ -66,11 +82,17 @@ export class ChromaVectorStore implements VectorStore {
           ...doc.metadata,
         })),
       });
+      this.logger?.trace(
+        `  Upserted IDs: ${ids.map((id) => id.slice(0, 8)).join(", ")}`,
+      );
     }
   }
 
   async deleteBySourceFile(sourceFiles: string[]): Promise<void> {
     if (sourceFiles.length === 0) return;
+    this.logger?.verbose(
+      `Deleting docs for ${sourceFiles.length} source file(s)`,
+    );
     await this.collection.delete({
       where: { source_file: { $in: sourceFiles } },
     });
@@ -102,6 +124,7 @@ export class ChromaVectorStore implements VectorStore {
       offset += SCROLL_PAGE_SIZE;
     }
 
+    this.logger?.verbose(`getCurrentState: ${state.size} source version(s)`);
     return state;
   }
 
@@ -117,6 +140,7 @@ export class ChromaVectorStore implements VectorStore {
     queryEmbedding: number[],
     topK: number,
   ): Promise<VectorSearchResult[]> {
+    this.logger?.debug(`Search: topK=${topK}`);
     const result = await this.collection.query({
       queryEmbeddings: [queryEmbedding],
       nResults: topK,

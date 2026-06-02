@@ -1,4 +1,4 @@
-import type { EmbeddingProvider } from "@vivantel/rag-core";
+import type { EmbeddingProvider, Logger } from "@vivantel/rag-core";
 import { mkdir } from "fs/promises";
 import path from "path";
 
@@ -43,6 +43,7 @@ export class FastEmbedEmbedder implements EmbeddingProvider {
   private readonly cacheDir?: string;
   private readonly showDownloadProgress: boolean;
   private _inner: FastEmbedModel | null = null;
+  private logger: Logger | null = null;
 
   constructor(options: FastEmbedEmbedderOptions = {}) {
     this.model = options.model ?? DEFAULT_MODEL;
@@ -52,8 +53,14 @@ export class FastEmbedEmbedder implements EmbeddingProvider {
     this.showDownloadProgress = options.showDownloadProgress ?? false;
   }
 
+  setLogger(logger: Logger): void {
+    this.logger = logger.withTag("fastembed");
+  }
+
   private async getModel(): Promise<FastEmbedModel> {
     if (this._inner) return this._inner;
+
+    this.logger?.info(`Loading model ${this.model}`);
 
     // Ensure the parent directory exists before fastembed tries to write the
     // model tarball to it. fastembed creates the top-level cacheDir itself but
@@ -70,6 +77,8 @@ export class FastEmbedEmbedder implements EmbeddingProvider {
       });
     }
 
+    this.logger?.debug(`Cache dir: ${effectiveCacheDir}`);
+
     // Lazy import — consumers must install fastembed.
     // Variable specifier prevents TS from erroring when fastembed isn't installed.
     const mod = "fastembed";
@@ -79,6 +88,10 @@ export class FastEmbedEmbedder implements EmbeddingProvider {
       cacheDir: this.cacheDir,
       showDownloadProgress: this.showDownloadProgress,
     });
+
+    this.logger?.info(
+      `Model ${this.model} ready (${this.dimensions}d, batch=${this.preferredBatchSize})`,
+    );
     return this._inner;
   }
 
@@ -89,6 +102,10 @@ export class FastEmbedEmbedder implements EmbeddingProvider {
 
   async embedBatch(texts: string[]): Promise<number[][]> {
     const model = await this.getModel();
+    this.logger?.verbose(`Batch ${texts.length} texts`);
+    this.logger?.trace(
+      `Text lengths: ${texts.map((t) => t.length).join(", ")}`,
+    );
     const results: number[][] = [];
     for await (const batch of model.embed(texts)) {
       results.push(...batch);

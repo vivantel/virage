@@ -1,4 +1,6 @@
 import { Chunk, FileChunker } from "../interfaces/index.js";
+import type { Logger } from "../interfaces/logger.js";
+import { NullLogger } from "../logger/null-logger.js";
 import { createHash } from "crypto";
 
 function computeContentHash(content: string): string {
@@ -7,9 +9,11 @@ function computeContentHash(content: string): string {
 
 export class ChunkProcessor {
   private chunkers: Map<string, FileChunker>;
+  private logger: Logger;
 
-  constructor(chunkers: FileChunker[]) {
+  constructor(chunkers: FileChunker[], logger?: Logger) {
     this.chunkers = new Map(chunkers.map((c) => [c.name, c]));
+    this.logger = (logger ?? new NullLogger()).withTag("chunks");
   }
 
   async processFile(
@@ -58,20 +62,21 @@ export class ChunkProcessor {
       const info = fileState.get(filePath);
 
       if (!info) {
-        console.log(`  ⚠️ No chunker for: ${filePath}`);
+        this.logger.warn(`⚠️ No chunker for: ${filePath}`);
         continue;
       }
 
       // Resume: reuse cached chunks when commitHash matches
       const cached = resumeCache.get(filePath);
       if (cached && cached.commitHash === info.commitHash) {
-        console.log(`  [${i + 1}/${files.length}] ${filePath}`);
-        console.log(`    ⏭️  Cached (${cached.chunks.length} chunk(s))`);
+        this.logger.verbose(
+          `⏭️ Cached [${i + 1}/${files.length}] ${filePath} (${cached.chunks.length} chunk(s))`,
+        );
         allChunks.push(...cached.chunks);
         continue;
       }
 
-      console.log(`  [${i + 1}/${files.length}] ${filePath}`);
+      this.logger.verbose(`[${i + 1}/${files.length}] ${filePath}`);
 
       try {
         const chunks = await this.processFile(
@@ -82,18 +87,25 @@ export class ChunkProcessor {
 
         if (chunks.length > 0) {
           allChunks.push(...chunks);
-          console.log(`    ✅ Generated ${chunks.length} chunk(s)`);
+          this.logger.verbose(`  ✅ ${chunks.length} chunk(s)`);
+          for (let j = 0; j < chunks.length; j++) {
+            this.logger.debug(
+              `  Chunk ${j}: contentHash=${chunks[j].contentHash} len=${chunks[j].content.length}`,
+            );
+          }
         } else {
-          console.log(`    ⚠️ No chunks generated (skipped)`);
+          this.logger.warn(`  ⚠️ No chunks generated`);
         }
       } catch (error) {
         errorCount++;
-        console.error(`    ❌ Error processing ${filePath}: ${error}`);
+        this.logger.error(
+          `  ❌ Error: ${error instanceof Error ? error.message : String(error)}`,
+        );
       }
     }
 
     if (errorCount > 0) {
-      console.warn(`\n⚠️ ${errorCount} file(s) failed during chunking.`);
+      this.logger.warn(`⚠️ ${errorCount} file(s) failed during chunking.`);
     }
 
     return allChunks;
@@ -122,6 +134,6 @@ export class ChunkProcessor {
     const allChunks = [...filtered, ...chunks];
 
     await writeFile(outputFile, JSON.stringify(allChunks, null, 2));
-    console.log(`\n💾 Saved ${allChunks.length} chunks to ${outputFile}`);
+    this.logger.verbose(`Saved ${allChunks.length} chunks to ${outputFile}`);
   }
 }

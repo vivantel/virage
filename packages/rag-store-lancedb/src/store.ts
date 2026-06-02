@@ -4,6 +4,7 @@ import type {
   VectorStore,
   IndexStats,
   QueryPerfReport,
+  Logger,
 } from "@vivantel/rag-core";
 import { Field, FixedSizeList, Float32, Schema, Utf8 } from "apache-arrow";
 import { getIndexStats } from "./stats.js";
@@ -30,6 +31,7 @@ export class LanceDBVectorStore implements VectorStore {
   private db: any;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private table: any;
+  private logger: Logger | null = null;
 
   constructor(options: LanceDBVectorStoreOptions) {
     if (!options.uri) {
@@ -41,7 +43,14 @@ export class LanceDBVectorStore implements VectorStore {
     this.dimensions = options.dimensions ?? DEFAULT_DIMENSIONS;
   }
 
+  setLogger(logger: Logger): void {
+    this.logger = logger.withTag("lancedb");
+  }
+
   async initialize(): Promise<void> {
+    this.logger?.info(
+      `Connecting to lancedb at ${this.uri}, table: ${this.tableName}`,
+    );
     // Dynamic import to avoid native-module issues at load time
     const lancedb = await import("@lancedb/lancedb");
 
@@ -65,9 +74,13 @@ export class LanceDBVectorStore implements VectorStore {
     this.table = await this.db.createEmptyTable(this.tableName, schema, {
       existOk: true,
     });
+    this.logger?.debug(`Table "${this.tableName}" ready (${this.dimensions}d)`);
   }
 
   async upsert(documents: VectorDocument[]): Promise<void> {
+    this.logger?.verbose(
+      `Upserting ${documents.length} docs into "${this.tableName}"`,
+    );
     const rows = documents.map((doc) => ({
       id: doc.id ?? crypto.randomUUID(),
       content: doc.content,
@@ -78,6 +91,10 @@ export class LanceDBVectorStore implements VectorStore {
       content_hash: doc.contentHash,
     }));
 
+    this.logger?.trace(
+      `  Row IDs: ${rows.map((r) => r.id.slice(0, 8)).join(", ")}`,
+    );
+
     await this.table
       .mergeInsert("id")
       .whenMatchedUpdateAll()
@@ -87,6 +104,9 @@ export class LanceDBVectorStore implements VectorStore {
 
   async deleteBySourceFile(sourceFiles: string[]): Promise<void> {
     if (sourceFiles.length === 0) return;
+    this.logger?.verbose(
+      `Deleting docs for ${sourceFiles.length} source file(s)`,
+    );
     const escaped = sourceFiles.map((f) => f.replace(/'/g, "''"));
     const list = escaped.map((f) => `'${f}'`).join(", ");
     await this.table.delete(`source_file IN (${list})`);
@@ -108,6 +128,7 @@ export class LanceDBVectorStore implements VectorStore {
         state.set(sourceFile, commitHash);
       }
     }
+    this.logger?.verbose(`getCurrentState: ${state.size} source version(s)`);
     return state;
   }
 
@@ -123,6 +144,7 @@ export class LanceDBVectorStore implements VectorStore {
     queryEmbedding: number[],
     topK: number,
   ): Promise<VectorSearchResult[]> {
+    this.logger?.debug(`Search: topK=${topK}`);
     const rows = await this.table
       .vectorSearch(queryEmbedding)
       .column("embedding")

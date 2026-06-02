@@ -1,5 +1,7 @@
 import { writeFile, mkdir } from "fs/promises";
 import { dirname } from "path";
+import type { Logger } from "../interfaces/logger.js";
+import { NullLogger } from "../logger/null-logger.js";
 
 interface StageStats {
   durationMs: number;
@@ -92,21 +94,23 @@ export class TelemetryCollector {
     return this.data;
   }
 
-  printSummary(): void {
-    console.log(`\n📊 Telemetry summary (${this.data.durationMs}ms total):`);
+  printSummary(logger?: Logger): void {
+    const log = (logger ?? new NullLogger()).withTag("telemetry");
+    log.info(`📊 Telemetry summary (${this.data.durationMs}ms total):`);
     for (const [stage, stats] of Object.entries(this.data.stages)) {
       if (!stats) continue;
       const { durationMs, ...rest } = stats;
       const details = Object.entries(rest)
         .map(([k, v]) => `${k}=${v}`)
         .join(", ");
-      console.log(`   ${stage}: ${details} (${durationMs}ms)`);
+      log.info(`   ${stage}: ${details} (${durationMs}ms)`);
     }
   }
 
-  async save(outputPath: string): Promise<void> {
+  async save(outputPath: string, logger?: Logger): Promise<void> {
+    const log = (logger ?? new NullLogger()).withTag("telemetry");
     await mkdir(dirname(outputPath), { recursive: true });
     await writeFile(outputPath, JSON.stringify(this.data, null, 2));
-    console.log(`\n📈 Telemetry saved to ${outputPath}`);
+    log.info(`📈 Telemetry saved to ${outputPath}`);
   }
 }

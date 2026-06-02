@@ -4,6 +4,7 @@ import type {
   VectorSearchResult,
   IndexStats,
   QueryPerfReport,
+  Logger,
 } from "@vivantel/rag-core";
 import { QdrantClient } from "@qdrant/js-client-rest";
 import { getIndexStats } from "./stats.js";
@@ -43,6 +44,7 @@ export class QdrantVectorStore implements VectorStore {
   private readonly collection: string;
   private readonly dimensions: number;
   private readonly url: string;
+  private logger: Logger | null = null;
 
   constructor(options: QdrantVectorStoreOptions) {
     if (!options.url && !options.path) {
@@ -59,37 +61,59 @@ export class QdrantVectorStore implements VectorStore {
     });
   }
 
+  setLogger(logger: Logger): void {
+    this.logger = logger.withTag("qdrant");
+  }
+
   async initialize(): Promise<void> {
+    this.logger?.info(
+      `Connecting to qdrant at ${this.url}, collection: ${this.collection}`,
+    );
     const { exists } = await this.client.collectionExists(this.collection);
     if (!exists) {
       await this.client.createCollection(this.collection, {
         vectors: { size: this.dimensions, distance: "Cosine" },
       });
+      this.logger?.debug(
+        `Created collection "${this.collection}" (${this.dimensions}d, cosine)`,
+      );
+    } else {
+      this.logger?.debug(`Collection "${this.collection}" already exists`);
     }
   }
 
   async upsert(documents: VectorDocument[]): Promise<void> {
+    this.logger?.verbose(
+      `Upserting ${documents.length} docs into "${this.collection}"`,
+    );
     for (let i = 0; i < documents.length; i += UPSERT_BATCH_SIZE) {
       const batch = documents.slice(i, i + UPSERT_BATCH_SIZE);
+      const points = batch.map((doc) => ({
+        id: crypto.randomUUID(),
+        vector: doc.embedding,
+        payload: {
+          content: doc.content,
+          metadata: doc.metadata,
+          source_file: doc.sourceFile,
+          commit_hash: doc.commitHash,
+          content_hash: doc.contentHash,
+        },
+      }));
       await this.client.upsert(this.collection, {
         wait: true,
-        points: batch.map((doc) => ({
-          id: crypto.randomUUID(),
-          vector: doc.embedding,
-          payload: {
-            content: doc.content,
-            metadata: doc.metadata,
-            source_file: doc.sourceFile,
-            commit_hash: doc.commitHash,
-            content_hash: doc.contentHash,
-          },
-        })),
+        points,
       });
+      this.logger?.trace(
+        `  Upserted IDs: ${points.map((p) => p.id.slice(0, 8)).join(", ")}`,
+      );
     }
   }
 
   async deleteBySourceFile(sourceFiles: string[]): Promise<void> {
     if (sourceFiles.length === 0) return;
+    this.logger?.verbose(
+      `Deleting docs for ${sourceFiles.length} source file(s)`,
+    );
     await this.client.delete(this.collection, {
       wait: true,
       filter: {
@@ -130,6 +154,7 @@ export class QdrantVectorStore implements VectorStore {
         typeof raw === "string" || typeof raw === "number" ? raw : undefined;
     } while (offset !== undefined);
 
+    this.logger?.verbose(`getCurrentState: ${state.size} source version(s)`);
     return state;
   }
 
@@ -137,6 +162,7 @@ export class QdrantVectorStore implements VectorStore {
     queryEmbedding: number[],
     topK: number,
   ): Promise<VectorSearchResult[]> {
+    this.logger?.debug(`Search: topK=${topK}`);
     const results = await this.client.search(this.collection, {
       vector: queryEmbedding,
       limit: topK,

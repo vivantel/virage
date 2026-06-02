@@ -1,4 +1,4 @@
-import type { EmbeddingProvider } from "@vivantel/rag-core";
+import type { EmbeddingProvider, Logger } from "@vivantel/rag-core";
 
 export interface QuantizationOptions {
   /** Data type for model quantization. Reduces memory usage at small quality cost. */
@@ -37,6 +37,7 @@ export class TransformersEmbedder implements EmbeddingProvider {
   private readonly cacheDir?: string;
   private readonly quantization?: QuantizationOptions;
   private _pipeline: Pipeline | null = null;
+  private logger: Logger | null = null;
 
   constructor(options: TransformersEmbedderOptions) {
     this.model = options.model;
@@ -46,8 +47,17 @@ export class TransformersEmbedder implements EmbeddingProvider {
     this.quantization = options.quantization;
   }
 
+  setLogger(logger: Logger): void {
+    this.logger = logger.withTag("transformers");
+  }
+
   private async getPipeline(): Promise<Pipeline> {
     if (this._pipeline) return this._pipeline;
+
+    this.logger?.info(`Loading model ${this.model}`);
+    this.logger?.debug(
+      `Device: ${this.device}${this.quantization ? `, dtype: ${this.quantization.dtype}` : ""}`,
+    );
 
     // Lazy import — consumers must install @huggingface/transformers
     const { pipeline, env } = await import("@huggingface/transformers");
@@ -61,6 +71,9 @@ export class TransformersEmbedder implements EmbeddingProvider {
       ...(this.quantization ? { dtype: this.quantization.dtype } : {}),
     })) as unknown as Pipeline;
 
+    this.logger?.info(
+      `Model ${this.model} ready (${this.dimensions}d, device=${this.device})`,
+    );
     return this._pipeline;
   }
 
@@ -72,7 +85,15 @@ export class TransformersEmbedder implements EmbeddingProvider {
 
   async embedBatch(texts: string[]): Promise<number[][]> {
     const pipe = await this.getPipeline();
+    this.logger?.verbose(`Batch ${texts.length} texts`);
+    this.logger?.trace(
+      `Text lengths: ${texts.map((t) => t.length).join(", ")}`,
+    );
+    const start = Date.now();
     const output = await pipe(texts, { pooling: "mean", normalize: true });
+    this.logger?.debug(
+      `Batch inference: ${Date.now() - start}ms for ${texts.length} texts`,
+    );
     const stride = output.data.length / texts.length;
     const result: number[][] = [];
     for (let i = 0; i < texts.length; i++) {

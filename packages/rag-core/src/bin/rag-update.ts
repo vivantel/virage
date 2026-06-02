@@ -5,6 +5,8 @@ import { config } from "dotenv";
 import { loadConfig } from "../config-loader.js";
 import { Orchestrator } from "../core/orchestrator.js";
 import { RagError } from "../core/errors.js";
+import { createLogger } from "../logger/index.js";
+import type { Logger } from "../interfaces/logger.js";
 import { runInit } from "../cli/init.js";
 import { runValidate } from "../cli/validate.js";
 import { runEvaluate } from "../cli/evaluate.js";
@@ -21,6 +23,16 @@ import { runVizEmbeddings } from "../cli/viz.js";
 import { runDashboard } from "../cli/dashboard.js";
 
 config();
+
+// Expand -vvv etc. into individual -v flags before commander parses
+const argv = process.argv.flatMap((arg) =>
+  /^-v+$/.test(arg)
+    ? arg
+        .slice(1)
+        .split("")
+        .map((c) => `-${c}`)
+    : [arg],
+);
 
 const program = new Command();
 
@@ -39,8 +51,9 @@ async function runOnce(options: {
   dryRun: boolean;
   chunksOut?: string;
   embeddingsOut?: string;
+  logger: Logger;
 }): Promise<void> {
-  const cfg = await loadConfig(options.config);
+  const cfg = await loadConfig(options.config, options.logger);
   const orchestrator = new Orchestrator({
     ...cfg,
     options: {
@@ -50,6 +63,7 @@ async function runOnce(options: {
       dryRun: options.dryRun || cfg.options?.dryRun,
       chunksFile: options.chunksOut || cfg.options?.chunksFile,
       embeddingsFile: options.embeddingsOut || cfg.options?.embeddingsFile,
+      logger: options.logger,
     },
   });
   await orchestrator.run();
@@ -66,6 +80,12 @@ program
   .option("--chunks-out <path>", "Output path for chunks.json")
   .option("--embeddings-out <path>", "Output path for embeddings.json")
   .option("--watch", "Re-run pipeline on file changes", false)
+  .option(
+    "-v, --verbose",
+    "Increase verbosity (stackable: -v, -vv … -vvvvv)",
+    (_, prev: number) => prev + 1,
+    0,
+  )
   .action(async () => {
     const opts = program.opts<{
       config: string;
@@ -75,7 +95,10 @@ program
       chunksOut?: string;
       embeddingsOut?: string;
       watch: boolean;
+      verbose: number;
     }>();
+
+    const logger = createLogger(opts.verbose);
 
     const runOptions = {
       config: opts.config,
@@ -84,9 +107,10 @@ program
       dryRun: opts.dryRun,
       chunksOut: opts.chunksOut,
       embeddingsOut: opts.embeddingsOut,
+      logger,
     };
 
-    console.log("🚀 RAG Update Tool\n");
+    logger.info("🚀 RAG Update Tool");
 
     try {
       await runOnce(runOptions);
@@ -98,13 +122,13 @@ program
 
     // Watch mode
     const { default: chokidar } = await import("chokidar");
-    const cfg = await loadConfig(opts.config).catch(() => null);
+    const cfg = await loadConfig(opts.config, logger).catch(() => null);
     const patterns: string[] = cfg
       ? cfg.chunkers.flatMap((c) => c.patterns)
       : [];
 
     const watched = [opts.config, ...patterns];
-    console.log("\n👁️  Watching for changes...");
+    logger.info("👁️  Watching for changes...");
 
     let debounce: ReturnType<typeof setTimeout> | null = null;
     chokidar
@@ -112,15 +136,12 @@ program
       .on("all", (event, path) => {
         if (debounce) clearTimeout(debounce);
         debounce = setTimeout(async () => {
-          console.log(
-            `\n🔄 Change detected (${event}: ${path}), re-running...\n`,
-          );
+          logger.info(`🔄 Change detected (${event}: ${path}), re-running...`);
           try {
             await runOnce(runOptions);
           } catch (error) {
-            console.error(
-              "❌ Error:",
-              error instanceof Error ? error.message : error,
+            logger.error(
+              error instanceof Error ? error.message : String(error),
             );
           }
         }, 500);
@@ -409,4 +430,4 @@ experiment
     }
   });
 
-program.parse();
+program.parse(argv);

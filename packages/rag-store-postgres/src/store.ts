@@ -3,6 +3,7 @@ import type {
   VectorSearchResult,
   IndexStats,
   QueryPerfReport,
+  Logger,
 } from "@vivantel/rag-core";
 import pg from "pg";
 import pgvector from "pgvector/pg";
@@ -49,6 +50,7 @@ export class PostgresVectorStore implements VectorStore {
   private readonly indexType: IndexType;
   private readonly indexParams: IVFFlatParams | HNSWParams;
   private _pool: InstanceType<typeof Pool> | null = null;
+  private logger: Logger | null = null;
 
   constructor(options: PostgresVectorStoreOptions) {
     if (!options.connectionString) {
@@ -62,6 +64,10 @@ export class PostgresVectorStore implements VectorStore {
     this.indexParams = options.indexParams ?? {};
   }
 
+  setLogger(logger: Logger): void {
+    this.logger = logger.withTag("postgres");
+  }
+
   private get pool(): InstanceType<typeof Pool> {
     if (!this._pool) {
       this._pool = new Pool({
@@ -73,6 +79,9 @@ export class PostgresVectorStore implements VectorStore {
   }
 
   async initialize(): Promise<void> {
+    this.logger?.info(
+      `Connecting to postgres, table: ${this.table} (${this.dimensions}d, ${this.indexType})`,
+    );
     const client = await this.pool.connect();
     try {
       await pgvector.registerTypes(client);
@@ -88,6 +97,9 @@ export class PostgresVectorStore implements VectorStore {
         )
       `);
       await client.query(this.buildIndexSQL());
+      this.logger?.debug(
+        `Index type: ${this.indexType}, params: ${JSON.stringify(this.indexParams)}`,
+      );
     } finally {
       client.release();
     }
@@ -104,10 +116,13 @@ export class PostgresVectorStore implements VectorStore {
   ): Promise<void> {
     if (docs.length === 0) return;
 
+    this.logger?.verbose(`Upserting ${docs.length} docs into ${this.table}`);
+
     const client = await this.pool.connect();
     try {
       await pgvector.registerTypes(client);
       for (const doc of docs) {
+        this.logger?.trace(`  source_file: ${doc.sourceFile}`);
         await client.query(
           `INSERT INTO ${this.table} (content, embedding, metadata, source_file, commit_hash)
            VALUES ($1, $2, $3, $4, $5)`,
@@ -127,6 +142,7 @@ export class PostgresVectorStore implements VectorStore {
 
   async deleteBySourceFile(files: string[]): Promise<void> {
     if (files.length === 0) return;
+    this.logger?.verbose(`Deleting docs for ${files.length} source file(s)`);
     await this.pool.query(
       `DELETE FROM ${this.table} WHERE source_file = ANY($1)`,
       [files],
@@ -138,7 +154,9 @@ export class PostgresVectorStore implements VectorStore {
       source_file: string;
       commit_hash: string;
     }>(`SELECT source_file, commit_hash FROM ${this.table}`);
-    return new Map(rows.map((r) => [r.source_file, r.commit_hash]));
+    const state = new Map(rows.map((r) => [r.source_file, r.commit_hash]));
+    this.logger?.verbose(`getCurrentState: ${state.size} source version(s)`);
+    return state;
   }
 
   private buildIndexSQL(): string {
@@ -166,6 +184,7 @@ export class PostgresVectorStore implements VectorStore {
     embedding: number[],
     topK: number,
   ): Promise<VectorSearchResult[]> {
+    this.logger?.debug(`Search: topK=${topK}`);
     const client = await this.pool.connect();
     try {
       await pgvector.registerTypes(client);

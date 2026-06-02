@@ -1,6 +1,8 @@
 import { simpleGit, SimpleGit } from "simple-git";
 import { glob } from "glob";
 import { FileChunker } from "../interfaces/index.js";
+import type { Logger } from "../interfaces/logger.js";
+import { NullLogger } from "../logger/null-logger.js";
 import { minimatch } from "minimatch";
 import path from "path";
 
@@ -10,11 +12,13 @@ export class GitTracker {
   private allPatterns: string[];
   private currentHeadCache: string | null = null;
   private uncommittedCache: boolean | null = null;
+  private logger: Logger;
 
-  constructor(chunkers: FileChunker[]) {
+  constructor(chunkers: FileChunker[], logger?: Logger) {
     this.git = simpleGit();
     this.chunkers = chunkers;
     this.allPatterns = chunkers.flatMap((c) => c.patterns);
+    this.logger = (logger ?? new NullLogger()).withTag("git");
   }
 
   private async getCurrentHead(): Promise<string> {
@@ -28,6 +32,11 @@ export class GitTracker {
     if (this.uncommittedCache === null) {
       const status = await this.git.status();
       this.uncommittedCache = status.files.length > 0;
+      if (this.uncommittedCache) {
+        this.logger.debug(
+          "Working tree has uncommitted changes — appending -dirty",
+        );
+      }
     }
     return this.uncommittedCache;
   }
@@ -36,6 +45,7 @@ export class GitTracker {
     for (const chunker of this.chunkers) {
       for (const pattern of chunker.patterns) {
         if (this.matchesPattern(filePath, pattern)) {
+          this.logger.trace(`Matched ${filePath} → chunker "${chunker.name}"`);
           return chunker;
         }
       }
@@ -65,7 +75,11 @@ export class GitTracker {
         ".cache/**",
       ],
     });
-    return [...new Set(files)].sort();
+    const unique = [...new Set(files)].sort();
+    this.logger.debug(
+      `Scanned ${unique.length} file(s) matching ${this.allPatterns.length} pattern(s)`,
+    );
+    return unique;
   }
 
   async getCommitHashes(files: string[]): Promise<Map<string, string>> {
@@ -82,9 +96,13 @@ export class GitTracker {
             file,
           ]);
           const hash = output.trim();
-          commitMap.set(file, hash || (await this.getCurrentHead()));
+          const resolved = hash || (await this.getCurrentHead());
+          commitMap.set(file, resolved);
+          this.logger.trace(`Hash for ${file}: ${resolved.slice(0, 8)}`);
         } catch {
-          commitMap.set(file, await this.getCurrentHead());
+          const head = await this.getCurrentHead();
+          commitMap.set(file, head);
+          this.logger.trace(`Hash for ${file}: ${head.slice(0, 8)} (fallback)`);
         }
       }),
     );
@@ -134,11 +152,11 @@ export class GitTracker {
       const prevHash = previousState.get(filePath);
 
       if (!prevHash) {
-        console.log(`  🆕 New: ${filePath}`);
+        this.logger.verbose(`🆕 New: ${filePath}`);
         toProcess.push(filePath);
       } else if (prevHash !== info.commitHash) {
-        console.log(
-          `  📝 Changed: ${filePath} (${prevHash.slice(0, 8)} → ${info.commitHash.slice(0, 8)})`,
+        this.logger.verbose(
+          `📝 Changed: ${filePath} (${prevHash.slice(0, 8)} → ${info.commitHash.slice(0, 8)})`,
         );
         toProcess.push(filePath);
       } else {
@@ -148,7 +166,7 @@ export class GitTracker {
 
     for (const [filePath] of previousState) {
       if (!current.has(filePath)) {
-        console.log(`  🗑️ Deleted: ${filePath}`);
+        this.logger.verbose(`🗑️ Deleted: ${filePath}`);
         toDelete.push(filePath);
       }
     }

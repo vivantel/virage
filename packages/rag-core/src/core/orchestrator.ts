@@ -9,6 +9,8 @@ import {
   VectorStore,
   Chunk,
 } from "../interfaces/index.js";
+import type { Logger } from "../interfaces/logger.js";
+import { NullLogger } from "../logger/null-logger.js";
 import { readFile } from "fs/promises";
 import { RetryOptions } from "./utils.js";
 import { readEmbeddingsFile } from "./embeddings-io.js";
@@ -30,6 +32,7 @@ export interface RAGPipelineConfig {
     concurrency?: number;
     telemetry?: boolean;
     notifications?: { webhookUrl?: string };
+    logger?: Logger;
   };
 }
 
@@ -86,18 +89,23 @@ export class Orchestrator {
 
   async run(): Promise<void> {
     const opts = this.config.options ?? {};
+    const logger = (opts.logger ?? new NullLogger()).withTag("orchestrator");
     const telemetry = opts.telemetry ? new TelemetryCollector() : null;
     telemetry?.start();
 
     let uploadStats = { uploaded: 0, deleted: 0 };
 
+    logger.debug(
+      `Config: chunksFile=${this.chunksFile} embeddingsFile=${this.embeddingsFile} force=${opts.force ?? false}`,
+    );
+
     try {
-      console.log("🚀 Starting RAG pipeline...\n");
+      logger.info("🚀 Starting RAG pipeline...");
 
       // Step 1: Scan for changes
-      console.log("📂 Step 1: Scanning for changes...");
+      logger.info("📂 Step 1: Scanning for changes...");
       const t1 = Date.now();
-      const gitTracker = new GitTracker(this.config.chunkers);
+      const gitTracker = new GitTracker(this.config.chunkers, opts.logger);
       const currentState = await gitTracker.getCurrentState();
 
       const previousState = opts.force
@@ -107,26 +115,32 @@ export class Orchestrator {
       const { toProcess, toDelete } =
         await gitTracker.getChangedFiles(previousState);
 
+      const gitDuration = Date.now() - t1;
+      logger.verbose(`Git tracking done in ${gitDuration}ms`);
+
       telemetry?.recordGitTracking({
-        durationMs: Date.now() - t1,
+        durationMs: gitDuration,
         filesScanned: currentState.size,
         toProcess: toProcess.length,
         toDelete: toDelete.length,
       });
 
       if (toProcess.length === 0 && toDelete.length === 0 && !opts.force) {
-        console.log("\n✨ No changes detected.");
+        logger.info("✨ No changes detected.");
         return;
       }
 
-      console.log(
-        `\n📊 Changes: ${toProcess.length} to process, ${toDelete.length} to delete\n`,
+      logger.info(
+        `📊 Changes: ${toProcess.length} to process, ${toDelete.length} to delete`,
       );
 
       // Step 2: Generate chunks (with resume)
-      console.log("🔪 Step 2: Generating chunks...");
+      logger.info("🔪 Step 2: Generating chunks...");
       const t2 = Date.now();
-      const chunkProcessor = new ChunkProcessor(this.config.chunkers);
+      const chunkProcessor = new ChunkProcessor(
+        this.config.chunkers,
+        opts.logger,
+      );
 
       const fileState = new Map<
         string,
@@ -148,20 +162,23 @@ export class Orchestrator {
       );
       await chunkProcessor.saveChunksLocal(chunks, this.chunksFile);
 
+      const chunkDuration = Date.now() - t2;
+      logger.verbose(`Chunking done in ${chunkDuration}ms`);
+
       telemetry?.recordChunking({
-        durationMs: Date.now() - t2,
+        durationMs: chunkDuration,
         filesProcessed: toProcess.length,
         chunksGenerated: chunks.length,
         errors: 0,
       });
 
       if (chunks.length === 0) {
-        console.log("\n⚠️ No chunks generated. Exiting.");
+        logger.warn("⚠️ No chunks generated. Exiting.");
         return;
       }
 
       // Step 3: Generate embeddings
-      console.log("\n🔢 Step 3: Generating embeddings...");
+      logger.info("🔢 Step 3: Generating embeddings...");
       const t3 = Date.now();
       const embedder = new EmbedderProcessor(this.config.embedder, {
         rateLimitMs: opts.rateLimitMs,
@@ -170,6 +187,7 @@ export class Orchestrator {
         retry: opts.retry,
         concurrency: opts.concurrency,
         vectorStoreName: this.config.vectorStore.name,
+        logger: opts.logger,
       });
 
       const newEmbeddings = await embedder.run(
@@ -177,8 +195,11 @@ export class Orchestrator {
         opts.force || false,
       );
 
+      const embedDuration = Date.now() - t3;
+      logger.verbose(`Embedding done in ${embedDuration}ms`);
+
       telemetry?.recordEmbedding({
-        durationMs: Date.now() - t3,
+        durationMs: embedDuration,
         chunksEmbedded: newEmbeddings.length,
         chunksSkipped: chunks.length - newEmbeddings.length,
       });
@@ -191,37 +212,41 @@ export class Orchestrator {
             this.embeddingsFile,
             opts.force || false,
           );
-        console.log("\n📤 Step 4: Upload (dry-run — no changes written)");
-        console.log(`   Would upload: ${dryUpload.length} document(s)`);
-        console.log(`   Would delete: ${dryDelete.length} source file(s)`);
+        logger.info("📤 Step 4: Upload (dry-run — no changes written)");
+        logger.info(`   Would upload: ${dryUpload.length} document(s)`);
+        logger.info(`   Would delete: ${dryDelete.length} source file(s)`);
       } else if (!opts.skipUpload) {
-        console.log("\n📤 Step 4: Uploading to vector store...");
+        logger.info("📤 Step 4: Uploading to vector store...");
         const t4 = Date.now();
         const uploader = new Uploader(this.config.vectorStore, {
           retry: opts.retry,
+          logger: opts.logger,
         });
         uploadStats = await uploader.sync(
           this.embeddingsFile,
           opts.force || false,
         );
 
+        const uploadDuration = Date.now() - t4;
+        logger.verbose(`Upload done in ${uploadDuration}ms`);
+
         telemetry?.recordUpload({
-          durationMs: Date.now() - t4,
+          durationMs: uploadDuration,
           uploaded: uploadStats.uploaded,
           deleted: uploadStats.deleted,
         });
       }
 
-      console.log("\n✨ RAG pipeline complete!");
+      logger.success("✨ RAG pipeline complete!");
 
       if (telemetry) {
         telemetry.finish();
-        telemetry.printSummary();
+        telemetry.printSummary(opts.logger);
         const telemetryFile = this.chunksFile.replace(
           "chunks.json",
           "telemetry.json",
         );
-        await telemetry.save(telemetryFile);
+        await telemetry.save(telemetryFile, opts.logger);
       }
 
       if (opts.notifications?.webhookUrl) {

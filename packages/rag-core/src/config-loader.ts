@@ -12,6 +12,7 @@ import {
 import { createChunker } from "./helpers/create-chunker.js";
 import type { EmbeddingProvider } from "./interfaces/embedder.js";
 import type { VectorStore } from "./interfaces/vector-store.js";
+import type { Logger } from "./interfaces/logger.js";
 
 // ─── JSON config types ────────────────────────────────────────────────────────
 
@@ -111,7 +112,10 @@ async function resolveProvider<T>(
   return (factory as (config: Record<string, unknown>) => T)(expanded);
 }
 
-async function loadJsonConfig(configPath: string): Promise<RAGPipelineConfig> {
+async function loadJsonConfig(
+  configPath: string,
+  logger?: Logger,
+): Promise<RAGPipelineConfig> {
   let raw: unknown;
   try {
     const content = await readFile(configPath, "utf-8");
@@ -146,6 +150,17 @@ async function loadJsonConfig(configPath: string): Promise<RAGPipelineConfig> {
     "createVectorStore",
   );
 
+  // Pass the logger to plugins via setLogger() if they support it (duck-type check)
+  if (logger) {
+    for (const instance of [embedder, vectorStore]) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const inst = instance as any;
+      if (typeof inst.setLogger === "function") {
+        inst.setLogger(logger);
+      }
+    }
+  }
+
   return {
     chunkers,
     embedder,
@@ -168,6 +183,7 @@ export function autoDetectConfig(): string {
 
 export async function loadConfig(
   configPath: string,
+  logger?: Logger,
 ): Promise<RAGPipelineConfig> {
   if (configPath.endsWith(".ts")) {
     throw new ConfigError(
@@ -179,5 +195,5 @@ export async function loadConfig(
     );
   }
 
-  return loadJsonConfig(configPath);
+  return loadJsonConfig(configPath, logger);
 }

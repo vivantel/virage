@@ -69,6 +69,9 @@ export type { EmbeddingsReadResult } from "./core/embeddings-io.js";
 // Config loader
 export { loadConfig, autoDetectConfig } from "./config-loader.js";
 
+// Logger
+export { ConsolaLogger, NullLogger, createLogger } from "./logger/index.js";
+
 // Evaluation framework
 export { EvalRunner } from "./eval/runner.js";
 export { RAGASRunner } from "./eval/ragas.js";

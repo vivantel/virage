@@ -1,4 +1,5 @@
 import { createHash } from "crypto";
+import type { Logger } from "../interfaces/logger.js";
 
 export function computeContentHash(content: string): string {
   return createHash("sha256").update(content).digest("hex").slice(0, 16);
@@ -17,6 +18,7 @@ export interface RetryOptions {
 export async function withRetry<T>(
   fn: () => Promise<T>,
   opts: RetryOptions = {},
+  logger?: Logger,
 ): Promise<T> {
   const maxRetries = opts.maxRetries ?? 3;
   const delayMs = opts.retryDelayMs ?? 1000;
@@ -30,7 +32,7 @@ export async function withRetry<T>(
       lastErr = err;
       if (attempt < maxRetries) {
         const wait = Math.round(delayMs * Math.pow(factor, attempt));
-        console.warn(
+        logger?.verbose(
           `  ⚠️ Attempt ${attempt + 1}/${maxRetries + 1} failed, retrying in ${wait}ms...`,
         );
         await sleep(wait);

@@ -4,6 +4,8 @@ import {
   EmbeddingsMeta,
   Chunk,
 } from "../interfaces/index.js";
+import type { Logger } from "../interfaces/logger.js";
+import { NullLogger } from "../logger/null-logger.js";
 import { readFile } from "fs/promises";
 import { createHash } from "crypto";
 import { EmbedError } from "./errors.js";
@@ -29,6 +31,7 @@ export class EmbedderProcessor {
   private retryOptions: RetryOptions;
   private concurrency: number;
   private vectorStoreName?: string;
+  private logger: Logger;
 
   constructor(
     provider: EmbeddingProvider,
@@ -39,6 +42,7 @@ export class EmbedderProcessor {
       retry?: RetryOptions;
       concurrency?: number;
       vectorStoreName?: string;
+      logger?: Logger;
     } = {},
   ) {
     this.provider = provider;
@@ -48,12 +52,14 @@ export class EmbedderProcessor {
     this.retryOptions = options.retry ?? {};
     this.concurrency = options.concurrency ?? 1;
     this.vectorStoreName = options.vectorStoreName;
+    this.logger = (options.logger ?? new NullLogger()).withTag("embedder");
   }
 
   async embedChunk(chunk: Chunk): Promise<EmbeddedChunk> {
     const embedding = await withRetry(
       () => this.provider.embed(chunk.content),
       this.retryOptions,
+      this.logger,
     );
 
     return {
@@ -69,6 +75,7 @@ export class EmbedderProcessor {
       const embeddings = await withRetry(
         () => this.provider.embedBatch!(texts),
         this.retryOptions,
+        this.logger,
       );
 
       if (embeddings.length !== chunks.length) {
@@ -98,9 +105,13 @@ export class EmbedderProcessor {
 
       const embedded = await this.embedChunk(chunk);
       completed++;
-      console.log(`  [${completed}/${chunks.length}] ${label}`);
+      this.logger.verbose(`[${completed}/${chunks.length}] ${label}`);
+      this.logger.trace(
+        `  ${chunkContentHash(chunk)}: ${chunk.content.slice(0, 60).replace(/\n/g, " ")}`,
+      );
 
       if (this.rateLimitMs > 0) {
+        this.logger.trace(`Rate limit: sleeping ${this.rateLimitMs}ms`);
         await sleep(this.rateLimitMs);
       }
 
@@ -137,10 +148,13 @@ export class EmbedderProcessor {
       );
     }
 
-    console.log(`📖 Loaded ${chunks.length} chunks from ${chunksFile}`);
+    this.logger.info(`📖 Loaded ${chunks.length} chunks from ${chunksFile}`);
+    this.logger.debug(
+      `Provider: ${this.provider.name}, model: ${this.provider.model ?? "(none)"}, dims: ${this.provider.dimensions}`,
+    );
 
     if (force) {
-      console.log("  ⚠️ Force mode: embedding all chunks");
+      this.logger.verbose("Force mode: embedding all chunks");
       return {
         chunksToEmbed: chunks,
         existingMeta: null,
@@ -170,11 +184,11 @@ export class EmbedderProcessor {
         const curModel = this.provider.model ?? "(unknown)";
         const prevDims = meta.providerDimensions;
         const curDims = this.provider.dimensions;
-        console.log(`\n⚠️  Embedding model changed!`);
-        console.log(`    Previous: ${prevModel} (${prevDims}d)`);
-        console.log(`    Current:  ${curModel} (${curDims}d)`);
-        console.log(
-          `    Discarding existing embeddings — all chunks will be re-embedded.\n`,
+        this.logger.warn(`⚠️ Embedding model changed!`);
+        this.logger.warn(`   Previous: ${prevModel} (${prevDims}d)`);
+        this.logger.warn(`   Current:  ${curModel} (${curDims}d)`);
+        this.logger.warn(
+          `   Discarding existing embeddings — all chunks will be re-embedded.`,
         );
         return {
           chunksToEmbed: chunks,
@@ -201,9 +215,10 @@ export class EmbedderProcessor {
       }
     }
 
-    console.log(
-      `📊 Existing embeddings: ${existingEmbeddings.length} chunks across ${embeddedFileVersions.size} file version(s)`,
+    this.logger.verbose(
+      `📊 Existing: ${existingEmbeddings.length} chunks across ${embeddedFileVersions.size} version(s)`,
     );
+    this.logger.debug(`Vector store: ${this.vectorStoreName ?? "(none)"}`);
 
     // Group incoming chunks by (sourceFile, commitHash)
     const chunksByFileVersion = new Map<string, Chunk[]>();
@@ -245,8 +260,8 @@ export class EmbedderProcessor {
     }
 
     if (skippedFiles > 0) {
-      console.log(
-        `  ⏭️  Skipped ${skippedFiles} unchanged file version(s) (${skippedChunks} chunks)`,
+      this.logger.verbose(
+        `⏭️ Skipped ${skippedFiles} unchanged version(s) (${skippedChunks} chunks)`,
       );
     }
 
@@ -304,8 +319,10 @@ export class EmbedderProcessor {
     };
 
     await writeEmbeddingsFile(embeddingsFile, meta, final);
-    console.log(`\n💾 Saved ${final.length} embeddings to ${embeddingsFile}`);
-    console.log(
+    this.logger.verbose(
+      `Saved ${final.length} embeddings to ${embeddingsFile}`,
+    );
+    this.logger.verbose(
       `   New: ${newEmbeddings.length}, Existing: ${keepChunks.length}`,
     );
   }
@@ -314,7 +331,7 @@ export class EmbedderProcessor {
     chunksFile: string,
     force: boolean = false,
   ): Promise<EmbeddedChunk[]> {
-    console.log("🔢 Starting incremental embedding generation...");
+    this.logger.info("🔢 Starting incremental embedding generation...");
 
     const { chunksToEmbed, existingMeta, isNewEmbeddingSpace } =
       await this.getChunksToEmbed(chunksFile, force);
@@ -323,11 +340,11 @@ export class EmbedderProcessor {
     const effectiveForce = force || isNewEmbeddingSpace;
 
     if (chunksToEmbed.length === 0) {
-      console.log("\n✨ No chunks need embedding.");
+      this.logger.info("✨ No chunks need embedding.");
       return [];
     }
 
-    console.log(`\n📝 Need to embed ${chunksToEmbed.length} chunks`);
+    this.logger.info(`📝 Need to embed ${chunksToEmbed.length} chunks`);
 
     const batches = batchBySize(
       chunksToEmbed,
@@ -338,8 +355,9 @@ export class EmbedderProcessor {
     const newEmbeddings: EmbeddedChunk[] = [];
 
     for (let i = 0; i < batches.length; i++) {
-      console.log(
-        `\n🔢 Batch ${i + 1}/${batches.length} (${batches[i].length} chunks)`,
+      const totalChars = batches[i].reduce((s, c) => s + c.content.length, 0);
+      this.logger.debug(
+        `Batch ${i + 1}/${batches.length}: ${batches[i].length} chunks, ~${totalChars} chars`,
       );
       const embedded = await this.embedBatch(batches[i]);
       newEmbeddings.push(...embedded);

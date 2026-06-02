@@ -3,6 +3,8 @@ import {
   VectorDocument,
   EmbeddedChunk,
 } from "../interfaces/index.js";
+import type { Logger } from "../interfaces/logger.js";
+import { NullLogger } from "../logger/null-logger.js";
 import { createHash } from "crypto";
 import { UploadError } from "./errors.js";
 import { withRetry, RetryOptions } from "./utils.js";
@@ -18,13 +20,15 @@ function contentHash(chunk: EmbeddedChunk): string {
 export class Uploader {
   private vectorStore: VectorStore;
   private retryOptions: RetryOptions;
+  private logger: Logger;
 
   constructor(
     vectorStore: VectorStore,
-    options: { retry?: RetryOptions } = {},
+    options: { retry?: RetryOptions; logger?: Logger } = {},
   ) {
     this.vectorStore = vectorStore;
     this.retryOptions = options.retry ?? {};
+    this.logger = (options.logger ?? new NullLogger()).withTag("upload");
   }
 
   private chunkToDocument(
@@ -72,7 +76,7 @@ export class Uploader {
       });
     }
 
-    console.log(
+    this.logger.info(
       `📖 Loaded ${embeddings.length} embeddings from ${embeddingsFile}`,
     );
 
@@ -84,10 +88,10 @@ export class Uploader {
       meta?.vectorStoreName &&
       meta.vectorStoreName !== this.vectorStore.name
     ) {
-      console.log(`\n⚠️  Vector store changed!`);
-      console.log(`    Previous: ${meta.vectorStoreName}`);
-      console.log(`    Current:  ${this.vectorStore.name}`);
-      console.log(`    Forcing full re-upload to the new store.\n`);
+      this.logger.warn(`⚠️ Vector store changed!`);
+      this.logger.warn(`   Previous: ${meta.vectorStoreName}`);
+      this.logger.warn(`   Current:  ${this.vectorStore.name}`);
+      this.logger.warn(`   Forcing full re-upload to the new store.`);
       effectiveForce = true;
     }
 
@@ -97,6 +101,10 @@ export class Uploader {
     }
 
     const existingState = await this.vectorStore.getCurrentState();
+    this.logger.debug(
+      `Vector store has ${existingState.size} source version(s)`,
+    );
+
     const toUploadList: EmbeddedChunk[] = [];
     const toDeleteSet = new Set<string>();
 
@@ -104,10 +112,20 @@ export class Uploader {
       const existingHash = existingState.get(emb.sourceFile);
 
       if (!existingHash) {
+        this.logger.trace(
+          `  ${emb.sourceFile}: store=(none), local=${emb.commitHash.slice(0, 8)} → upload`,
+        );
         toUploadList.push(emb);
       } else if (existingHash !== emb.commitHash) {
+        this.logger.trace(
+          `  ${emb.sourceFile}: store=${existingHash.slice(0, 8)}, local=${emb.commitHash.slice(0, 8)} → update`,
+        );
         toDeleteSet.add(emb.sourceFile);
         toUploadList.push(emb);
+      } else {
+        this.logger.trace(
+          `  ${emb.sourceFile}: store=${existingHash.slice(0, 8)} → unchanged`,
+        );
       }
     }
 
@@ -124,7 +142,7 @@ export class Uploader {
     uploaded: number;
     deleted: number;
   }> {
-    console.log("📤 Starting incremental upload...");
+    this.logger.info("📤 Starting incremental upload...");
 
     await this.vectorStore.initialize();
 
@@ -133,11 +151,11 @@ export class Uploader {
       force,
     );
 
-    console.log(`\n📊 Need to upload: ${toUpload.length} documents`);
-    console.log(`   Need to delete: ${toDelete.length} files`);
+    this.logger.info(`📊 Need to upload: ${toUpload.length} documents`);
+    this.logger.info(`   Need to delete: ${toDelete.length} files`);
 
     if (toUpload.length === 0 && toDelete.length === 0) {
-      console.log("\n✨ No changes detected.");
+      this.logger.info("✨ No changes detected.");
       return { uploaded: 0, deleted: 0 };
     }
 
@@ -145,29 +163,38 @@ export class Uploader {
       await withRetry(
         () => this.vectorStore.deleteBySourceFile(toDelete),
         this.retryOptions,
+        this.logger,
       );
-      console.log(`  🗑️ Deleted ${toDelete.length} obsolete documents`);
+      this.logger.verbose(`🗑️ Deleted ${toDelete.length} obsolete docs`);
     }
 
     if (toUpload.length > 0) {
       const documents = toUpload.map((e) => this.chunkToDocument(e));
 
       const batchSize = 50;
+      const totalBatches = Math.ceil(documents.length / batchSize);
       for (let i = 0; i < documents.length; i += batchSize) {
         const batch = documents.slice(i, i + batchSize);
         await withRetry(
           () => this.vectorStore.upsert(batch),
           this.retryOptions,
+          this.logger,
         );
-        console.log(
-          `  ✅ Uploaded batch ${Math.floor(i / batchSize) + 1}/${Math.ceil(documents.length / batchSize)}`,
+        const batchNum = Math.floor(i / batchSize) + 1;
+        this.logger.verbose(
+          `  Batch ${batchNum}/${totalBatches}: ${batch.length} docs`,
+        );
+        this.logger.silly(
+          `  IDs: ${batch
+            .map((d) => d.contentHash?.slice(0, 8) ?? "?")
+            .join(", ")}`,
         );
       }
     }
 
-    console.log(`\n✨ Upload complete!`);
-    console.log(`   Uploaded: ${toUpload.length}`);
-    console.log(`   Deleted: ${toDelete.length}`);
+    this.logger.verbose(`✨ Upload complete!`);
+    this.logger.verbose(`   Uploaded: ${toUpload.length}`);
+    this.logger.verbose(`   Deleted: ${toDelete.length}`);
 
     return { uploaded: toUpload.length, deleted: toDelete.length };
   }
