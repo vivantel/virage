@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.4.8](https://github.com/vivantel/rag_core/compare/rag-embedder-fastembed@v1.4.7...rag-embedder-fastembed@v1.4.8) (2026-06-02)
+
+
+### Bug Fixes
+
+* Mkdir vendor subdir even when cacheDir is not explicitly configured ([2d76f7b](https://github.com/vivantel/rag_core/commit/2d76f7b7245443fe5b7235923e7ebd0a059f0a87))
+
 ## [1.4.7](https://github.com/vivantel/rag_core/compare/rag-embedder-fastembed@v1.4.6...rag-embedder-fastembed@v1.4.7) (2026-06-02)
 
 
