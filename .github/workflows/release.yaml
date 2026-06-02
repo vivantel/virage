@@ -24,6 +24,8 @@ jobs:
       fastembed_released: ${{ steps.release.outputs['packages/rag-embedder-fastembed--release_created'] }}
       postgres_released: ${{ steps.release.outputs['packages/rag-store-postgres--release_created'] }}
       qdrant_released: ${{ steps.release.outputs['packages/rag-store-qdrant--release_created'] }}
+      lancedb_released: ${{ steps.release.outputs['packages/rag-store-lancedb--release_created'] }}
+      chromadb_released: ${{ steps.release.outputs['packages/rag-store-chromadb--release_created'] }}
     steps:
       - name: Run Release Please
         id: release
@@ -201,6 +203,54 @@ jobs:
       - name: Publish
         run: npm publish --provenance --access public
         working-directory: packages/rag-store-qdrant
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+  publish-store-lancedb:
+    name: Publish @vivantel/rag-store-lancedb
+    needs: release-please
+    if: ${{ needs.release-please.outputs.lancedb_released == 'true' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '20.x'
+          registry-url: 'https://registry.npmjs.org'
+          cache: "npm"
+      - run: npm ci --ignore-scripts
+      - run: npm run build --workspace packages/rag-core
+      - run: npm run build --workspace packages/rag-store-lancedb
+      - name: Publish
+        run: npm publish --provenance --access public
+        working-directory: packages/rag-store-lancedb
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+  publish-store-chromadb:
+    name: Publish @vivantel/rag-store-chromadb
+    needs: release-please
+    if: ${{ needs.release-please.outputs.chromadb_released == 'true' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '20.x'
+          registry-url: 'https://registry.npmjs.org'
+          cache: "npm"
+      - run: npm ci --ignore-scripts
+      - run: npm run build --workspace packages/rag-core
+      - run: npm run build --workspace packages/rag-store-chromadb
+      - name: Publish
+        run: npm publish --provenance --access public
+        working-directory: packages/rag-store-chromadb
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 

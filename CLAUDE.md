@@ -70,9 +70,21 @@ Wraps the `FileChunker` interface. Two usage styles, enforced by a TypeScript di
 
 `rag-update --config rag.config.json` is the consumer-facing CLI. It calls `loadConfig` (reads and parses the JSON config, then dynamically imports each provider package) then `Orchestrator.run()`. Flags: `--force`, `--skip-upload`, `--chunks-file`, `--embeddings-file`.
 
-`rag-update init` generates a `rag.config.json` interactively (`src/cli/init.ts`). It scans the working directory for known file types, presents a pre-checked confirmation prompt, generates chunkers using the strategy shorthand, and prompts for secrets to write to `.env`. Falls back to manual strategy selection if no known types are found. Known extension groups: `.md`/`.mdx` → `markdownHeadersStrategy`, `.ts`/`.tsx`/`.js`/`.jsx`/`.py`/`.go`/`.cs`/`.java` → `tokenStrategy`, `.yaml`/`.yml` → `wholeFileStrategy`, `.txt` → `semanticStrategy`. Supported embedders: `openai`, `github-models`, `fastembed`, `transformers`, `custom`. Supported vector stores: `postgres`, `qdrant-local`, `qdrant-cloud`, `custom`.
+`rag-update init` generates a `rag.config.json` interactively (`src/cli/init.ts`). It scans the working directory for known file types, presents a pre-checked confirmation prompt, generates chunkers using the strategy shorthand, and prompts for secrets to write to `.env`. After secrets, it detects the project's package manager and offers to auto-install required packages. Falls back to manual strategy selection if no known types are found. Known extension groups: `.md`/`.mdx` → `markdownHeadersStrategy`, `.ts`/`.tsx`/`.js`/`.jsx`/`.py`/`.go`/`.cs`/`.java` → `tokenStrategy`, `.yaml`/`.yml` → `wholeFileStrategy`, `.txt` → `semanticStrategy`. Embedder and store choices are driven by `loadRegistry()` (see plugin registry above), so external plugins appear automatically. Built-in stores: `postgres`, `qdrant`, `lancedb`, `chromadb`, `custom`.
 
 **Config file loading** (`src/config-loader.ts`): Only JSON configs are supported. `loadConfig()` reads and parses the JSON, validates the schema, expands `${ENV_VAR}` placeholders, and dynamically imports each `embedder.package` / `vectorStore.package` calling its `createEmbedder()` / `createVectorStore()` factory. Passing a `.ts` path throws a `ConfigError` with a migration suggestion.
+
+**Plugin registry** (`src/plugin-registry.ts`): `BUILT_IN_PLUGINS` lists all known embedders and stores. `loadRegistry(projectRoot)` merges built-ins with external plugins discovered from `node_modules` packages that declare a `"rag-plugin"` field in their `package.json`. External plugins override built-ins with the same `type:key`. Third-party packages self-register by adding:
+```jsonc
+"rag-plugin": {
+  "type": "vectorStore",  // or "embedder"
+  "label": "MyStore (hosted)",
+  "key": "mystore",
+  "envVars": ["MY_API_KEY"],
+  "defaultConfig": { "apiKey": "${MY_API_KEY}", "url": "https://mystore.example.com" }
+}
+```
+The `package` field is auto-filled from the containing `package.json`'s `name`.
 
 **GitTracker glob ignores**: `getAllTrackedFiles()` excludes `node_modules/`, `dist/`, `build/`, `out/`, `coverage/`, `.git/`, `.next/`, `.turbo/`, `.cache/` so broad patterns like `**/*.ts` only match source files.
 

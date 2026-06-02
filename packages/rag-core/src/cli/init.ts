@@ -1,8 +1,9 @@
-import { checkbox, select, input } from "@inquirer/prompts";
-import { writeFile, readFile } from "fs/promises";
+import { checkbox, confirm, input, select } from "@inquirer/prompts";
 import { existsSync } from "fs";
-import { readdir } from "fs/promises";
-import { join, extname } from "path";
+import { readFile, readdir, writeFile } from "fs/promises";
+import { extname, join } from "path";
+import { spawn } from "child_process";
+import { loadRegistry, type PluginRegistry } from "../plugin-registry.js";
 
 // ─── File type detection ──────────────────────────────────────────────────────
 
@@ -72,7 +73,6 @@ export async function detectFileExtensions(cwd: string): Promise<ExtGroup[]> {
 
 const BACK_VALUE = "__back__";
 
-/** Inject a "← Back" option into a select choices list. */
 function withBack<T>(
   choices: { name: string; value: T }[],
 ): { name: string; value: T | typeof BACK_VALUE }[] {
@@ -95,75 +95,62 @@ interface WizardState {
   outputPath: string;
 }
 
-// ─── Embedder / vector store metadata ────────────────────────────────────────
+// ─── Package helpers ──────────────────────────────────────────────────────────
 
-interface EmbedderMeta {
-  label: string;
-  key: string;
-  envVars: string[];
+function getRequiredPackages(
+  state: WizardState,
+  registry: PluginRegistry,
+): string[] {
+  const embedderEntry = registry.embedders.find(
+    (e) => e.key === state.embedder,
+  );
+  const storeEntry = registry.stores.find((s) => s.key === state.vectorStore);
+  const pkgs = new Set<string>();
+  if (embedderEntry && embedderEntry.key !== "custom")
+    pkgs.add(embedderEntry.package);
+  if (storeEntry && storeEntry.key !== "custom") pkgs.add(storeEntry.package);
+  return Array.from(pkgs);
 }
 
-interface StoreMeta {
-  label: string;
-  key: string;
-  envVars: string[];
+async function detectPackageManager(
+  projectRoot: string,
+): Promise<"npm" | "yarn" | "pnpm" | "bun"> {
+  if (existsSync(join(projectRoot, "bun.lockb"))) return "bun";
+  if (existsSync(join(projectRoot, "pnpm-lock.yaml"))) return "pnpm";
+  if (existsSync(join(projectRoot, "yarn.lock"))) return "yarn";
+  return "npm";
 }
 
-const EMBEDDERS: EmbedderMeta[] = [
-  {
-    label: "OpenAI (text-embedding-3-small)",
-    key: "openai",
-    envVars: ["OPENAI_API_KEY"],
-  },
-  {
-    label: "GitHub Models (Azure-compatible endpoint)",
-    key: "github-models",
-    envVars: ["GITHUB_TOKEN"],
-  },
-  {
-    label: "FastEmbed (local, no API key required)",
-    key: "fastembed",
-    envVars: [],
-  },
-  {
-    label: "HuggingFace Transformers (local, no API key required)",
-    key: "transformers",
-    envVars: [],
-  },
-  {
-    label: "Custom (implement the EmbeddingProvider interface yourself)",
-    key: "custom",
-    envVars: [],
-  },
-];
+function buildInstallCommand(
+  pm: "npm" | "yarn" | "pnpm" | "bun",
+  packages: string[],
+): { cmd: string; args: string[] } {
+  switch (pm) {
+    case "yarn":
+      return { cmd: "yarn", args: ["add", ...packages] };
+    case "pnpm":
+      return { cmd: "pnpm", args: ["add", ...packages] };
+    case "bun":
+      return { cmd: "bun", args: ["add", ...packages] };
+    default:
+      return { cmd: "npm", args: ["install", ...packages] };
+  }
+}
 
-const STORES: StoreMeta[] = [
-  {
-    label: "PostgreSQL / pgvector (@vivantel/rag-store-postgres)",
-    key: "postgres",
-    envVars: ["DATABASE_URL"],
-  },
-  {
-    label: "Qdrant — local instance (http://localhost:6333)",
-    key: "qdrant-local",
-    envVars: [],
-  },
-  {
-    label: "Qdrant — local file (data stored in a directory on disk)",
-    key: "qdrant-file",
-    envVars: [],
-  },
-  {
-    label: "Qdrant Cloud (@vivantel/rag-store-qdrant)",
-    key: "qdrant-cloud",
-    envVars: ["QDRANT_URL", "QDRANT_API_KEY"],
-  },
-  {
-    label: "Custom (implement the VectorStore interface yourself)",
-    key: "custom",
-    envVars: [],
-  },
-];
+function runInstall(cmd: string, args: string[]): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const proc = spawn(cmd, args, {
+      stdio: "inherit",
+      shell: process.platform === "win32",
+    });
+    proc.on("close", (code) =>
+      code === 0
+        ? resolve()
+        : reject(new Error(`Install failed with exit code ${code}`)),
+    );
+    proc.on("error", reject);
+  });
+}
 
 // ─── Config generation ────────────────────────────────────────────────────────
 
@@ -174,96 +161,37 @@ const STRATEGY_FN_TO_JSON: Record<string, string> = {
   semanticStrategy: "semantic",
 };
 
-function generateJsonConfig(state: WizardState): string {
+function generateJsonConfig(
+  state: WizardState,
+  registry: PluginRegistry,
+): string {
   const effectiveGroups =
     state.groups.length > 0
       ? state.groups
       : [EXT_GROUPS.find((g) => g.name === "typescript")!];
 
-  const chunkers = effectiveGroups.map((g) => {
-    const strategyName = STRATEGY_FN_TO_JSON[g.strategyFn] ?? g.strategyFn;
-    return {
-      name: g.name,
-      patterns: g.exts.map((e) => `**/*${e}`),
-      strategy: strategyName,
-    };
-  });
+  const chunkers = effectiveGroups.map((g) => ({
+    name: g.name,
+    patterns: g.exts.map((e) => `**/*${e}`),
+    strategy: STRATEGY_FN_TO_JSON[g.strategyFn] ?? g.strategyFn,
+  }));
 
-  let embedderPackage: string;
-  let embedderConfig: Record<string, unknown>;
-  switch (state.embedder) {
-    case "openai":
-      embedderPackage = "@vivantel/rag-embedder-openai";
-      embedderConfig = {
-        apiKey: "${OPENAI_API_KEY}",
-        model: "text-embedding-3-small",
-        dimensions: 1536,
-      };
-      break;
-    case "github-models":
-      embedderPackage = "@vivantel/rag-embedder-openai";
-      embedderConfig = {
-        apiKey: "${GITHUB_TOKEN}",
-        baseURL: "https://models.github.ai/inference",
-        model: "openai/text-embedding-3-small",
-        dimensions: 1536,
-      };
-      break;
-    case "fastembed":
-      embedderPackage = "@vivantel/rag-embedder-fastembed";
-      embedderConfig = {
-        model: "BAAI/bge-small-en-v1.5",
-        dimensions: 384,
-      };
-      break;
-    case "transformers":
-      embedderPackage = "@vivantel/rag-embedder-transformers";
-      embedderConfig = {
-        model: "Xenova/all-MiniLM-L6-v2",
-        dimensions: 384,
-      };
-      break;
-    default:
-      embedderPackage = "@your-org/rag-embedder-custom";
-      embedderConfig = {
-        apiKey: "${YOUR_API_KEY}",
-        model: "your-model-name",
-        dimensions: 1536,
-      };
-  }
-
-  let vectorStorePackage: string;
-  let vectorStoreConfig: Record<string, unknown>;
-  switch (state.vectorStore) {
-    case "postgres":
-      vectorStorePackage = "@vivantel/rag-store-postgres";
-      vectorStoreConfig = { connectionString: "${DATABASE_URL}" };
-      break;
-    case "qdrant-local":
-      vectorStorePackage = "@vivantel/rag-store-qdrant";
-      vectorStoreConfig = { url: "http://localhost:6333" };
-      break;
-    case "qdrant-file":
-      vectorStorePackage = "@vivantel/rag-store-qdrant";
-      vectorStoreConfig = { path: "./qdrant-storage" };
-      break;
-    case "qdrant-cloud":
-      vectorStorePackage = "@vivantel/rag-store-qdrant";
-      vectorStoreConfig = {
-        url: "${QDRANT_URL}",
-        apiKey: "${QDRANT_API_KEY}",
-      };
-      break;
-    default:
-      vectorStorePackage = "@your-org/rag-store-custom";
-      vectorStoreConfig = {};
-  }
+  const embedderEntry = registry.embedders.find(
+    (e) => e.key === state.embedder,
+  )!;
+  const storeEntry = registry.stores.find((s) => s.key === state.vectorStore)!;
 
   const config = {
     $schema: "./node_modules/@vivantel/rag-core/schemas/rag.config.schema.json",
     chunkers,
-    embedder: { package: embedderPackage, config: embedderConfig },
-    vectorStore: { package: vectorStorePackage, config: vectorStoreConfig },
+    embedder: {
+      package: embedderEntry.package,
+      config: embedderEntry.defaultConfig,
+    },
+    vectorStore: {
+      package: storeEntry.package,
+      config: storeEntry.defaultConfig,
+    },
     options: {
       chunksFile: "./docs/rag/chunks.json",
       embeddingsFile: "./docs/rag/embeddings.json",
@@ -314,44 +242,16 @@ async function writeEnvVars(
   return { written, skipped };
 }
 
-// ─── Install hint ─────────────────────────────────────────────────────────────
-
-function installHint(state: WizardState): string {
-  const pkgs: string[] = [];
-  switch (state.embedder) {
-    case "openai":
-    case "github-models":
-      pkgs.push("@vivantel/rag-embedder-openai");
-      break;
-    case "fastembed":
-      pkgs.push("@vivantel/rag-embedder-fastembed");
-      break;
-    case "transformers":
-      pkgs.push("@vivantel/rag-embedder-transformers");
-      break;
-  }
-  switch (state.vectorStore) {
-    case "postgres":
-      pkgs.push("@vivantel/rag-store-postgres");
-      break;
-    case "qdrant-local":
-    case "qdrant-file":
-    case "qdrant-cloud":
-      pkgs.push("@vivantel/rag-store-qdrant");
-      break;
-  }
-  return pkgs.length > 0
-    ? `  npm install ${pkgs.join(" ")}`
-    : "  (no additional packages needed)";
-}
-
 // ─── Main wizard ──────────────────────────────────────────────────────────────
 
 export async function runInit(): Promise<void> {
   console.log("\nRAG Config Generator\n");
 
+  const cwd = process.cwd();
   console.log("Scanning project for file types...");
-  const detectedGroups = await detectFileExtensions(process.cwd());
+  const detectedGroups = await detectFileExtensions(cwd);
+
+  const registry = await loadRegistry(cwd);
 
   const state: Partial<WizardState> = {};
   let step = 0;
@@ -364,12 +264,12 @@ export async function runInit(): Promise<void> {
           const confirmed = await checkbox({
             message: "Detected file types — select which to index:",
             choices: [
-              { name: "← Back (cancel init)", value: "__back__" },
               ...detectedGroups.map((g) => ({
                 name: `${g.name} (${g.exts.join(", ")}) → ${g.strategyFn}`,
                 value: g.name,
                 checked: true,
               })),
+              { name: "← Back (cancel init)", value: "__back__" },
             ],
           });
           if (confirmed.includes("__back__")) {
@@ -386,11 +286,11 @@ export async function runInit(): Promise<void> {
           const chosen = await checkbox({
             message: "Which chunking strategies do you need?",
             choices: [
-              { name: "← Back (cancel init)", value: "__back__" },
               ...EXT_GROUPS.map((g) => ({
                 name: `${g.name} (${g.strategyFn})`,
                 value: g.name,
               })),
+              { name: "← Back (cancel init)", value: "__back__" },
             ],
           });
           if (chosen.includes("__back__")) {
@@ -408,7 +308,7 @@ export async function runInit(): Promise<void> {
         const choice = await select({
           message: "Which embedding provider?",
           choices: withBack(
-            EMBEDDERS.map((e) => ({ name: e.label, value: e.key })),
+            registry.embedders.map((e) => ({ name: e.label, value: e.key })),
           ),
         });
         if (isBack(choice)) {
@@ -425,7 +325,7 @@ export async function runInit(): Promise<void> {
         const choice = await select({
           message: "Which vector store?",
           choices: withBack(
-            STORES.map((s) => ({ name: s.label, value: s.key })),
+            registry.stores.map((s) => ({ name: s.label, value: s.key })),
           ),
         });
         if (isBack(choice)) {
@@ -473,16 +373,20 @@ export async function runInit(): Promise<void> {
   }
 
   // ── Write config ──
-  const configContent = generateJsonConfig(finalState);
+  const configContent = generateJsonConfig(finalState, registry);
   await writeFile(finalState.outputPath, configContent, "utf-8");
   console.log(`\nCreated ${finalState.outputPath}`);
 
   // ── Secrets step ──
-  const embedderMeta = EMBEDDERS.find((e) => e.key === finalState.embedder);
-  const storeMeta = STORES.find((s) => s.key === finalState.vectorStore);
+  const embedderEntry = registry.embedders.find(
+    (e) => e.key === finalState.embedder,
+  );
+  const storeEntry = registry.stores.find(
+    (s) => s.key === finalState.vectorStore,
+  );
   const requiredVars = [
-    ...(embedderMeta?.envVars ?? []),
-    ...(storeMeta?.envVars ?? []),
+    ...(embedderEntry?.envVars ?? []),
+    ...(storeEntry?.envVars ?? []),
   ];
 
   if (requiredVars.length > 0) {
@@ -517,19 +421,42 @@ export async function runInit(): Promise<void> {
     console.log("\nNo secrets required for this combination.");
   }
 
+  // ── Auto-install ──
+  const pkgs = getRequiredPackages(finalState, registry);
+  if (pkgs.length > 0) {
+    const pm = await detectPackageManager(cwd);
+    const { cmd, args } = buildInstallCommand(pm, pkgs);
+    const shouldInstall = await confirm({
+      message: `Install ${pkgs.join(" ")} now? [using ${pm}]`,
+      default: true,
+    });
+    if (shouldInstall) {
+      try {
+        await runInstall(cmd, args);
+        console.log("\nPackages installed successfully.");
+      } catch {
+        console.log(
+          `\nInstall failed. Run manually:\n  ${cmd} ${args.join(" ")}`,
+        );
+      }
+    } else {
+      console.log(`\nRun manually:\n  ${cmd} ${args.join(" ")}`);
+    }
+  }
+
   // ── Next steps ──
   console.log("\nNext steps:");
-  console.log(`  1. Install packages:\n${installHint(finalState)}`);
-  if (finalState.vectorStore === "qdrant-file") {
+  let nextStep = 1;
+  if (finalState.vectorStore === "qdrant") {
     console.log(
-      "  2. Start Qdrant with your storage directory:\n" +
-        "       docker run -v $(pwd)/qdrant-storage:/qdrant/storage \\\n" +
-        "                  -p 6333:6333 qdrant/qdrant",
+      `  ${nextStep++}. Qdrant local: docker run -p 6333:6333 qdrant/qdrant`,
     );
-    console.log("  3. Run `rag-update validate` to check the config");
-    console.log("  4. Run `rag-update` to start indexing\n");
-  } else {
-    console.log("  2. Run `rag-update validate` to check the config");
-    console.log("  3. Run `rag-update` to start indexing\n");
+    console.log(
+      `     Set QDRANT_URL=http://localhost:6333 (local) or your cluster URL (cloud).`,
+    );
   }
+  console.log(
+    `  ${nextStep++}. Run \`rag-update validate\` to check the config`,
+  );
+  console.log(`  ${nextStep}. Run \`rag-update\` to start indexing\n`);
 }

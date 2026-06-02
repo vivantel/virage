@@ -18,6 +18,8 @@ Monorepo for `@vivantel/rag-core` — a Git-aware RAG pipeline that turns your c
 | [`@vivantel/rag-embedder-fastembed`](packages/rag-embedder-fastembed) | [![npm](https://img.shields.io/npm/v/@vivantel/rag-embedder-fastembed.svg)](https://www.npmjs.com/package/@vivantel/rag-embedder-fastembed) | Fast local ONNX embeddings via FastEmbed |
 | [`@vivantel/rag-store-postgres`](packages/rag-store-postgres) | [![npm](https://img.shields.io/npm/v/@vivantel/rag-store-postgres.svg)](https://www.npmjs.com/package/@vivantel/rag-store-postgres) | PostgreSQL + pgvector vector store |
 | [`@vivantel/rag-store-qdrant`](packages/rag-store-qdrant) | [![npm](https://img.shields.io/npm/v/@vivantel/rag-store-qdrant.svg)](https://www.npmjs.com/package/@vivantel/rag-store-qdrant) | Qdrant vector store (local and cloud) |
+| [`@vivantel/rag-store-lancedb`](packages/rag-store-lancedb) | [![npm](https://img.shields.io/npm/v/@vivantel/rag-store-lancedb.svg)](https://www.npmjs.com/package/@vivantel/rag-store-lancedb) | LanceDB vector store (embedded, file-based) |
+| [`@vivantel/rag-store-chromadb`](packages/rag-store-chromadb) | [![npm](https://img.shields.io/npm/v/@vivantel/rag-store-chromadb.svg)](https://www.npmjs.com/package/@vivantel/rag-store-chromadb) | ChromaDB vector store (local or hosted) |
 
 ## Quick start
 

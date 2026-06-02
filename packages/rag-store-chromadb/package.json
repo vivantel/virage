@@ -1,0 +1,66 @@
+{
+  "name": "@vivantel/rag-store-chromadb",
+  "version": "1.0.0",
+  "description": "ChromaDB vector store for @vivantel/rag-core (local or hosted)",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "sideEffects": false,
+  "publishConfig": {
+    "access": "public"
+  },
+  "rag-plugin": {
+    "type": "vectorStore",
+    "label": "ChromaDB (local or hosted)",
+    "key": "chromadb",
+    "envVars": [],
+    "defaultConfig": { "path": "http://localhost:8000" }
+  },
+  "scripts": {
+    "build": "tsc",
+    "type-check": "tsc --noEmit",
+    "prepublishOnly": "npm run build",
+    "lint": "eslint src/",
+    "lint:fix": "eslint src/ --fix",
+    "format": "prettier --write \"src/**/*.ts\"",
+    "fix": "npm run lint:fix && npm run format"
+  },
+  "keywords": [
+    "rag",
+    "vector-store",
+    "chromadb",
+    "vector-database",
+    "semantic-search"
+  ],
+  "author": "Vivantel",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/vivantel/rag_core",
+    "directory": "packages/rag-store-chromadb"
+  },
+  "dependencies": {
+    "chromadb": "^1.10.0"
+  },
+  "peerDependencies": {
+    "@vivantel/rag-core": "^2.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^25.9.1",
+    "@vivantel/rag-core": "file:../rag-core",
+    "typescript": "^6.0.3"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

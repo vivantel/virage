@@ -1,0 +1,68 @@
+{
+  "name": "@vivantel/rag-store-lancedb",
+  "version": "1.0.0",
+  "description": "LanceDB vector store for @vivantel/rag-core (embedded, file-based)",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "sideEffects": false,
+  "publishConfig": {
+    "access": "public"
+  },
+  "rag-plugin": {
+    "type": "vectorStore",
+    "label": "LanceDB (embedded, file-based)",
+    "key": "lancedb",
+    "envVars": [],
+    "defaultConfig": { "uri": "./lancedb" }
+  },
+  "scripts": {
+    "build": "tsc",
+    "type-check": "tsc --noEmit",
+    "prepublishOnly": "npm run build",
+    "lint": "eslint src/",
+    "lint:fix": "eslint src/ --fix",
+    "format": "prettier --write \"src/**/*.ts\"",
+    "fix": "npm run lint:fix && npm run format"
+  },
+  "keywords": [
+    "rag",
+    "vector-store",
+    "lancedb",
+    "vector-database",
+    "semantic-search",
+    "embedded"
+  ],
+  "author": "Vivantel",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/vivantel/rag_core",
+    "directory": "packages/rag-store-lancedb"
+  },
+  "dependencies": {
+    "@lancedb/lancedb": "^0.18.0",
+    "apache-arrow": "^18.0.0"
+  },
+  "peerDependencies": {
+    "@vivantel/rag-core": "^2.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^25.9.1",
+    "@vivantel/rag-core": "file:../rag-core",
+    "typescript": "^6.0.3"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

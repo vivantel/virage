@@ -66,6 +66,24 @@
       "bump-patch-for-minor-pre-major": true,
       "draft": false,
       "prerelease": false
+    },
+    "packages/rag-store-lancedb": {
+      "package-name": "@vivantel/rag-store-lancedb",
+      "changelog-path": "CHANGELOG.md",
+      "release-type": "node",
+      "bump-minor-pre-major": true,
+      "bump-patch-for-minor-pre-major": true,
+      "draft": false,
+      "prerelease": false
+    },
+    "packages/rag-store-chromadb": {
+      "package-name": "@vivantel/rag-store-chromadb",
+      "changelog-path": "CHANGELOG.md",
+      "release-type": "node",
+      "bump-minor-pre-major": true,
+      "bump-patch-for-minor-pre-major": true,
+      "draft": false,
+      "prerelease": false
     }
   },
   "plugins": [
