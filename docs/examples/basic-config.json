@@ -1,0 +1,34 @@
+{
+  "$schema": "../../packages/rag-core/schemas/rag.config.schema.json",
+  "chunkers": [
+    {
+      "name": "markdown",
+      "patterns": ["docs/**/*.md", "docs/**/*.mdx"],
+      "strategy": "markdownHeaders"
+    },
+    {
+      "name": "typescript",
+      "patterns": ["src/**/*.ts", "src/**/*.tsx"],
+      "strategy": "token"
+    }
+  ],
+  "embedder": {
+    "package": "@vivantel/rag-embedder-openai",
+    "config": {
+      "apiKey": "${OPENAI_API_KEY}",
+      "model": "text-embedding-3-small",
+      "dimensions": 1536
+    }
+  },
+  "vectorStore": {
+    "package": "@vivantel/rag-store-qdrant",
+    "config": {
+      "url": "${QDRANT_URL}",
+      "apiKey": "${QDRANT_API_KEY}"
+    }
+  },
+  "options": {
+    "chunksFile": "./docs/rag/chunks.json",
+    "embeddingsFile": "./docs/rag/embeddings.json"
+  }
+}

@@ -68,11 +68,11 @@ Wraps the `FileChunker` interface. Two usage styles, enforced by a TypeScript di
 
 ### CLI (`bin/rag-update.ts`)
 
-`rag-update --config rag.config.ts` is the consumer-facing CLI. It calls `loadConfig` (dynamic `import()` of the config file) then `Orchestrator.run()`. Flags: `--force`, `--skip-upload`, `--chunks-file`, `--embeddings-file`.
+`rag-update --config rag.config.json` is the consumer-facing CLI. It calls `loadConfig` (reads and parses the JSON config, then dynamically imports each provider package) then `Orchestrator.run()`. Flags: `--force`, `--skip-upload`, `--chunks-file`, `--embeddings-file`.
 
-`rag-update init` generates a `rag.config.ts` interactively (`src/cli/init.ts`). It scans the working directory for known file types, presents a pre-checked confirmation prompt, and generates chunkers using the strategy shorthand. Falls back to manual strategy selection if no known types are found. Known extension groups: `.md`/`.mdx` → `markdownHeadersStrategy`, `.ts`/`.tsx`/`.js`/`.jsx`/`.py`/`.go`/`.cs`/`.java` → `tokenStrategy`, `.yaml`/`.yml` → `wholeFileStrategy`, `.txt` → `semanticStrategy`.
+`rag-update init` generates a `rag.config.json` interactively (`src/cli/init.ts`). It scans the working directory for known file types, presents a pre-checked confirmation prompt, generates chunkers using the strategy shorthand, and prompts for secrets to write to `.env`. Falls back to manual strategy selection if no known types are found. Known extension groups: `.md`/`.mdx` → `markdownHeadersStrategy`, `.ts`/`.tsx`/`.js`/`.jsx`/`.py`/`.go`/`.cs`/`.java` → `tokenStrategy`, `.yaml`/`.yml` → `wholeFileStrategy`, `.txt` → `semanticStrategy`. Supported embedders: `openai`, `github-models`, `fastembed`, `transformers`, `custom`. Supported vector stores: `postgres`, `qdrant-local`, `qdrant-cloud`, `custom`.
 
-**Config file loading** (`src/config-loader.ts`): `.ts` config files are loaded via `tsImport()` from `tsx/esm/api` (tsx is a runtime dependency). Plain `.js` configs use native `import()`. This means consumers can write TypeScript configs without needing a separate build step or Node flag.
+**Config file loading** (`src/config-loader.ts`): Only JSON configs are supported. `loadConfig()` reads and parses the JSON, validates the schema, expands `${ENV_VAR}` placeholders, and dynamically imports each `embedder.package` / `vectorStore.package` calling its `createEmbedder()` / `createVectorStore()` factory. Passing a `.ts` path throws a `ConfigError` with a migration suggestion.
 
 **GitTracker glob ignores**: `getAllTrackedFiles()` excludes `node_modules/`, `dist/`, `build/`, `out/`, `coverage/`, `.git/`, `.next/`, `.turbo/`, `.cache/` so broad patterns like `**/*.ts` only match source files.
 

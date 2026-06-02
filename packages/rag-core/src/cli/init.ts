@@ -1,8 +1,10 @@
 import { checkbox, select, input } from "@inquirer/prompts";
-import { writeFile } from "fs/promises";
+import { writeFile, readFile } from "fs/promises";
 import { existsSync } from "fs";
 import { readdir } from "fs/promises";
 import { join, extname } from "path";
+
+// ─── File type detection ──────────────────────────────────────────────────────
 
 interface ExtGroup {
   exts: string[];
@@ -66,6 +68,100 @@ export async function detectFileExtensions(cwd: string): Promise<ExtGroup[]> {
   return EXT_GROUPS.filter((g) => g.exts.some((e) => found.has(e)));
 }
 
+// ─── Back-navigation support ──────────────────────────────────────────────────
+
+const BACK_VALUE = "__back__";
+
+/** Inject a "← Back" option into a select choices list. */
+function withBack<T>(
+  choices: { name: string; value: T }[],
+): { name: string; value: T | typeof BACK_VALUE }[] {
+  return [
+    { name: "← Back", value: BACK_VALUE as typeof BACK_VALUE },
+    ...choices,
+  ];
+}
+
+function isBack(value: unknown): value is typeof BACK_VALUE {
+  return value === BACK_VALUE;
+}
+
+// ─── Wizard state ─────────────────────────────────────────────────────────────
+
+interface WizardState {
+  groups: ExtGroup[];
+  embedder: string;
+  vectorStore: string;
+  outputPath: string;
+}
+
+// ─── Embedder / vector store metadata ────────────────────────────────────────
+
+interface EmbedderMeta {
+  label: string;
+  key: string;
+  envVars: string[];
+}
+
+interface StoreMeta {
+  label: string;
+  key: string;
+  envVars: string[];
+}
+
+const EMBEDDERS: EmbedderMeta[] = [
+  {
+    label: "OpenAI (text-embedding-3-small)",
+    key: "openai",
+    envVars: ["OPENAI_API_KEY"],
+  },
+  {
+    label: "GitHub Models (Azure-compatible endpoint)",
+    key: "github-models",
+    envVars: ["GITHUB_TOKEN"],
+  },
+  {
+    label: "FastEmbed (local, no API key required)",
+    key: "fastembed",
+    envVars: [],
+  },
+  {
+    label: "HuggingFace Transformers (local, no API key required)",
+    key: "transformers",
+    envVars: [],
+  },
+  {
+    label: "Custom (implement the EmbeddingProvider interface yourself)",
+    key: "custom",
+    envVars: [],
+  },
+];
+
+const STORES: StoreMeta[] = [
+  {
+    label: "PostgreSQL / pgvector (@vivantel/rag-store-postgres)",
+    key: "postgres",
+    envVars: ["DATABASE_URL"],
+  },
+  {
+    label: "Qdrant — local instance (http://localhost:6333)",
+    key: "qdrant-local",
+    envVars: [],
+  },
+  {
+    label: "Qdrant Cloud (@vivantel/rag-store-qdrant)",
+    key: "qdrant-cloud",
+    envVars: ["QDRANT_URL", "QDRANT_API_KEY"],
+  },
+  {
+    label: "Custom (implement the VectorStore interface yourself)",
+    key: "custom",
+    envVars: [],
+  },
+];
+
+// ─── Config generation ────────────────────────────────────────────────────────
+
 const STRATEGY_FN_TO_JSON: Record<string, string> = {
   markdownHeadersStrategy: "markdownHeaders",
   tokenStrategy: "token",
@@ -73,154 +169,10 @@ const STRATEGY_FN_TO_JSON: Record<string, string> = {
   semanticStrategy: "semantic",
 };
 
-interface InitAnswers {
-  groups: ExtGroup[];
-  embedder: string;
-  vectorStore: string;
-  outputPath: string;
-  format: "json" | "ts";
-}
-
-function buildEmbedderSection(provider: string): string {
-  switch (provider) {
-    case "openai":
-      return `// Install: npm install openai
-// import OpenAI from 'openai';
-// const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-
-const embedder: EmbeddingProvider = {
-  name: 'openai',
-  dimensions: 1536, // text-embedding-3-small
-  async embed(text: string): Promise<number[]> {
-    // const res = await openai.embeddings.create({ model: 'text-embedding-3-small', input: text });
-    // return res.data[0].embedding;
-    throw new Error('Configure your OpenAI embedder — uncomment and adapt the lines above');
-  },
-  async embedBatch(texts: string[]): Promise<number[][]> {
-    // const res = await openai.embeddings.create({ model: 'text-embedding-3-small', input: texts });
-    // return res.data.map(d => d.embedding);
-    throw new Error('Configure your OpenAI embedder — uncomment and adapt the lines above');
-  },
-};`;
-
-    case "github-models":
-      return `// Requires GITHUB_TOKEN in your environment (.env or CI secret)
-
-const embedder: EmbeddingProvider = {
-  name: 'github-models',
-  dimensions: 1536, // text-embedding-3-small
-  async embed(text: string): Promise<number[]> {
-    const res = await fetch('https://models.inference.ai.azure.com/embeddings', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: \`Bearer \${process.env.GITHUB_TOKEN}\`,
-      },
-      body: JSON.stringify({ model: 'text-embedding-3-small', input: text }),
-    });
-    if (!res.ok) throw new Error(\`GitHub Models error: \${res.statusText}\`);
-    const json = await res.json() as { data: Array<{ embedding: number[] }> };
-    return json.data[0].embedding;
-  },
-};`;
-
-    default:
-      return `const embedder: EmbeddingProvider = {
-  name: 'custom',
-  dimensions: 1536, // update to match your model's output size
-  async embed(text: string): Promise<number[]> {
-    // TODO: call your embedding API and return a number[]
-    void text;
-    throw new Error('Not implemented');
-  },
-  // Optional batch method for better performance:
-  // async embedBatch(texts: string[]): Promise<number[][]> {
-  //   // TODO: batch embed and return number[][]
-  //   throw new Error('Not implemented');
-  // },
-};`;
-  }
-}
-
-function buildVectorStoreSection(store: string): string {
-  switch (store) {
-    case "postgres":
-      return `// Install: npm install @vivantel/rag-store-postgres
-// import { PostgresVectorStore } from '@vivantel/rag-store-postgres';
-// const vectorStore = new PostgresVectorStore({ connectionString: process.env.DATABASE_URL! });
-
-const vectorStore: VectorStore = {
-  name: 'postgres',
-  async initialize() {
-    throw new Error('Configure your PostgreSQL vector store — uncomment the lines above');
-  },
-  async upsert(_docs) { throw new Error('Not implemented'); },
-  async deleteBySourceFile(_files) { throw new Error('Not implemented'); },
-  async getCurrentState() { return new Map(); },
-  async search(_embedding, _topK) { return []; },
-};`;
-
-    case "pinecone":
-      return `// Install: npm install @pinecone-database/pinecone
-// import { Pinecone } from '@pinecone-database/pinecone';
-// const pc = new Pinecone({ apiKey: process.env.PINECONE_API_KEY! });
-// const index = pc.index(process.env.PINECONE_INDEX!);
-
-const vectorStore: VectorStore = {
-  name: 'pinecone',
-  async initialize() {
-    throw new Error('Configure your Pinecone vector store — uncomment the lines above');
-  },
-  async upsert(_docs) { throw new Error('Not implemented'); },
-  async deleteBySourceFile(_files) { throw new Error('Not implemented'); },
-  async getCurrentState() { return new Map(); },
-  async search(_embedding, _topK) { return []; },
-};`;
-
-    default:
-      return `const vectorStore: VectorStore = {
-  name: 'custom',
-  async initialize(): Promise<void> {
-    // TODO: initialize your vector store connection
-  },
-  async upsert(docs): Promise<void> {
-    // TODO: store \`docs\` in your vector database
-    void docs;
-  },
-  async deleteBySourceFile(files): Promise<void> {
-    // TODO: remove all documents whose sourceFile is in \`files\`
-    void files;
-  },
-  async getCurrentState(): Promise<Map<string, string>> {
-    // TODO: return Map<sourceFile, commitHash> of what is currently stored
-    return new Map();
-  },
-  async search(embedding, topK): Promise<VectorSearchResult[]> {
-    // TODO: return the topK most similar documents
-    void embedding; void topK;
-    return [];
-  },
-};`;
-  }
-}
-
-function buildChunkersSection(groups: ExtGroup[]): string {
-  if (groups.length === 0) {
-    groups = [EXT_GROUPS.find((g) => g.name === "typescript")!];
-  }
-
-  return groups
-    .map((g) => {
-      const patterns = JSON.stringify(g.exts.map((e) => `**/*${e}`));
-      return `    createChunker({ patterns: ${patterns}, strategy: ${g.strategyFn}() }),`;
-    })
-    .join("\n");
-}
-
-function generateJsonConfig(answers: InitAnswers): string {
+function generateJsonConfig(state: WizardState): string {
   const effectiveGroups =
-    answers.groups.length > 0
-      ? answers.groups
+    state.groups.length > 0
+      ? state.groups
       : [EXT_GROUPS.find((g) => g.name === "typescript")!];
 
   const chunkers = effectiveGroups.map((g) => {
@@ -234,7 +186,7 @@ function generateJsonConfig(answers: InitAnswers): string {
 
   let embedderPackage: string;
   let embedderConfig: Record<string, unknown>;
-  switch (answers.embedder) {
+  switch (state.embedder) {
     case "openai":
       embedderPackage = "@vivantel/rag-embedder-openai";
       embedderConfig = {
@@ -252,6 +204,20 @@ function generateJsonConfig(answers: InitAnswers): string {
         dimensions: 1536,
       };
       break;
+    case "fastembed":
+      embedderPackage = "@vivantel/rag-embedder-fastembed";
+      embedderConfig = {
+        model: "BAAI/bge-small-en-v1.5",
+        dimensions: 384,
+      };
+      break;
+    case "transformers":
+      embedderPackage = "@vivantel/rag-embedder-transformers";
+      embedderConfig = {
+        model: "Xenova/all-MiniLM-L6-v2",
+        dimensions: 384,
+      };
+      break;
     default:
       embedderPackage = "@your-org/rag-embedder-custom";
       embedderConfig = {
@@ -263,18 +229,20 @@ function generateJsonConfig(answers: InitAnswers): string {
 
   let vectorStorePackage: string;
   let vectorStoreConfig: Record<string, unknown>;
-  switch (answers.vectorStore) {
+  switch (state.vectorStore) {
     case "postgres":
       vectorStorePackage = "@vivantel/rag-store-postgres";
-      vectorStoreConfig = {
-        connectionString: "${DATABASE_URL}",
-      };
+      vectorStoreConfig = { connectionString: "${DATABASE_URL}" };
       break;
-    case "pinecone":
-      vectorStorePackage = "@vivantel/rag-store-pinecone";
+    case "qdrant-local":
+      vectorStorePackage = "@vivantel/rag-store-qdrant";
+      vectorStoreConfig = { url: "http://localhost:6333" };
+      break;
+    case "qdrant-cloud":
+      vectorStorePackage = "@vivantel/rag-store-qdrant";
       vectorStoreConfig = {
-        apiKey: "${PINECONE_API_KEY}",
-        index: "${PINECONE_INDEX}",
+        url: "${QDRANT_URL}",
+        apiKey: "${QDRANT_API_KEY}",
       };
       break;
     default:
@@ -283,7 +251,8 @@ function generateJsonConfig(answers: InitAnswers): string {
   }
 
   const config = {
-    $schema: "./node_modules/@vivantel/rag-core/schemas/rag.config.schema.json",
+    $schema:
+      "./node_modules/@vivantel/rag-core/schemas/rag.config.schema.json",
     chunkers,
     embedder: { package: embedderPackage, config: embedderConfig },
     vectorStore: { package: vectorStorePackage, config: vectorStoreConfig },
@@ -296,153 +265,239 @@ function generateJsonConfig(answers: InitAnswers): string {
   return JSON.stringify(config, null, 2) + "\n";
 }
 
-function generateConfig(answers: InitAnswers): string {
-  const strategyFns = [...new Set(answers.groups.map((g) => g.strategyFn))];
-  if (strategyFns.length === 0) strategyFns.push("tokenStrategy");
+// ─── .env writing ─────────────────────────────────────────────────────────────
 
-  const valueImports = ["createChunker", ...strategyFns].join(", ");
+async function writeEnvVars(
+  envPath: string,
+  vars: Record<string, string>,
+): Promise<{ written: string[]; skipped: string[] }> {
+  let existing = "";
+  if (existsSync(envPath)) {
+    existing = await readFile(envPath, "utf-8");
+  }
 
-  const embedderSection = buildEmbedderSection(answers.embedder);
-  const vectorStoreSection = buildVectorStoreSection(answers.vectorStore);
-  const chunkersSection = buildChunkersSection(answers.groups);
+  const written: string[] = [];
+  const skipped: string[] = [];
+  const lines: string[] = existing.endsWith("\n")
+    ? [existing]
+    : existing
+      ? [existing, ""]
+      : [];
 
-  return `import type { RAGPipelineConfig, EmbeddingProvider, VectorStore, VectorSearchResult } from '@vivantel/rag-core';
-import { ${valueImports} } from '@vivantel/rag-core';
+  for (const [key, value] of Object.entries(vars)) {
+    const alreadyDefined = existing
+      .split("\n")
+      .some((line) => line.startsWith(`${key}=`) || line.startsWith(`${key} =`));
 
-${embedderSection}
+    if (alreadyDefined) {
+      skipped.push(key);
+    } else {
+      lines.push(`${key}=${value}`);
+      written.push(key);
+    }
+  }
 
-${vectorStoreSection}
+  if (written.length > 0) {
+    await writeFile(envPath, lines.join("\n").trimStart() + "\n", "utf-8");
+  }
 
-const config: RAGPipelineConfig = {
-  chunkers: [
-${chunkersSection}
-  ],
-  embedder,
-  vectorStore,
-  options: {
-    chunksFile: './docs/rag/chunks.json',
-    embeddingsFile: './docs/rag/embeddings.json',
-  },
-};
-
-export default config;
-`;
+  return { written, skipped };
 }
 
+// ─── Install hint ─────────────────────────────────────────────────────────────
+
+function installHint(state: WizardState): string {
+  const pkgs: string[] = [];
+  switch (state.embedder) {
+    case "openai":
+    case "github-models":
+      pkgs.push("@vivantel/rag-embedder-openai");
+      break;
+    case "fastembed":
+      pkgs.push("@vivantel/rag-embedder-fastembed");
+      break;
+    case "transformers":
+      pkgs.push("@vivantel/rag-embedder-transformers");
+      break;
+  }
+  switch (state.vectorStore) {
+    case "postgres":
+      pkgs.push("@vivantel/rag-store-postgres");
+      break;
+    case "qdrant-local":
+    case "qdrant-cloud":
+      pkgs.push("@vivantel/rag-store-qdrant");
+      break;
+  }
+  return pkgs.length > 0
+    ? `  npm install ${pkgs.join(" ")}`
+    : "  (no additional packages needed)";
+}
+
+// ─── Main wizard ──────────────────────────────────────────────────────────────
+
 export async function runInit(): Promise<void> {
-  console.log("\n🚀 RAG Config Generator\n");
+  console.log("\nRAG Config Generator\n");
 
   console.log("Scanning project for file types...");
   const detectedGroups = await detectFileExtensions(process.cwd());
 
-  let selectedGroups: ExtGroup[];
+  const state: Partial<WizardState> = {};
+  let step = 0;
 
-  if (detectedGroups.length > 0) {
-    const confirmed = await checkbox({
-      message: "Detected file types — select which to index:",
-      choices: detectedGroups.map((g) => ({
-        name: `${g.name} (${g.exts.join(", ")}) → ${g.strategyFn}`,
-        value: g,
-        checked: true,
-      })),
-    });
-    selectedGroups = confirmed as ExtGroup[];
-  } else {
-    console.log("No known file types detected. Choose strategies manually:");
-    const strategyNames = await checkbox({
-      message: "Which chunking strategies do you need?",
-      choices: EXT_GROUPS.map((g) => ({
-        name: `${g.name} (${g.strategyFn})`,
-        value: g,
-      })),
-    });
-    selectedGroups = strategyNames as ExtGroup[];
+  while (step < 4) {
+    switch (step) {
+      // ── Step 0: chunker selection ──
+      case 0: {
+        if (detectedGroups.length > 0) {
+          const confirmed = await checkbox({
+            message: "Detected file types — select which to index:",
+            choices: [
+              { name: "← Back (cancel init)", value: "__back__" },
+              ...detectedGroups.map((g) => ({
+                name: `${g.name} (${g.exts.join(", ")}) → ${g.strategyFn}`,
+                value: g.name,
+                checked: true,
+              })),
+            ],
+          });
+          if (confirmed.includes("__back__")) {
+            console.log("\nCancelled.");
+            return;
+          }
+          state.groups = detectedGroups.filter((g) =>
+            confirmed.includes(g.name),
+          );
+        } else {
+          console.log("No known file types detected. Choose strategies manually:");
+          const chosen = await checkbox({
+            message: "Which chunking strategies do you need?",
+            choices: [
+              { name: "← Back (cancel init)", value: "__back__" },
+              ...EXT_GROUPS.map((g) => ({
+                name: `${g.name} (${g.strategyFn})`,
+                value: g.name,
+              })),
+            ],
+          });
+          if (chosen.includes("__back__")) {
+            console.log("\nCancelled.");
+            return;
+          }
+          state.groups = EXT_GROUPS.filter((g) => chosen.includes(g.name));
+        }
+        step++;
+        break;
+      }
+
+      // ── Step 1: embedder selection ──
+      case 1: {
+        const choice = await select({
+          message: "Which embedding provider?",
+          choices: withBack(
+            EMBEDDERS.map((e) => ({ name: e.label, value: e.key })),
+          ),
+        });
+        if (isBack(choice)) { step--; break; }
+        state.embedder = choice;
+        step++;
+        break;
+      }
+
+      // ── Step 2: vector store selection ──
+      case 2: {
+        const choice = await select({
+          message: "Which vector store?",
+          choices: withBack(
+            STORES.map((s) => ({ name: s.label, value: s.key })),
+          ),
+        });
+        if (isBack(choice)) { step--; break; }
+        state.vectorStore = choice;
+        step++;
+        break;
+      }
+
+      // ── Step 3: output path ──
+      case 3: {
+        const defaultOutput = "./rag.config.json";
+        const outputPath = await input({
+          message: "Output path for the config file? (leave blank to go back)",
+          default: defaultOutput,
+        });
+        if (outputPath.trim() === "") { step--; break; }
+        state.outputPath = outputPath.trim();
+        step++;
+        break;
+      }
+    }
   }
 
-  const embedder = await select({
-    message: "Which embedding provider?",
-    choices: [
-      { name: "OpenAI (text-embedding-3-small)", value: "openai" },
-      {
-        name: "GitHub Models (Azure-compatible endpoint)",
-        value: "github-models",
-      },
-      { name: "Custom (implement the interface yourself)", value: "custom" },
-    ],
-  });
+  const finalState = state as WizardState;
 
-  const vectorStore = await select({
-    message: "Which vector store?",
-    choices: [
-      {
-        name: "PostgreSQL / pgvector (@vivantel/rag-store-postgres)",
-        value: "postgres",
-      },
-      { name: "Pinecone (@pinecone-database/pinecone)", value: "pinecone" },
-      { name: "Custom (implement the interface yourself)", value: "custom" },
-    ],
-  });
-
-  const format = (await select({
-    message: "Which config format?",
-    choices: [
-      {
-        name: "JSON (rag.config.json) — declarative, no TypeScript required (recommended)",
-        value: "json",
-      },
-      {
-        name: "TypeScript (rag.config.ts) — escape hatch for custom providers",
-        value: "ts",
-      },
-    ],
-  })) as "json" | "ts";
-
-  const defaultOutput =
-    format === "json" ? "./rag.config.json" : "./rag.config.ts";
-  const outputPath = await input({
-    message: "Output path for the config file?",
-    default: defaultOutput,
-  });
-
-  if (existsSync(outputPath)) {
+  // ── Overwrite check ──
+  if (existsSync(finalState.outputPath)) {
     const overwrite = await select({
-      message: `${outputPath} already exists. Overwrite?`,
+      message: `${finalState.outputPath} already exists. Overwrite?`,
       choices: [
         { name: "Yes, overwrite", value: "yes" },
         { name: "No, cancel", value: "no" },
       ],
     });
     if (overwrite === "no") {
-      console.log("\n❌ Cancelled.");
+      console.log("\nCancelled.");
       return;
     }
   }
 
-  const answers: InitAnswers = {
-    groups: selectedGroups,
-    embedder,
-    vectorStore,
-    outputPath,
-    format,
-  };
+  // ── Write config ──
+  const configContent = generateJsonConfig(finalState);
+  await writeFile(finalState.outputPath, configContent, "utf-8");
+  console.log(`\nCreated ${finalState.outputPath}`);
 
-  const config =
-    format === "json" ? generateJsonConfig(answers) : generateConfig(answers);
-  await writeFile(outputPath, config, "utf-8");
+  // ── Secrets step ──
+  const embedderMeta = EMBEDDERS.find((e) => e.key === finalState.embedder);
+  const storeMeta = STORES.find((s) => s.key === finalState.vectorStore);
+  const requiredVars = [
+    ...(embedderMeta?.envVars ?? []),
+    ...(storeMeta?.envVars ?? []),
+  ];
 
-  console.log(`\n✅ Created ${outputPath}`);
-  if (format === "json") {
-    console.log("\nNext steps:");
-    console.log(
-      "  1. Install the embedder package: npm install @vivantel/rag-embedder-openai",
-    );
-    console.log("  2. Install the vector store package (when available)");
-    console.log("  3. Add the required env vars to your .env file");
-    console.log("  4. Run `rag-update` to start indexing\n");
+  if (requiredVars.length > 0) {
+    console.log("\nThis configuration requires the following secrets:");
+    const envValues: Record<string, string> = {};
+
+    for (const varName of requiredVars) {
+      const value = await input({
+        message: `Enter value for ${varName} (leave blank to skip):`,
+        default: "",
+      });
+      if (value.trim()) {
+        envValues[varName] = value.trim();
+      }
+    }
+
+    if (Object.keys(envValues).length > 0) {
+      const envPath = "./.env";
+      const { written, skipped } = await writeEnvVars(envPath, envValues);
+      if (written.length > 0) {
+        console.log(`\nWrote to ${envPath}: ${written.join(", ")}`);
+      }
+      if (skipped.length > 0) {
+        console.log(`Already defined (skipped): ${skipped.join(", ")}`);
+      }
+    } else {
+      console.log(
+        "\nNo secrets entered — add them to your .env file manually.",
+      );
+    }
   } else {
-    console.log("\nNext steps:");
-    console.log("  1. Fill in the TODO sections in the config file");
-    console.log("  2. Run `rag-update validate` to check the config");
-    console.log("  3. Run `rag-update` to start indexing\n");
+    console.log("\nNo secrets required for this combination.");
   }
+
+  // ── Next steps ──
+  console.log("\nNext steps:");
+  console.log(`  1. Install packages:\n${installHint(finalState)}`);
+  console.log("  2. Run `rag-update validate` to check the config");
+  console.log("  3. Run `rag-update` to start indexing\n");
 }

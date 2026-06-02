@@ -128,7 +128,7 @@ The `createChunker` helper bridges the two via a TypeScript discriminated union:
 ## ADR-007: `tsx` for zero-build TypeScript config loading
 
 **Date:** 2026-05-31  
-**Status:** Accepted
+**Status:** Superseded by ADR-013
 
 ### Context
 Consumer config files (`rag.config.ts`) are TypeScript. If consumers had to compile their config to JS before running the CLI, the DX would be painful. We need to load `.ts` files at runtime without requiring consumers to configure `ts-node` or Node's `--experimental-transform-types` flag.
@@ -141,7 +141,7 @@ Consumer config files (`rag.config.ts`) are TypeScript. If consumers had to comp
 - **+** Consumers get editor autocompletion on the config type.
 - **−** `tsx` is a runtime dependency (not devDependency), increasing the installed footprint.
 - **−** `tsx` transformation is a silent step; debugging config syntax errors can be confusing.
-- Partially addressed by adding JSON config support as an alternative (ADR-011).
+- **Superseded:** JSON-only config was adopted in ADR-013. `tsx` removed from runtime dependencies.
 
 ---
 
@@ -164,6 +164,7 @@ Convert the repository to an npm workspaces monorepo (`packages/*`). Each provid
 | `@vivantel/rag-embedder-fastembed` | FastEmbed (local) provider |
 | `@vivantel/rag-embedder-transformers` | Hugging Face Transformers provider |
 | `@vivantel/rag-store-postgres` | PostgreSQL + pgvector store |
+| `@vivantel/rag-store-qdrant` | Qdrant vector store (local and cloud) |
 
 `release-please` is configured in manifest mode to publish each package independently.
 
@@ -229,13 +230,13 @@ TypeScript configs (`rag.config.ts`) require `tsx` at runtime and are developer-
 3. Dynamically imports each provider package and calls `createEmbedder(config)` / `createVectorStore(config)`.
 4. Maps strategy name strings (`"markdownHeaders"`, `"token"`, etc.) via `strategy-registry.ts`.
 
-A JSON Schema is published at `schemas/rag.config.schema.json` for editor validation. `autoDetectConfig()` prefers `rag.config.json` over `rag.config.ts` when both exist.
+A JSON Schema is published at `schemas/rag.config.schema.json` for editor validation.
 
 ### Consequences
 - **+** CI config is declarative, schema-validated, and credential-free.
 - **+** Reduces friction for non-TypeScript environments.
-- **−** JSON config cannot express custom chunker logic — only built-in strategies. Complex use cases still require TypeScript.
-- **−** Two config formats increase the surface area of `loadConfig()`.
+- **−** JSON config cannot express custom chunker logic — only built-in strategies.
+- JSON became the only supported format in ADR-013; the two-format surface area was eliminated.
 
 ---
 
@@ -345,3 +346,23 @@ Manual version bumps and CHANGELOG maintenance are error-prone. npm provenance (
 - **+** npm provenance protects consumers from tampered packages.
 - **−** Contributors must follow Conventional Commits; squash-merging with the wrong prefix silently delays a release.
 - **−** release-please manifest mode configuration is non-trivial; it required several fixup commits to stabilize.
+
+---
+
+## ADR-013: JSON-only config; remove TypeScript config loading
+
+**Date:** 2026-06-02  
+**Status:** Accepted  
+**Supersedes:** ADR-007
+
+### Context
+Two config formats (`rag.config.json` and `rag.config.ts`) were supported. The JSON format handles all practical use cases via `${ENV_VAR}` expansion and named built-in strategies. The TypeScript format required `tsx` as a runtime dependency, added complexity to `loadConfig()`, and was never the recommended path for CI (which always used JSON). Maintaining both added surface area without a proportional benefit.
+
+### Decision
+Remove TypeScript config loading entirely. `loadConfig()` now only handles JSON. Passing a `.ts` path raises a `ConfigError` with a migration suggestion. `tsx` is moved from `dependencies` to `devDependencies` (kept only for the `dev` watch script). The `init` command no longer offers a "TypeScript format" option.
+
+### Consequences
+- **+** Simpler `loadConfig()` — one code path, one format.
+- **+** `tsx` removed from the published package's runtime dependency tree.
+- **+** `init` wizard is simpler and always produces a working JSON config.
+- **−** Breaking change for consumers using `rag.config.ts`. Migration: run `rag-update init` or rename to `.json` and convert manually.

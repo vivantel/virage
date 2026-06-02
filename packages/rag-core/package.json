@@ -58,8 +58,7 @@
     "commander": "^15.0.0",
     "dotenv": "^17.4.2",
     "glob": "^13.0.6",
-    "simple-git": "^3.25.0",
-    "tsx": "^4.22.4"
+    "simple-git": "^3.25.0"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
@@ -70,6 +69,7 @@
     "typedoc": "^0.28.19",
     "typedoc-plugin-markdown": "^4.11.0",
     "typescript": "^6.0.3",
+    "tsx": "^4.22.4",
     "typescript-eslint": "^8.60.1",
     "vitest": "^4.1.8"
   },

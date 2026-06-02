@@ -55,7 +55,7 @@ program
   .name("rag-update")
   .description("Update RAG index with latest changes")
   .version("2.0.0")
-  .option("-c, --config <path>", "Path to config file", "./rag.config.ts")
+  .option("-c, --config <path>", "Path to config file", "./rag.config.json")
   .option("-f, --force", "Force full rebuild", false)
   .option("--no-upload", "Skip upload to vector store", false)
   .option("--dry-run", "Show what would change without uploading", false)
@@ -141,7 +141,7 @@ program
 program
   .command("validate")
   .description("Validate config without running the pipeline")
-  .option("-c, --config <path>", "Path to config file", "./rag.config.ts")
+  .option("-c, --config <path>", "Path to config file", "./rag.config.json")
   .action(async (opts: { config: string }) => {
     try {
       await runValidate(opts.config);
@@ -153,7 +153,7 @@ program
 program
   .command("evaluate")
   .description("Evaluate retrieval quality against an eval dataset")
-  .option("-c, --config <path>", "Path to config file", "./rag.config.ts")
+  .option("-c, --config <path>", "Path to config file", "./rag.config.json")
   .option("-d, --dataset <path>", "Eval dataset path", "./eval/queries.json")
   .option("--with-llm-judge", "Enable RAGAS LLM-as-judge metrics")
   .option(
@@ -331,7 +331,7 @@ const store = program.command("store").description("Vector store diagnostics");
 store
   .command("stats")
   .description("Show vector index quality metrics")
-  .option("-c, --config <path>", "Path to config file", "./rag.config.ts")
+  .option("-c, --config <path>", "Path to config file", "./rag.config.json")
   .action(async (opts: { config: string }) => {
     try {
       await runStoreStats({ config: opts.config });
@@ -343,7 +343,7 @@ store
 store
   .command("perf")
   .description("Show query performance report")
-  .option("-c, --config <path>", "Path to config file", "./rag.config.ts")
+  .option("-c, --config <path>", "Path to config file", "./rag.config.json")
   .option("--timeframe <hours>", "Timeframe in hours", parseInt, 24)
   .action(async (opts: { config: string; timeframe: number }) => {
     try {
@@ -364,7 +364,7 @@ experiment
   .command("run")
   .description("Run an experiment and save results")
   .requiredOption("--name <name>", "Experiment name")
-  .option("-c, --config <path>", "Path to config file", "./rag.config.ts")
+  .option("-c, --config <path>", "Path to config file", "./rag.config.json")
   .option("-d, --dataset <path>", "Eval dataset path", "./eval/queries.json")
   .action(async (opts: { name: string; config: string; dataset: string }) => {
     try {

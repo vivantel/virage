@@ -16,7 +16,7 @@
 
 | Feature | Description | Priority |
 |---------|-------------|----------|
-| **CLI `init` command** | Generate `rag.config.ts` template | P0 |
+| **CLI `init` command** | Generate `rag.config.json` config | P0 |
 | **CLI `validate` command** | Validate config without running | P0 |
 | **Better error messages** | Human-readable errors with suggestions | P0 |
 | **Dry-run mode** | `--dry-run` shows what would change | P1 |
@@ -87,7 +87,7 @@ options: {
 |---------|-------------|----------|
 | **Separate provider packages** | Move embedders/vector stores to own packages | P0 |
 | **Plugin discovery** | Auto-detect installed providers | P0 |
-| **Configuration schema** | JSON Schema for `rag.config.ts` | P1 |
+| **Configuration schema** | JSON Schema for `rag.config.json` | P1 |
 | **Hot reload** | Watch mode for config changes | P2 |
 
 ### Breaking Changes

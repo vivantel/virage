@@ -16,6 +16,8 @@ Monorepo for `@vivantel/rag-core` — a Git-aware RAG pipeline that turns your c
 | [`@vivantel/rag-embedder-openai`](packages/rag-embedder-openai) | [![npm](https://img.shields.io/npm/v/@vivantel/rag-embedder-openai.svg)](https://www.npmjs.com/package/@vivantel/rag-embedder-openai) | OpenAI-compatible embedder (OpenAI, Azure, GitHub Models, Ollama) |
 | [`@vivantel/rag-embedder-transformers`](packages/rag-embedder-transformers) | [![npm](https://img.shields.io/npm/v/@vivantel/rag-embedder-transformers.svg)](https://www.npmjs.com/package/@vivantel/rag-embedder-transformers) | Local embeddings via `@huggingface/transformers` |
 | [`@vivantel/rag-embedder-fastembed`](packages/rag-embedder-fastembed) | [![npm](https://img.shields.io/npm/v/@vivantel/rag-embedder-fastembed.svg)](https://www.npmjs.com/package/@vivantel/rag-embedder-fastembed) | Fast local ONNX embeddings via FastEmbed |
+| [`@vivantel/rag-store-postgres`](packages/rag-store-postgres) | [![npm](https://img.shields.io/npm/v/@vivantel/rag-store-postgres.svg)](https://www.npmjs.com/package/@vivantel/rag-store-postgres) | PostgreSQL + pgvector vector store |
+| [`@vivantel/rag-store-qdrant`](packages/rag-store-qdrant) | [![npm](https://img.shields.io/npm/v/@vivantel/rag-store-qdrant.svg)](https://www.npmjs.com/package/@vivantel/rag-store-qdrant) | Qdrant vector store (local and cloud) |
 
 ## Quick start
 
@@ -29,10 +31,7 @@ Generate a config:
 npx rag-update init
 ```
 
-The init wizard scans your project for known file types and lets you pick a config format:
-
-- **JSON** (`rag.config.json`) — declarative, no TypeScript required
-- **TypeScript** (`rag.config.ts`) — escape hatch for custom providers
+The init wizard scans your project, lets you pick an embedder and vector store, and writes secrets to `.env`:
 
 Then run the pipeline:
 
@@ -40,9 +39,9 @@ Then run the pipeline:
 npx rag-update
 ```
 
-## Config formats
+## Config format
 
-### JSON config (recommended)
+All configuration is in `rag.config.json`. `${ENV_VAR}` patterns are expanded from the environment at runtime.
 
 ```json
 {
@@ -54,39 +53,16 @@ npx rag-update
   "embedder": {
     "package": "@vivantel/rag-embedder-openai",
     "config": {
-      "apiKey": "${GITHUB_TOKEN}",
-      "baseURL": "https://models.github.ai/inference",
-      "model": "openai/text-embedding-3-small",
+      "apiKey": "${OPENAI_API_KEY}",
+      "model": "text-embedding-3-small",
       "dimensions": 1536
     }
   },
   "vectorStore": {
-    "package": "@vivantel/rag-store-postgres",
-    "config": { "connectionString": "${DATABASE_URL}" }
+    "package": "@vivantel/rag-store-qdrant",
+    "config": { "url": "${QDRANT_URL}", "apiKey": "${QDRANT_API_KEY}" }
   }
 }
-```
-
-`${ENV_VAR}` patterns are expanded from the environment at runtime.
-
-### TypeScript config (custom providers)
-
-```typescript
-import type { RAGPipelineConfig } from "@vivantel/rag-core";
-import { createChunker } from "@vivantel/rag-core";
-import { markdownHeadersStrategy, tokenStrategy } from "@vivantel/rag-strategies";
-import { createGitHubModelsEmbedder } from "@vivantel/rag-embedder-openai";
-
-const config: RAGPipelineConfig = {
-  chunkers: [
-    createChunker({ patterns: ["docs/**/*.md"], strategy: markdownHeadersStrategy() }),
-    createChunker({ patterns: ["src/**/*.ts"], strategy: tokenStrategy() }),
-  ],
-  embedder: createGitHubModelsEmbedder({ token: process.env.GITHUB_TOKEN! }),
-  vectorStore: myVectorStore,
-};
-
-export default config;
 ```
 
 ## Built-in strategies
@@ -104,7 +80,7 @@ export default config;
 rag-update [options]
 
 Options:
-  -c, --config <path>          Config file (auto-detects rag.config.json then rag.config.ts)
+  -c, --config <path>          Config file (default: rag.config.json)
   -f, --force                  Force full rebuild
   --skip-upload                Skip upload to vector store
   --chunks-file <path>         Override chunks.json path
