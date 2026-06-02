@@ -45,7 +45,7 @@
     "directory": "packages/rag-embedder-transformers"
   },
   "dependencies": {
-    "@huggingface/transformers": "^3.0.0"
+    "@huggingface/transformers": "^4.2.0"
   },
   "peerDependencies": {
     "@vivantel/rag-core": "^2.0.0"

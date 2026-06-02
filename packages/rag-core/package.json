@@ -53,7 +53,7 @@
   "author": "Vivantel",
   "license": "MIT",
   "dependencies": {
-    "@inquirer/prompts": "^8.5.1",
+    "@inquirer/prompts": "^8.5.2",
     "chokidar": "^5.0.0",
     "commander": "^15.0.0",
     "dotenv": "^17.4.2",
