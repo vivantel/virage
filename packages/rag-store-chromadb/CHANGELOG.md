@@ -1,5 +1,21 @@
 # Changelog
 
+## [1.2.1](https://github.com/vivantel/rag_core/compare/rag-store-chromadb@v1.2.0...rag-store-chromadb@v1.2.1) (2026-06-02)
+
+
+### Bug Fixes
+
+* **rag-store-chromadb:** Use IncludeEnum values for chromadb v1.10.5 type compatibility ([fde41a5](https://github.com/vivantel/rag_core/commit/fde41a519d8f93f9fc5b26fbc3a5130faa19f57b))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * devDependencies
+    * @vivantel/rag-core bumped from file:../rag-core to 3.3.1
+  * peerDependencies
+    * @vivantel/rag-core bumped from ^2.0.0 to ^3.3.1
+
 ## [1.2.0](https://github.com/vivantel/rag_core/compare/rag-store-chromadb@v1.1.0...rag-store-chromadb@v1.2.0) (2026-06-02)
 
 
