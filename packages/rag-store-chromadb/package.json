@@ -1,6 +1,6 @@
 {
   "name": "@vivantel/rag-store-chromadb",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "ChromaDB vector store for @vivantel/rag-core (local or hosted)",
   "type": "module",
   "main": "dist/index.js",

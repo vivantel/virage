@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.3.1](https://github.com/vivantel/rag_core/compare/rag-core@v3.3.0...rag-core@v3.3.1) (2026-06-02)
+
+
+### Bug Fixes
+
+* **rag-store-chromadb:** Use IncludeEnum values for chromadb v1.10.5 type compatibility ([fde41a5](https://github.com/vivantel/rag_core/commit/fde41a519d8f93f9fc5b26fbc3a5130faa19f57b))
+
 ## [3.3.0](https://github.com/vivantel/rag_core/compare/rag-core@v3.2.0...rag-core@v3.3.0) (2026-06-02)
 
 

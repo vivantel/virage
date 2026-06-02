@@ -1,6 +1,6 @@
 {
   "name": "@vivantel/rag-store-postgres",
-  "version": "1.3.3",
+  "version": "1.3.4",
   "description": "PostgreSQL + pgvector store for @vivantel/rag-core",
   "type": "module",
   "main": "dist/index.js",
