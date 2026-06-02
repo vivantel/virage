@@ -61,7 +61,7 @@ program
   .version("2.0.0")
   .option("-c, --config <path>", "Path to config file", "./rag.config.json")
   .option("-f, --force", "Force full rebuild", false)
-  .option("--no-upload", "Skip upload to vector store", false)
+  .option("--no-upload", "Skip upload to vector store")
   .option("--dry-run", "Show what would change without uploading", false)
   .option("--chunks-out <path>", "Output path for chunks.json")
   .option("--embeddings-out <path>", "Output path for embeddings.json")

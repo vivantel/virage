@@ -55,11 +55,14 @@ export class FastEmbedEmbedder implements EmbeddingProvider {
   private async getModel(): Promise<FastEmbedModel> {
     if (this._inner) return this._inner;
 
-    // Ensure the cache directory exists before fastembed tries to download to it.
-    // fastembed doesn't create intermediate directories, so a model name like
-    // "BAAI/bge-small-en-v1.5" needs "cacheDir/BAAI/" to pre-exist.
+    // Ensure the parent directory exists before fastembed tries to write the
+    // model tarball to it. fastembed doesn't create intermediate directories,
+    // so "BAAI/bge-small-en-v1.5" needs "cacheDir/BAAI/" to pre-exist.
+    // We must NOT create the model directory itself or fastembed skips the
+    // download and fails with "Tokenizer file not found".
     if (this.cacheDir) {
-      await mkdir(path.join(this.cacheDir, this.model), { recursive: true });
+      const modelParent = path.dirname(this.model);
+      await mkdir(path.join(this.cacheDir, modelParent), { recursive: true });
     }
 
     // Lazy import — consumers must install fastembed.
