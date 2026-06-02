@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.4.4](https://github.com/vivantel/rag_core/compare/rag-embedder-fastembed@v1.4.3...rag-embedder-fastembed@v1.4.4) (2026-06-02)
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * devDependencies
+    * @vivantel/rag-core bumped from file:../rag-core to 3.3.0
+  * peerDependencies
+    * @vivantel/rag-core bumped from ^2.0.0 to ^3.3.0
+
 ## [1.4.3](https://github.com/vivantel/rag_core/compare/rag-embedder-fastembed@v1.4.2...rag-embedder-fastembed@v1.4.3) (2026-06-02)
 
 

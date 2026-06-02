@@ -1,5 +1,21 @@
 # Changelog
 
+## [1.2.0](https://github.com/vivantel/rag_core/compare/rag-store-lancedb@v1.1.0...rag-store-lancedb@v1.2.0) (2026-06-02)
+
+
+### Features
+
+* E2e CLI tests, store diagnostics for all packages, experiment list command ([e3b15df](https://github.com/vivantel/rag_core/commit/e3b15dfe68995edff0f69d4a2d7c9dcb048043f3))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * devDependencies
+    * @vivantel/rag-core bumped from file:../rag-core to 3.3.0
+  * peerDependencies
+    * @vivantel/rag-core bumped from ^2.0.0 to ^3.3.0
+
 ## [1.1.0](https://github.com/vivantel/rag_core/compare/rag-store-lancedb@v1.0.0...rag-store-lancedb@v1.1.0) (2026-06-02)
 
 
