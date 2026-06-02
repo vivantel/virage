@@ -1,5 +1,21 @@
 # Changelog
 
+## [1.2.0](https://github.com/vivantel/rag_core/compare/rag-embedder-transformers@v1.1.0...rag-embedder-transformers@v1.2.0) (2026-06-02)
+
+
+### Features
+
+* Implement ROADMAP v2.0 — Quality & Observability ([e2db9ed](https://github.com/vivantel/rag_core/commit/e2db9ed73c6a96fe19eed2259e9b0300e1defe6d))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * devDependencies
+    * @vivantel/rag-core bumped from file:../rag-core to 2.5.0
+  * peerDependencies
+    * @vivantel/rag-core bumped from ^2.0.0 to ^2.5.0
+
 ## [1.1.0](https://github.com/vivantel/rag_core/compare/rag-embedder-transformers@v1.0.0...rag-embedder-transformers@v1.1.0) (2026-06-01)
 
 
