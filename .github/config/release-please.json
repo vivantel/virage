@@ -4,10 +4,6 @@
   "include-component-in-tag": true,
   "tag-separator": "@",
   "packages": {
-    ".": {
-      "release-type": "node",
-      "skip-github-release": true
-    },
     "packages/rag-core": {
       "package-name": "@vivantel/rag-core",
       "changelog-path": "CHANGELOG.md",
