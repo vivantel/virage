@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.2.2](https://github.com/vivantel/rag_core/compare/rag-store-chromadb@v1.2.1...rag-store-chromadb@v1.2.2) (2026-06-02)
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * devDependencies
+    * @vivantel/rag-core bumped from file:../rag-core to 3.3.2
+  * peerDependencies
+    * @vivantel/rag-core bumped from ^2.0.0 to ^3.3.2
+
 ## [1.2.1](https://github.com/vivantel/rag_core/compare/rag-store-chromadb@v1.2.0...rag-store-chromadb@v1.2.1) (2026-06-02)
 
 
