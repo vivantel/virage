@@ -10,7 +10,7 @@ export function createVectorStore(
   const uri = typeof config.uri === "string" ? config.uri : undefined;
   if (!uri) {
     throw new Error(
-      "@vivantel/rag-store-lancedb: config.uri is required (e.g. \"./lancedb\" for local file storage)",
+      '@vivantel/rag-store-lancedb: config.uri is required (e.g. "./lancedb" for local file storage)',
     );
   }
   return new LanceDBVectorStore({

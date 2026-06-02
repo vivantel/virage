@@ -2,8 +2,12 @@ import type {
   VectorDocument,
   VectorSearchResult,
   VectorStore,
+  IndexStats,
+  QueryPerfReport,
 } from "@vivantel/rag-core";
 import { Field, FixedSizeList, Float32, Schema, Utf8 } from "apache-arrow";
+import { getIndexStats } from "./stats.js";
+import { getQueryPerfReport } from "./query-perf.js";
 
 export interface LanceDBVectorStoreOptions {
   uri: string;
@@ -107,6 +111,14 @@ export class LanceDBVectorStore implements VectorStore {
     return state;
   }
 
+  async getIndexStats(): Promise<IndexStats> {
+    return getIndexStats(this.table);
+  }
+
+  async getQueryPerfReport(timeframeHours: number): Promise<QueryPerfReport> {
+    return getQueryPerfReport(this.table, this.dimensions, timeframeHours);
+  }
+
   async search(
     queryEmbedding: number[],
     topK: number,
@@ -119,8 +131,7 @@ export class LanceDBVectorStore implements VectorStore {
       .toArray();
 
     return (rows as Record<string, unknown>[]).map((row) => {
-      const distance =
-        typeof row._distance === "number" ? row._distance : 1;
+      const distance = typeof row._distance === "number" ? row._distance : 1;
       return {
         id: typeof row.id === "string" ? row.id : "",
         content: typeof row.content === "string" ? row.content : "",
@@ -130,7 +141,9 @@ export class LanceDBVectorStore implements VectorStore {
               typeof row.metadata_json === "string"
                 ? JSON.parse(row.metadata_json)
                 : {};
-            return parsed && typeof parsed === "object" && !Array.isArray(parsed)
+            return parsed &&
+              typeof parsed === "object" &&
+              !Array.isArray(parsed)
               ? (parsed as Record<string, unknown>)
               : {};
           } catch {

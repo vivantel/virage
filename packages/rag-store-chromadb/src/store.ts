@@ -2,8 +2,12 @@ import type {
   VectorDocument,
   VectorSearchResult,
   VectorStore,
+  IndexStats,
+  QueryPerfReport,
 } from "@vivantel/rag-core";
 import { ChromaClient, type Collection } from "chromadb";
+import { getIndexStats } from "./stats.js";
+import { getQueryPerfReport } from "./query-perf.js";
 
 export interface ChromaVectorStoreOptions {
   path?: string;
@@ -13,6 +17,7 @@ export interface ChromaVectorStoreOptions {
 }
 
 const DEFAULT_COLLECTION = "documents";
+const DEFAULT_DIMENSIONS = 1536;
 const UPSERT_BATCH_SIZE = 100;
 const SCROLL_PAGE_SIZE = 1000;
 
@@ -21,6 +26,7 @@ export class ChromaVectorStore implements VectorStore {
 
   private readonly path: string;
   private readonly collectionName: string;
+  private readonly dimensions: number;
   private readonly apiKey: string | undefined;
   private client!: ChromaClient;
   private collection!: Collection;
@@ -28,6 +34,7 @@ export class ChromaVectorStore implements VectorStore {
   constructor(options: ChromaVectorStoreOptions) {
     this.path = options.path ?? "http://localhost:8000";
     this.collectionName = options.collectionName ?? DEFAULT_COLLECTION;
+    this.dimensions = options.dimensions ?? DEFAULT_DIMENSIONS;
     this.apiKey = options.apiKey;
   }
 
@@ -96,6 +103,14 @@ export class ChromaVectorStore implements VectorStore {
     }
 
     return state;
+  }
+
+  async getIndexStats(): Promise<IndexStats> {
+    return getIndexStats(this.collection);
+  }
+
+  async getQueryPerfReport(timeframeHours: number): Promise<QueryPerfReport> {
+    return getQueryPerfReport(this.collection, this.dimensions, timeframeHours);
   }
 
   async search(

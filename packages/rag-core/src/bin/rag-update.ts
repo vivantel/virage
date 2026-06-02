@@ -8,7 +8,7 @@ import { RagError } from "../core/errors.js";
 import { runInit } from "../cli/init.js";
 import { runValidate } from "../cli/validate.js";
 import { runEvaluate } from "../cli/evaluate.js";
-import { runExperimentRun, runExperimentCompare } from "../cli/experiment.js";
+import { runExperimentRun, runExperimentCompare, runExperimentList } from "../cli/experiment.js";
 import { runBenchmarkEmbedder } from "../cli/benchmark.js";
 import { runStoreStats, runStorePerf } from "../cli/store-cmd.js";
 import { runReport } from "../cli/report.js";
@@ -373,6 +373,17 @@ experiment
         config: opts.config,
         dataset: opts.dataset,
       });
+    } catch (error) {
+      handleError(error);
+    }
+  });
+
+experiment
+  .command("list")
+  .description("List saved experiment runs")
+  .action(async () => {
+    try {
+      await runExperimentList();
     } catch (error) {
       handleError(error);
     }

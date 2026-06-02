@@ -51,6 +51,38 @@ export async function runExperimentRun(
   console.log(`\n💾 Experiment "${run.id}" saved to: ${savedPath}`);
 }
 
+export async function runExperimentList(): Promise<void> {
+  const store = new ExperimentStore();
+  const runs = await store.list();
+
+  if (runs.length === 0) {
+    console.log("No experiment runs found. Use `rag-update experiment run` to create one.");
+    return;
+  }
+
+  console.log("\n📋 Experiment Runs");
+  console.log("─".repeat(80));
+  console.log(
+    `  ${"ID".padEnd(35)} ${"NAME".padEnd(20)} ${"TIMESTAMP".padEnd(20)} MRR`,
+  );
+  console.log("─".repeat(80));
+
+  // newest-first
+  const sorted = [...runs].sort(
+    (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
+  );
+
+  for (const run of sorted) {
+    const ts = run.timestamp.slice(0, 19).replace("T", " ");
+    console.log(
+      `  ${run.id.padEnd(35)} ${run.name.padEnd(20)} ${ts.padEnd(20)} ${run.evalResult.mrr.toFixed(4)}`,
+    );
+  }
+
+  console.log("─".repeat(80));
+  console.log(`  ${runs.length} run(s) total`);
+}
+
 export async function runExperimentCompare(
   opts: ExperimentCompareOptions,
 ): Promise<void> {

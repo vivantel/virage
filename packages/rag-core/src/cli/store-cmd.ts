@@ -18,8 +18,7 @@ export async function runStoreStats(opts: StoreStatsOptions): Promise<void> {
 
   if (!store.getIndexStats) {
     console.error(
-      `❌ The configured vector store "${store.name}" does not support index stats.\n` +
-        `   This command is currently supported by @vivantel/rag-store-postgres.`,
+      `❌ The configured vector store "${store.name}" does not support index stats.`,
     );
     process.exit(1);
   }
@@ -56,8 +55,7 @@ export async function runStorePerf(opts: StorePerfOptions): Promise<void> {
 
   if (!store.getQueryPerfReport) {
     console.error(
-      `❌ The configured vector store "${store.name}" does not support query performance reports.\n` +
-        `   This command is currently supported by @vivantel/rag-store-postgres.`,
+      `❌ The configured vector store "${store.name}" does not support query performance reports.`,
     );
     process.exit(1);
   }
