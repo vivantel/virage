@@ -1,6 +1,6 @@
 {
   "name": "@vivantel/rag-store-lancedb",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "LanceDB vector store for @vivantel/rag-core (embedded, file-based)",
   "type": "module",
   "main": "dist/index.js",
@@ -24,7 +24,9 @@
     "label": "LanceDB (embedded, file-based)",
     "key": "lancedb",
     "envVars": [],
-    "defaultConfig": { "uri": "./lancedb" }
+    "defaultConfig": {
+      "uri": "./lancedb"
+    }
   },
   "scripts": {
     "build": "tsc",

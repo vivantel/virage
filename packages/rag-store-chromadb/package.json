@@ -1,6 +1,6 @@
 {
   "name": "@vivantel/rag-store-chromadb",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "ChromaDB vector store for @vivantel/rag-core (local or hosted)",
   "type": "module",
   "main": "dist/index.js",
@@ -24,7 +24,9 @@
     "label": "ChromaDB (local or hosted)",
     "key": "chromadb",
     "envVars": [],
-    "defaultConfig": { "path": "http://localhost:8000" }
+    "defaultConfig": {
+      "path": "http://localhost:8000"
+    }
   },
   "scripts": {
     "build": "tsc",
