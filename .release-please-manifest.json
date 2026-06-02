@@ -1,9 +1,9 @@
 {
-  "packages/rag-core": "2.5.0",
-  "packages/rag-strategies": "4.0.0",
-  "packages/rag-embedder-openai": "1.2.0",
-  "packages/rag-embedder-transformers": "1.2.0",
-  "packages/rag-embedder-fastembed": "1.3.0",
-  "packages/rag-store-postgres": "1.2.0",
+  "packages/rag-core": "3.0.0",
+  "packages/rag-strategies": "4.0.1",
+  "packages/rag-embedder-openai": "1.2.2",
+  "packages/rag-embedder-transformers": "1.2.2",
+  "packages/rag-embedder-fastembed": "1.3.1",
+  "packages/rag-store-postgres": "1.2.2",
   "packages/rag-store-qdrant": "1.0.0"
 }
