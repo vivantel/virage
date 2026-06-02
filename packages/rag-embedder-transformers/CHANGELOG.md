@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.2.1](https://github.com/vivantel/rag_core/compare/rag-embedder-transformers@v1.2.0...rag-embedder-transformers@v1.2.1) (2026-06-02)
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * devDependencies
+    * @vivantel/rag-core bumped from file:../rag-core to 2.5.0
+  * peerDependencies
+    * @vivantel/rag-core bumped from ^2.0.0 to ^2.5.0
+
 ## [1.2.0](https://github.com/vivantel/rag_core/compare/rag-embedder-transformers@v1.1.0...rag-embedder-transformers@v1.2.0) (2026-06-02)
 
 
