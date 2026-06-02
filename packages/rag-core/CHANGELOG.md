@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.5.0](https://github.com/vivantel/rag_core/compare/rag-core@v2.4.0...rag-core@v2.5.0) (2026-06-02)
+
+
+### Features
+
+* Implement ROADMAP v2.0 — Quality & Observability ([e2db9ed](https://github.com/vivantel/rag_core/commit/e2db9ed73c6a96fe19eed2259e9b0300e1defe6d))
+
+
+### Bug Fixes
+
+* Avoid static type resolution for optional rag-embedder-transformers import ([732f979](https://github.com/vivantel/rag_core/commit/732f97946a3cfdb2e15bb2c2b4fb03247ce75960))
+* Fix formatting errors ([840de63](https://github.com/vivantel/rag_core/commit/840de6348353b756da7b44906bcf7cc4d18a89cf))
+
 ## [2.4.0](https://github.com/vivantel/rag_core/compare/rag-core@v2.3.0...rag-core@v2.4.0) (2026-06-01)
 
 
