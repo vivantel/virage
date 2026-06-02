@@ -1,6 +1,6 @@
 {
   "name": "@vivantel/rag-store-qdrant",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "Qdrant vector store for @vivantel/rag-core (local and cloud)",
   "type": "module",
   "main": "dist/index.js",
