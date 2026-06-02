@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.3.0](https://github.com/vivantel/rag_core/compare/rag-core@v3.2.0...rag-core@v3.3.0) (2026-06-02)
+
+
+### Features
+
+* E2e CLI tests, store diagnostics for all packages, experiment list command ([e3b15df](https://github.com/vivantel/rag_core/commit/e3b15dfe68995edff0f69d4a2d7c9dcb048043f3))
+
 ## [3.2.0](https://github.com/vivantel/rag_core/compare/rag-core@v3.1.0...rag-core@v3.2.0) (2026-06-02)
 
 
