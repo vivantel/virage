@@ -1,5 +1,16 @@
 # Changelog
 
+## [2.1.1](https://github.com/vivantel/rag_core/compare/rag-store-qdrant@v2.1.0...rag-store-qdrant@v2.1.1) (2026-06-02)
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * devDependencies
+    * @vivantel/rag-core bumped from file:../rag-core to 3.2.0
+  * peerDependencies
+    * @vivantel/rag-core bumped from ^2.0.0 to ^3.2.0
+
 ## [2.1.0](https://github.com/vivantel/rag_core/compare/rag-store-qdrant@v2.0.1...rag-store-qdrant@v2.1.0) (2026-06-02)
 
 

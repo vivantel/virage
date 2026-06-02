@@ -1,6 +1,6 @@
 {
   "name": "@vivantel/rag-embedder-transformers",
-  "version": "1.3.1",
+  "version": "1.3.2",
   "description": "Local transformers.js embedding provider for @vivantel/rag-core",
   "type": "module",
   "main": "dist/index.js",

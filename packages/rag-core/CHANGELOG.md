@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.2.0](https://github.com/vivantel/rag_core/compare/rag-core@v3.1.0...rag-core@v3.2.0) (2026-06-02)
+
+
+### Features
+
+* Plugin-first init wizard with LanceDB and ChromaDB stores ([9b8b77d](https://github.com/vivantel/rag_core/commit/9b8b77d327069d921e438bdb3e4c689ee7ccda7f))
+
 ## [3.1.0](https://github.com/vivantel/rag_core/compare/rag-core@v3.0.0...rag-core@v3.1.0) (2026-06-02)
 
 
