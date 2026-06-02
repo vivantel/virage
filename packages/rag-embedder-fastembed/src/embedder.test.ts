@@ -9,10 +9,11 @@ async function* mockEmbedGen(vectors: number[][]): AsyncGenerator<number[][]> {
 const mockEmbed = vi.fn();
 
 vi.mock("fastembed", () => {
-  class MockEmbeddingModel {
-    embed = mockEmbed;
-  }
-  return { EmbeddingModel: MockEmbeddingModel };
+  return {
+    FlagEmbedding: {
+      init: vi.fn().mockResolvedValue({ embed: mockEmbed }),
+    },
+  };
 });
 
 describe("FastEmbedEmbedder", () => {
@@ -33,7 +34,7 @@ describe("FastEmbedEmbedder", () => {
 
   it("uses default model and dimensions when omitted", () => {
     const embedder = new FastEmbedEmbedder();
-    expect(embedder.model).toBe("BAAI/bge-small-en-v1.5");
+    expect(embedder.model).toBe("fast-bge-small-en-v1.5");
     expect(embedder.dimensions).toBe(384);
   });
 
@@ -80,30 +81,22 @@ describe("FastEmbedEmbedder", () => {
   });
 
   it("healthCheck() returns false when model fails to load", async () => {
-    const fastembed = await import("fastembed");
-    const origClass = fastembed.EmbeddingModel;
-    // Override temporarily to throw
-    vi.spyOn(fastembed, "EmbeddingModel" as never).mockImplementationOnce(
-      () => {
-        throw new Error("Download failed");
-      },
-    );
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { FlagEmbedding } = (await import("fastembed")) as any;
+    FlagEmbedding.init.mockRejectedValueOnce(new Error("Download failed"));
 
     const embedder = new FastEmbedEmbedder({
       model: "bad-model",
       dimensions: 3,
     });
     expect(await embedder.healthCheck()).toBe(false);
-
-    vi.spyOn(fastembed, "EmbeddingModel" as never).mockRestore();
-    void origClass;
   });
 });
 
 describe("createEmbedder factory", () => {
   it("uses defaults when config is empty", () => {
     const embedder = createEmbedder({});
-    expect(embedder.model).toBe("BAAI/bge-small-en-v1.5");
+    expect(embedder.model).toBe("fast-bge-small-en-v1.5");
   });
 
   it("respects provided model and dimensions", () => {

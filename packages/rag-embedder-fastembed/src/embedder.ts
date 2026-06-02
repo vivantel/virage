@@ -15,19 +15,21 @@ type FastEmbedModel = {
 };
 
 type FastEmbedModule = {
-  EmbeddingModel: new (opts: {
-    model?: string;
-    cacheDir?: string;
-    showDownloadProgress?: boolean;
-  }) => FastEmbedModel;
+  FlagEmbedding: {
+    init(opts: {
+      model?: string;
+      cacheDir?: string;
+      showDownloadProgress?: boolean;
+    }): Promise<FastEmbedModel>;
+  };
 };
 
-const DEFAULT_MODEL = "BAAI/bge-small-en-v1.5";
+const DEFAULT_MODEL = "fast-bge-small-en-v1.5";
 const DEFAULT_DIMENSIONS: Record<string, number> = {
-  "BAAI/bge-small-en-v1.5": 384,
-  "BAAI/bge-base-en-v1.5": 768,
-  "BAAI/bge-large-en-v1.5": 1024,
-  "nomic-ai/nomic-embed-text-v1.5": 768,
+  "fast-bge-small-en-v1.5": 384,
+  "fast-bge-base-en-v1.5": 768,
+  "fast-multilingual-e5-large": 1024,
+  "fast-all-MiniLM-L6-v2": 384,
 };
 
 export class FastEmbedEmbedder implements EmbeddingProvider {
@@ -54,10 +56,8 @@ export class FastEmbedEmbedder implements EmbeddingProvider {
     // Lazy import — consumers must install fastembed.
     // Variable specifier prevents TS from erroring when fastembed isn't installed.
     const mod = "fastembed";
-    const { EmbeddingModel } = (await import(
-      mod
-    )) as unknown as FastEmbedModule;
-    this._inner = new EmbeddingModel({
+    const { FlagEmbedding } = (await import(mod)) as unknown as FastEmbedModule;
+    this._inner = await FlagEmbedding.init({
       model: this.model,
       cacheDir: this.cacheDir,
       showDownloadProgress: this.showDownloadProgress,
