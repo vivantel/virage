@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.4.3](https://github.com/vivantel/rag_core/compare/rag-embedder-fastembed@v1.4.2...rag-embedder-fastembed@v1.4.3) (2026-06-02)
+
+
+### Bug Fixes
+
+* **rag-embedder-fastembed:** Update to fastembed v2.1.0 API ([f304052](https://github.com/vivantel/rag_core/commit/f30405281933613394bf821d373360a98dd53b2a))
+
 ## [1.4.2](https://github.com/vivantel/rag_core/compare/rag-embedder-fastembed@v1.4.1...rag-embedder-fastembed@v1.4.2) (2026-06-02)
 
 
