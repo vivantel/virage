@@ -175,6 +175,7 @@ jobs:
           cache: "npm"
       - run: npm ci --ignore-scripts
       - run: npm run build --workspace packages/rag-core
+      - run: npm test --workspace packages/rag-store-postgres
       - run: npm run build --workspace packages/rag-store-postgres
       - name: Publish
         run: npm publish --provenance --access public
@@ -199,6 +200,7 @@ jobs:
           cache: "npm"
       - run: npm ci
       - run: npm run build --workspace packages/rag-core
+      - run: npm test --workspace packages/rag-store-qdrant
       - run: npm run build --workspace packages/rag-store-qdrant
       - name: Publish
         run: npm publish --provenance --access public

@@ -28,9 +28,8 @@ function makeCollection(
 }
 
 describe("getQueryPerfReport (ChromaDB)", () => {
-  it("returns valid latency percentiles", async () => {
-    const collection = makeCollection({ queryDelayMs: 2 });
-    const report = await getQueryPerfReport(collection, 384, 24);
+  it("returns valid latency percentiles (p50 ≤ p95 ≤ p99)", async () => {
+    const report = await getQueryPerfReport(makeCollection({ queryDelayMs: 2 }), 384, 24);
 
     expect(report.timeframeHours).toBe(24);
     expect(report.p50LatencyMs).toBeGreaterThanOrEqual(0);
@@ -38,34 +37,38 @@ describe("getQueryPerfReport (ChromaDB)", () => {
     expect(report.p99LatencyMs).toBeGreaterThanOrEqual(report.p95LatencyMs);
   });
 
-  it("slowQueryCount is 0 for fast queries", async () => {
-    const collection = makeCollection({ queryDelayMs: 1 });
-    const report = await getQueryPerfReport(collection, 384, 24);
+  it("timeframeHours is reflected in the report", async () => {
+    const report = await getQueryPerfReport(makeCollection(), 384, 48);
+    expect(report.timeframeHours).toBe(48);
+  });
 
+  it("slowQueryCount is 0 for fast queries (< 100 ms)", async () => {
+    const report = await getQueryPerfReport(makeCollection({ queryDelayMs: 1 }), 384, 24);
     expect(report.slowQueryCount).toBe(0);
+  });
+
+  it("returns healthy suggestion when p95 ≤ 100 ms", async () => {
+    const report = await getQueryPerfReport(makeCollection({ queryDelayMs: 1 }), 384, 24);
+    expect(report.suggestedIndexes[0]).toMatch(/healthy/i);
   });
 
   it("uses real embeddings from collection.get() when available", async () => {
     const fakeEmbeddings = [Array(4).fill(0.1), Array(4).fill(0.2)];
     const querySpy = vi.fn().mockResolvedValue({ ids: [[]] });
     const collection = makeCollection({
-      get: vi
-        .fn()
-        .mockResolvedValue({ embeddings: fakeEmbeddings, ids: ["a", "b"] }),
+      get: vi.fn().mockResolvedValue({ embeddings: fakeEmbeddings, ids: ["a", "b"] }),
       query: querySpy,
     });
 
     await getQueryPerfReport(collection, 4, 24);
 
-    // Should have used the 2 real embeddings (not synthetic)
+    // Exactly 2 real embeddings → exactly 2 query calls
     expect(querySpy).toHaveBeenCalledTimes(2);
-    const firstCall = querySpy.mock.calls[0][0] as {
-      queryEmbeddings: number[][];
-    };
-    expect(firstCall.queryEmbeddings[0]).toEqual(expect.arrayContaining([0.1]));
+    const firstArg = querySpy.mock.calls[0][0] as { queryEmbeddings: number[][] };
+    expect(firstArg.queryEmbeddings[0]).toEqual(expect.arrayContaining([0.1]));
   });
 
-  it("falls back to synthetic vectors when collection.get() fails", async () => {
+  it("falls back to 20 synthetic zero-vectors when collection.get() fails", async () => {
     const querySpy = vi.fn().mockResolvedValue({ ids: [[]] });
     const collection = makeCollection({
       get: vi.fn().mockRejectedValue(new Error("not supported")),
@@ -75,17 +78,17 @@ describe("getQueryPerfReport (ChromaDB)", () => {
     const report = await getQueryPerfReport(collection, 384, 24);
 
     expect(report.p50LatencyMs).toBeGreaterThanOrEqual(0);
-    expect(querySpy).toHaveBeenCalled();
+    // 20 synthetic samples (SAMPLE_COUNT)
+    expect(querySpy).toHaveBeenCalledTimes(20);
   });
 
   it("suggests HNSW tuning when p95 > 100 ms", async () => {
-    const collection = makeCollection({ queryDelayMs: 120 });
-    const report = await getQueryPerfReport(collection, 384, 24);
+    const report = await getQueryPerfReport(makeCollection({ queryDelayMs: 120 }), 384, 24);
 
     expect(report.suggestedIndexes[0]).toMatch(/HNSW|hnsw/i);
   }, 15_000);
 
-  it("handles query errors gracefully (still returns a report)", async () => {
+  it("handles query errors gracefully (still returns a complete report)", async () => {
     const collection = makeCollection({
       query: vi.fn().mockRejectedValue(new Error("connection refused")),
     });
@@ -93,5 +96,7 @@ describe("getQueryPerfReport (ChromaDB)", () => {
     const report = await getQueryPerfReport(collection, 384, 24);
 
     expect(report.p50LatencyMs).toBeGreaterThanOrEqual(0);
+    expect(report.slowQueryCount).toBeGreaterThanOrEqual(0);
+    expect(report.suggestedIndexes.length).toBeGreaterThan(0);
   });
 }, 60_000);

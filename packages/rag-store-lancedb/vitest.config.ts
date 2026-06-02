@@ -6,7 +6,8 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],
-      include: ['src/**/*.ts'],
+      // store.ts and index.ts require a live LanceDB connection — excluded from unit coverage
+      include: ['src/stats.ts', 'src/query-perf.ts'],
       exclude: ['src/**/*.test.ts'],
     },
     exclude: ['node_modules', '.git'],
