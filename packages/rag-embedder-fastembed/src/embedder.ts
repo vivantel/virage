@@ -56,13 +56,18 @@ export class FastEmbedEmbedder implements EmbeddingProvider {
     if (this._inner) return this._inner;
 
     // Ensure the parent directory exists before fastembed tries to write the
-    // model tarball to it. fastembed doesn't create intermediate directories,
-    // so "BAAI/bge-small-en-v1.5" needs "cacheDir/BAAI/" to pre-exist.
-    // We must NOT create the model directory itself or fastembed skips the
-    // download and fails with "Tokenizer file not found".
-    if (this.cacheDir) {
-      const modelParent = path.dirname(this.model);
-      await mkdir(path.join(this.cacheDir, modelParent), { recursive: true });
+    // model tarball to it. fastembed creates the top-level cacheDir itself but
+    // not nested vendor subdirectories, so "BAAI/bge-small-en-v1.5" needs
+    // "<cacheDir>/BAAI/" to pre-exist. We must NOT create the model directory
+    // itself or fastembed skips the download and fails with "Tokenizer file
+    // not found". Apply whether or not cacheDir was explicitly configured —
+    // fastembed defaults to "local_cache" when omitted.
+    const effectiveCacheDir = this.cacheDir ?? "local_cache";
+    const modelParent = path.dirname(this.model);
+    if (modelParent !== ".") {
+      await mkdir(path.join(effectiveCacheDir, modelParent), {
+        recursive: true,
+      });
     }
 
     // Lazy import — consumers must install fastembed.
