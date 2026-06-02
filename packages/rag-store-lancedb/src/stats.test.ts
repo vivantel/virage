@@ -41,7 +41,9 @@ describe("getIndexStats (LanceDB)", () => {
   it("detects hnsw indexType from listIndices", async () => {
     const table = makeTable({
       countRows: vi.fn().mockResolvedValue(1000),
-      listIndices: vi.fn().mockResolvedValue([{ name: "emb_idx", indexType: "HNSW" }]),
+      listIndices: vi
+        .fn()
+        .mockResolvedValue([{ name: "emb_idx", indexType: "HNSW" }]),
     });
 
     const stats = await getIndexStats(table);
@@ -52,7 +54,9 @@ describe("getIndexStats (LanceDB)", () => {
   it("detects ivfflat indexType from listIndices", async () => {
     const table = makeTable({
       countRows: vi.fn().mockResolvedValue(20_000),
-      listIndices: vi.fn().mockResolvedValue([{ name: "emb_idx", indexType: "IVF_PQ" }]),
+      listIndices: vi
+        .fn()
+        .mockResolvedValue([{ name: "emb_idx", indexType: "IVF_PQ" }]),
     });
 
     const stats = await getIndexStats(table);

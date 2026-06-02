@@ -5,7 +5,7 @@ import type {
   IndexStats,
   QueryPerfReport,
 } from "@vivantel/rag-core";
-import { ChromaClient, type Collection } from "chromadb";
+import { ChromaClient, IncludeEnum, type Collection } from "chromadb";
 import { getIndexStats } from "./stats.js";
 import { getQueryPerfReport } from "./query-perf.js";
 
@@ -82,7 +82,7 @@ export class ChromaVectorStore implements VectorStore {
 
     while (true) {
       const result = await this.collection.get({
-        include: ["metadatas"] as ["metadatas"],
+        include: [IncludeEnum.Metadatas],
         limit: SCROLL_PAGE_SIZE,
         offset,
       });
@@ -120,10 +120,10 @@ export class ChromaVectorStore implements VectorStore {
     const result = await this.collection.query({
       queryEmbeddings: [queryEmbedding],
       nResults: topK,
-      include: ["documents", "metadatas", "distances"] as [
-        "documents",
-        "metadatas",
-        "distances",
+      include: [
+        IncludeEnum.Documents,
+        IncludeEnum.Metadatas,
+        IncludeEnum.Distances,
       ],
     });
 

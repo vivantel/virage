@@ -6,7 +6,11 @@ const SAMPLE_COUNT = 20;
 
 function percentile(sorted: number[], p: number): number {
   if (sorted.length === 0) return -1;
-  return sorted[Math.floor((p / 100) * sorted.length)] ?? sorted[sorted.length - 1] ?? 0;
+  return (
+    sorted[Math.floor((p / 100) * sorted.length)] ??
+    sorted[sorted.length - 1] ??
+    0
+  );
 }
 
 export async function getQueryPerfReport(

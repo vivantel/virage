@@ -2,18 +2,28 @@ import { describe, it, expect, vi } from "vitest";
 import { getQueryPerfReport } from "./query-perf.js";
 import type { Collection } from "chromadb";
 
-function makeCollection(overrides: Partial<{
-  get: () => Promise<unknown>;
-  query: () => Promise<unknown>;
-  queryDelayMs: number;
-}> = {}): Collection {
+function makeCollection(
+  overrides: Partial<{
+    get: () => Promise<unknown>;
+    query: () => Promise<unknown>;
+    queryDelayMs: number;
+  }> = {},
+): Collection {
   const delay = overrides.queryDelayMs ?? 2;
 
   return {
-    get: overrides.get ?? vi.fn().mockResolvedValue({ embeddings: [], ids: [] }),
-    query: overrides.query ?? vi.fn().mockImplementation(
-      () => new Promise((resolve) => setTimeout(() => resolve({ ids: [[]] }), delay)),
-    ),
+    get:
+      overrides.get ?? vi.fn().mockResolvedValue({ embeddings: [], ids: [] }),
+    query:
+      overrides.query ??
+      vi
+        .fn()
+        .mockImplementation(
+          () =>
+            new Promise((resolve) =>
+              setTimeout(() => resolve({ ids: [[]] }), delay),
+            ),
+        ),
   } as unknown as Collection;
 }
 
@@ -39,7 +49,9 @@ describe("getQueryPerfReport (ChromaDB)", () => {
     const fakeEmbeddings = [Array(4).fill(0.1), Array(4).fill(0.2)];
     const querySpy = vi.fn().mockResolvedValue({ ids: [[]] });
     const collection = makeCollection({
-      get: vi.fn().mockResolvedValue({ embeddings: fakeEmbeddings, ids: ["a", "b"] }),
+      get: vi
+        .fn()
+        .mockResolvedValue({ embeddings: fakeEmbeddings, ids: ["a", "b"] }),
       query: querySpy,
     });
 
@@ -47,7 +59,9 @@ describe("getQueryPerfReport (ChromaDB)", () => {
 
     // Should have used the 2 real embeddings (not synthetic)
     expect(querySpy).toHaveBeenCalledTimes(2);
-    const firstCall = querySpy.mock.calls[0][0] as { queryEmbeddings: number[][] };
+    const firstCall = querySpy.mock.calls[0][0] as {
+      queryEmbeddings: number[][];
+    };
     expect(firstCall.queryEmbeddings[0]).toEqual(expect.arrayContaining([0.1]));
   });
 

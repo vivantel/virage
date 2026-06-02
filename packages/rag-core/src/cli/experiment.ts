@@ -56,7 +56,9 @@ export async function runExperimentList(): Promise<void> {
   const runs = await store.list();
 
   if (runs.length === 0) {
-    console.log("No experiment runs found. Use `rag-update experiment run` to create one.");
+    console.log(
+      "No experiment runs found. Use `rag-update experiment run` to create one.",
+    );
     return;
   }
 

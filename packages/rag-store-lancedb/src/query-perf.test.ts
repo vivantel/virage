@@ -7,12 +7,14 @@ function makeTable(searchDelayMs = 5) {
       column: vi.fn().mockReturnThis(),
       distanceType: vi.fn().mockReturnThis(),
       limit: vi.fn().mockReturnThis(),
-      toArray: vi.fn().mockImplementation(
-        () =>
-          new Promise((resolve) =>
-            setTimeout(() => resolve([]), searchDelayMs),
-          ),
-      ),
+      toArray: vi
+        .fn()
+        .mockImplementation(
+          () =>
+            new Promise((resolve) =>
+              setTimeout(() => resolve([]), searchDelayMs),
+            ),
+        ),
     }),
   };
 }

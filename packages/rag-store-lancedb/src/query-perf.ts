@@ -4,11 +4,18 @@ const SAMPLE_COUNT = 20;
 
 function percentile(sorted: number[], p: number): number {
   if (sorted.length === 0) return -1;
-  return sorted[Math.floor((p / 100) * sorted.length)] ?? sorted[sorted.length - 1] ?? 0;
+  return (
+    sorted[Math.floor((p / 100) * sorted.length)] ??
+    sorted[sorted.length - 1] ??
+    0
+  );
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function getQueryPerfReport(table: any, dimensions: number, timeframeHours: number): Promise<QueryPerfReport> {
+export async function getQueryPerfReport(
+  table: any,
+  dimensions: number,
+  timeframeHours: number,
+): Promise<QueryPerfReport> {
   const zeroVector = Array<number>(dimensions).fill(0);
   const latencies: number[] = [];
 

@@ -94,7 +94,9 @@ describe("runEvaluate", () => {
       throw new ExitError(code ?? 0);
     });
 
-    mockSave = vi.fn().mockResolvedValue("/tmp/.rag-experiments/eval_2026.json");
+    mockSave = vi
+      .fn()
+      .mockResolvedValue("/tmp/.rag-experiments/eval_2026.json");
 
     vi.mocked(ExperimentStore).mockImplementation(function (this: unknown) {
       Object.assign(this as object, {

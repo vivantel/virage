@@ -78,9 +78,15 @@ describe("runStoreStats", () => {
 
   it("logs error and exits when store does not implement getIndexStats", async () => {
     const store = makeBaseStore();
-    vi.mocked(loadConfig).mockResolvedValue({ vectorStore: store, embedder: {} as never, chunkers: [] } as never);
+    vi.mocked(loadConfig).mockResolvedValue({
+      vectorStore: store,
+      embedder: {} as never,
+      chunkers: [],
+    } as never);
 
-    await expect(runStoreStats({ config: "./rag.config.json" })).rejects.toThrow(ExitError);
+    await expect(
+      runStoreStats({ config: "./rag.config.json" }),
+    ).rejects.toThrow(ExitError);
 
     const errOutput = consoleErrorSpy.mock.calls.flat().join("\n");
     expect(errOutput).toMatch(/mock-store/);
@@ -93,7 +99,11 @@ describe("runStoreStats", () => {
       ...makeBaseStore(),
       getIndexStats: vi.fn().mockResolvedValue(MOCK_INDEX_STATS),
     };
-    vi.mocked(loadConfig).mockResolvedValue({ vectorStore: store, embedder: {} as never, chunkers: [] } as never);
+    vi.mocked(loadConfig).mockResolvedValue({
+      vectorStore: store,
+      embedder: {} as never,
+      chunkers: [],
+    } as never);
 
     await runStoreStats({ config: "./rag.config.json" });
 
@@ -128,9 +138,15 @@ describe("runStorePerf", () => {
 
   it("logs error and exits when store does not implement getQueryPerfReport", async () => {
     const store = makeBaseStore();
-    vi.mocked(loadConfig).mockResolvedValue({ vectorStore: store, embedder: {} as never, chunkers: [] } as never);
+    vi.mocked(loadConfig).mockResolvedValue({
+      vectorStore: store,
+      embedder: {} as never,
+      chunkers: [],
+    } as never);
 
-    await expect(runStorePerf({ config: "./rag.config.json", timeframeHours: 24 })).rejects.toThrow(ExitError);
+    await expect(
+      runStorePerf({ config: "./rag.config.json", timeframeHours: 24 }),
+    ).rejects.toThrow(ExitError);
 
     const errOutput = consoleErrorSpy.mock.calls.flat().join("\n");
     expect(errOutput).toMatch(/mock-store/);
@@ -143,14 +159,18 @@ describe("runStorePerf", () => {
       ...makeBaseStore(),
       getQueryPerfReport: vi.fn().mockResolvedValue(MOCK_PERF_REPORT),
     };
-    vi.mocked(loadConfig).mockResolvedValue({ vectorStore: store, embedder: {} as never, chunkers: [] } as never);
+    vi.mocked(loadConfig).mockResolvedValue({
+      vectorStore: store,
+      embedder: {} as never,
+      chunkers: [],
+    } as never);
 
     await runStorePerf({ config: "./rag.config.json", timeframeHours: 24 });
 
     const output = consoleSpy.mock.calls.flat().join("\n");
-    expect(output).toContain("8 ms");   // p50
-    expect(output).toContain("22 ms");  // p95
-    expect(output).toContain("45 ms");  // p99
+    expect(output).toContain("8 ms"); // p50
+    expect(output).toContain("22 ms"); // p95
+    expect(output).toContain("45 ms"); // p99
     expect(output).toContain("Query performance looks healthy");
   });
 });

@@ -95,7 +95,9 @@ describe("runExperimentRun", () => {
   beforeEach(() => {
     consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
-    mockSave = vi.fn().mockResolvedValue("/tmp/.rag-experiments/my-exp_2026.json");
+    mockSave = vi
+      .fn()
+      .mockResolvedValue("/tmp/.rag-experiments/my-exp_2026.json");
 
     vi.mocked(ExperimentStore).mockImplementation(function (this: unknown) {
       Object.assign(this as object, {
@@ -189,7 +191,10 @@ describe("runExperimentCompare", () => {
     });
     mockLoad.mockResolvedValueOnce(baseline).mockResolvedValueOnce(candidate);
 
-    await runExperimentCompare({ baseline: "baseline", candidate: "candidate" });
+    await runExperimentCompare({
+      baseline: "baseline",
+      candidate: "candidate",
+    });
 
     const output = consoleSpy.mock.calls.flat().join("\n");
     expect(output).toMatch(/p-value/i);
@@ -207,7 +212,10 @@ describe("runExperimentCompare", () => {
     });
     mockLoad.mockResolvedValueOnce(baseline).mockResolvedValueOnce(candidate);
 
-    await runExperimentCompare({ baseline: "baseline", candidate: "candidate" });
+    await runExperimentCompare({
+      baseline: "baseline",
+      candidate: "candidate",
+    });
 
     const output = consoleSpy.mock.calls.flat().join("\n");
     expect(output).toMatch(/MRR delta/i);
@@ -224,7 +232,10 @@ describe("runExperimentCompare", () => {
     });
     mockLoad.mockResolvedValueOnce(baseline).mockResolvedValueOnce(candidate);
 
-    await runExperimentCompare({ baseline: "baseline", candidate: "candidate" });
+    await runExperimentCompare({
+      baseline: "baseline",
+      candidate: "candidate",
+    });
 
     const warnOutput = consoleWarnSpy.mock.calls.flat().join("\n");
     expect(warnOutput).toMatch(/mismatch/i);
@@ -250,7 +261,10 @@ describe("runExperimentCompare", () => {
     });
     mockLoad.mockResolvedValueOnce(baseline).mockResolvedValueOnce(candidate);
 
-    await runExperimentCompare({ baseline: "baseline", candidate: "candidate" });
+    await runExperimentCompare({
+      baseline: "baseline",
+      candidate: "candidate",
+    });
 
     const output = consoleSpy.mock.calls.flat().join("\n");
     expect(output).toContain("ACCEPT");
@@ -269,7 +283,10 @@ describe("runExperimentCompare", () => {
     });
     mockLoad.mockResolvedValueOnce(baseline).mockResolvedValueOnce(candidate);
 
-    await runExperimentCompare({ baseline: "baseline", candidate: "candidate" });
+    await runExperimentCompare({
+      baseline: "baseline",
+      candidate: "candidate",
+    });
 
     const output = consoleSpy.mock.calls.flat().join("\n");
     expect(output).toContain("REJECT");
@@ -303,8 +320,16 @@ describe("runExperimentList", () => {
 
   it("prints table of runs sorted newest-first", async () => {
     const runs: ExperimentRun[] = [
-      makeRun({ id: "exp-a_2026-01", name: "exp-a", timestamp: "2026-06-01T10:00:00.000Z" }),
-      makeRun({ id: "exp-b_2026-02", name: "exp-b", timestamp: "2026-06-02T10:00:00.000Z" }),
+      makeRun({
+        id: "exp-a_2026-01",
+        name: "exp-a",
+        timestamp: "2026-06-01T10:00:00.000Z",
+      }),
+      makeRun({
+        id: "exp-b_2026-02",
+        name: "exp-b",
+        timestamp: "2026-06-02T10:00:00.000Z",
+      }),
     ];
     mockList.mockResolvedValue(runs);
 

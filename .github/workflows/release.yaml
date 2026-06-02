@@ -223,6 +223,7 @@ jobs:
           cache: "npm"
       - run: npm ci --ignore-scripts
       - run: npm run build --workspace packages/rag-core
+      - run: npm test --workspace packages/rag-store-lancedb
       - run: npm run build --workspace packages/rag-store-lancedb
       - name: Publish
         run: npm publish --provenance --access public
@@ -247,6 +248,7 @@ jobs:
           cache: "npm"
       - run: npm ci --ignore-scripts
       - run: npm run build --workspace packages/rag-core
+      - run: npm test --workspace packages/rag-store-chromadb
       - run: npm run build --workspace packages/rag-store-chromadb
       - name: Publish
         run: npm publish --provenance --access public
