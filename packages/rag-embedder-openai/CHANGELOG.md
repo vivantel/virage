@@ -1,5 +1,22 @@
 # Changelog
 
+## [1.4.0](https://github.com/vivantel/rag_core/compare/rag-embedder-openai@v1.3.0...rag-embedder-openai@v1.4.0) (2026-06-02)
+
+
+### Features
+
+* Implement ROADMAP v2.0 — Quality & Observability ([e2db9ed](https://github.com/vivantel/rag_core/commit/e2db9ed73c6a96fe19eed2259e9b0300e1defe6d))
+* JSON config, model-change detection, and embedder packages ([10bc95b](https://github.com/vivantel/rag_core/commit/10bc95b62bab44dd890016baa8436e070a8167f0))
+* Test trusted publisher automation ([7fd08b9](https://github.com/vivantel/rag_core/commit/7fd08b96f32e7f7c2c2c02ec7e2eebb761d5fa7f))
+* Test trusted publisher automation ([c524461](https://github.com/vivantel/rag_core/commit/c5244615cf7e5e91457446b43d62efdd7928273c))
+
+
+### Bug Fixes
+
+* Fix formatting errors ([840de63](https://github.com/vivantel/rag_core/commit/840de6348353b756da7b44906bcf7cc4d18a89cf))
+* Post-restructuring audit fixes ([2708505](https://github.com/vivantel/rag_core/commit/2708505f5ec18a316e704b0393252153c9718970))
+* Remove prepare script from workspace packages ([d00e877](https://github.com/vivantel/rag_core/commit/d00e877fb782230ac3f81648fb9a08b209a3d739))
+
 ## [1.3.0](https://github.com/vivantel/rag_core/compare/rag-embedder-openai@v1.2.2...rag-embedder-openai@v1.3.0) (2026-06-02)
 
 
