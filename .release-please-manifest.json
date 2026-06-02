@@ -3,7 +3,7 @@
   "packages/rag-strategies": "5.0.2",
   "packages/rag-embedder-openai": "1.4.2",
   "packages/rag-embedder-transformers": "1.3.2",
-  "packages/rag-embedder-fastembed": "1.4.2",
+  "packages/rag-embedder-fastembed": "1.4.3",
   "packages/rag-store-postgres": "1.3.2",
   "packages/rag-store-qdrant": "2.1.1",
   "packages/rag-store-lancedb": "1.1.0",
