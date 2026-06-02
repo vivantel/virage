@@ -101,13 +101,9 @@ export class QdrantVectorStore implements VectorStore {
           | null
           | undefined;
         const sourceFile =
-          typeof payload?.source_file === "string"
-            ? payload.source_file
-            : null;
+          typeof payload?.source_file === "string" ? payload.source_file : null;
         const commitHash =
-          typeof payload?.commit_hash === "string"
-            ? payload.commit_hash
-            : null;
+          typeof payload?.commit_hash === "string" ? payload.commit_hash : null;
         if (sourceFile && commitHash) {
           state.set(sourceFile, commitHash);
         }

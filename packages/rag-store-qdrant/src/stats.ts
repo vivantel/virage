@@ -58,11 +58,16 @@ function extractVectorSize(info: CollectionInfo): number | undefined {
   const vectors = info.config?.params?.vectors;
   if (!vectors) return undefined;
   // Single-vector mode: { size: number, distance: ... }
-  if ("size" in vectors && typeof (vectors as { size: unknown }).size === "number") {
+  if (
+    "size" in vectors &&
+    typeof (vectors as { size: unknown }).size === "number"
+  ) {
     return (vectors as { size: number }).size;
   }
   // Named-vector mode: { default: { size: number, ... }, ... }
-  const firstNamed = Object.values(vectors as Record<string, { size?: number }>)[0];
+  const firstNamed = Object.values(
+    vectors as Record<string, { size?: number }>,
+  )[0];
   return typeof firstNamed?.size === "number" ? firstNamed.size : undefined;
 }
 

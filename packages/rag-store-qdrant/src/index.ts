@@ -10,7 +10,7 @@ export function createVectorStore(
   const url = config.url;
   if (typeof url !== "string" || !url) {
     throw new Error(
-      "@vivantel/rag-store-qdrant: config.url is required (e.g. \"http://localhost:6333\")",
+      '@vivantel/rag-store-qdrant: config.url is required (e.g. "http://localhost:6333")',
     );
   }
   return new QdrantVectorStore({
