@@ -7,14 +7,17 @@ import { QdrantVectorStore } from "./store.js";
 export function createVectorStore(
   config: Record<string, unknown>,
 ): VectorStore {
-  const url = config.url;
-  if (typeof url !== "string" || !url) {
+  const url = typeof config.url === "string" ? config.url : undefined;
+  const path = typeof config.path === "string" ? config.path : undefined;
+  if (!url && !path) {
     throw new Error(
-      '@vivantel/rag-store-qdrant: config.url is required (e.g. "http://localhost:6333")',
+      "@vivantel/rag-store-qdrant: config.url or config.path is required",
     );
   }
   return new QdrantVectorStore({
     url,
+    path,
+    port: typeof config.port === "number" ? config.port : undefined,
     apiKey: typeof config.apiKey === "string" ? config.apiKey : undefined,
     collection:
       typeof config.collection === "string" ? config.collection : undefined,

@@ -149,6 +149,11 @@ const STORES: StoreMeta[] = [
     envVars: [],
   },
   {
+    label: "Qdrant — local file (data stored in a directory on disk)",
+    key: "qdrant-file",
+    envVars: [],
+  },
+  {
     label: "Qdrant Cloud (@vivantel/rag-store-qdrant)",
     key: "qdrant-cloud",
     envVars: ["QDRANT_URL", "QDRANT_API_KEY"],
@@ -238,6 +243,10 @@ function generateJsonConfig(state: WizardState): string {
       vectorStorePackage = "@vivantel/rag-store-qdrant";
       vectorStoreConfig = { url: "http://localhost:6333" };
       break;
+    case "qdrant-file":
+      vectorStorePackage = "@vivantel/rag-store-qdrant";
+      vectorStoreConfig = { path: "./qdrant-storage" };
+      break;
     case "qdrant-cloud":
       vectorStorePackage = "@vivantel/rag-store-qdrant";
       vectorStoreConfig = {
@@ -251,8 +260,7 @@ function generateJsonConfig(state: WizardState): string {
   }
 
   const config = {
-    $schema:
-      "./node_modules/@vivantel/rag-core/schemas/rag.config.schema.json",
+    $schema: "./node_modules/@vivantel/rag-core/schemas/rag.config.schema.json",
     chunkers,
     embedder: { package: embedderPackage, config: embedderConfig },
     vectorStore: { package: vectorStorePackage, config: vectorStoreConfig },
@@ -287,7 +295,9 @@ async function writeEnvVars(
   for (const [key, value] of Object.entries(vars)) {
     const alreadyDefined = existing
       .split("\n")
-      .some((line) => line.startsWith(`${key}=`) || line.startsWith(`${key} =`));
+      .some(
+        (line) => line.startsWith(`${key}=`) || line.startsWith(`${key} =`),
+      );
 
     if (alreadyDefined) {
       skipped.push(key);
@@ -325,6 +335,7 @@ function installHint(state: WizardState): string {
       pkgs.push("@vivantel/rag-store-postgres");
       break;
     case "qdrant-local":
+    case "qdrant-file":
     case "qdrant-cloud":
       pkgs.push("@vivantel/rag-store-qdrant");
       break;
@@ -369,7 +380,9 @@ export async function runInit(): Promise<void> {
             confirmed.includes(g.name),
           );
         } else {
-          console.log("No known file types detected. Choose strategies manually:");
+          console.log(
+            "No known file types detected. Choose strategies manually:",
+          );
           const chosen = await checkbox({
             message: "Which chunking strategies do you need?",
             choices: [
@@ -398,7 +411,10 @@ export async function runInit(): Promise<void> {
             EMBEDDERS.map((e) => ({ name: e.label, value: e.key })),
           ),
         });
-        if (isBack(choice)) { step--; break; }
+        if (isBack(choice)) {
+          step--;
+          break;
+        }
         state.embedder = choice;
         step++;
         break;
@@ -412,7 +428,10 @@ export async function runInit(): Promise<void> {
             STORES.map((s) => ({ name: s.label, value: s.key })),
           ),
         });
-        if (isBack(choice)) { step--; break; }
+        if (isBack(choice)) {
+          step--;
+          break;
+        }
         state.vectorStore = choice;
         step++;
         break;
@@ -425,7 +444,10 @@ export async function runInit(): Promise<void> {
           message: "Output path for the config file? (leave blank to go back)",
           default: defaultOutput,
         });
-        if (outputPath.trim() === "") { step--; break; }
+        if (outputPath.trim() === "") {
+          step--;
+          break;
+        }
         state.outputPath = outputPath.trim();
         step++;
         break;
@@ -498,6 +520,16 @@ export async function runInit(): Promise<void> {
   // ── Next steps ──
   console.log("\nNext steps:");
   console.log(`  1. Install packages:\n${installHint(finalState)}`);
-  console.log("  2. Run `rag-update validate` to check the config");
-  console.log("  3. Run `rag-update` to start indexing\n");
+  if (finalState.vectorStore === "qdrant-file") {
+    console.log(
+      "  2. Start Qdrant with your storage directory:\n" +
+        "       docker run -v $(pwd)/qdrant-storage:/qdrant/storage \\\n" +
+        "                  -p 6333:6333 qdrant/qdrant",
+    );
+    console.log("  3. Run `rag-update validate` to check the config");
+    console.log("  4. Run `rag-update` to start indexing\n");
+  } else {
+    console.log("  2. Run `rag-update validate` to check the config");
+    console.log("  3. Run `rag-update` to start indexing\n");
+  }
 }

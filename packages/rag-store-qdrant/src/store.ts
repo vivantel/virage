@@ -10,8 +10,21 @@ import { getIndexStats } from "./stats.js";
 import { getQueryPerfReport } from "./query-perf.js";
 
 export interface QdrantVectorStoreOptions {
-  /** Qdrant instance URL. e.g. "http://localhost:6333" or "https://xyz.qdrant.io" */
-  url: string;
+  /**
+   * Qdrant instance URL. e.g. "http://localhost:6333" or "https://xyz.qdrant.io".
+   * Required unless `path` is provided.
+   */
+  url?: string;
+  /**
+   * Local storage directory for Qdrant data (file mode).
+   * When provided, connects to `http://localhost:<port>` — you must start Qdrant
+   * pointing at this directory, e.g.:
+   *   docker run -v <path>:/qdrant/storage -p 6333:6333 qdrant/qdrant
+   * Mutually exclusive with `url`.
+   */
+  path?: string;
+  /** Port used when `path` mode is active. Defaults to 6333. */
+  port?: number;
   /** API key — required for Qdrant Cloud, omit for local instances. */
   apiKey?: string;
   /** Collection name. Defaults to "documents". */
@@ -32,14 +45,16 @@ export class QdrantVectorStore implements VectorStore {
   private readonly url: string;
 
   constructor(options: QdrantVectorStoreOptions) {
-    if (!options.url) {
-      throw new Error("QdrantVectorStore: url is required");
+    if (!options.url && !options.path) {
+      throw new Error("QdrantVectorStore: either url or path is required");
     }
-    this.url = options.url;
+    const resolvedUrl =
+      options.url ?? `http://localhost:${options.port ?? 6333}`;
+    this.url = resolvedUrl;
     this.collection = options.collection ?? "documents";
     this.dimensions = options.dimensions ?? 1536;
     this.client = new QdrantClient({
-      url: options.url,
+      url: resolvedUrl,
       apiKey: options.apiKey,
     });
   }
