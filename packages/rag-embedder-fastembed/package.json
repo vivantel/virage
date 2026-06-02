@@ -45,7 +45,7 @@
     "directory": "packages/rag-embedder-fastembed"
   },
   "dependencies": {
-    "fastembed": "^1.0.0"
+    "fastembed": "^2.1.0"
   },
   "peerDependencies": {
     "@vivantel/rag-core": "^2.0.0"

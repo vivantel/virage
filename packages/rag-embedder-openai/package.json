@@ -44,7 +44,7 @@
     "directory": "packages/rag-embedder-openai"
   },
   "dependencies": {
-    "openai": "^4.0.0"
+    "openai": "^6.41.0"
   },
   "peerDependencies": {
     "@vivantel/rag-core": "^2.0.0"
