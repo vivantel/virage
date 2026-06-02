@@ -23,6 +23,7 @@ jobs:
       transformers_released: ${{ steps.release.outputs['packages/rag-embedder-transformers--release_created'] }}
       fastembed_released: ${{ steps.release.outputs['packages/rag-embedder-fastembed--release_created'] }}
       postgres_released: ${{ steps.release.outputs['packages/rag-store-postgres--release_created'] }}
+      qdrant_released: ${{ steps.release.outputs['packages/rag-store-qdrant--release_created'] }}
     steps:
       - name: Run Release Please
         id: release
@@ -176,6 +177,30 @@ jobs:
       - name: Publish
         run: npm publish --provenance --access public
         working-directory: packages/rag-store-postgres
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+  publish-store-qdrant:
+    name: Publish @vivantel/rag-store-qdrant
+    needs: release-please
+    if: ${{ needs.release-please.outputs.qdrant_released == 'true' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '20.x'
+          registry-url: 'https://registry.npmjs.org'
+          cache: "npm"
+      - run: npm ci
+      - run: npm run build --workspace packages/rag-core
+      - run: npm run build --workspace packages/rag-store-qdrant
+      - name: Publish
+        run: npm publish --provenance --access public
+        working-directory: packages/rag-store-qdrant
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
