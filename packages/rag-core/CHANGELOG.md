@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.0.0](https://github.com/vivantel/rag_core/compare/rag-core@v2.5.0...rag-core@v3.0.0) (2026-06-02)
+
+
+### ⚠ BREAKING CHANGES
+
+* TypeScript config files (rag.config.ts) are no longer supported. loadConfig() throws a ConfigError with a migration hint when given a .ts path. tsx removed from runtime dependencies. Default CLI config path changed from rag.config.ts to rag.config.json. gitignore updated accordingly.
+
+### Features
+
+* Add rag-store-qdrant, overhaul init wizard, drop rag.config.ts support ([cf32f27](https://github.com/vivantel/rag_core/commit/cf32f27aabd43d92c05e344cf73fc4ad8a1cbd97))
+
 ## [2.5.0](https://github.com/vivantel/rag_core/compare/rag-core@v2.4.0...rag-core@v2.5.0) (2026-06-02)
 
 
