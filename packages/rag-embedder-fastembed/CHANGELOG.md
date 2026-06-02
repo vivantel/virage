@@ -1,5 +1,21 @@
 # Changelog
 
+## [1.4.6](https://github.com/vivantel/rag_core/compare/rag-embedder-fastembed@v1.4.5...rag-embedder-fastembed@v1.4.6) (2026-06-02)
+
+
+### Bug Fixes
+
+* Re-entrancy after embedding failure; fastembed cacheDir mkdir ([4e71959](https://github.com/vivantel/rag_core/commit/4e71959a10fb7164c1a9e0957d728b78590764b5))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * devDependencies
+    * @vivantel/rag-core bumped from file:../rag-core to 3.3.2
+  * peerDependencies
+    * @vivantel/rag-core bumped from ^2.0.0 to ^3.3.2
+
 ## [1.4.5](https://github.com/vivantel/rag_core/compare/rag-embedder-fastembed@v1.4.4...rag-embedder-fastembed@v1.4.5) (2026-06-02)
 
 
