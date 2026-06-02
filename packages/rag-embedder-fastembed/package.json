@@ -1,6 +1,6 @@
 {
   "name": "@vivantel/rag-embedder-fastembed",
-  "version": "1.4.6",
+  "version": "1.4.7",
   "description": "FastEmbed ONNX-based local embedding provider for @vivantel/rag-core",
   "type": "module",
   "main": "dist/index.js",
