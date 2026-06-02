@@ -1,5 +1,21 @@
 # Changelog
 
+## [1.4.7](https://github.com/vivantel/rag_core/compare/rag-embedder-fastembed@v1.4.6...rag-embedder-fastembed@v1.4.7) (2026-06-02)
+
+
+### Bug Fixes
+
+* Upload always skipped; fastembed cacheDir mkdir creates parent only ([3c196d5](https://github.com/vivantel/rag_core/commit/3c196d565c2e1bc88597aefc9ae310ab1019381f))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * devDependencies
+    * @vivantel/rag-core bumped from file:../rag-core to 3.3.3
+  * peerDependencies
+    * @vivantel/rag-core bumped from ^2.0.0 to ^3.3.3
+
 ## [1.4.6](https://github.com/vivantel/rag_core/compare/rag-embedder-fastembed@v1.4.5...rag-embedder-fastembed@v1.4.6) (2026-06-02)
 
 
