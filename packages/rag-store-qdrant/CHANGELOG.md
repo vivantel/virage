@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.0.1](https://github.com/vivantel/rag_core/compare/rag-store-qdrant@v2.0.0...rag-store-qdrant@v2.0.1) (2026-06-02)
+
+
+### Bug Fixes
+
+* **rag-store-qdrant:** Format source files ([3aa48e6](https://github.com/vivantel/rag_core/commit/3aa48e677d368def9abe0d9f5a50333155ac829a))
+
 ## [2.0.0](https://github.com/vivantel/rag_core/compare/rag-store-qdrant@v1.0.0...rag-store-qdrant@v2.0.0) (2026-06-02)
 
 
