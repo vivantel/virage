@@ -51,6 +51,14 @@ export class LanceDBVectorStore implements VectorStore {
     this.logger?.info(
       `Connecting to lancedb at ${this.uri}, table: ${this.tableName}`,
     );
+    // For local (non-cloud) URIs, ensure the parent directory exists before
+    // lancedb tries to create the database — lancedb creates the DB dir itself
+    // but not intermediate parent directories.
+    if (!this.uri.startsWith("db://") && !this.uri.startsWith("https://")) {
+      const { mkdir } = await import("fs/promises");
+      const { dirname } = await import("path");
+      await mkdir(dirname(this.uri), { recursive: true });
+    }
     // Dynamic import to avoid native-module issues at load time
     const lancedb = await import("@lancedb/lancedb");
 

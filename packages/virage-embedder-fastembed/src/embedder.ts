@@ -86,7 +86,7 @@ export class FastEmbedEmbedder implements EmbeddingProvider {
     const { FlagEmbedding } = (await import(mod)) as unknown as FastEmbedModule;
     this._inner = await FlagEmbedding.init({
       model: this.model,
-      cacheDir: this.cacheDir,
+      cacheDir: effectiveCacheDir,
       showDownloadProgress: this.showDownloadProgress,
     });
 

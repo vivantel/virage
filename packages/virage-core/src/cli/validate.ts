@@ -2,8 +2,10 @@ import { glob } from "glob";
 import { loadConfig } from "../config-loader.js";
 import { GitTracker } from "../core/git-tracker.js";
 import { ConfigError } from "../core/errors.js";
+import { detectFileExtensions } from "./file-detect.js";
 
 export async function runValidate(configPath: string): Promise<void> {
+  const cwd = process.cwd();
   console.log(`\n🔍 Validating RAG config: ${configPath}\n`);
 
   let config;
@@ -52,6 +54,31 @@ export async function runValidate(configPath: string): Promise<void> {
   } catch {
     console.log("  ⚠️  Could not connect — check credentials");
     hasWarnings = true;
+  }
+
+  console.log("\n📁 Checking file type coverage...");
+  const detectedGroups = await detectFileExtensions(cwd);
+  if (detectedGroups.length === 0) {
+    console.log("  ℹ️  No known file types detected in project");
+  } else {
+    const allPatterns = config.chunkers.flatMap((c) => c.patterns);
+    for (const group of detectedGroups) {
+      const covered = group.exts.some((ext) =>
+        allPatterns.some(
+          (p) => p.includes(`*${ext}`) || p.includes(`${ext}`),
+        ),
+      );
+      if (covered) {
+        console.log(
+          `  ✅ ${group.name} (${group.exts.join(", ")}) — covered`,
+        );
+      } else {
+        console.log(
+          `  ⚠️  ${group.name} (${group.exts.join(", ")}) — not covered by any chunker`,
+        );
+        hasWarnings = true;
+      }
+    }
   }
 
   if (hasWarnings) {

@@ -5,6 +5,7 @@ import type { Logger } from "../interfaces/logger.js";
 import { NullLogger } from "../logger/null-logger.js";
 import { minimatch } from "minimatch";
 import path from "path";
+import { IGNORED_DIRS } from "../cli/file-detect.js";
 
 export class GitTracker {
   private git: SimpleGit;
@@ -63,17 +64,7 @@ export class GitTracker {
   async getAllTrackedFiles(): Promise<string[]> {
     const files = await glob(this.allPatterns, {
       nodir: true,
-      ignore: [
-        "node_modules/**",
-        "dist/**",
-        "build/**",
-        "out/**",
-        "coverage/**",
-        ".git/**",
-        ".next/**",
-        ".turbo/**",
-        ".cache/**",
-      ],
+      ignore: [...IGNORED_DIRS].map((d) => `${d}/**`),
     });
     const unique = [...new Set(files)].sort();
     this.logger.debug(

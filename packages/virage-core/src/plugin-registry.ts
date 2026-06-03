@@ -99,7 +99,7 @@ export const BUILT_IN_PLUGINS: PluginEntry[] = [
     key: "lancedb",
     package: "@vivantel/virage-store-lancedb",
     envVars: [],
-    defaultConfig: { uri: "./lancedb" },
+    defaultConfig: { uri: ".virage/lancedb" },
   },
   {
     type: "vectorStore",

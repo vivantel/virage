@@ -1,77 +1,19 @@
-import { checkbox, confirm, input, select } from "@inquirer/prompts";
+import { checkbox, input, select } from "@inquirer/prompts";
 import { existsSync } from "fs";
-import { readFile, readdir, writeFile } from "fs/promises";
-import { extname, join } from "path";
+import { readFile, writeFile } from "fs/promises";
+import { join } from "path";
 import { spawn } from "child_process";
 import { loadRegistry, type PluginRegistry } from "../plugin-registry.js";
 import {
   defaultChunksFile,
   defaultEmbeddingsFile,
+  getVirageDir,
 } from "../core/virage-defaults.js";
-
-// ─── File type detection ──────────────────────────────────────────────────────
-
-interface ExtGroup {
-  exts: string[];
-  strategyFn: string;
-  name: string;
-}
-
-const EXT_GROUPS: ExtGroup[] = [
-  {
-    exts: [".md", ".mdx"],
-    strategyFn: "markdownHeadersStrategy",
-    name: "markdown",
-  },
-  { exts: [".ts", ".tsx"], strategyFn: "tokenStrategy", name: "typescript" },
-  { exts: [".js", ".jsx"], strategyFn: "tokenStrategy", name: "javascript" },
-  { exts: [".py"], strategyFn: "tokenStrategy", name: "python" },
-  { exts: [".go"], strategyFn: "tokenStrategy", name: "go" },
-  { exts: [".cs"], strategyFn: "tokenStrategy", name: "csharp" },
-  { exts: [".java"], strategyFn: "tokenStrategy", name: "java" },
-  { exts: [".yaml", ".yml"], strategyFn: "wholeFileStrategy", name: "yaml" },
-  { exts: [".txt"], strategyFn: "semanticStrategy", name: "text" },
-];
-
-const IGNORED_DIRS = new Set([
-  "node_modules",
-  ".git",
-  "dist",
-  "build",
-  "coverage",
-  ".cache",
-  ".next",
-  "out",
-  ".turbo",
-]);
-
-async function collectExtensions(
-  dir: string,
-  found: Set<string>,
-): Promise<void> {
-  let entries;
-  try {
-    entries = await readdir(dir, { withFileTypes: true });
-  } catch {
-    return;
-  }
-  for (const entry of entries) {
-    if (entry.isDirectory()) {
-      if (!IGNORED_DIRS.has(entry.name)) {
-        await collectExtensions(join(dir, entry.name), found);
-      }
-    } else {
-      const ext = extname(entry.name).toLowerCase();
-      if (ext) found.add(ext);
-    }
-  }
-}
-
-export async function detectFileExtensions(cwd: string): Promise<ExtGroup[]> {
-  const found = new Set<string>();
-  await collectExtensions(cwd, found);
-  return EXT_GROUPS.filter((g) => g.exts.some((e) => found.has(e)));
-}
+import {
+  EXT_GROUPS,
+  type ExtGroup,
+  detectFileExtensions,
+} from "./file-detect.js";
 
 // ─── Back-navigation support ──────────────────────────────────────────────────
 
@@ -81,8 +23,8 @@ function withBack<T>(
   choices: { name: string; value: T }[],
 ): { name: string; value: T | typeof BACK_VALUE }[] {
   return [
-    { name: "← Back", value: BACK_VALUE as typeof BACK_VALUE },
     ...choices,
+    { name: "← Back", value: BACK_VALUE as typeof BACK_VALUE },
   ];
 }
 
@@ -185,6 +127,14 @@ function generateJsonConfig(
   )!;
   const storeEntry = registry.stores.find((s) => s.key === state.vectorStore)!;
 
+  // For local file-based stores, resolve paths relative to the virage dir so
+  // the VIRAGE_DIR env var override is respected at config generation time
+  // (same pattern as chunksFile/embeddingsFile).
+  const resolvedStoreConfig =
+    storeEntry.key === "lancedb"
+      ? { ...storeEntry.defaultConfig, uri: `${getVirageDir()}/lancedb` }
+      : storeEntry.defaultConfig;
+
   const config = {
     $schema:
       "./node_modules/@vivantel/virage-core/schemas/virage.config.schema.json",
@@ -195,7 +145,7 @@ function generateJsonConfig(
     },
     vectorStore: {
       package: storeEntry.package,
-      config: storeEntry.defaultConfig,
+      config: resolvedStoreConfig,
     },
     options: {
       chunksFile: defaultChunksFile(),
@@ -364,9 +314,12 @@ export async function runInit(): Promise<void> {
 
   // ── Overwrite check ──
   if (existsSync(finalState.outputPath)) {
-    const overwrite = await confirm({
-      message: `${finalState.outputPath} already exists. Overwrite?`,
-      default: false,
+    const overwrite = await select({
+      message: `${finalState.outputPath} already exists. What would you like to do?`,
+      choices: [
+        { name: "No, cancel (keep existing file)", value: false },
+        { name: "Yes, overwrite it", value: true },
+      ],
     });
     if (!overwrite) {
       console.log("\nCancelled.");
