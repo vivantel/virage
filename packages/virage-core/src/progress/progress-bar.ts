@@ -12,7 +12,7 @@ export function createProgressBar(label: string, total: number): ProgressBar {
 
   const bar = new cliProgress.SingleBar(
     {
-      format: `${label} [{bar}] {percentage}% | {value}/{total} | ETA: {eta_formatted}`,
+      format: `${label} [{bar}] {percentage}% | {value}/{total} | {duration_formatted} elapsed | ETA: {eta_formatted}`,
       clearOnComplete: false,
       hideCursor: true,
     },

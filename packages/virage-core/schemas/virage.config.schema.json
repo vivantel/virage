@@ -90,6 +90,11 @@
         "batchSize": { "type": "number" },
         "maxBatchChars": { "type": "number" },
         "concurrency": { "type": "number" },
+        "minIngestionBatchSize": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Upload embeddings to the vector store mid-run when pending count reaches this threshold."
+        },
         "telemetry": { "type": "boolean" },
         "notifications": {
           "type": "object",

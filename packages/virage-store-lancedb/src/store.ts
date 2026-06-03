@@ -79,9 +79,12 @@ export class LanceDBVectorStore implements VectorStore {
       new Field("content_hash", new Utf8()),
     ]);
 
-    this.table = await this.db.createEmptyTable(this.tableName, schema, {
-      existOk: true,
-    });
+    const tableNames: string[] = await this.db.tableNames();
+    if (tableNames.includes(this.tableName)) {
+      this.table = await this.db.openTable(this.tableName);
+    } else {
+      this.table = await this.db.createEmptyTable(this.tableName, schema);
+    }
     this.logger?.debug(`Table "${this.tableName}" ready (${this.dimensions}d)`);
   }
 

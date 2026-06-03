@@ -6,14 +6,20 @@ import {
 import type { Logger } from "../interfaces/logger.js";
 import { NullLogger } from "../logger/null-logger.js";
 import { createHash } from "crypto";
-import { UploadError } from "./errors.js";
 import { withRetry, RetryOptions } from "./utils.js";
-import { readEmbeddingsFile } from "./embeddings-io.js";
+import { EmbeddingsDb } from "./embeddings-db.js";
 
 function contentHash(chunk: EmbeddedChunk): string {
   return (
     chunk.contentHash ??
     createHash("sha256").update(chunk.content).digest("hex").slice(0, 16)
+  );
+}
+
+export function isFatalVectorStoreError(err: unknown): boolean {
+  const msg = String(err instanceof Error ? err.message : err).toLowerCase();
+  return /schema error|schema mismatch|unauthorized|authentication failed/.test(
+    msg,
   );
 }
 
@@ -47,41 +53,18 @@ export class Uploader {
   }
 
   async getItemsToUpload(
-    embeddingsFile: string,
+    db: EmbeddingsDb,
     force: boolean = false,
   ): Promise<{
     toUpload: EmbeddedChunk[];
     toDelete: string[];
   }> {
-    let result: Awaited<ReturnType<typeof readEmbeddingsFile>>;
-    try {
-      result = await readEmbeddingsFile(embeddingsFile);
-    } catch (err) {
-      throw new UploadError(
-        `Failed to load embeddings from ${embeddingsFile}: ${err instanceof Error ? err.message : String(err)}`,
-        {
-          suggestion:
-            "Run the pipeline without --skip-upload to regenerate embeddings first.",
-          cause: err,
-        },
-      );
-    }
+    const meta = db.getMeta();
+    const embeddings = db.getAll();
 
-    const { meta, chunks: embeddings } = result;
+    this.logger.info(`📖 Loaded ${embeddings.length} embeddings from db`);
 
-    if (embeddings.length === 0 && !result) {
-      throw new UploadError(`No embeddings found at ${embeddingsFile}`, {
-        suggestion:
-          "Run the pipeline without --skip-upload to regenerate embeddings first.",
-      });
-    }
-
-    this.logger.info(
-      `📖 Loaded ${embeddings.length} embeddings from ${embeddingsFile}`,
-    );
-
-    // If the vector store changed since the last run, force a full re-upload to ensure
-    // the new store starts with consistent state.
+    // If the vector store changed since the last run, force a full re-upload.
     let effectiveForce = force;
     if (
       !force &&
@@ -135,8 +118,34 @@ export class Uploader {
     };
   }
 
+  async uploadPending(
+    db: EmbeddingsDb,
+  ): Promise<{ uploaded: number; deleted: number }> {
+    const pending = db.getPending();
+    if (pending.length === 0) return { uploaded: 0, deleted: 0 };
+
+    this.logger.verbose(`📤 Uploading ${pending.length} pending embeddings...`);
+
+    const batchSize = 50;
+    for (let i = 0; i < pending.length; i += batchSize) {
+      const batch = pending.slice(i, i + batchSize);
+      const documents = batch.map((e) => this.chunkToDocument(e));
+      await withRetry(
+        () => this.vectorStore.upsert(documents),
+        {
+          ...this.retryOptions,
+          isRetryable: (err) => !isFatalVectorStoreError(err),
+        },
+        this.logger,
+      );
+      db.markUploaded(batch.map((e) => contentHash(e)));
+    }
+
+    return { uploaded: pending.length, deleted: 0 };
+  }
+
   async sync(
-    embeddingsFile: string,
+    db: EmbeddingsDb,
     force: boolean = false,
   ): Promise<{
     uploaded: number;
@@ -146,10 +155,7 @@ export class Uploader {
 
     await this.vectorStore.initialize();
 
-    const { toUpload, toDelete } = await this.getItemsToUpload(
-      embeddingsFile,
-      force,
-    );
+    const { toUpload, toDelete } = await this.getItemsToUpload(db, force);
 
     this.logger.info(`📊 Need to upload: ${toUpload.length} documents`);
     this.logger.info(`   Need to delete: ${toDelete.length} files`);
@@ -162,24 +168,30 @@ export class Uploader {
     if (toDelete.length > 0) {
       await withRetry(
         () => this.vectorStore.deleteBySourceFile(toDelete),
-        this.retryOptions,
+        {
+          ...this.retryOptions,
+          isRetryable: (err) => !isFatalVectorStoreError(err),
+        },
         this.logger,
       );
       this.logger.verbose(`🗑️ Deleted ${toDelete.length} obsolete docs`);
     }
 
     if (toUpload.length > 0) {
-      const documents = toUpload.map((e) => this.chunkToDocument(e));
-
       const batchSize = 50;
-      const totalBatches = Math.ceil(documents.length / batchSize);
-      for (let i = 0; i < documents.length; i += batchSize) {
-        const batch = documents.slice(i, i + batchSize);
+      const totalBatches = Math.ceil(toUpload.length / batchSize);
+      for (let i = 0; i < toUpload.length; i += batchSize) {
+        const batch = toUpload.slice(i, i + batchSize);
+        const documents = batch.map((e) => this.chunkToDocument(e));
         await withRetry(
-          () => this.vectorStore.upsert(batch),
-          this.retryOptions,
+          () => this.vectorStore.upsert(documents),
+          {
+            ...this.retryOptions,
+            isRetryable: (err) => !isFatalVectorStoreError(err),
+          },
           this.logger,
         );
+        db.markUploaded(batch.map((e) => contentHash(e)));
         const batchNum = Math.floor(i / batchSize) + 1;
         this.logger.verbose(
           `  Batch ${batchNum}/${totalBatches}: ${batch.length} docs`,

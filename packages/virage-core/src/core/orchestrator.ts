@@ -2,8 +2,12 @@ import { GitTracker } from "./git-tracker.js";
 import { ChunkProcessor } from "./chunk-processor.js";
 import { EmbedderProcessor } from "./embedder.js";
 import { Uploader } from "./uploader.js";
+import { EmbeddingsDb } from "./embeddings-db.js";
 import { TelemetryCollector } from "./telemetry.js";
-import { createProgressBar, type ProgressBar } from "../progress/progress-bar.js";
+import {
+  createProgressBar,
+  type ProgressBar,
+} from "../progress/progress-bar.js";
 import {
   FileChunker,
   EmbeddingProvider,
@@ -14,7 +18,6 @@ import type { Logger } from "../interfaces/logger.js";
 import { NullLogger } from "../logger/null-logger.js";
 import { readFile } from "fs/promises";
 import { RetryOptions } from "./utils.js";
-import { readEmbeddingsFile } from "./embeddings-io.js";
 import { defaultChunksFile, defaultEmbeddingsFile } from "./virage-defaults.js";
 
 export interface RAGPipelineConfig {
@@ -32,18 +35,16 @@ export interface RAGPipelineConfig {
     maxBatchChars?: number;
     retry?: RetryOptions;
     concurrency?: number;
+    minIngestionBatchSize?: number;
     telemetry?: boolean;
     notifications?: { webhookUrl?: string };
     logger?: Logger;
   };
 }
 
-async function loadPreviousState(
-  embeddingsFile: string,
-): Promise<Map<string, string>> {
-  const { chunks } = await readEmbeddingsFile(embeddingsFile);
+function loadPreviousState(db: EmbeddingsDb): Map<string, string> {
   const state = new Map<string, string>();
-  for (const chunk of chunks) {
+  for (const chunk of db.getAll()) {
     if (chunk.sourceFile && chunk.commitHash) {
       state.set(chunk.sourceFile, chunk.commitHash);
     }
@@ -95,6 +96,9 @@ export class Orchestrator {
     const telemetry = opts.telemetry ? new TelemetryCollector() : null;
     telemetry?.start();
 
+    const dbPath = this.embeddingsFile.replace(/\.json$/, ".db");
+    const db = new EmbeddingsDb(dbPath);
+
     let uploadStats = { uploaded: 0, deleted: 0 };
 
     logger.debug(
@@ -112,7 +116,7 @@ export class Orchestrator {
 
       const previousState = opts.force
         ? new Map<string, string>()
-        : await loadPreviousState(this.embeddingsFile);
+        : loadPreviousState(db);
 
       const { toProcess, toDelete } = await gitTracker.getChangedFiles(
         previousState,
@@ -131,6 +135,7 @@ export class Orchestrator {
 
       if (toProcess.length === 0 && toDelete.length === 0 && !opts.force) {
         logger.info("✨ No changes detected.");
+        db.close();
         return;
       }
 
@@ -181,6 +186,7 @@ export class Orchestrator {
 
       if (chunks.length === 0) {
         logger.warn("⚠️ No chunks generated. Exiting.");
+        db.close();
         return;
       }
 
@@ -188,6 +194,12 @@ export class Orchestrator {
       logger.info("🔢 Step 3: Generating embeddings...");
       const t3 = Date.now();
       const embedBars: ProgressBar[] = [];
+
+      const uploader = new Uploader(this.config.vectorStore, {
+        retry: opts.retry,
+        logger: opts.logger,
+      });
+
       const embedder = new EmbedderProcessor(this.config.embedder, {
         rateLimitMs: opts.rateLimitMs,
         batchSize: opts.batchSize,
@@ -195,16 +207,24 @@ export class Orchestrator {
         retry: opts.retry,
         concurrency: opts.concurrency,
         vectorStoreName: this.config.vectorStore.name,
+        minIngestionBatchSize: opts.minIngestionBatchSize,
         logger: opts.logger,
         onProgress: (done, total) => {
-          if (embedBars.length === 0) embedBars.push(createProgressBar("Embedding", total));
+          if (embedBars.length === 0)
+            embedBars.push(createProgressBar("Embedding", total));
           embedBars[0].update(done < total ? done : total);
         },
       });
 
       const newEmbeddings = await embedder.run(
+        db,
         this.chunksFile,
         opts.force || false,
+        opts.skipUpload
+          ? undefined
+          : async () => {
+              await uploader.uploadPending(db);
+            },
       );
       embedBars[0]?.stop();
 
@@ -219,26 +239,15 @@ export class Orchestrator {
 
       // Step 4: Upload
       if (opts.dryRun) {
-        const uploader = new Uploader(this.config.vectorStore);
         const { toUpload: dryUpload, toDelete: dryDelete } =
-          await uploader.getItemsToUpload(
-            this.embeddingsFile,
-            opts.force || false,
-          );
+          await uploader.getItemsToUpload(db, opts.force || false);
         logger.info("📤 Step 4: Upload (dry-run — no changes written)");
         logger.info(`   Would upload: ${dryUpload.length} document(s)`);
         logger.info(`   Would delete: ${dryDelete.length} source file(s)`);
       } else if (!opts.skipUpload) {
         logger.info("📤 Step 4: Uploading to vector store...");
         const t4 = Date.now();
-        const uploader = new Uploader(this.config.vectorStore, {
-          retry: opts.retry,
-          logger: opts.logger,
-        });
-        uploadStats = await uploader.sync(
-          this.embeddingsFile,
-          opts.force || false,
-        );
+        uploadStats = await uploader.sync(db, opts.force || false);
 
         const uploadDuration = Date.now() - t4;
         logger.verbose(`Upload done in ${uploadDuration}ms`);
@@ -281,6 +290,8 @@ export class Orchestrator {
       }
 
       throw err;
+    } finally {
+      db.close();
     }
   }
 }

@@ -1,28 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { writeFile, mkdir, readFile } from "fs/promises";
+import { writeFile, mkdir } from "fs/promises";
 import { join } from "path";
 import { tmpdir } from "os";
 import { randomBytes } from "crypto";
 import { EmbedderProcessor } from "./embedder.js";
-import type {
-  EmbeddingProvider,
-  EmbeddingsFileFormat,
-} from "../interfaces/index.js";
+import { EmbeddingsDb } from "./embeddings-db.js";
+import type { EmbeddingProvider, EmbeddingsMeta } from "../interfaces/index.js";
 
-/** Read embeddings.json and return the chunks array (handles both legacy and v2 format). */
-async function readSavedChunks(path: string): Promise<unknown[]> {
-  const raw = JSON.parse(await readFile(path, "utf-8")) as unknown;
-  if (Array.isArray(raw)) return raw;
-  return (raw as EmbeddingsFileFormat).chunks;
-}
-
-async function readSavedMeta(path: string) {
-  const raw = JSON.parse(await readFile(path, "utf-8")) as unknown;
-  if (Array.isArray(raw)) return null;
-  return (raw as EmbeddingsFileFormat)._meta ?? null;
-}
-
-function tmpDir(): string {
+function tmpPath(): string {
   return join(tmpdir(), "embedder-test-" + randomBytes(6).toString("hex"));
 }
 
@@ -49,13 +34,13 @@ function makeProvider(
 describe("EmbedderProcessor", () => {
   let dir: string;
   let chunksFile: string;
-  let embeddingsFile: string;
+  let db: EmbeddingsDb;
 
   beforeEach(async () => {
-    dir = tmpDir();
+    dir = tmpPath();
     await mkdir(dir, { recursive: true });
     chunksFile = join(dir, "chunks.json");
-    embeddingsFile = join(dir, "embeddings.json");
+    db = new EmbeddingsDb(join(dir, "embeddings.db"));
   });
 
   it("uses provider embedBatch for every sub-batch, including the last smaller one", async () => {
@@ -64,7 +49,7 @@ describe("EmbedderProcessor", () => {
 
     const provider = makeProvider();
     const processor = new EmbedderProcessor(provider, { batchSize: 2 });
-    await processor.run(chunksFile);
+    await processor.run(db, chunksFile);
 
     // batchSize=2 → batches [a,b] and [c]; embedBatch called twice
     expect(provider.embedBatch).toHaveBeenCalledTimes(2);
@@ -92,13 +77,12 @@ describe("EmbedderProcessor", () => {
       retry: { maxRetries: 0 },
       saveIntervalMs: 0,
     });
-    await expect(processor.run(chunksFile)).rejects.toThrow(
+    await expect(processor.run(db, chunksFile)).rejects.toThrow(
       "API error on batch 3",
     );
 
     // Batches 1 and 2 were saved before the failure
-    const saved = await readSavedChunks(embeddingsFile);
-    expect(saved).toHaveLength(2);
+    expect(db.getAll()).toHaveLength(2);
   });
 
   it("splits batches by maxBatchChars to prevent oversized requests", async () => {
@@ -120,23 +104,22 @@ describe("EmbedderProcessor", () => {
       batchSize: 10,
       maxBatchChars: 250,
     });
-    await processor.run(chunksFile);
+    await processor.run(db, chunksFile);
 
     expect(batchSizes).toEqual([2, 2]);
   });
 
-  it("skips chunks already present in embeddings.json (incremental)", async () => {
+  it("skips chunks already present in db (incremental)", async () => {
     const chunkA = makeChunk("content-a");
     const chunkB = makeChunk("content-b");
     await writeFile(chunksFile, JSON.stringify([chunkA, chunkB]));
 
-    // Pre-populate embeddings.json with chunkA already embedded
-    const existing = [{ ...chunkA, embedding: [9, 9, 9], embeddedAt: 0 }];
-    await writeFile(embeddingsFile, JSON.stringify(existing));
+    // Pre-populate db with chunkA already embedded
+    db.insert([{ ...chunkA, embedding: [9, 9, 9], embeddedAt: 0 }]);
 
     const provider = makeProvider();
     const processor = new EmbedderProcessor(provider, { batchSize: 10 });
-    await processor.run(chunksFile);
+    await processor.run(db, chunksFile);
 
     // Only chunkB should have been embedded
     const calls = (provider.embedBatch as ReturnType<typeof vi.fn>).mock.calls;
@@ -144,26 +127,21 @@ describe("EmbedderProcessor", () => {
     expect(allTexts).toEqual(["content-b"]);
   });
 
-  it("force mode re-embeds all chunks and replaces existing embeddings.json", async () => {
+  it("force mode re-embeds all chunks and replaces existing db", async () => {
     const chunks = [makeChunk("a"), makeChunk("b")];
     await writeFile(chunksFile, JSON.stringify(chunks));
-    await writeFile(
-      embeddingsFile,
-      JSON.stringify([{ ...chunks[0], embedding: [9, 9, 9], embeddedAt: 0 }]),
-    );
+    db.insert([{ ...chunks[0], embedding: [9, 9, 9], embeddedAt: 0 }]);
 
     const provider = makeProvider();
     const processor = new EmbedderProcessor(provider, { batchSize: 10 });
-    await processor.run(chunksFile, true);
+    await processor.run(db, chunksFile, true);
 
-    const saved = await readSavedChunks(embeddingsFile);
-    // force=true: existing embedding replaced, both chunks re-embedded
+    const saved = db.getAll();
+    // force=true: db cleared, both chunks re-embedded
     expect(saved).toHaveLength(2);
     expect(
       saved.every(
-        (e) =>
-          JSON.stringify((e as { embedding: number[] }).embedding) ===
-          JSON.stringify([1, 2, 3]),
+        (e) => JSON.stringify(e.embedding) === JSON.stringify([1, 2, 3]),
       ),
     ).toBe(true);
   });
@@ -190,15 +168,14 @@ describe("EmbedderProcessor", () => {
     await writeFile(chunksFile, JSON.stringify([fileA1, fileA2, fileB]));
 
     // a.ts@v1 fully embedded; b.ts not yet embedded
-    const existing = [
+    db.insert([
       { ...fileA1, embedding: [1, 2, 3], embeddedAt: 0 },
       { ...fileA2, embedding: [1, 2, 3], embeddedAt: 0 },
-    ];
-    await writeFile(embeddingsFile, JSON.stringify(existing));
+    ]);
 
     const provider = makeProvider();
     const processor = new EmbedderProcessor(provider, { batchSize: 10 });
-    await processor.run(chunksFile);
+    await processor.run(db, chunksFile);
 
     // Only b.ts chunk should be sent to the provider
     const allTexts = (
@@ -222,14 +199,11 @@ describe("EmbedderProcessor", () => {
     };
     await writeFile(chunksFile, JSON.stringify([newChunk]));
     // existing embedding is from the old commit
-    await writeFile(
-      embeddingsFile,
-      JSON.stringify([{ ...oldChunk, embedding: [9, 9, 9], embeddedAt: 0 }]),
-    );
+    db.insert([{ ...oldChunk, embedding: [9, 9, 9], embeddedAt: 0 }]);
 
     const provider = makeProvider();
     const processor = new EmbedderProcessor(provider, { batchSize: 10 });
-    await processor.run(chunksFile);
+    await processor.run(db, chunksFile);
 
     // The file-version fast path doesn't match (different commitHash).
     // The per-chunk fallback matches by contentHash → still skipped.
@@ -239,24 +213,21 @@ describe("EmbedderProcessor", () => {
     expect(allTexts).toEqual([]);
   });
 
-  it("returns empty and skips embedding when all chunks are already in embeddings.json", async () => {
+  it("returns empty and skips embedding when all chunks are already in db", async () => {
     const chunk = makeChunk("hello");
     await writeFile(chunksFile, JSON.stringify([chunk]));
-    await writeFile(
-      embeddingsFile,
-      JSON.stringify([{ ...chunk, embedding: [1, 2, 3], embeddedAt: 0 }]),
-    );
+    db.insert([{ ...chunk, embedding: [1, 2, 3], embeddedAt: 0 }]);
 
     const provider = makeProvider();
     const processor = new EmbedderProcessor(provider, { batchSize: 10 });
-    const result = await processor.run(chunksFile);
+    const result = await processor.run(db, chunksFile);
 
     expect(result).toHaveLength(0);
     expect(provider.embedBatch).not.toHaveBeenCalled();
     expect(provider.embed).not.toHaveBeenCalled();
   });
 
-  it("writes _meta with providerName, model, and dimensions to embeddings.json", async () => {
+  it("writes meta with providerName, model, and dimensions to db", async () => {
     const chunk = makeChunk("hello");
     await writeFile(chunksFile, JSON.stringify([chunk]));
 
@@ -268,9 +239,9 @@ describe("EmbedderProcessor", () => {
     await new EmbedderProcessor(provider, {
       batchSize: 10,
       vectorStoreName: "supabase",
-    }).run(chunksFile);
+    }).run(db, chunksFile);
 
-    const meta = await readSavedMeta(embeddingsFile);
+    const meta = db.getMeta() as EmbeddingsMeta;
     expect(meta?.providerName).toBe("openai");
     expect(meta?.model).toBe("text-embedding-3-small");
     expect(meta?.providerDimensions).toBe(1536);
@@ -282,8 +253,8 @@ describe("EmbedderProcessor", () => {
     const chunk = makeChunk("hello");
     await writeFile(chunksFile, JSON.stringify([chunk]));
 
-    // Pre-populate with embeddings from old-model
-    const oldMeta = {
+    // Pre-populate db with embeddings from old-model
+    const oldMeta: EmbeddingsMeta = {
       schemaVersion: 1,
       providerName: "openai",
       providerDimensions: 1536,
@@ -291,11 +262,8 @@ describe("EmbedderProcessor", () => {
       createdAt: 1000,
       updatedAt: 1000,
     };
-    const existingFile = {
-      _meta: oldMeta,
-      chunks: [{ ...chunk, embedding: [9, 9, 9], embeddedAt: 0 }],
-    };
-    await writeFile(embeddingsFile, JSON.stringify(existingFile));
+    db.setMeta(oldMeta);
+    db.insert([{ ...chunk, embedding: [9, 9, 9], embeddedAt: 0 }]);
 
     // Switch to a different model
     const provider = makeProvider({
@@ -303,20 +271,22 @@ describe("EmbedderProcessor", () => {
       dimensions: 3072,
       model: "text-embedding-3-large",
     });
-    await new EmbedderProcessor(provider, { batchSize: 10 }).run(chunksFile);
+    await new EmbedderProcessor(provider, { batchSize: 10 }).run(
+      db,
+      chunksFile,
+    );
 
     expect(provider.embedBatch).toHaveBeenCalledTimes(1);
-    const saved = await readSavedChunks(embeddingsFile);
+    const saved = db.getAll();
     expect(saved).toHaveLength(1);
-    // new embedding from mock provider
-    expect((saved[0] as { embedding: number[] }).embedding).toEqual([1, 2, 3]);
+    expect(saved[0].embedding).toEqual([1, 2, 3]);
   });
 
   it("re-embeds all chunks when dimensions change, regardless of model name", async () => {
     const chunk = makeChunk("hello");
     await writeFile(chunksFile, JSON.stringify([chunk]));
 
-    const oldMeta = {
+    const oldMeta: EmbeddingsMeta = {
       schemaVersion: 1,
       providerName: "openai",
       providerDimensions: 1536,
@@ -324,13 +294,8 @@ describe("EmbedderProcessor", () => {
       createdAt: 1000,
       updatedAt: 1000,
     };
-    await writeFile(
-      embeddingsFile,
-      JSON.stringify({
-        _meta: oldMeta,
-        chunks: [{ ...chunk, embedding: Array(1536).fill(0), embeddedAt: 0 }],
-      }),
-    );
+    db.setMeta(oldMeta);
+    db.insert([{ ...chunk, embedding: Array(1536).fill(0), embeddedAt: 0 }]);
 
     // Same model name, but with dimension truncation (256d)
     const provider = makeProvider({
@@ -338,18 +303,19 @@ describe("EmbedderProcessor", () => {
       dimensions: 256,
       model: "text-embedding-3-small",
     });
-    await new EmbedderProcessor(provider, { batchSize: 10 }).run(chunksFile);
+    await new EmbedderProcessor(provider, { batchSize: 10 }).run(
+      db,
+      chunksFile,
+    );
 
     expect(provider.embedBatch).toHaveBeenCalledTimes(1);
   });
 
   it("does NOT re-embed when only providerName changes but model and dimensions stay the same", async () => {
-    // Same model (text-embedding-3-small) accessible via different provider wrappers
-    // produces identical vectors — the provider name change is irrelevant.
     const chunk = makeChunk("hello");
     await writeFile(chunksFile, JSON.stringify([chunk]));
 
-    const oldMeta = {
+    const oldMeta: EmbeddingsMeta = {
       schemaVersion: 1,
       providerName: "github-models",
       providerDimensions: 1536,
@@ -357,13 +323,8 @@ describe("EmbedderProcessor", () => {
       createdAt: 1000,
       updatedAt: 1000,
     };
-    await writeFile(
-      embeddingsFile,
-      JSON.stringify({
-        _meta: oldMeta,
-        chunks: [{ ...chunk, embedding: [9, 9, 9], embeddedAt: 0 }],
-      }),
-    );
+    db.setMeta(oldMeta);
+    db.insert([{ ...chunk, embedding: [9, 9, 9], embeddedAt: 0 }]);
 
     // Switch provider wrapper but keep same model + dimensions
     const provider = makeProvider({
@@ -372,6 +333,7 @@ describe("EmbedderProcessor", () => {
       model: "text-embedding-3-small",
     });
     const result = await new EmbedderProcessor(provider, { batchSize: 10 }).run(
+      db,
       chunksFile,
     );
 
@@ -380,31 +342,52 @@ describe("EmbedderProcessor", () => {
     expect(provider.embedBatch).not.toHaveBeenCalled();
   });
 
-  it("migrates legacy bare-array embeddings.json to the new format on next save", async () => {
+  it("migrates legacy JSON embeddings to db on construction", async () => {
     const chunkA = makeChunk("a");
     const chunkB = makeChunk("b");
-    await writeFile(chunksFile, JSON.stringify([chunkA, chunkB]));
 
-    // Legacy format: bare array
+    // Create a legacy-format embeddings.json next to the db path
+    const dbPath = join(dir, "embeddings.db");
+    const jsonPath = join(dir, "embeddings.json");
+    const oldMeta: EmbeddingsMeta = {
+      schemaVersion: 1,
+      providerName: "openai",
+      providerDimensions: 3,
+      model: "test-model",
+      createdAt: 1000,
+      updatedAt: 1000,
+    };
     await writeFile(
-      embeddingsFile,
-      JSON.stringify([{ ...chunkA, embedding: [9, 9, 9], embeddedAt: 0 }]),
+      jsonPath,
+      JSON.stringify({
+        _meta: oldMeta,
+        chunks: [{ ...chunkA, embedding: [9, 9, 9], embeddedAt: 0 }],
+      }),
     );
 
+    const freshDb = new EmbeddingsDb(dbPath);
+    // Migration should have loaded the existing chunk from JSON
+    expect(freshDb.getAll()).toHaveLength(1);
+    const meta = freshDb.getMeta() as EmbeddingsMeta;
+    expect(meta?.model).toBe("test-model");
+
+    // Write chunksFile and run the processor to embed chunkB (chunkA already in db)
+    await writeFile(chunksFile, JSON.stringify([chunkA, chunkB]));
     const provider = makeProvider({
       name: "openai",
       dimensions: 3,
       model: "test-model",
     });
-    await new EmbedderProcessor(provider, { batchSize: 10 }).run(chunksFile);
+    await new EmbedderProcessor(provider, { batchSize: 10 }).run(
+      freshDb,
+      chunksFile,
+    );
 
-    // After run, file should be in new format with _meta
-    const meta = await readSavedMeta(embeddingsFile);
-    expect(meta?.schemaVersion).toBe(1);
-    expect(meta?.model).toBe("test-model");
-
-    // Both chunks should be present
-    const saved = await readSavedChunks(embeddingsFile);
-    expect(saved).toHaveLength(2);
+    // Only chunkB should have been embedded
+    const allTexts = (
+      provider.embedBatch as ReturnType<typeof vi.fn>
+    ).mock.calls.flatMap((c) => c[0] as string[]);
+    expect(allTexts).toEqual(["b"]);
+    freshDb.close();
   });
 });

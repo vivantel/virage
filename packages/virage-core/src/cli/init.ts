@@ -1,6 +1,6 @@
 import { checkbox, input, select } from "@inquirer/prompts";
 import { existsSync } from "fs";
-import { readFile, writeFile } from "fs/promises";
+import { readFile, rename, writeFile } from "fs/promises";
 import { join } from "path";
 import { spawn } from "child_process";
 import { loadRegistry, type PluginRegistry } from "../plugin-registry.js";
@@ -80,6 +80,46 @@ function buildInstallCommand(
       return { cmd: "bun", args: ["add", ...packages] };
     default:
       return { cmd: "npm", args: ["install", ...packages] };
+  }
+}
+
+function buildGlobalInstallCommand(
+  pm: "npm" | "yarn" | "pnpm" | "bun",
+  packages: string[],
+): { cmd: string; args: string[] } {
+  switch (pm) {
+    case "yarn":
+      return { cmd: "yarn", args: ["global", "add", ...packages] };
+    case "pnpm":
+      return { cmd: "pnpm", args: ["add", "-g", ...packages] };
+    case "bun":
+      return { cmd: "bun", args: ["add", "-g", ...packages] };
+    default:
+      return { cmd: "npm", args: ["install", "-g", ...packages] };
+  }
+}
+
+async function rotateConfigBackups(configPath: string): Promise<void> {
+  const bak = (n: number) => `${configPath}.bak.${n}`;
+  // Delete oldest backup if present
+  try {
+    await rename(bak(5), bak(5) + ".del");
+    const { unlink } = await import("fs/promises");
+    await unlink(bak(5) + ".del");
+  } catch {
+    // No .bak.5 to remove
+  }
+  // Shift .bak.4 → .bak.5, .bak.3 → .bak.4, ... .bak.1 → .bak.2
+  for (let i = 4; i >= 1; i--) {
+    try {
+      await rename(bak(i), bak(i + 1));
+    } catch {
+      // No backup at this slot
+    }
+  }
+  // Rename current file to .bak.1
+  if (existsSync(configPath)) {
+    await rename(configPath, bak(1));
   }
 }
 
@@ -202,6 +242,21 @@ async function writeEnvVars(
 export async function runInit(): Promise<void> {
   console.log("\nVirage Config Generator\n");
 
+  const defaultConfigPath = "./virage.config.json";
+  if (existsSync(defaultConfigPath)) {
+    const overwrite = await select({
+      message: `Config file ${defaultConfigPath} already exists. Overwrite?`,
+      choices: [
+        { name: "Yes (backup & overwrite)", value: true },
+        { name: "No, cancel", value: false },
+      ],
+    });
+    if (!overwrite) {
+      console.log("\nCancelled.");
+      return;
+    }
+  }
+
   const cwd = process.cwd();
   console.log("Scanning project for file types...");
   const detectedGroups = await detectFileExtensions(cwd);
@@ -312,13 +367,16 @@ export async function runInit(): Promise<void> {
 
   const finalState = state as WizardState;
 
-  // ── Overwrite check ──
-  if (existsSync(finalState.outputPath)) {
+  // ── Overwrite safety net for custom output path ──
+  if (
+    finalState.outputPath !== defaultConfigPath &&
+    existsSync(finalState.outputPath)
+  ) {
     const overwrite = await select({
       message: `${finalState.outputPath} already exists. What would you like to do?`,
       choices: [
+        { name: "Yes (backup & overwrite)", value: true },
         { name: "No, cancel (keep existing file)", value: false },
-        { name: "Yes, overwrite it", value: true },
       ],
     });
     if (!overwrite) {
@@ -328,6 +386,7 @@ export async function runInit(): Promise<void> {
   }
 
   // ── Write config ──
+  await rotateConfigBackups(finalState.outputPath);
   const configContent = generateJsonConfig(finalState, registry);
   await writeFile(finalState.outputPath, configContent, "utf-8");
   console.log(`\nCreated ${finalState.outputPath}`);
@@ -380,15 +439,21 @@ export async function runInit(): Promise<void> {
   const pkgs = getRequiredPackages(finalState, registry);
   if (pkgs.length > 0) {
     const pm = await detectPackageManager(cwd);
-    const { cmd, args } = buildInstallCommand(pm, pkgs);
-    const shouldInstall = await select({
+    const localCmd = buildInstallCommand(pm, pkgs);
+    const globalCmd = buildGlobalInstallCommand(pm, pkgs);
+    const installChoice = await select({
       message: `Install ${pkgs.join(", ")} using ${pm}?`,
       choices: [
-        { name: "Yes, install now (recommended)", value: true },
-        { name: "No, I'll install manually", value: false },
+        {
+          name: "Yes, install in current folder (recommended)",
+          value: "local" as const,
+        },
+        { name: "Yes, install globally", value: "global" as const },
+        { name: "No, I'll install manually", value: "manual" as const },
       ],
     });
-    if (shouldInstall) {
+    if (installChoice === "local" || installChoice === "global") {
+      const { cmd, args } = installChoice === "global" ? globalCmd : localCmd;
       try {
         await runInstall(cmd, args);
         console.log("\nPackages installed successfully.");
@@ -398,7 +463,9 @@ export async function runInit(): Promise<void> {
         );
       }
     } else {
-      console.log(`\nRun manually:\n  ${cmd} ${args.join(" ")}`);
+      console.log(
+        `\nRun manually:\n  ${localCmd.cmd} ${localCmd.args.join(" ")}`,
+      );
     }
   }
 
