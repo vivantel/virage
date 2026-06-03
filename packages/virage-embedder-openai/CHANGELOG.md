@@ -1,5 +1,27 @@
 # Changelog
 
+## [0.2.0](https://github.com/vivantel/rag_core/compare/virage-embedder-openai@v0.1.0...virage-embedder-openai@v0.2.0) (2026-06-03)
+
+
+### ⚠ BREAKING CHANGES
+
+* all package names, CLI binary, and config filename changed
+
+### Features
+
+* Rebrand all packages from rag to virage, reset versions to 0.1.0 ([566e538](https://github.com/vivantel/rag_core/commit/566e538f7884b9b1d25341a366df422d9e2f058a))
+* Test trusted publisher automation ([7fd08b9](https://github.com/vivantel/rag_core/commit/7fd08b96f32e7f7c2c2c02ec7e2eebb761d5fa7f))
+* Test trusted publisher automation ([c524461](https://github.com/vivantel/rag_core/commit/c5244615cf7e5e91457446b43d62efdd7928273c))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * devDependencies
+    * @vivantel/virage-core bumped from * to 0.2.0
+  * peerDependencies
+    * @vivantel/virage-core bumped from * to 0.2.0
+
 ## [1.5.3](https://github.com/vivantel/virage/compare/rag-embedder-openai@v1.5.2...rag-embedder-openai@v1.5.3) (2026-06-03)
 
 

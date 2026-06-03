@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.0](https://github.com/vivantel/rag_core/compare/virage-core@v0.1.0...virage-core@v0.2.0) (2026-06-03)
+
+
+### ⚠ BREAKING CHANGES
+
+* all package names, CLI binary, and config filename changed
+
+### Features
+
+* Rebrand all packages from rag to virage, reset versions to 0.1.0 ([566e538](https://github.com/vivantel/rag_core/commit/566e538f7884b9b1d25341a366df422d9e2f058a))
+* Test trusted publisher automation ([7fd08b9](https://github.com/vivantel/rag_core/commit/7fd08b96f32e7f7c2c2c02ec7e2eebb761d5fa7f))
+* Test trusted publisher automation ([c524461](https://github.com/vivantel/rag_core/commit/c5244615cf7e5e91457446b43d62efdd7928273c))
+
 ## [4.0.0](https://github.com/vivantel/virage/compare/rag-core@v3.4.2...rag-core@v4.0.0) (2026-06-03)
 
 
