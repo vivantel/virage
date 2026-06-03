@@ -4,7 +4,12 @@ import type { Logger } from "../interfaces/logger.js";
 const VERBOSITY_LEVELS = [3, 4, 5, 6, 9, 999] as const;
 
 type ConsolaWithLog = ConsolaInstance & {
-  _log(obj: { level: number; message: string; args: unknown[] }): void;
+  _log(obj: {
+    level: number;
+    message: string;
+    args: unknown[];
+    date: Date;
+  }): void;
 };
 
 export class ConsolaLogger implements Logger {
@@ -45,11 +50,11 @@ export class ConsolaLogger implements Logger {
   }
 
   trace(message: string, ...args: unknown[]): void {
-    this._consola._log({ level: 6, message, args }); // custom level 6
+    this._consola._log({ level: 6, message, args, date: new Date() });
   }
 
   silly(message: string, ...args: unknown[]): void {
-    this._consola._log({ level: 999, message, args }); // max verbosity
+    this._consola._log({ level: 999, message, args, date: new Date() });
   }
 
   withTag(tag: string): Logger {
