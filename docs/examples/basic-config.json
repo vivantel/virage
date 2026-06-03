@@ -1,5 +1,5 @@
 {
-  "$schema": "../../packages/virage-core/schemas/rag.config.schema.json",
+  "$schema": "../../packages/virage-core/schemas/virage.config.schema.json",
   "chunkers": [
     {
       "name": "markdown",

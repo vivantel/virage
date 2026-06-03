@@ -98,7 +98,7 @@ export function writeExperimentRun(
   return id;
 }
 
-/** Write a minimal rag.config.json pointing at the test store. */
+/** Write a minimal virage.config.json pointing at the test store. */
 export function writeConfig(
   dir: string,
   options: { storePkg: string; cacheDir?: string } = { storePkg: '@vivantel/virage-store-test' },
@@ -122,5 +122,5 @@ export function writeConfig(
       embeddingsFile: './rag-test/embeddings.json',
     },
   };
-  writeFileSync(join(dir, 'rag.config.json'), JSON.stringify(cfg, null, 2));
+  writeFileSync(join(dir, 'virage.config.json'), JSON.stringify(cfg, null, 2));
 }

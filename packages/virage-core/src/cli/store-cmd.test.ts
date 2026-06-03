@@ -85,7 +85,7 @@ describe("runStoreStats", () => {
     } as never);
 
     await expect(
-      runStoreStats({ config: "./rag.config.json" }),
+      runStoreStats({ config: "./virage.config.json" }),
     ).rejects.toThrow(ExitError);
 
     const errOutput = consoleErrorSpy.mock.calls.flat().join("\n");
@@ -105,7 +105,7 @@ describe("runStoreStats", () => {
       chunkers: [],
     } as never);
 
-    await runStoreStats({ config: "./rag.config.json" });
+    await runStoreStats({ config: "./virage.config.json" });
 
     const output = consoleSpy.mock.calls.flat().join("\n");
     expect(output).toContain("12,500");
@@ -145,7 +145,7 @@ describe("runStorePerf", () => {
     } as never);
 
     await expect(
-      runStorePerf({ config: "./rag.config.json", timeframeHours: 24 }),
+      runStorePerf({ config: "./virage.config.json", timeframeHours: 24 }),
     ).rejects.toThrow(ExitError);
 
     const errOutput = consoleErrorSpy.mock.calls.flat().join("\n");
@@ -165,7 +165,7 @@ describe("runStorePerf", () => {
       chunkers: [],
     } as never);
 
-    await runStorePerf({ config: "./rag.config.json", timeframeHours: 24 });
+    await runStorePerf({ config: "./virage.config.json", timeframeHours: 24 });
 
     const output = consoleSpy.mock.calls.flat().join("\n");
     expect(output).toContain("8 ms"); // p50

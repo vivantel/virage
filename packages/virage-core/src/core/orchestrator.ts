@@ -113,8 +113,10 @@ export class Orchestrator {
         ? new Map<string, string>()
         : await loadPreviousState(this.embeddingsFile);
 
-      const { toProcess, toDelete } =
-        await gitTracker.getChangedFiles(previousState);
+      const { toProcess, toDelete } = await gitTracker.getChangedFiles(
+        previousState,
+        currentState,
+      );
 
       const gitDuration = Date.now() - t1;
       logger.verbose(`Git tracking done in ${gitDuration}ms`);

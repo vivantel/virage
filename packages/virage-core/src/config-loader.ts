@@ -187,7 +187,7 @@ export async function loadConfig(
 ): Promise<RAGPipelineConfig> {
   if (configPath.endsWith(".ts")) {
     throw new ConfigError(
-      "TypeScript config files (rag.config.ts) are no longer supported.",
+      "TypeScript config files (virage.config.ts) are no longer supported.",
       {
         suggestion:
           "Run `virage init` to generate a virage.config.json, or rename your config and convert it to JSON format.",

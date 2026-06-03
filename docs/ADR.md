@@ -178,7 +178,7 @@ Convert the repository to an npm workspaces monorepo (`packages/*`). Each provid
 
 ---
 
-## ADR-009: `rag.config.ts` is gitignored; `rag.config.ci.json` is tracked
+## ADR-009: `rag.config.ts` is gitignored; `virage.config.ci.json` is tracked
 
 **Date:** 2026-06-01  
 **Status:** Accepted
@@ -187,7 +187,7 @@ Convert the repository to an npm workspaces monorepo (`packages/*`). Each provid
 `rag.config.ts` contains provider credentials (API keys via environment references), path configurations, and project-specific chunker setups. Committing it risks leaking credentials and creates merge conflicts across forks.
 
 ### Decision
-Add `rag.config.ts` to `.gitignore`, treating it like `.env`. The CI-specific config (`rag.config.ci.json`) is tracked because it is infrastructure-as-code — it references published package names and no secrets directly (credentials come from GitHub Actions secrets via `${VAR}` expansion at runtime).
+Add `rag.config.ts` to `.gitignore`, treating it like `.env`. The CI-specific config (`virage.config.ci.json`) is tracked because it is infrastructure-as-code — it references published package names and no secrets directly (credentials come from GitHub Actions secrets via `${VAR}` expansion at runtime).
 
 ### Consequences
 - **+** No accidental credential commits.
@@ -230,7 +230,7 @@ TypeScript configs (`rag.config.ts`) require `tsx` at runtime and are developer-
 3. Dynamically imports each provider package and calls `createEmbedder(config)` / `createVectorStore(config)`.
 4. Maps strategy name strings (`"markdownHeaders"`, `"token"`, etc.) via `strategy-registry.ts`.
 
-A JSON Schema is published at `schemas/rag.config.schema.json` for editor validation.
+A JSON Schema is published at `schemas/virage.config.schema.json` for editor validation.
 
 ### Consequences
 - **+** CI config is declarative, schema-validated, and credential-free.
@@ -295,7 +295,7 @@ Running the RAG update pipeline in CI used to build `rag-core` from source as pa
 ### Decision
 Extract the RAG pipeline into a dedicated workflow (`.github/workflows/virage.yaml`) that:
 1. Installs `@vivantel/virage-core` and companion packages from the published npm registry (not from source).
-2. Uses `rag.config.ci.json` (tracked, schema-validated).
+2. Uses `virage.config.ci.json` (tracked, schema-validated).
 3. Caches `docs/rag/chunks.json` and `docs/rag/embeddings.json` via `actions/cache` to make incremental runs fast.
 4. Triggers only on pushes to `master`.
 

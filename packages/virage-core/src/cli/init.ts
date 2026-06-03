@@ -364,14 +364,11 @@ export async function runInit(): Promise<void> {
 
   // ── Overwrite check ──
   if (existsSync(finalState.outputPath)) {
-    const overwrite = await select({
+    const overwrite = await confirm({
       message: `${finalState.outputPath} already exists. Overwrite?`,
-      choices: [
-        { name: "Yes, overwrite", value: "yes" },
-        { name: "No, cancel", value: "no" },
-      ],
+      default: false,
     });
-    if (overwrite === "no") {
+    if (!overwrite) {
       console.log("\nCancelled.");
       return;
     }
@@ -431,9 +428,12 @@ export async function runInit(): Promise<void> {
   if (pkgs.length > 0) {
     const pm = await detectPackageManager(cwd);
     const { cmd, args } = buildInstallCommand(pm, pkgs);
-    const shouldInstall = await confirm({
-      message: `Install ${pkgs.join(" ")} now? [using ${pm}]`,
-      default: true,
+    const shouldInstall = await select({
+      message: `Install ${pkgs.join(", ")} using ${pm}?`,
+      choices: [
+        { name: "Yes, install now (recommended)", value: true },
+        { name: "No, I'll install manually", value: false },
+      ],
     });
     if (shouldInstall) {
       try {

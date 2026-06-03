@@ -5,7 +5,7 @@ import { CLI, setupEnv, teardownEnv, runCLI, type TestEnv } from './helpers/setu
 
 let env: TestEnv;
 
-const CONFIG = 'rag.config.json';
+const CONFIG = 'virage.config.json';
 const CHUNKS = 'rag-test/chunks.json';
 const EMBEDDINGS = 'rag-test/embeddings.json';
 const STORE = 'rag-test/vector-store.json';

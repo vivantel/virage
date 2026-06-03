@@ -48,7 +48,7 @@ function buildConfig(env: TestEnv): Record<string, unknown> {
 }
 
 /**
- * Create tmpDir + optional OpenHands clone + write rag.config.json.
+ * Create tmpDir + optional OpenHands clone + write virage.config.json.
  * Set E2E_CLONE_DIR to reuse an existing clone and skip the slow git clone.
  */
 export function setupEnv(): TestEnv {
@@ -66,7 +66,7 @@ export function setupEnv(): TestEnv {
   rmSync(join(cloneDir, 'rag-test'), { recursive: true, force: true });
 
   writeFileSync(
-    join(cloneDir, 'rag.config.json'),
+    join(cloneDir, 'virage.config.json'),
     JSON.stringify(buildConfig({ cloneDir, tmpDir, cacheDir }), null, 2),
   );
 

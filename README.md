@@ -47,7 +47,7 @@ All configuration is in `virage.config.json`. `${ENV_VAR}` patterns are expanded
 
 ```json
 {
-  "$schema": "./node_modules/@vivantel/virage-core/schemas/rag.config.schema.json",
+  "$schema": "./node_modules/@vivantel/virage-core/schemas/virage.config.schema.json",
   "chunkers": [
     { "patterns": ["**/*.md"], "strategy": "markdownHeaders" },
     { "patterns": ["src/**/*.ts"], "strategy": "token" }

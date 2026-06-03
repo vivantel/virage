@@ -125,7 +125,7 @@ describe("runEvaluate", () => {
 
   it("happy path: prints metrics and saves experiment run", async () => {
     await runEvaluate({
-      config: "./rag.config.json",
+      config: "./virage.config.json",
       dataset: "./eval/queries.json",
       withLlmJudge: false,
       ci: false,
@@ -147,7 +147,7 @@ describe("runEvaluate", () => {
 
   it("quality gate: prints success when MRR meets threshold", async () => {
     await runEvaluate({
-      config: "./rag.config.json",
+      config: "./virage.config.json",
       dataset: "./eval/queries.json",
       withLlmJudge: false,
       thresholdMrr: 0.5,
@@ -161,7 +161,7 @@ describe("runEvaluate", () => {
 
   it("quality gate: prints failure when MRR is below threshold (no --ci)", async () => {
     await runEvaluate({
-      config: "./rag.config.json",
+      config: "./virage.config.json",
       dataset: "./eval/queries.json",
       withLlmJudge: false,
       thresholdMrr: 0.9,
@@ -176,7 +176,7 @@ describe("runEvaluate", () => {
   it("quality gate: calls process.exit(1) when MRR below threshold with ci=true", async () => {
     await expect(
       runEvaluate({
-        config: "./rag.config.json",
+        config: "./virage.config.json",
         dataset: "./eval/queries.json",
         withLlmJudge: false,
         thresholdMrr: 0.9,
@@ -189,7 +189,7 @@ describe("runEvaluate", () => {
 
   it("withLlmJudge: prints RAGAS requires-judge message", async () => {
     await runEvaluate({
-      config: "./rag.config.json",
+      config: "./virage.config.json",
       dataset: "./eval/queries.json",
       withLlmJudge: true,
       ci: false,
@@ -206,7 +206,7 @@ describe("runEvaluate", () => {
 
     await expect(
       runEvaluate({
-        config: "./rag.config.json",
+        config: "./virage.config.json",
         dataset: "./eval/queries.json",
         withLlmJudge: false,
         ci: false,

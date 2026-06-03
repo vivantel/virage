@@ -58,7 +58,10 @@ function makeRun(overrides: Partial<ExperimentRun> = {}): ExperimentRun {
     id: "baseline_2026-06-01T12-00-00",
     name: "baseline",
     timestamp: "2026-06-01T12:00:00.000Z",
-    config: { configFile: "./rag.config.json", dataset: "./eval/queries.json" },
+    config: {
+      configFile: "./virage.config.json",
+      dataset: "./eval/queries.json",
+    },
     evalResult: { ...EVAL_RESULT, mrr: 0.5 },
     perQueryRrScores: BASELINE_SCORES,
     ...overrides,
@@ -128,7 +131,7 @@ describe("runExperimentRun", () => {
   it("saves experiment run with correct name, evalResult, and perQueryRrScores", async () => {
     await runExperimentRun({
       name: "my-exp",
-      config: "./rag.config.json",
+      config: "./virage.config.json",
       dataset: "./eval/queries.json",
     });
 
@@ -143,7 +146,7 @@ describe("runExperimentRun", () => {
   it("prints MRR and saved path", async () => {
     await runExperimentRun({
       name: "my-exp",
-      config: "./rag.config.json",
+      config: "./virage.config.json",
       dataset: "./eval/queries.json",
     });
 

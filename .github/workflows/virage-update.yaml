@@ -47,7 +47,7 @@ jobs:
             virage-embeddings-${{ github.ref_name }}-
 
       - name: Run Virage pipeline
-        run: ./virage-runner/node_modules/.bin/virage --config rag.config.ci.json
+        run: ./virage-runner/node_modules/.bin/virage --config virage.config.ci.json
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
 

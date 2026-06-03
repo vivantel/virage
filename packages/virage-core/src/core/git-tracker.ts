@@ -138,12 +138,15 @@ export class GitTracker {
     return state;
   }
 
-  async getChangedFiles(previousState: Map<string, string>): Promise<{
+  async getChangedFiles(
+    previousState: Map<string, string>,
+    currentState?: Map<string, { commitHash: string; chunker: FileChunker }>,
+  ): Promise<{
     toProcess: string[];
     toDelete: string[];
     unchanged: string[];
   }> {
-    const current = await this.getCurrentState();
+    const current = currentState ?? (await this.getCurrentState());
     const toProcess: string[] = [];
     const toDelete: string[] = [];
     const unchanged: string[] = [];

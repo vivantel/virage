@@ -16,7 +16,7 @@ describe('virage validate', () => {
     writeFileSync(join(dir, 'skills', 'guide.md'), '# Guide\nDetails here.\n');
 
     writeFileSync(
-      join(dir, 'rag.config.json'),
+      join(dir, 'virage.config.json'),
       JSON.stringify(
         {
           chunkers: [{ patterns: ['**/*.md'], strategy: 'markdownHeaders' }],
@@ -38,7 +38,7 @@ describe('virage validate', () => {
   afterAll(() => rmSync(dir, { recursive: true, force: true }));
 
   it('exits 0 and reports tracked file count', () => {
-    const result = runCLI(dir, 'validate', '-c', 'rag.config.json');
+    const result = runCLI(dir, 'validate', '-c', 'virage.config.json');
     expect(result.status, result.stderr).toBe(0);
     const out = result.stdout + result.stderr;
     expect(out).toContain('matching file');
