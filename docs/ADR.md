@@ -441,3 +441,101 @@ Move the pipeline execution logic from the root program action into an explicit 
 - **+** Running `virage` with no arguments prints help — discoverable and safe.
 - **+** All subcommands now follow the same `virage <command>` pattern.
 - **−** Breaking change: scripts calling `virage --force` must be updated to `virage update --force`.
+
+---
+
+## ADR-021: SQLite as intermediate embeddings storage, replacing monolithic JSON
+
+**Date:** 2026-06-03  
+**Status:** Accepted  
+**Supersedes:** parts of ADR-002 (intermediate file format) and ADR-005 (content-hash skip mechanism)
+
+### Context
+
+`embeddings.json` was a monolithic file that was fully read and rewritten on every save. This created three problems:
+
+1. **Re-embed bug on partial runs**: the file tracked only final embeddings, with no distinction between "embedded but not yet uploaded" and "embedded and uploaded". When a run embedded some chunks and uploaded them, then was interrupted before finishing, the next run couldn't tell which chunks were already in the vector store and would re-embed them from scratch.
+2. **Full read-merge-write on every batch save**: even a small incremental batch triggered a full JSON parse, in-memory merge, and full-file serialise/write cycle — O(n) in total embedding count, every time.
+3. **No streaming ingestion**: there was no way to upload a batch to the vector store while later batches were still being embedded.
+
+### Decision
+
+Replace `embeddings.json` with an SQLite database (`embeddings.db`, derived by substituting the extension). The `EmbeddingsDb` class wraps `better-sqlite3` (synchronous API) and owns the full storage contract:
+
+- Each row tracks `content_hash`, source/commit/content/metadata/embedding fields, and an `uploaded INTEGER` flag (`0` = pending, `1` = uploaded to vector store).
+- `EmbeddingsMeta` is stored in a separate `meta` table as a single JSON value.
+- On first construction, if the database is empty and a sibling `.json` file exists, `EmbeddingsDb` auto-migrates the JSON, marking migrated rows as `uploaded = 1` (they were already synced), then renames the JSON to `.json.migrated`.
+
+The `Orchestrator` derives the db path from `embeddingsFile` (`foo/embeddings.json` → `foo/embeddings.db`), constructs one `EmbeddingsDb` instance, and passes it to both `EmbedderProcessor` and `Uploader`. The db is closed in a `finally` block at the end of `run()`.
+
+### Consequences
+
+- **+** Re-embed bug fixed: `getChunksToEmbed` reads `db.getAll()` (pending + uploaded) for skip detection, so already-uploaded chunks are never re-embedded after a partial run.
+- **+** Saves are atomic row inserts via a SQLite transaction; no read-merge-write cycle.
+- **+** `uploaded` flag enables `getPending()`, `markUploaded()`, and `uploadPending()` — the building blocks for intermediate batch ingestion (ADR-022).
+- **+** WAL journal mode allows concurrent reads during writes.
+- **−** `better-sqlite3` is a native module (compiled via node-gyp). It must be rebuilt when switching Node.js ABI versions; pre-built binaries are downloaded by `prebuild-install` on supported platforms.
+- **−** The intermediate artifact is now a binary `.db` file rather than a human-readable `.json`. Inspecting it requires a SQLite tool.
+- **−** Migration from JSON is one-way; once the `.json` is renamed to `.json.migrated`, only SQLite is used. Rolling back to an older version of the pipeline that reads JSON requires manual renaming.
+
+---
+
+## ADR-022: Mid-run partial uploads via `onIntermediateBatch` callback
+
+**Date:** 2026-06-03  
+**Status:** Accepted
+
+### Context
+
+Before this change, the upload stage ran only after all embeddings were complete. For large corpora, this meant the vector store was empty until the very end of the run, and a failure during upload (after a long embedding stage) would require re-uploading everything. The SQLite `uploaded` flag (ADR-021) made it possible to upload a batch mid-run and record exactly which chunks had been delivered.
+
+### Decision
+
+`EmbedderProcessor.run()` accepts an optional `onIntermediateBatch?: () => Promise<void>` callback and a `minIngestionBatchSize` constructor option (default `Infinity` — disabled). After each timed save, if `db.pendingCount() >= minIngestionBatchSize`, the callback is invoked. The orchestrator wires this to:
+
+```typescript
+async () => { await uploader.uploadPending(db); }
+```
+
+`uploadPending(db)` uploads only pending rows (no delta check against the vector store, no delete phase) and calls `db.markUploaded(contentHashes)` after each batch.
+
+`minIngestionBatchSize` is exposed as a first-class option in `RAGPipelineConfig.options` and in the JSON config schema.
+
+### Consequences
+
+- **+** The vector store is populated incrementally — useful for long embedding runs and for monitoring progress in real time.
+- **+** A failure late in the run only requires re-uploading the remaining pending chunk, not re-uploading everything.
+- **+** Configurable threshold means the feature is off by default and can be tuned per corpus size.
+- **−** `uploadPending` skips the delta check, so intermediate uploads are always upserts with no corresponding delete. Files being re-indexed from a changed commit will have their old chunks in the store until the final `sync()` delete sweep runs at the end of the pipeline.
+- **−** If `skipUpload` is set, the intermediate callback is suppressed entirely; the threshold has no effect.
+
+---
+
+## ADR-023: Fail-fast on fatal vector store errors; skip retries
+
+**Date:** 2026-06-03  
+**Status:** Accepted
+
+### Context
+
+The retry loop in `Uploader` treated all errors as transient. Schema mismatches (e.g. the LanceDB "Schema Error: Provided schema does not match existing table schema") and authentication failures are deterministic — they will not succeed on any subsequent attempt. Retrying them wastes time and obscures the real error.
+
+### Decision
+
+Introduce `isFatalVectorStoreError(err: unknown): boolean` in `uploader.ts`:
+
+```typescript
+const msg = String(err instanceof Error ? err.message : err).toLowerCase();
+return /schema error|schema mismatch|unauthorized|authentication failed/.test(msg);
+```
+
+All `withRetry` calls in `Uploader` (both `sync()` and `uploadPending()`) now pass `isRetryable: (err) => !isFatalVectorStoreError(err)`. A fatal error causes `withRetry` to rethrow immediately, skipping all remaining retry attempts.
+
+The LanceDB "Schema Error" root cause was also fixed independently: `LanceDBVectorStore.initialize()` now uses an explicit open-or-create pattern (`tableNames()` → `openTable` or `createEmptyTable`) instead of `createEmptyTable(..., { existOk: true })`, which was triggering Arrow schema validation on every second run. The fail-fast rule ensures that any remaining schema mismatches from other stores produce an immediate, clear error rather than a delayed one after max retries.
+
+### Consequences
+
+- **+** Schema and auth errors surface immediately with the full error message, rather than failing after the retry budget is exhausted.
+- **+** Removes spurious wait time (retry back-off intervals) for unrecoverable failures.
+- **+** LanceDB specifically no longer throws on the second run; the fail-fast path is a safety net for the general case.
+- **−** Error classification is regex-based on message strings. Provider-specific error messages that don't match the pattern will still be retried unnecessarily; the pattern may need expanding as new store implementations are added.
