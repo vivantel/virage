@@ -1,5 +1,16 @@
 # Changelog
 
+## [5.0.9](https://github.com/vivantel/rag_core/compare/rag-strategies@v5.0.8...rag-strategies@v5.0.9) (2026-06-03)
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * devDependencies
+    * @vivantel/rag-core bumped from file:../rag-core to 3.4.2
+  * peerDependencies
+    * @vivantel/rag-core bumped from ^2.0.0 to ^3.4.2
+
 ## [5.0.8](https://github.com/vivantel/rag_core/compare/rag-strategies@v5.0.7...rag-strategies@v5.0.8) (2026-06-03)
 
 

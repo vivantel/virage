@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.5.2](https://github.com/vivantel/rag_core/compare/rag-embedder-openai@v1.5.1...rag-embedder-openai@v1.5.2) (2026-06-03)
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * devDependencies
+    * @vivantel/rag-core bumped from file:../rag-core to 3.4.2
+  * peerDependencies
+    * @vivantel/rag-core bumped from ^2.0.0 to ^3.4.2
+
 ## [1.5.1](https://github.com/vivantel/rag_core/compare/rag-embedder-openai@v1.5.0...rag-embedder-openai@v1.5.1) (2026-06-03)
 
 
