@@ -4,6 +4,10 @@ import { readFile, readdir, writeFile } from "fs/promises";
 import { extname, join } from "path";
 import { spawn } from "child_process";
 import { loadRegistry, type PluginRegistry } from "../plugin-registry.js";
+import {
+  defaultChunksFile,
+  defaultEmbeddingsFile,
+} from "../core/virage-defaults.js";
 
 // ─── File type detection ──────────────────────────────────────────────────────
 
@@ -194,8 +198,8 @@ function generateJsonConfig(
       config: storeEntry.defaultConfig,
     },
     options: {
-      chunksFile: "./docs/rag/chunks.json",
-      embeddingsFile: "./docs/rag/embeddings.json",
+      chunksFile: defaultChunksFile(),
+      embeddingsFile: defaultEmbeddingsFile(),
     },
   };
 

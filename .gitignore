@@ -10,7 +10,7 @@ build/
 docs/api/
 
 # RAG pipeline artifacts (cached in CI via actions/cache)
-docs/rag/
+.virage/
 
 # Internal docs
 docs/internal

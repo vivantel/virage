@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { Orchestrator, RAGPipelineConfig } from "./orchestrator.js";
+import { defaultChunksFile } from "./virage-defaults.js";
 import {
   FileChunker,
   EmbeddingProvider,
@@ -81,6 +82,19 @@ describe("Orchestrator", () => {
     };
     const orchestrator = new Orchestrator(config);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    expect((orchestrator as any).chunksFile).toBe("./docs/rag/chunks.json");
+    expect((orchestrator as any).chunksFile).toBe(defaultChunksFile());
+  });
+
+  it("should use VIRAGE_DIR env var as default path prefix", () => {
+    vi.stubEnv("VIRAGE_DIR", "/custom/dir");
+    const config: RAGPipelineConfig = {
+      chunkers: [mockChunker],
+      embedder: mockEmbedder,
+      vectorStore: mockVectorStore,
+    };
+    const orchestrator = new Orchestrator(config);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    expect((orchestrator as any).chunksFile).toBe("/custom/dir/chunks.json");
+    vi.unstubAllEnvs();
   });
 });

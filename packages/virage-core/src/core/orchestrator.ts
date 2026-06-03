@@ -14,6 +14,7 @@ import { NullLogger } from "../logger/null-logger.js";
 import { readFile } from "fs/promises";
 import { RetryOptions } from "./utils.js";
 import { readEmbeddingsFile } from "./embeddings-io.js";
+import { defaultChunksFile, defaultEmbeddingsFile } from "./virage-defaults.js";
 
 export interface RAGPipelineConfig {
   chunkers: FileChunker[];
@@ -82,9 +83,9 @@ export class Orchestrator {
 
   constructor(config: RAGPipelineConfig) {
     this.config = config;
-    this.chunksFile = config.options?.chunksFile || "./docs/rag/chunks.json";
+    this.chunksFile = config.options?.chunksFile ?? defaultChunksFile();
     this.embeddingsFile =
-      config.options?.embeddingsFile || "./docs/rag/embeddings.json";
+      config.options?.embeddingsFile ?? defaultEmbeddingsFile();
   }
 
   async run(): Promise<void> {

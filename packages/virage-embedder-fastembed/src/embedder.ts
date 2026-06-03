@@ -68,8 +68,9 @@ export class FastEmbedEmbedder implements EmbeddingProvider {
     // "<cacheDir>/BAAI/" to pre-exist. We must NOT create the model directory
     // itself or fastembed skips the download and fails with "Tokenizer file
     // not found". Apply whether or not cacheDir was explicitly configured —
-    // fastembed defaults to "local_cache" when omitted.
-    const effectiveCacheDir = this.cacheDir ?? "local_cache";
+    // Default falls back to $VIRAGE_DIR/models (or .virage/models).
+    const effectiveCacheDir =
+      this.cacheDir ?? `${process.env["VIRAGE_DIR"] ?? ".virage"}/models`;
     const modelParent = path.dirname(this.model);
     if (modelParent !== ".") {
       await mkdir(path.join(effectiveCacheDir, modelParent), {

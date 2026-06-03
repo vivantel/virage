@@ -21,6 +21,11 @@ import { runReport } from "../cli/report.js";
 import { runChunksReport } from "../cli/chunks-report.js";
 import { runVizEmbeddings } from "../cli/viz.js";
 import { runDashboard } from "../cli/dashboard.js";
+import {
+  defaultChunksFile,
+  defaultEmbeddingsFile,
+  getVirageDir,
+} from "../core/virage-defaults.js";
 
 config();
 
@@ -224,7 +229,7 @@ program
   .option(
     "--dir <path>",
     "Directory containing telemetry.json files",
-    "./docs/rag",
+    getVirageDir(),
   )
   .action(async (opts: { dir: string }) => {
     try {
@@ -237,7 +242,7 @@ program
 program
   .command("eval-generate")
   .description("Generate an eval dataset from existing chunks")
-  .option("--chunks <path>", "Chunks file path", "./docs/rag/chunks.json")
+  .option("--chunks <path>", "Chunks file path", defaultChunksFile())
   .option("--output <path>", "Output dataset path", "./eval/queries.json")
   .option("--include-negatives", "Add negative examples")
   .option(
@@ -281,7 +286,7 @@ viz
   .option(
     "--embeddings <path>",
     "Embeddings file path",
-    "./docs/rag/embeddings.json",
+    defaultEmbeddingsFile(),
   )
   .option("--output <path>", "Output HTML file", "umap.html")
   .option("--projection <type>", "Projection type: umap or tsne", "umap")
@@ -307,7 +312,7 @@ const chunks = program.command("chunks").description("Chunk analysis tools");
 chunks
   .command("report")
   .description("Show chunk cohesion report")
-  .option("--file <path>", "Chunks file path", "./docs/rag/chunks.json")
+  .option("--file <path>", "Chunks file path", defaultChunksFile())
   .action(async (opts: { file: string }) => {
     try {
       await runChunksReport(opts.file);
@@ -320,11 +325,11 @@ program
   .command("dashboard")
   .description("Start a local RAG monitoring dashboard")
   .option("--port <n>", "Port to serve on", parseInt, 3000)
-  .option("--chunks <path>", "Chunks file path", "./docs/rag/chunks.json")
+  .option("--chunks <path>", "Chunks file path", defaultChunksFile())
   .option(
     "--embeddings <path>",
     "Embeddings file path",
-    "./docs/rag/embeddings.json",
+    defaultEmbeddingsFile(),
   )
   .action(
     async (opts: { port: number; chunks: string; embeddings: string }) => {
