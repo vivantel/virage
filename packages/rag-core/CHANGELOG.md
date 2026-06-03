@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.4.2](https://github.com/vivantel/rag_core/compare/rag-core@v3.4.1...rag-core@v3.4.2) (2026-06-03)
+
+
+### Bug Fixes
+
+* Filter logger frames from trace stacks and include error in retry log ([80714b4](https://github.com/vivantel/rag_core/commit/80714b42b7b1a0c44ee52d5d570f8a3e199e91e7))
+
 ## [3.4.1](https://github.com/vivantel/rag_core/compare/rag-core@v3.4.0...rag-core@v3.4.1) (2026-06-03)
 
 
