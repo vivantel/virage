@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.3.1](https://github.com/vivantel/rag_core/compare/rag-store-lancedb@v1.3.0...rag-store-lancedb@v1.3.1) (2026-06-03)
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * devDependencies
+    * @vivantel/rag-core bumped from file:../rag-core to 3.4.1
+  * peerDependencies
+    * @vivantel/rag-core bumped from ^2.0.0 to ^3.4.1
+
 ## [1.3.0](https://github.com/vivantel/rag_core/compare/rag-store-lancedb@v1.2.3...rag-store-lancedb@v1.3.0) (2026-06-03)
 
 

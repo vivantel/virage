@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.4.1](https://github.com/vivantel/rag_core/compare/rag-core@v3.4.0...rag-core@v3.4.1) (2026-06-03)
+
+
+### Bug Fixes
+
+* Pass date to consola _log to prevent FancyReporter crash ([0575afc](https://github.com/vivantel/rag_core/commit/0575afce4195110e6846d60cae5b8e6111ce2328))
+
 ## [3.4.0](https://github.com/vivantel/rag_core/compare/rag-core@v3.3.3...rag-core@v3.4.0) (2026-06-03)
 
 
