@@ -47,7 +47,7 @@ export async function collectExtensions(
   }
   for (const entry of entries) {
     if (entry.isDirectory()) {
-      if (!IGNORED_DIRS.has(entry.name)) {
+      if (!IGNORED_DIRS.has(entry.name) && !entry.name.startsWith(".")) {
         await collectExtensions(join(dir, entry.name), found);
       }
     } else {

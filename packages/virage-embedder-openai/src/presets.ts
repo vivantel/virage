@@ -3,12 +3,6 @@ import {
   OpenAICompatibleEmbedderOptions,
 } from "./embedder.js";
 
-export interface GitHubModelsPresetOptions {
-  token: string;
-  model?: string;
-  dimensions?: number;
-}
-
 export interface AzureOpenAIPresetOptions {
   apiKey: string;
   endpoint: string;
@@ -20,18 +14,6 @@ export interface OllamaPresetOptions {
   model: string;
   dimensions: number;
   baseURL?: string;
-}
-
-/** Pre-configured embedder for GitHub Models (OpenAI-compatible endpoint). */
-export function createGitHubModelsEmbedder(
-  options: GitHubModelsPresetOptions,
-): OpenAICompatibleEmbedder {
-  return new OpenAICompatibleEmbedder({
-    apiKey: options.token,
-    baseURL: "https://models.github.ai/inference",
-    model: options.model ?? "openai/text-embedding-3-small",
-    dimensions: options.dimensions ?? 1536,
-  });
 }
 
 /** Pre-configured embedder for Azure OpenAI. */

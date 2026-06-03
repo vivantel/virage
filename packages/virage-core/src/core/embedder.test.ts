@@ -86,10 +86,11 @@ describe("EmbedderProcessor", () => {
       }),
     });
 
-    // maxRetries:0 so the error surfaces immediately without retry delays
+    // maxRetries:0 so the error surfaces immediately; saveIntervalMs:0 forces save on every batch
     const processor = new EmbedderProcessor(provider, {
       batchSize: 1,
       retry: { maxRetries: 0 },
+      saveIntervalMs: 0,
     });
     await expect(processor.run(chunksFile)).rejects.toThrow(
       "API error on batch 3",

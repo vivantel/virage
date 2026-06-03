@@ -3,6 +3,7 @@ import { ChunkProcessor } from "./chunk-processor.js";
 import { EmbedderProcessor } from "./embedder.js";
 import { Uploader } from "./uploader.js";
 import { TelemetryCollector } from "./telemetry.js";
+import { createProgressBar, type ProgressBar } from "../progress/progress-bar.js";
 import {
   FileChunker,
   EmbeddingProvider,
@@ -158,11 +159,14 @@ export class Orchestrator {
         ? []
         : await loadExistingChunks(this.chunksFile);
 
+      const chunkBar = createProgressBar("Chunking", toProcess.length);
       const chunks = await chunkProcessor.processFiles(
         toProcess,
         fileState,
         existingChunks,
+        (done, total) => chunkBar.update(done < total ? done : total),
       );
+      chunkBar.stop();
       await chunkProcessor.saveChunksLocal(chunks, this.chunksFile);
 
       const chunkDuration = Date.now() - t2;
@@ -183,6 +187,7 @@ export class Orchestrator {
       // Step 3: Generate embeddings
       logger.info("🔢 Step 3: Generating embeddings...");
       const t3 = Date.now();
+      const embedBars: ProgressBar[] = [];
       const embedder = new EmbedderProcessor(this.config.embedder, {
         rateLimitMs: opts.rateLimitMs,
         batchSize: opts.batchSize,
@@ -191,12 +196,17 @@ export class Orchestrator {
         concurrency: opts.concurrency,
         vectorStoreName: this.config.vectorStore.name,
         logger: opts.logger,
+        onProgress: (done, total) => {
+          if (embedBars.length === 0) embedBars.push(createProgressBar("Embedding", total));
+          embedBars[0].update(done < total ? done : total);
+        },
       });
 
       const newEmbeddings = await embedder.run(
         this.chunksFile,
         opts.force || false,
       );
+      embedBars[0]?.stop();
 
       const embedDuration = Date.now() - t3;
       logger.verbose(`Embedding done in ${embedDuration}ms`);

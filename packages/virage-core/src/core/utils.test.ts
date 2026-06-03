@@ -1,5 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { batchArray, batchBySize } from "./utils.js";
+import {
+  batchArray,
+  batchBySize,
+  withRetry,
+  defaultIsRetryable,
+} from "./utils.js";
 
 describe("batchArray", () => {
   it("splits evenly", () => {
@@ -78,5 +83,76 @@ describe("batchBySize", () => {
       [10, 20],
       [30, 5],
     ]);
+  });
+});
+
+describe("defaultIsRetryable", () => {
+  it("returns false for Access Denied", () => {
+    expect(defaultIsRetryable(new Error("Access Denied"))).toBe(false);
+  });
+
+  it("returns false for Forbidden", () => {
+    expect(defaultIsRetryable(new Error("403 Forbidden"))).toBe(false);
+  });
+
+  it("returns false for Unauthorized", () => {
+    expect(defaultIsRetryable(new Error("401 Unauthorized"))).toBe(false);
+  });
+
+  it("returns false for Not Found", () => {
+    expect(defaultIsRetryable(new Error("404 Not Found"))).toBe(false);
+  });
+
+  it("returns false for arbitrary 4xx except 429", () => {
+    expect(defaultIsRetryable(new Error("HTTP 400 Bad Request"))).toBe(false);
+    expect(defaultIsRetryable(new Error("HTTP 410 Gone"))).toBe(false);
+  });
+
+  it("returns true for 429 Too Many Requests", () => {
+    expect(defaultIsRetryable(new Error("HTTP 429 Too Many Requests"))).toBe(
+      true,
+    );
+  });
+
+  it("returns true for 5xx errors", () => {
+    expect(
+      defaultIsRetryable(new Error("HTTP 500 Internal Server Error")),
+    ).toBe(true);
+    expect(defaultIsRetryable(new Error("503 Service Unavailable"))).toBe(true);
+  });
+
+  it("returns true for network errors", () => {
+    expect(defaultIsRetryable(new Error("ECONNRESET"))).toBe(true);
+    expect(defaultIsRetryable(new Error("fetch failed"))).toBe(true);
+  });
+});
+
+describe("withRetry with isRetryable", () => {
+  it("does not retry when isRetryable returns false", async () => {
+    let calls = 0;
+    const fn = async () => {
+      calls++;
+      throw new Error("Access Denied");
+    };
+    await expect(
+      withRetry(fn, { maxRetries: 3, isRetryable: defaultIsRetryable }),
+    ).rejects.toThrow("Access Denied");
+    expect(calls).toBe(1);
+  });
+
+  it("retries up to maxRetries for retryable errors", async () => {
+    let calls = 0;
+    const fn = async () => {
+      calls++;
+      throw new Error("fetch failed");
+    };
+    await expect(
+      withRetry(fn, {
+        maxRetries: 2,
+        retryDelayMs: 0,
+        isRetryable: defaultIsRetryable,
+      }),
+    ).rejects.toThrow("fetch failed");
+    expect(calls).toBe(3);
   });
 });

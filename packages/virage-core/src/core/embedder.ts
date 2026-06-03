@@ -14,6 +14,7 @@ import {
   withRetry,
   withConcurrency,
   batchBySize,
+  defaultIsRetryable,
   RetryOptions,
 } from "./utils.js";
 import { readEmbeddingsFile, writeEmbeddingsFile } from "./embeddings-io.js";
@@ -31,7 +32,9 @@ export class EmbedderProcessor {
   private retryOptions: RetryOptions;
   private concurrency: number;
   private vectorStoreName?: string;
+  private saveIntervalMs: number;
   private logger: Logger;
+  onProgress?: (completed: number, total: number) => void;
 
   constructor(
     provider: EmbeddingProvider,
@@ -42,7 +45,9 @@ export class EmbedderProcessor {
       retry?: RetryOptions;
       concurrency?: number;
       vectorStoreName?: string;
+      saveIntervalMs?: number;
       logger?: Logger;
+      onProgress?: (completed: number, total: number) => void;
     } = {},
   ) {
     this.provider = provider;
@@ -52,13 +57,15 @@ export class EmbedderProcessor {
     this.retryOptions = options.retry ?? {};
     this.concurrency = options.concurrency ?? 1;
     this.vectorStoreName = options.vectorStoreName;
+    this.saveIntervalMs = options.saveIntervalMs ?? 30_000;
+    this.onProgress = options.onProgress;
     this.logger = (options.logger ?? new NullLogger()).withTag("embedder");
   }
 
   async embedChunk(chunk: Chunk): Promise<EmbeddedChunk> {
     const embedding = await withRetry(
       () => this.provider.embed(chunk.content),
-      this.retryOptions,
+      { ...this.retryOptions, isRetryable: defaultIsRetryable },
       this.logger,
     );
 
@@ -74,7 +81,7 @@ export class EmbedderProcessor {
       const texts = chunks.map((c) => c.content);
       const embeddings = await withRetry(
         () => this.provider.embedBatch!(texts),
-        this.retryOptions,
+        { ...this.retryOptions, isRetryable: defaultIsRetryable },
         this.logger,
       );
 
@@ -353,6 +360,7 @@ export class EmbedderProcessor {
       this.maxBatchChars,
     );
     const newEmbeddings: EmbeddedChunk[] = [];
+    let lastSaveTime = Date.now();
 
     for (let i = 0; i < batches.length; i++) {
       const totalChars = batches[i].reduce((s, c) => s + c.content.length, 0);
@@ -361,13 +369,20 @@ export class EmbedderProcessor {
       );
       const embedded = await this.embedBatch(batches[i]);
       newEmbeddings.push(...embedded);
-      await this.saveEmbeddings(
-        embedded,
-        chunksFile,
-        existingMeta,
-        i === 0,
-        i === 0 && effectiveForce,
-      );
+      this.onProgress?.(newEmbeddings.length, chunksToEmbed.length);
+
+      const isLastBatch = i === batches.length - 1;
+      const elapsed = Date.now() - lastSaveTime;
+      if (isLastBatch || elapsed >= this.saveIntervalMs) {
+        await this.saveEmbeddings(
+          embedded,
+          chunksFile,
+          existingMeta,
+          i === 0,
+          i === 0 && effectiveForce,
+        );
+        lastSaveTime = Date.now();
+      }
     }
 
     return newEmbeddings;

@@ -2,6 +2,7 @@ import { loadConfig } from "../config-loader.js";
 import { loadEvalDataset } from "../eval/dataset-io.js";
 import { EvalRunner } from "../eval/runner.js";
 import { ExperimentStore, makeRunId } from "../eval/experiment-store.js";
+import { createProgressBar } from "../progress/progress-bar.js";
 import type { EvalResult, ExperimentRun } from "../interfaces/quality.js";
 
 export interface EvaluateOptions {
@@ -40,7 +41,11 @@ export async function runEvaluate(opts: EvaluateOptions): Promise<void> {
 
   console.log("🔍 Running retrieval evaluation...");
   const runner = new EvalRunner(cfg.vectorStore, cfg.embedder, dataset);
-  const { evalResult, perQueryRrScores } = await runner.run();
+  const evalBar = createProgressBar("Evaluating", dataset.queries.length);
+  const { evalResult, perQueryRrScores } = await runner.run((done, total) =>
+    evalBar.update(done < total ? done : total),
+  );
+  evalBar.stop();
 
   printEvalResult(evalResult);
 

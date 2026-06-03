@@ -118,7 +118,10 @@ export class FastEmbedEmbedder implements EmbeddingProvider {
     try {
       await this.getModel();
       return true;
-    } catch {
+    } catch (err) {
+      this.logger?.warn(
+        `FastEmbed health check failed: ${err instanceof Error ? err.message : String(err)}`,
+      );
       return false;
     }
   }

@@ -28,19 +28,6 @@ export const BUILT_IN_PLUGINS: PluginEntry[] = [
   },
   {
     type: "embedder",
-    label: "GitHub Models (Azure-compatible endpoint)",
-    key: "github-models",
-    package: "@vivantel/virage-embedder-openai",
-    envVars: ["GITHUB_TOKEN"],
-    defaultConfig: {
-      apiKey: "${GITHUB_TOKEN}",
-      baseURL: "https://models.github.ai/inference",
-      model: "openai/text-embedding-3-small",
-      dimensions: 1536,
-    },
-  },
-  {
-    type: "embedder",
     label: "FastEmbed (local, no API key required)",
     key: "fastembed",
     package: "@vivantel/virage-embedder-fastembed",

@@ -12,10 +12,8 @@ export {
 export { OpenAIJudge, type OpenAIJudgeOptions } from "./judge.js";
 export { SemanticCache, type SemanticCacheConfig } from "./semantic-cache.js";
 export {
-  createGitHubModelsEmbedder,
   createAzureOpenAIEmbedder,
   createOllamaEmbedder,
-  type GitHubModelsPresetOptions,
   type AzureOpenAIPresetOptions,
   type OllamaPresetOptions,
 } from "./presets.js";

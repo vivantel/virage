@@ -64,14 +64,10 @@ export async function runValidate(configPath: string): Promise<void> {
     const allPatterns = config.chunkers.flatMap((c) => c.patterns);
     for (const group of detectedGroups) {
       const covered = group.exts.some((ext) =>
-        allPatterns.some(
-          (p) => p.includes(`*${ext}`) || p.includes(`${ext}`),
-        ),
+        allPatterns.some((p) => p.includes(`*${ext}`) || p.includes(`${ext}`)),
       );
       if (covered) {
-        console.log(
-          `  ✅ ${group.name} (${group.exts.join(", ")}) — covered`,
-        );
+        console.log(`  ✅ ${group.name} (${group.exts.join(", ")}) — covered`);
       } else {
         console.log(
           `  ⚠️  ${group.name} (${group.exts.join(", ")}) — not covered by any chunker`,

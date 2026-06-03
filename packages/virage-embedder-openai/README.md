@@ -2,7 +2,7 @@
 
 [![npm version](https://img.shields.io/npm/v/@vivantel/virage-embedder-openai.svg)](https://www.npmjs.com/package/@vivantel/virage-embedder-openai)
 
-OpenAI-compatible embedding provider for `@vivantel/virage-core`. Works with OpenAI, Azure OpenAI, GitHub Models, Ollama, LM Studio, and any OpenAI-compatible endpoint.
+OpenAI-compatible embedding provider for `@vivantel/virage-core`. Works with OpenAI, Azure OpenAI, Ollama, LM Studio, GitHub Models, and any OpenAI-compatible endpoint.
 
 ## Installation
 
@@ -24,14 +24,16 @@ const embedder = new OpenAICompatibleEmbedder({
 });
 ```
 
-### GitHub Models (preset)
+### GitHub Models (via generic OpenAI-compatible endpoint)
 
 ```typescript
-import { createGitHubModelsEmbedder } from "@vivantel/virage-embedder-openai";
+import { OpenAICompatibleEmbedder } from "@vivantel/virage-embedder-openai";
 
-const embedder = createGitHubModelsEmbedder({
-  token: process.env.GITHUB_TOKEN!,
-  model: "openai/text-embedding-3-small", // optional, this is the default
+const embedder = new OpenAICompatibleEmbedder({
+  apiKey: process.env.GITHUB_TOKEN!,
+  baseURL: "https://models.github.ai/inference",
+  model: "openai/text-embedding-3-small",
+  dimensions: 1536,
 });
 ```
 
@@ -66,14 +68,15 @@ const embedder = createOllamaEmbedder({
   "embedder": {
     "package": "@vivantel/virage-embedder-openai",
     "config": {
-      "apiKey": "${GITHUB_TOKEN}",
-      "baseURL": "https://models.github.ai/inference",
-      "model": "openai/text-embedding-3-small",
+      "apiKey": "${OPENAI_API_KEY}",
+      "model": "text-embedding-3-small",
       "dimensions": 1536
     }
   }
 }
 ```
+
+Any OpenAI-compatible endpoint (including GitHub Models, Azure OpenAI, Ollama) can be used by adding a `baseURL` field to the config.
 
 ## Options
 

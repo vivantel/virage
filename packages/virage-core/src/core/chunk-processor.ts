@@ -36,6 +36,7 @@ export class ChunkProcessor {
     files: string[],
     fileState: Map<string, { commitHash: string; chunker: FileChunker }>,
     existingChunks: Chunk[] = [],
+    onProgress?: (completed: number, total: number) => void,
   ): Promise<Chunk[]> {
     const allChunks: Chunk[] = [];
     let errorCount = 0;
@@ -73,6 +74,7 @@ export class ChunkProcessor {
           `⏭️ Cached [${i + 1}/${files.length}] ${filePath} (${cached.chunks.length} chunk(s))`,
         );
         allChunks.push(...cached.chunks);
+        onProgress?.(i + 1, files.length);
         continue;
       }
 
@@ -102,6 +104,7 @@ export class ChunkProcessor {
           `  ❌ Error: ${error instanceof Error ? error.message : String(error)}`,
         );
       }
+      onProgress?.(i + 1, files.length);
     }
 
     if (errorCount > 0) {

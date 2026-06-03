@@ -87,12 +87,22 @@ export class ConsolaLogger implements Logger {
     // appears at -vvv (verbosity 3 → consola level 6). Also place message
     // in args so FancyReporter renders it (formatArgs uses args, not message).
     if (this._consola.level < 6) return;
-    this._consola._log({ level: 6, message: "", args: [message, ...args], date: new Date() });
+    this._consola._log({
+      level: 6,
+      message: "",
+      args: [message, ...args],
+      date: new Date(),
+    });
   }
 
   silly(message: string, ...args: unknown[]): void {
     if (this._consola.level < 999) return;
-    this._consola._log({ level: 999, message: "", args: [message, ...args], date: new Date() });
+    this._consola._log({
+      level: 999,
+      message: "",
+      args: [message, ...args],
+      date: new Date(),
+    });
   }
 
   withTag(tag: string): Logger {

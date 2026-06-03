@@ -1,11 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { OpenAICompatibleEmbedder } from "./embedder.js";
 import { createEmbedder } from "./index.js";
-import {
-  createGitHubModelsEmbedder,
-  createOllamaEmbedder,
-  createAzureOpenAIEmbedder,
-} from "./presets.js";
+import { createOllamaEmbedder, createAzureOpenAIEmbedder } from "./presets.js";
 
 const mockCreate = vi.fn();
 
@@ -110,12 +106,6 @@ describe("createEmbedder factory", () => {
 });
 
 describe("presets", () => {
-  it("createGitHubModelsEmbedder sets correct baseURL and model", () => {
-    const embedder = createGitHubModelsEmbedder({ token: "ghp_test" });
-    expect(embedder.model).toBe("openai/text-embedding-3-small");
-    expect(embedder.name).toContain("models.github.ai");
-  });
-
   it("createOllamaEmbedder uses ollama baseURL", () => {
     const embedder = createOllamaEmbedder({
       model: "nomic-embed-text",

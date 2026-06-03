@@ -16,13 +16,16 @@ export class EvalRunner {
     private readonly topK = 10,
   ) {}
 
-  async run(): Promise<EvalRunResult> {
+  async run(
+    onProgress?: (completed: number, total: number) => void,
+  ): Promise<EvalRunResult> {
     const queryResults: Array<{
       retrievedIds: string[];
       relevantIds: Set<string>;
     }> = [];
 
-    for (const evalQuery of this.dataset.queries) {
+    for (let qi = 0; qi < this.dataset.queries.length; qi++) {
+      const evalQuery = this.dataset.queries[qi];
       const embedding = await this.embedder.embed(evalQuery.query);
       const searchResults = await this.store.search(embedding, this.topK);
 
@@ -54,6 +57,7 @@ export class EvalRunner {
       }
 
       queryResults.push({ retrievedIds, relevantIds });
+      onProgress?.(qi + 1, this.dataset.queries.length);
     }
 
     const evalResult = computeEvalResult(queryResults);

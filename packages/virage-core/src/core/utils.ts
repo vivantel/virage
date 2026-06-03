@@ -13,6 +13,34 @@ export interface RetryOptions {
   maxRetries?: number;
   retryDelayMs?: number;
   retryBackoffFactor?: number;
+  isRetryable?: (error: unknown) => boolean;
+}
+
+export function defaultIsRetryable(error: unknown): boolean {
+  const msg =
+    error instanceof Error
+      ? error.message
+      : typeof error === "string"
+        ? error
+        : String(error);
+
+  const lower = msg.toLowerCase();
+  if (
+    lower.includes("access denied") ||
+    lower.includes("forbidden") ||
+    lower.includes("unauthorized") ||
+    lower.includes("not found")
+  ) {
+    return false;
+  }
+
+  // Reject any 4xx HTTP status code except 429 (Too Many Requests)
+  const m = msg.match(/\b4(\d{2})\b/);
+  if (m) {
+    return parseInt(m[0], 10) === 429;
+  }
+
+  return true;
 }
 
 export async function withRetry<T>(
@@ -23,6 +51,7 @@ export async function withRetry<T>(
   const maxRetries = opts.maxRetries ?? 3;
   const delayMs = opts.retryDelayMs ?? 1000;
   const factor = opts.retryBackoffFactor ?? 2;
+  const isRetryable = opts.isRetryable;
 
   let lastErr: unknown;
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
@@ -30,6 +59,9 @@ export async function withRetry<T>(
       return await fn();
     } catch (err) {
       lastErr = err;
+      if (isRetryable && !isRetryable(err)) {
+        throw err;
+      }
       if (attempt < maxRetries) {
         const wait = Math.round(delayMs * Math.pow(factor, attempt));
         logger?.verbose(

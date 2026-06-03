@@ -33,8 +33,7 @@
     "rag",
     "embeddings",
     "openai",
-    "azure",
-    "github-models"
+    "azure"
   ],
   "author": "Vivantel",
   "license": "MIT",
