@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.0.0](https://github.com/vivantel/rag_core/compare/rag-core@v3.4.2...rag-core@v4.0.0) (2026-06-03)
+
+
+### ⚠ BREAKING CHANGES
+
+* remove deprecated GitHubModelsEmbedder and exclude acceptance tests from CI
+
+### Features
+
+* Acceptance test suite, rag-store-test package, and CLI update subcommand ([9270e62](https://github.com/vivantel/rag_core/commit/9270e629d3f80c28b6f0c29b22ee5d3b906d2dfe))
+* Remove deprecated GitHubModelsEmbedder and exclude acceptance tests from CI ([bbd1daa](https://github.com/vivantel/rag_core/commit/bbd1daa094274d4e3d6da78b98047fb8503a5bf4))
+
 ## [3.4.2](https://github.com/vivantel/rag_core/compare/rag-core@v3.4.1...rag-core@v3.4.2) (2026-06-03)
 
 
