@@ -35,6 +35,12 @@ jobs:
           config-file: .github/config/release-please.json
           manifest-file: .release-please-manifest.json
 
+      - name: Enable auto-merge for Release Please PR
+        if: ${{ steps.release.outputs.pr }}
+        run: gh pr merge --auto --merge "${{ steps.release.outputs.pr }}"
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+
   publish-core:
     name: Publish @vivantel/rag-core
     needs: release-please
