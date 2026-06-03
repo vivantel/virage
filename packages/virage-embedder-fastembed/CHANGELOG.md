@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.2.1](https://github.com/vivantel/virage/compare/virage-embedder-fastembed@v0.2.0...virage-embedder-fastembed@v0.2.1) (2026-06-03)
+
+
+### Features
+
+* Use .virage/ as default storage folder, support VIRAGE_DIR env var ([d831d8e](https://github.com/vivantel/virage/commit/d831d8e6b91fa6c1716bd507f834e1f837a3c947))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * devDependencies
+    * @vivantel/virage-core bumped from 0.2.0 to 0.2.1
+  * peerDependencies
+    * @vivantel/virage-core bumped from * to 0.2.1
+
 ## [0.2.0](https://github.com/vivantel/rag_core/compare/virage-embedder-fastembed@v0.1.0...virage-embedder-fastembed@v0.2.0) (2026-06-03)
 
 
