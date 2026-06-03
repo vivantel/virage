@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.1](https://github.com/vivantel/virage/compare/virage-core@v0.2.0...virage-core@v0.2.1) (2026-06-03)
+
+
+### Features
+
+* Use .virage/ as default storage folder, support VIRAGE_DIR env var ([d831d8e](https://github.com/vivantel/virage/commit/d831d8e6b91fa6c1716bd507f834e1f837a3c947))
+
+
+### Bug Fixes
+
+* Eliminate redundant git scan, fix init overwrite/install prompts, rename rag.config.ci.json ([75dcdf3](https://github.com/vivantel/virage/commit/75dcdf33402e3b0b5718e6c0ee866b51544e1415))
+
 ## [0.2.0](https://github.com/vivantel/rag_core/compare/virage-core@v0.1.0...virage-core@v0.2.0) (2026-06-03)
 
 
