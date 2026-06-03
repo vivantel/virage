@@ -1,6 +1,6 @@
 {
   "name": "@vivantel/virage-strategies",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "type": "module",
   "description": "Built-in chunking strategies for @vivantel/rag-core",
   "repository": {
@@ -46,7 +46,7 @@
     "@vivantel/virage-core": "*"
   },
   "devDependencies": {
-    "@vivantel/virage-core": "*",
+    "@vivantel/virage-core": "0.2.0",
     "@types/node": "^25.9.1",
     "typescript": "^6.0.3",
     "vitest": "^4.1.8"
