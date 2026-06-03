@@ -1,5 +1,21 @@
 # Changelog
 
+## [1.4.0](https://github.com/vivantel/rag_core/compare/rag-store-postgres@v1.3.6...rag-store-postgres@v1.4.0) (2026-06-03)
+
+
+### Features
+
+* Add Logger abstraction with consola and -v verbosity flag ([cf69a0a](https://github.com/vivantel/rag_core/commit/cf69a0a903fc54d1b45ab093d2d32e75b68ebc39))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * devDependencies
+    * @vivantel/rag-core bumped from file:../rag-core to 3.4.0
+  * peerDependencies
+    * @vivantel/rag-core bumped from ^2.0.0 to ^3.4.0
+
 ## [1.3.6](https://github.com/vivantel/rag_core/compare/rag-store-postgres@v1.3.5...rag-store-postgres@v1.3.6) (2026-06-02)
 
 

@@ -1,6 +1,6 @@
 {
   "name": "@vivantel/rag-embedder-openai",
-  "version": "1.4.6",
+  "version": "1.5.0",
   "description": "OpenAI-compatible embedding provider for @vivantel/rag-core",
   "type": "module",
   "main": "dist/index.js",

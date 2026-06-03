@@ -1,6 +1,6 @@
 {
   "name": "@vivantel/rag-core",
-  "version": "3.3.3",
+  "version": "3.4.0",
   "type": "module",
   "description": "Core RAG pipeline tools - universal chunking, embedding, vector store interfaces",
   "repository": {
