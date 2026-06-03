@@ -1,5 +1,6 @@
 {
   "release-type": "node",
+  "auto-merge": true,
   "separate-pull-requests": false,
   "include-component-in-tag": true,
   "tag-separator": "@",
