@@ -366,3 +366,78 @@ Remove TypeScript config loading entirely. `loadConfig()` now only handles JSON.
 - **+** `tsx` removed from the published package's runtime dependency tree.
 - **+** `init` wizard is simpler and always produces a working JSON config.
 - **−** Breaking change for consumers using `rag.config.ts`. Migration: run `rag-update init` or rename to `.json` and convert manually.
+
+---
+
+## ADR-017: Logger abstraction with consola and stackable `-v` verbosity
+
+**Date:** 2026-06-02  
+**Status:** Accepted
+
+### Context
+Raw `console.*` calls were scattered across the pipeline and all plugin packages. There was no way to silence output in tests or increase verbosity in debugging sessions without editing source code.
+
+### Decision
+Introduce a `Logger` interface with two implementations: `ConsolaLogger` (wraps `consola`, default) and `NullLogger` (silences all output). The CLI exposes a stackable `-v` flag (0–5 levels); the resolved log level is passed to `createLogger(verbosity)` and threaded through `Orchestrator` and all pipeline stages. All plugin packages add a `setLogger(logger: Logger)` method so the orchestrator can propagate the logger without coupling plugins to a specific logging library.
+
+### Consequences
+- **+** Tests can use `NullLogger` to silence pipeline output without I/O redirection.
+- **+** `-vvv` gives progressively more detailed output without code changes.
+- **+** Plugins remain decoupled from any specific logging library.
+- **−** All plugin packages needed updating to accept `setLogger()`.
+
+---
+
+## ADR-018: Vitest acceptance test suite in `test/acceptance/`
+
+**Date:** 2026-06-03  
+**Status:** Accepted
+
+### Context
+The prior shell-script e2e test was not integrated with CI, produced no structured output, had no per-test isolation, and required manual inspection to determine pass/fail.
+
+### Decision
+Replace the shell script with a Vitest-based acceptance suite under `packages/rag-core/test/acceptance/`. Separate `vitest.acceptance.config.ts` sets a 6-minute test timeout, `forks` pool (for subprocess isolation), and verbose reporter. Fixture helpers (`writeChunks`, `writeEmbeddings`, `writeTelemetry`, `writeExperimentRun`) allow most tests to skip the full pipeline. `E2E_CLONE_DIR` environment variable bypasses the slow `git clone` step so developers can iterate quickly. One test per CLI command.
+
+### Consequences
+- **+** Per-test failure isolation; JUnit-compatible output for CI.
+- **+** Typed JSON assertions instead of stdout grep.
+- **+** Fixture-based tests run in seconds; only `update` and `store` require the full pipeline.
+- **−** First run takes ~10 minutes (clone + embed); `E2E_CLONE_DIR` required for fast iteration.
+
+---
+
+## ADR-019: `@vivantel/rag-store-test` private workspace package
+
+**Date:** 2026-06-03  
+**Status:** Accepted
+
+### Context
+The acceptance tests needed a `VectorStore` implementation that persists state to a local JSON file so the full pipeline can run without a real database. The implementation lived in `scripts/test-store.mjs` and was referenced by an absolute file path in `vectorStore.package` — fragile and not resolvable by the standard `import()` mechanism used by `loadConfig()`.
+
+### Decision
+Promote the implementation to a private TypeScript workspace package `@vivantel/rag-store-test`. The config references it as `"package": "@vivantel/rag-store-test"` and the npm workspace symlink resolves it correctly. The package deliberately has no `rag-plugin` field so it is not auto-discovered by `loadRegistry()`. It fully implements `VectorStore` including `getIndexStats()` and `getQueryPerfReport()` (returning stub zeroes).
+
+### Consequences
+- **+** Config uses a clean package name rather than a fragile absolute path.
+- **+** Type-safe TypeScript implementation; peer-depends on `@vivantel/rag-core` for the interface types.
+- **+** No risk of accidental production use (no `rag-plugin` field, `private: true`).
+- **−** One additional package to build before running acceptance tests.
+
+---
+
+## ADR-020: `rag-update update` subcommand; `help` as default action
+
+**Date:** 2026-06-03  
+**Status:** Accepted
+
+### Context
+Running bare `rag-update` executed the full pipeline silently — a poor experience for first-time users and dangerous in scripts that accidentally call the wrong binary. Other popular CLIs (git, npm, cargo) show help when called without a subcommand.
+
+### Decision
+Move the pipeline execution logic from the root program action into an explicit `update` subcommand. The root program's `.action()` now calls `program.outputHelp()`. All existing flags (`--force`, `--no-upload`, `--dry-run`, `--chunks-out`, `--embeddings-out`, `--watch`) are unchanged, just moved under `update`. The stackable `-v` flag remains on the root program and is inherited by `update` via `program.opts()`.
+
+### Consequences
+- **+** Running `rag-update` with no arguments prints help — discoverable and safe.
+- **+** All subcommands now follow the same `rag-update <command>` pattern.
+- **−** Breaking change: scripts calling `rag-update --force` must be updated to `rag-update update --force`.

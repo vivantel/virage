@@ -1,0 +1,26 @@
+{
+  "name": "@vivantel/rag-store-test",
+  "version": "1.0.0",
+  "type": "module",
+  "private": true,
+  "description": "File-backed VectorStore for acceptance testing — not for production use",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "test": "echo 'no unit tests'"
+  },
+  "peerDependencies": {
+    "@vivantel/rag-core": "*"
+  },
+  "devDependencies": {
+    "@types/node": "^25.9.1",
+    "typescript": "^6.0.3"
+  }
+}

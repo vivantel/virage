@@ -71,8 +71,21 @@ async function runOnce(options: {
 
 program
   .name("rag-update")
-  .description("Update RAG index with latest changes")
+  .description(
+    "RAG pipeline CLI — run 'rag-update update' to index, or a subcommand for diagnostics",
+  )
   .version("2.0.0")
+  .option(
+    "-v, --verbose",
+    "Increase verbosity (stackable: -v, -vv … -vvvvv)",
+    (_, prev: number) => prev + 1,
+    0,
+  )
+  .action(() => program.outputHelp());
+
+program
+  .command("update")
+  .description("Run the RAG indexing pipeline")
   .option("-c, --config <path>", "Path to config file", "./rag.config.json")
   .option("-f, --force", "Force full rebuild", false)
   .option("--no-upload", "Skip upload to vector store")
@@ -80,73 +93,69 @@ program
   .option("--chunks-out <path>", "Output path for chunks.json")
   .option("--embeddings-out <path>", "Output path for embeddings.json")
   .option("--watch", "Re-run pipeline on file changes", false)
-  .option(
-    "-v, --verbose",
-    "Increase verbosity (stackable: -v, -vv … -vvvvv)",
-    (_, prev: number) => prev + 1,
-    0,
-  )
-  .action(async () => {
-    const opts = program.opts<{
+  .action(
+    async (cmdOpts: {
       config: string;
       force: boolean;
-      upload: boolean; // commander inverts --no-upload → opts.upload = false
+      upload: boolean; // commander inverts --no-upload → upload = false
       dryRun: boolean;
       chunksOut?: string;
       embeddingsOut?: string;
       watch: boolean;
-      verbose: number;
-    }>();
+    }) => {
+      const verbose = program.opts<{ verbose: number }>().verbose;
+      const logger = createLogger(verbose);
 
-    const logger = createLogger(opts.verbose);
+      const runOptions = {
+        config: cmdOpts.config,
+        force: cmdOpts.force,
+        noUpload: !cmdOpts.upload,
+        dryRun: cmdOpts.dryRun,
+        chunksOut: cmdOpts.chunksOut,
+        embeddingsOut: cmdOpts.embeddingsOut,
+        logger,
+      };
 
-    const runOptions = {
-      config: opts.config,
-      force: opts.force,
-      noUpload: !opts.upload,
-      dryRun: opts.dryRun,
-      chunksOut: opts.chunksOut,
-      embeddingsOut: opts.embeddingsOut,
-      logger,
-    };
+      logger.info("🚀 RAG Update Tool");
 
-    logger.info("🚀 RAG Update Tool");
+      try {
+        await runOnce(runOptions);
+      } catch (error) {
+        handleError(error);
+      }
 
-    try {
-      await runOnce(runOptions);
-    } catch (error) {
-      handleError(error);
-    }
+      if (!cmdOpts.watch) return;
 
-    if (!opts.watch) return;
+      // Watch mode
+      const { default: chokidar } = await import("chokidar");
+      const cfg = await loadConfig(cmdOpts.config, logger).catch(() => null);
+      const patterns: string[] = cfg
+        ? cfg.chunkers.flatMap((c) => c.patterns)
+        : [];
 
-    // Watch mode
-    const { default: chokidar } = await import("chokidar");
-    const cfg = await loadConfig(opts.config, logger).catch(() => null);
-    const patterns: string[] = cfg
-      ? cfg.chunkers.flatMap((c) => c.patterns)
-      : [];
+      const watched = [cmdOpts.config, ...patterns];
+      logger.info("👁️  Watching for changes...");
 
-    const watched = [opts.config, ...patterns];
-    logger.info("👁️  Watching for changes...");
-
-    let debounce: ReturnType<typeof setTimeout> | null = null;
-    chokidar
-      .watch(watched, { ignoreInitial: true })
-      .on("all", (event, path) => {
-        if (debounce) clearTimeout(debounce);
-        debounce = setTimeout(async () => {
-          logger.info(`🔄 Change detected (${event}: ${path}), re-running...`);
-          try {
-            await runOnce(runOptions);
-          } catch (error) {
-            logger.error(
-              error instanceof Error ? error.message : String(error),
+      let debounce: ReturnType<typeof setTimeout> | null = null;
+      chokidar
+        .watch(watched, { ignoreInitial: true })
+        .on("all", (event, path) => {
+          if (debounce) clearTimeout(debounce);
+          debounce = setTimeout(async () => {
+            logger.info(
+              `🔄 Change detected (${event}: ${path}), re-running...`,
             );
-          }
-        }, 500);
-      });
-  });
+            try {
+              await runOnce(runOptions);
+            } catch (error) {
+              logger.error(
+                error instanceof Error ? error.message : String(error),
+              );
+            }
+          }, 500);
+        });
+    },
+  );
 
 program
   .command("init")
