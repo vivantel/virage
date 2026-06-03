@@ -111,3 +111,7 @@ Never commit when `npm run lint` or `npm run type-check:ci` report errors.
 ## Release process
 
 Releases are automated via release-please (`.github/workflows/release.yaml`). Commit messages must follow Conventional Commits (`feat:`, `fix:`, `chore:`, etc.) — this drives version bumping and CHANGELOG generation. The `prepublishOnly` script runs `build && test` before any publish.
+
+## Planning rules
+
+Do not parallelize planning steps. Execute each step in order of appearance, or — when steps have explicit dependencies — in dependency order (fewest dependencies first). Wait for each step to complete before starting the next.
