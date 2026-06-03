@@ -22,7 +22,40 @@ export class ConsolaLogger implements Logger {
   static create(verbosity: number): ConsolaLogger {
     const level =
       VERBOSITY_LEVELS[Math.min(verbosity, VERBOSITY_LEVELS.length - 1)];
-    return new ConsolaLogger(createConsola({ level }));
+    const instance = createConsola({ level });
+
+    // FancyReporter.formatLogObj captures `new Error().stack` for trace-type
+    // logs and renders it. Patch formatStack to strip consola internals and the
+    // ConsolaLogger bridge frame so only application frames appear.
+    const reporter = (
+      instance as unknown as {
+        options?: {
+          reporters?: Array<{
+            formatStack?: (
+              stack: string,
+              message: string,
+              opts?: unknown,
+            ) => string;
+          }>;
+        };
+      }
+    ).options?.reporters?.[0];
+    if (typeof reporter?.formatStack === "function") {
+      const orig = reporter.formatStack.bind(reporter);
+      reporter.formatStack = (stack, message, opts) => {
+        const filtered = stack
+          .split("\n")
+          .filter(
+            (line) =>
+              !line.includes("node_modules/consola") &&
+              !line.includes("consola-logger"),
+          )
+          .join("\n");
+        return orig(filtered, message, opts);
+      };
+    }
+
+    return new ConsolaLogger(instance as ConsolaWithLog);
   }
 
   fatal(message: string, ...args: unknown[]): void {

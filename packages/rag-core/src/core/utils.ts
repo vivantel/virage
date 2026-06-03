@@ -33,7 +33,9 @@ export async function withRetry<T>(
       if (attempt < maxRetries) {
         const wait = Math.round(delayMs * Math.pow(factor, attempt));
         logger?.verbose(
-          `  ⚠️ Attempt ${attempt + 1}/${maxRetries + 1} failed, retrying in ${wait}ms...`,
+          `  ⚠️ Attempt ${attempt + 1}/${maxRetries + 1} failed` +
+            ` (${err instanceof Error ? err.message : String(err)})` +
+            `, retrying in ${wait}ms...`,
         );
         await sleep(wait);
       }
