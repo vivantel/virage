@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.2.2](https://github.com/vivantel/virage/compare/virage-embedder-fastembed@v0.2.1...virage-embedder-fastembed@v0.2.2) (2026-06-03)
+
+
+### Bug Fixes
+
+* Use .virage folder for plugin storage, fix blank log lines, unify file detection ([76c1303](https://github.com/vivantel/virage/commit/76c1303ed64b1dea6991e88a533fbcbfe4d5447b))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * devDependencies
+    * @vivantel/virage-core bumped from 0.2.1 to 0.2.2
+  * peerDependencies
+    * @vivantel/virage-core bumped from * to 0.2.2
+
 ## [0.2.1](https://github.com/vivantel/virage/compare/virage-embedder-fastembed@v0.2.0...virage-embedder-fastembed@v0.2.1) (2026-06-03)
 
 
