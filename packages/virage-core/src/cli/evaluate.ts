@@ -42,10 +42,14 @@ export async function runEvaluate(opts: EvaluateOptions): Promise<void> {
   console.log("🔍 Running retrieval evaluation...");
   const runner = new EvalRunner(cfg.vectorStore, cfg.embedder, dataset);
   const evalBar = createProgressBar("Evaluating", dataset.queries.length);
-  const { evalResult, perQueryRrScores } = await runner.run((done, total) =>
-    evalBar.update(done < total ? done : total),
-  );
-  evalBar.stop();
+  let evalResult, perQueryRrScores;
+  try {
+    ({ evalResult, perQueryRrScores } = await runner.run((done, total) =>
+      evalBar.update(done < total ? done : total),
+    ));
+  } finally {
+    evalBar.stop();
+  }
 
   printEvalResult(evalResult);
 

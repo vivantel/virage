@@ -1,10 +1,11 @@
 import { createServer, type IncomingMessage, type ServerResponse } from "http";
 import { readFile } from "fs/promises";
+import { EmbeddingsDb } from "../core/embeddings-db.js";
 
 export interface DashboardOptions {
   port: number;
   chunksFile: string;
-  embeddingsFile: string;
+  dbPath: string;
 }
 
 const HTML_TEMPLATE = `<!DOCTYPE html>
@@ -94,7 +95,7 @@ export async function runDashboard(opts: DashboardOptions): Promise<void> {
         }
 
         if (url === "/api/status") {
-          const status = await getStatus(opts.chunksFile, opts.embeddingsFile);
+          const status = await getStatus(opts.chunksFile, opts.dbPath);
           res.end(JSON.stringify(status));
           return;
         }
@@ -106,7 +107,7 @@ export async function runDashboard(opts: DashboardOptions): Promise<void> {
         }
 
         if (url === "/api/embeddings/anomalies") {
-          const anomalies = await getAnomalies(opts.embeddingsFile);
+          const anomalies = await getAnomalies(opts.dbPath);
           res.end(JSON.stringify(anomalies));
           return;
         }
@@ -134,7 +135,7 @@ export async function runDashboard(opts: DashboardOptions): Promise<void> {
   });
 }
 
-async function getStatus(chunksFile: string, embeddingsFile: string) {
+async function getStatus(chunksFile: string, dbPath: string) {
   let totalChunks = 0;
   let totalEmbeddings = 0;
 
@@ -148,13 +149,11 @@ async function getStatus(chunksFile: string, embeddingsFile: string) {
   }
 
   try {
-    const emb = JSON.parse(await readFile(embeddingsFile, "utf-8")) as unknown;
-    const embObj = emb as { chunks?: unknown[] };
-    totalEmbeddings =
-      embObj.chunks?.length ??
-      (Array.isArray(emb) ? (emb as unknown[]).length : 0);
+    const db = new EmbeddingsDb(dbPath);
+    totalEmbeddings = db.getAll().length;
+    db.close();
   } catch {
-    /* file may not exist yet */
+    /* db may not exist yet */
   }
 
   const memoryMB = Math.round(process.memoryUsage().heapUsed / 1024 / 1024);
@@ -189,19 +188,13 @@ async function getChunksHistogram(chunksFile: string) {
   }
 }
 
-async function getAnomalies(embeddingsFile: string) {
+async function getAnomalies(dbPath: string) {
   try {
-    const raw = JSON.parse(await readFile(embeddingsFile, "utf-8")) as unknown;
-    type EmbChunk = {
-      embedding: number[];
-      sourceFile?: string;
-      content?: string;
-    };
-    const embObj = raw as { chunks?: EmbChunk[] };
-    const chunks: EmbChunk[] =
-      embObj.chunks ?? (Array.isArray(raw) ? (raw as EmbChunk[]) : []) ?? [];
+    const db = new EmbeddingsDb(dbPath);
+    const chunks = db.getAll();
+    db.close();
 
-    if (!chunks || chunks.length === 0) return { anomalies: [] };
+    if (chunks.length === 0) return { anomalies: [] };
 
     const norms = chunks.map((c) =>
       Math.sqrt(

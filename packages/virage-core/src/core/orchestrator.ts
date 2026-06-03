@@ -13,6 +13,7 @@ import {
   EmbeddingProvider,
   VectorStore,
   Chunk,
+  EmbeddedChunk,
 } from "../interfaces/index.js";
 import type { Logger } from "../interfaces/logger.js";
 import { NullLogger } from "../logger/null-logger.js";
@@ -165,13 +166,17 @@ export class Orchestrator {
         : await loadExistingChunks(this.chunksFile);
 
       const chunkBar = createProgressBar("Chunking", toProcess.length);
-      const chunks = await chunkProcessor.processFiles(
-        toProcess,
-        fileState,
-        existingChunks,
-        (done, total) => chunkBar.update(done < total ? done : total),
-      );
-      chunkBar.stop();
+      let chunks: Chunk[];
+      try {
+        chunks = await chunkProcessor.processFiles(
+          toProcess,
+          fileState,
+          existingChunks,
+          (done, total) => chunkBar.update(done < total ? done : total),
+        );
+      } finally {
+        chunkBar.stop();
+      }
       await chunkProcessor.saveChunksLocal(chunks, this.chunksFile);
 
       const chunkDuration = Date.now() - t2;
@@ -216,17 +221,21 @@ export class Orchestrator {
         },
       });
 
-      const newEmbeddings = await embedder.run(
-        db,
-        this.chunksFile,
-        opts.force || false,
-        opts.skipUpload
-          ? undefined
-          : async () => {
-              await uploader.uploadPending(db);
-            },
-      );
-      embedBars[0]?.stop();
+      let newEmbeddings: EmbeddedChunk[];
+      try {
+        newEmbeddings = await embedder.run(
+          db,
+          this.chunksFile,
+          opts.force || false,
+          opts.skipUpload
+            ? undefined
+            : async () => {
+                await uploader.uploadPending(db);
+              },
+        );
+      } finally {
+        embedBars[0]?.stop();
+      }
 
       const embedDuration = Date.now() - t3;
       logger.verbose(`Embedding done in ${embedDuration}ms`);
@@ -247,7 +256,17 @@ export class Orchestrator {
       } else if (!opts.skipUpload) {
         logger.info("📤 Step 4: Uploading to vector store...");
         const t4 = Date.now();
-        uploadStats = await uploader.sync(db, opts.force || false);
+        const uploadBars: ProgressBar[] = [];
+        uploadStats = await uploader.sync(
+          db,
+          opts.force || false,
+          (done, total) => {
+            if (uploadBars.length === 0)
+              uploadBars.push(createProgressBar("Uploading", total));
+            uploadBars[0].update(done < total ? done : total);
+          },
+        );
+        uploadBars[0]?.stop();
 
         const uploadDuration = Date.now() - t4;
         logger.verbose(`Upload done in ${uploadDuration}ms`);

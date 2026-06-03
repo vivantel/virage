@@ -120,6 +120,7 @@ export class Uploader {
 
   async uploadPending(
     db: EmbeddingsDb,
+    onProgress?: (done: number, total: number) => void,
   ): Promise<{ uploaded: number; deleted: number }> {
     const pending = db.getPending();
     if (pending.length === 0) return { uploaded: 0, deleted: 0 };
@@ -127,6 +128,7 @@ export class Uploader {
     this.logger.verbose(`📤 Uploading ${pending.length} pending embeddings...`);
 
     const batchSize = 50;
+    let uploaded = 0;
     for (let i = 0; i < pending.length; i += batchSize) {
       const batch = pending.slice(i, i + batchSize);
       const documents = batch.map((e) => this.chunkToDocument(e));
@@ -139,6 +141,8 @@ export class Uploader {
         this.logger,
       );
       db.markUploaded(batch.map((e) => contentHash(e)));
+      uploaded += batch.length;
+      onProgress?.(uploaded, pending.length);
     }
 
     return { uploaded: pending.length, deleted: 0 };
@@ -147,6 +151,7 @@ export class Uploader {
   async sync(
     db: EmbeddingsDb,
     force: boolean = false,
+    onProgress?: (done: number, total: number) => void,
   ): Promise<{
     uploaded: number;
     deleted: number;
@@ -180,6 +185,7 @@ export class Uploader {
     if (toUpload.length > 0) {
       const batchSize = 50;
       const totalBatches = Math.ceil(toUpload.length / batchSize);
+      let uploaded = 0;
       for (let i = 0; i < toUpload.length; i += batchSize) {
         const batch = toUpload.slice(i, i + batchSize);
         const documents = batch.map((e) => this.chunkToDocument(e));
@@ -192,6 +198,8 @@ export class Uploader {
           this.logger,
         );
         db.markUploaded(batch.map((e) => contentHash(e)));
+        uploaded += batch.length;
+        onProgress?.(uploaded, toUpload.length);
         const batchNum = Math.floor(i / batchSize) + 1;
         this.logger.verbose(
           `  Batch ${batchNum}/${totalBatches}: ${batch.length} docs`,

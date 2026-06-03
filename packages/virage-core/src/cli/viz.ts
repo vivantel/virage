@@ -1,9 +1,9 @@
 import { writeFile } from "fs/promises";
 import { extname } from "path";
-import { readEmbeddingsFile } from "../core/embeddings-io.js";
+import { EmbeddingsDb } from "../core/embeddings-db.js";
 
 export interface VizEmbeddingsOptions {
-  embeddingsFile: string;
+  dbPath: string;
   output: string;
   projection: "umap" | "tsne";
 }
@@ -69,9 +69,11 @@ function pca2d(vectors: number[][], iterations = 100): Array<[number, number]> {
 export async function runVizEmbeddings(
   opts: VizEmbeddingsOptions,
 ): Promise<void> {
-  console.log(`📂 Reading embeddings from "${opts.embeddingsFile}"...`);
+  console.log(`📂 Reading embeddings from "${opts.dbPath}"...`);
 
-  const { chunks } = await readEmbeddingsFile(opts.embeddingsFile);
+  const db = new EmbeddingsDb(opts.dbPath);
+  const chunks = db.getAll();
+  db.close();
 
   if (chunks.length === 0) {
     console.error("❌ No embeddings found.");
@@ -114,7 +116,7 @@ export async function runVizEmbeddings(
     preview: c.content.slice(0, 100).replace(/"/g, "'"),
   }));
 
-  const html = buildHtml(plotData, opts.embeddingsFile, opts.projection);
+  const html = buildHtml(plotData, opts.dbPath, opts.projection);
   await writeFile(opts.output, html, "utf-8");
   console.log(`✅ Visualization saved to "${opts.output}"`);
 }

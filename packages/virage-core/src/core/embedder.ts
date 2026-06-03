@@ -301,7 +301,6 @@ export class EmbedderProcessor {
       this.maxBatchChars,
     );
     const newEmbeddings: EmbeddedChunk[] = [];
-    let lastSaveTime = Date.now();
 
     for (let i = 0; i < batches.length; i++) {
       const totalChars = batches[i].reduce((s, c) => s + c.content.length, 0);
@@ -312,31 +311,26 @@ export class EmbedderProcessor {
       newEmbeddings.push(...embedded);
       this.onProgress?.(newEmbeddings.length, chunksToEmbed.length);
 
-      const isLastBatch = i === batches.length - 1;
-      const elapsed = Date.now() - lastSaveTime;
-      if (isLastBatch || elapsed >= this.saveIntervalMs) {
-        const meta: EmbeddingsMeta = {
-          schemaVersion: 1,
-          providerName: this.provider.name,
-          providerDimensions: this.provider.dimensions,
-          ...(this.provider.model !== undefined
-            ? { model: this.provider.model }
-            : {}),
-          ...(this.vectorStoreName !== undefined
-            ? { vectorStoreName: this.vectorStoreName }
-            : {}),
-          createdAt: existingMeta?.createdAt ?? now,
-          updatedAt: now,
-        };
-        await this.saveEmbeddings(db, embedded, meta);
-        lastSaveTime = Date.now();
+      const meta: EmbeddingsMeta = {
+        schemaVersion: 1,
+        providerName: this.provider.name,
+        providerDimensions: this.provider.dimensions,
+        ...(this.provider.model !== undefined
+          ? { model: this.provider.model }
+          : {}),
+        ...(this.vectorStoreName !== undefined
+          ? { vectorStoreName: this.vectorStoreName }
+          : {}),
+        createdAt: existingMeta?.createdAt ?? now,
+        updatedAt: now,
+      };
+      await this.saveEmbeddings(db, embedded, meta);
 
-        if (
-          onIntermediateBatch &&
-          db.pendingCount() >= this.minIngestionBatchSize
-        ) {
-          await onIntermediateBatch();
-        }
+      if (
+        onIntermediateBatch &&
+        db.pendingCount() >= this.minIngestionBatchSize
+      ) {
+        await onIntermediateBatch();
       }
     }
 

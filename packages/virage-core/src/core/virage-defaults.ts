@@ -9,3 +9,7 @@ export function defaultChunksFile(): string {
 export function defaultEmbeddingsFile(): string {
   return `${getVirageDir()}/embeddings.json`;
 }
+
+export function defaultEmbeddingsDb(): string {
+  return `${getVirageDir()}/embeddings.db`;
+}

@@ -23,11 +23,11 @@ import { runVizEmbeddings } from "../cli/viz.js";
 import { runDashboard } from "../cli/dashboard.js";
 import {
   defaultChunksFile,
-  defaultEmbeddingsFile,
+  defaultEmbeddingsDb,
   getVirageDir,
 } from "../core/virage-defaults.js";
 
-config();
+config({ quiet: true });
 
 // Expand -vvv etc. into individual -v flags before commander parses
 const argv = process.argv.flatMap((arg) =>
@@ -283,11 +283,7 @@ const viz = program.command("viz").description("Visualization tools");
 viz
   .command("embeddings")
   .description("Generate a 2D visualization of the embedding space")
-  .option(
-    "--embeddings <path>",
-    "Embeddings file path",
-    defaultEmbeddingsFile(),
-  )
+  .option("--embeddings <path>", "Embeddings DB path", defaultEmbeddingsDb())
   .option("--output <path>", "Output HTML file", "umap.html")
   .option("--projection <type>", "Projection type: umap or tsne", "umap")
   .action(
@@ -298,7 +294,7 @@ viz
     }) => {
       try {
         await runVizEmbeddings({
-          embeddingsFile: opts.embeddings,
+          dbPath: opts.embeddings,
           output: opts.output,
           projection: opts.projection as "umap" | "tsne",
         });
@@ -326,18 +322,14 @@ program
   .description("Start a local RAG monitoring dashboard")
   .option("--port <n>", "Port to serve on", parseInt, 3000)
   .option("--chunks <path>", "Chunks file path", defaultChunksFile())
-  .option(
-    "--embeddings <path>",
-    "Embeddings file path",
-    defaultEmbeddingsFile(),
-  )
+  .option("--embeddings <path>", "Embeddings DB path", defaultEmbeddingsDb())
   .action(
     async (opts: { port: number; chunks: string; embeddings: string }) => {
       try {
         await runDashboard({
           port: opts.port,
           chunksFile: opts.chunks,
-          embeddingsFile: opts.embeddings,
+          dbPath: opts.embeddings,
         });
       } catch (error) {
         handleError(error);

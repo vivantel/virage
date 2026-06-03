@@ -32,10 +32,14 @@ export async function runExperimentRun(
   console.log("🔍 Running evaluation...");
   const runner = new EvalRunner(cfg.vectorStore, cfg.embedder, dataset);
   const evalBar = createProgressBar("Evaluating", dataset.queries.length);
-  const { evalResult, perQueryRrScores } = await runner.run((done, total) =>
-    evalBar.update(done < total ? done : total),
-  );
-  evalBar.stop();
+  let evalResult, perQueryRrScores;
+  try {
+    ({ evalResult, perQueryRrScores } = await runner.run((done, total) =>
+      evalBar.update(done < total ? done : total),
+    ));
+  } finally {
+    evalBar.stop();
+  }
 
   console.log(`\n  MRR: ${evalResult.mrr.toFixed(4)}`);
   console.log(`  Precision@5: ${(evalResult.precisionAt5 * 100).toFixed(1)}%`);
