@@ -51,14 +51,6 @@ export type { TokenStrategyOptions } from "./strategies/chunk/token.js";
 // Helpers
 export { createChunker } from "./helpers/create-chunker.js";
 
-// Providers
-/**
- * @deprecated Use `@vivantel/rag-embedder-openai` instead.
- * Will be removed in v3.0.
- */
-export { GitHubModelsEmbedder } from "./providers/github-models.js";
-export type { GitHubModelsEmbedderOptions } from "./providers/github-models.js";
-
 // Embeddings I/O
 export {
   readEmbeddingsFile,

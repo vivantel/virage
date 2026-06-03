@@ -10,7 +10,7 @@ export default defineConfig({
       include: ['src/**/*.ts'],
       exclude: ['src/**/*.test.ts'],
     },
-    exclude: ['node_modules', '.git'],
+    exclude: ['node_modules', '.git', 'test/acceptance/**'],
     globals: true,
     testTimeout: 10000,
     environment: 'node',
