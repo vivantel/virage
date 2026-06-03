@@ -1,4 +1,4 @@
-# Roadmap: @vivantel/rag-core
+# Roadmap: @vivantel/virage-core
 
 ## Current Status
 - **Current version:** 1.1.2
@@ -16,7 +16,7 @@
 
 | Feature | Description | Priority |
 |---------|-------------|----------|
-| **CLI `init` command** | Generate `rag.config.json` config | P0 |
+| **CLI `init` command** | Generate `virage.config.json` config | P0 |
 | **CLI `validate` command** | Validate config without running | P0 |
 | **Better error messages** | Human-readable errors with suggestions | P0 |
 | **Dry-run mode** | `--dry-run` shows what would change | P1 |
@@ -87,7 +87,7 @@ options: {
 |---------|-------------|----------|
 | **Separate provider packages** | Move embedders/vector stores to own packages | P0 |
 | **Plugin discovery** | Auto-detect installed providers | P0 |
-| **Configuration schema** | JSON Schema for `rag.config.json` | P1 |
+| **Configuration schema** | JSON Schema for `virage.config.json` | P1 |
 | **Hot reload** | Watch mode for config changes | P2 |
 
 ### Breaking Changes
@@ -96,17 +96,17 @@ options: {
 |--------|--------|-----------|
 | `EmbeddingProvider` interface changed | Support streaming | Implement new methods |
 | `VectorStore` interface changed | Better batch operations | Update implementations |
-| Removed built-in strategies | Move to separate package | Install `@vivantel/rag-strategies` |
+| Removed built-in strategies | Move to separate package | Install `@vivantel/virage-strategies` |
 | CLI options renamed | Consistency | Update scripts |
 
 ### Migration Path
 ```bash
 # Old way
-import { tokenStrategy } from '@vivantel/rag-core';
+import { tokenStrategy } from '@vivantel/virage-core';
 
 # New way
-npm install @vivantel/rag-strategies
-import { tokenStrategy } from '@vivantel/rag-strategies';
+npm install @vivantel/virage-strategies
+import { tokenStrategy } from '@vivantel/virage-strategies';
 ```
 
 ### Estimated Delivery
@@ -118,12 +118,12 @@ import { tokenStrategy } from '@vivantel/rag-strategies';
 
 | Package | Description | Status |
 |---------|-------------|--------|
-| `@vivantel/rag-strategies` | Built-in chunking strategies | Planned |
-| `@vivantel/rag-embedder-github` | GitHub Models provider | Planned |
-| `@vivantel/rag-embedder-openai` | OpenAI provider | Planned |
-| `@vivantel/rag-store-postgres` | PostgreSQL / pgvector store | Existing |
-| `@vivantel/rag-store-pinecone` | Pinecone store | Planned |
-| `@vivantel/rag-chunker-event` | Event YAML chunker (Vivantel-specific) | Planned |
+| `@vivantel/virage-strategies` | Built-in chunking strategies | Planned |
+| `@vivantel/virage-embedder-github` | GitHub Models provider | Planned |
+| `@vivantel/virage-embedder-openai` | OpenAI provider | Planned |
+| `@vivantel/virage-store-postgres` | PostgreSQL / pgvector store | Existing |
+| `@vivantel/virage-store-pinecone` | Pinecone store | Planned |
+| `@vivantel/virage-chunker-event` | Event YAML chunker (Vivantel-specific) | Planned |
 
 ---
 

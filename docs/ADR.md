@@ -1,6 +1,6 @@
 # Architecture Decision Records
 
-This document captures the key architectural decisions made in the `@vivantel/rag-core` project. Each entry follows the standard ADR format: Status, Context, Decision, and Consequences.
+This document captures the key architectural decisions made in the `@vivantel/virage-core` project. Each entry follows the standard ADR format: Status, Context, Decision, and Consequences.
 
 ---
 
@@ -121,7 +121,7 @@ The `createChunker` helper bridges the two via a TypeScript discriminated union:
 - **+** Strategies are independently testable without the file-system layer.
 - **+** Custom chunkers remain a first-class option without API friction.
 - **−** Two-layer abstraction is a mental model cost for new contributors.
-- Strategies were later extracted to `@vivantel/rag-strategies` (ADR-008).
+- Strategies were later extracted to `@vivantel/virage-strategies` (ADR-008).
 
 ---
 
@@ -158,13 +158,13 @@ Convert the repository to an npm workspaces monorepo (`packages/*`). Each provid
 
 | Package | Role |
 |---|---|
-| `@vivantel/rag-core` | Pipeline engine + interfaces + CLI |
-| `@vivantel/rag-strategies` | Built-in chunk strategies (re-export, strategies deprecated in core) |
-| `@vivantel/rag-embedder-openai` | OpenAI embedding provider |
-| `@vivantel/rag-embedder-fastembed` | FastEmbed (local) provider |
-| `@vivantel/rag-embedder-transformers` | Hugging Face Transformers provider |
-| `@vivantel/rag-store-postgres` | PostgreSQL + pgvector store |
-| `@vivantel/rag-store-qdrant` | Qdrant vector store (local and cloud) |
+| `@vivantel/virage-core` | Pipeline engine + interfaces + CLI |
+| `@vivantel/virage-strategies` | Built-in chunk strategies (re-export, strategies deprecated in core) |
+| `@vivantel/virage-embedder-openai` | OpenAI embedding provider |
+| `@vivantel/virage-embedder-fastembed` | FastEmbed (local) provider |
+| `@vivantel/virage-embedder-transformers` | Hugging Face Transformers provider |
+| `@vivantel/virage-store-postgres` | PostgreSQL + pgvector store |
+| `@vivantel/virage-store-qdrant` | Qdrant vector store (local and cloud) |
 
 `release-please` is configured in manifest mode to publish each package independently.
 
@@ -192,8 +192,8 @@ Add `rag.config.ts` to `.gitignore`, treating it like `.env`. The CI-specific co
 ### Consequences
 - **+** No accidental credential commits.
 - **+** Each consumer's config is tailored to their project without merge friction.
-- **−** New contributors must run `rag-update init` or manually create the config — not apparent from a `git clone`.
-- Documentation in README and `rag-update init` mitigates this.
+- **−** New contributors must run `virage init` or manually create the config — not apparent from a `git clone`.
+- Documentation in README and `virage init` mitigates this.
 
 ---
 
@@ -293,8 +293,8 @@ As the provider ecosystem grows, consumers should be able to reference providers
 Running the RAG update pipeline in CI used to build `rag-core` from source as part of the same job. After the monorepo restructure, the source layout changed and build ordering became fragile. Additionally, "run the RAG pipeline on docs" is a content-update concern, not a library-build concern.
 
 ### Decision
-Extract the RAG pipeline into a dedicated workflow (`.github/workflows/rag-update.yaml`) that:
-1. Installs `@vivantel/rag-core` and companion packages from the published npm registry (not from source).
+Extract the RAG pipeline into a dedicated workflow (`.github/workflows/virage.yaml`) that:
+1. Installs `@vivantel/virage-core` and companion packages from the published npm registry (not from source).
 2. Uses `rag.config.ci.json` (tracked, schema-validated).
 3. Caches `docs/rag/chunks.json` and `docs/rag/embeddings.json` via `actions/cache` to make incremental runs fast.
 4. Triggers only on pushes to `master`.
@@ -316,7 +316,7 @@ Extract the RAG pipeline into a dedicated workflow (`.github/workflows/rag-updat
 The initial vector store implementation targeted Supabase (`rag-store-supabase`). Supabase is PostgreSQL under the hood and exposes pgvector. Managing the Supabase client SDK (auth, realtime, storage bundled) was unnecessary overhead for a backend-only vector store use case.
 
 ### Decision
-Replace `@vivantel/rag-store-supabase` with `@vivantel/rag-store-postgres`, which connects directly to PostgreSQL via `pg` + `pgvector`. The new package exposes `createVectorStore(config)` compatible with the JSON config format (ADR-011). Connection details are passed via environment variables expanded at load time.
+Replace `@vivantel/virage-store-supabase` with `@vivantel/virage-store-postgres`, which connects directly to PostgreSQL via `pg` + `pgvector`. The new package exposes `createVectorStore(config)` compatible with the JSON config format (ADR-011). Connection details are passed via environment variables expanded at load time.
 
 ### Consequences
 - **+** Direct Postgres connection is simpler, lighter, and works with any Postgres host (self-hosted, RDS, Supabase, Neon, etc.).
@@ -356,7 +356,7 @@ Manual version bumps and CHANGELOG maintenance are error-prone. npm provenance (
 **Supersedes:** ADR-007
 
 ### Context
-Two config formats (`rag.config.json` and `rag.config.ts`) were supported. The JSON format handles all practical use cases via `${ENV_VAR}` expansion and named built-in strategies. The TypeScript format required `tsx` as a runtime dependency, added complexity to `loadConfig()`, and was never the recommended path for CI (which always used JSON). Maintaining both added surface area without a proportional benefit.
+Two config formats (`virage.config.json` and `rag.config.ts`) were supported. The JSON format handles all practical use cases via `${ENV_VAR}` expansion and named built-in strategies. The TypeScript format required `tsx` as a runtime dependency, added complexity to `loadConfig()`, and was never the recommended path for CI (which always used JSON). Maintaining both added surface area without a proportional benefit.
 
 ### Decision
 Remove TypeScript config loading entirely. `loadConfig()` now only handles JSON. Passing a `.ts` path raises a `ConfigError` with a migration suggestion. `tsx` is moved from `dependencies` to `devDependencies` (kept only for the `dev` watch script). The `init` command no longer offers a "TypeScript format" option.
@@ -365,7 +365,7 @@ Remove TypeScript config loading entirely. `loadConfig()` now only handles JSON.
 - **+** Simpler `loadConfig()` — one code path, one format.
 - **+** `tsx` removed from the published package's runtime dependency tree.
 - **+** `init` wizard is simpler and always produces a working JSON config.
-- **−** Breaking change for consumers using `rag.config.ts`. Migration: run `rag-update init` or rename to `.json` and convert manually.
+- **−** Breaking change for consumers using `rag.config.ts`. Migration: run `virage init` or rename to `.json` and convert manually.
 
 ---
 
@@ -407,7 +407,7 @@ Replace the shell script with a Vitest-based acceptance suite under `packages/ra
 
 ---
 
-## ADR-019: `@vivantel/rag-store-test` private workspace package
+## ADR-019: `@vivantel/virage-store-test` private workspace package
 
 **Date:** 2026-06-03  
 **Status:** Accepted
@@ -416,28 +416,28 @@ Replace the shell script with a Vitest-based acceptance suite under `packages/ra
 The acceptance tests needed a `VectorStore` implementation that persists state to a local JSON file so the full pipeline can run without a real database. The implementation lived in `scripts/test-store.mjs` and was referenced by an absolute file path in `vectorStore.package` — fragile and not resolvable by the standard `import()` mechanism used by `loadConfig()`.
 
 ### Decision
-Promote the implementation to a private TypeScript workspace package `@vivantel/rag-store-test`. The config references it as `"package": "@vivantel/rag-store-test"` and the npm workspace symlink resolves it correctly. The package deliberately has no `rag-plugin` field so it is not auto-discovered by `loadRegistry()`. It fully implements `VectorStore` including `getIndexStats()` and `getQueryPerfReport()` (returning stub zeroes).
+Promote the implementation to a private TypeScript workspace package `@vivantel/virage-store-test`. The config references it as `"package": "@vivantel/virage-store-test"` and the npm workspace symlink resolves it correctly. The package deliberately has no `rag-plugin` field so it is not auto-discovered by `loadRegistry()`. It fully implements `VectorStore` including `getIndexStats()` and `getQueryPerfReport()` (returning stub zeroes).
 
 ### Consequences
 - **+** Config uses a clean package name rather than a fragile absolute path.
-- **+** Type-safe TypeScript implementation; peer-depends on `@vivantel/rag-core` for the interface types.
+- **+** Type-safe TypeScript implementation; peer-depends on `@vivantel/virage-core` for the interface types.
 - **+** No risk of accidental production use (no `rag-plugin` field, `private: true`).
 - **−** One additional package to build before running acceptance tests.
 
 ---
 
-## ADR-020: `rag-update update` subcommand; `help` as default action
+## ADR-020: `virage update` subcommand; `help` as default action
 
 **Date:** 2026-06-03  
 **Status:** Accepted
 
 ### Context
-Running bare `rag-update` executed the full pipeline silently — a poor experience for first-time users and dangerous in scripts that accidentally call the wrong binary. Other popular CLIs (git, npm, cargo) show help when called without a subcommand.
+Running bare `virage` executed the full pipeline silently — a poor experience for first-time users and dangerous in scripts that accidentally call the wrong binary. Other popular CLIs (git, npm, cargo) show help when called without a subcommand.
 
 ### Decision
 Move the pipeline execution logic from the root program action into an explicit `update` subcommand. The root program's `.action()` now calls `program.outputHelp()`. All existing flags (`--force`, `--no-upload`, `--dry-run`, `--chunks-out`, `--embeddings-out`, `--watch`) are unchanged, just moved under `update`. The stackable `-v` flag remains on the root program and is inherited by `update` via `program.opts()`.
 
 ### Consequences
-- **+** Running `rag-update` with no arguments prints help — discoverable and safe.
-- **+** All subcommands now follow the same `rag-update <command>` pattern.
-- **−** Breaking change: scripts calling `rag-update --force` must be updated to `rag-update update --force`.
+- **+** Running `virage` with no arguments prints help — discoverable and safe.
+- **+** All subcommands now follow the same `virage <command>` pattern.
+- **−** Breaking change: scripts calling `virage --force` must be updated to `virage update --force`.

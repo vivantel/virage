@@ -1,11 +1,11 @@
 {
-  "packages/rag-core": "4.0.0",
-  "packages/rag-strategies": "5.0.10",
-  "packages/rag-embedder-openai": "1.5.3",
-  "packages/rag-embedder-transformers": "1.4.3",
-  "packages/rag-embedder-fastembed": "1.5.3",
-  "packages/rag-store-postgres": "1.4.3",
-  "packages/rag-store-qdrant": "2.2.3",
-  "packages/rag-store-lancedb": "1.3.3",
-  "packages/rag-store-chromadb": "1.3.3"
+  "packages/virage-core": "0.1.0",
+  "packages/virage-strategies": "0.1.0",
+  "packages/virage-embedder-openai": "0.1.0",
+  "packages/virage-embedder-transformers": "0.1.0",
+  "packages/virage-embedder-fastembed": "0.1.0",
+  "packages/virage-store-postgres": "0.1.0",
+  "packages/virage-store-qdrant": "0.1.0",
+  "packages/virage-store-lancedb": "0.1.0",
+  "packages/virage-store-chromadb": "0.1.0"
 }

@@ -5,8 +5,8 @@
   "include-component-in-tag": true,
   "tag-separator": "@",
   "packages": {
-    "packages/rag-core": {
-      "package-name": "@vivantel/rag-core",
+    "packages/virage-core": {
+      "package-name": "@vivantel/virage-core",
       "changelog-path": "CHANGELOG.md",
       "release-type": "node",
       "bump-minor-pre-major": true,
@@ -14,8 +14,8 @@
       "draft": false,
       "prerelease": false
     },
-    "packages/rag-strategies": {
-      "package-name": "@vivantel/rag-strategies",
+    "packages/virage-strategies": {
+      "package-name": "@vivantel/virage-strategies",
       "changelog-path": "CHANGELOG.md",
       "release-type": "node",
       "bump-minor-pre-major": true,
@@ -23,8 +23,8 @@
       "draft": false,
       "prerelease": false
     },
-    "packages/rag-embedder-openai": {
-      "package-name": "@vivantel/rag-embedder-openai",
+    "packages/virage-embedder-openai": {
+      "package-name": "@vivantel/virage-embedder-openai",
       "changelog-path": "CHANGELOG.md",
       "release-type": "node",
       "bump-minor-pre-major": true,
@@ -32,8 +32,8 @@
       "draft": false,
       "prerelease": false
     },
-    "packages/rag-embedder-transformers": {
-      "package-name": "@vivantel/rag-embedder-transformers",
+    "packages/virage-embedder-transformers": {
+      "package-name": "@vivantel/virage-embedder-transformers",
       "changelog-path": "CHANGELOG.md",
       "release-type": "node",
       "bump-minor-pre-major": true,
@@ -41,8 +41,8 @@
       "draft": false,
       "prerelease": false
     },
-    "packages/rag-embedder-fastembed": {
-      "package-name": "@vivantel/rag-embedder-fastembed",
+    "packages/virage-embedder-fastembed": {
+      "package-name": "@vivantel/virage-embedder-fastembed",
       "changelog-path": "CHANGELOG.md",
       "release-type": "node",
       "bump-minor-pre-major": true,
@@ -50,8 +50,8 @@
       "draft": false,
       "prerelease": false
     },
-    "packages/rag-store-postgres": {
-      "package-name": "@vivantel/rag-store-postgres",
+    "packages/virage-store-postgres": {
+      "package-name": "@vivantel/virage-store-postgres",
       "changelog-path": "CHANGELOG.md",
       "release-type": "node",
       "bump-minor-pre-major": true,
@@ -59,8 +59,8 @@
       "draft": false,
       "prerelease": false
     },
-    "packages/rag-store-qdrant": {
-      "package-name": "@vivantel/rag-store-qdrant",
+    "packages/virage-store-qdrant": {
+      "package-name": "@vivantel/virage-store-qdrant",
       "changelog-path": "CHANGELOG.md",
       "release-type": "node",
       "bump-minor-pre-major": true,
@@ -68,8 +68,8 @@
       "draft": false,
       "prerelease": false
     },
-    "packages/rag-store-lancedb": {
-      "package-name": "@vivantel/rag-store-lancedb",
+    "packages/virage-store-lancedb": {
+      "package-name": "@vivantel/virage-store-lancedb",
       "changelog-path": "CHANGELOG.md",
       "release-type": "node",
       "bump-minor-pre-major": true,
@@ -77,8 +77,8 @@
       "draft": false,
       "prerelease": false
     },
-    "packages/rag-store-chromadb": {
-      "package-name": "@vivantel/rag-store-chromadb",
+    "packages/virage-store-chromadb": {
+      "package-name": "@vivantel/virage-store-chromadb",
       "changelog-path": "CHANGELOG.md",
       "release-type": "node",
       "bump-minor-pre-major": true,

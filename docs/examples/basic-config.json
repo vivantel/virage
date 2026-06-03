@@ -1,5 +1,5 @@
 {
-  "$schema": "../../packages/rag-core/schemas/rag.config.schema.json",
+  "$schema": "../../packages/virage-core/schemas/rag.config.schema.json",
   "chunkers": [
     {
       "name": "markdown",
@@ -13,7 +13,7 @@
     }
   ],
   "embedder": {
-    "package": "@vivantel/rag-embedder-openai",
+    "package": "@vivantel/virage-embedder-openai",
     "config": {
       "apiKey": "${OPENAI_API_KEY}",
       "model": "text-embedding-3-small",
@@ -21,7 +21,7 @@
     }
   },
   "vectorStore": {
-    "package": "@vivantel/rag-store-qdrant",
+    "package": "@vivantel/virage-store-qdrant",
     "config": {
       "url": "${QDRANT_URL}",
       "apiKey": "${QDRANT_API_KEY}"

@@ -1,8 +1,8 @@
 /**
  * Advanced RAG config showing all available options.
  */
-import type { RAGPipelineConfig, EmbeddingProvider, VectorStore, VectorSearchResult } from "@vivantel/rag-core";
-import { createChunker, markdownHeadersStrategy, tokenStrategy, semanticStrategy, wholeFileStrategy } from "@vivantel/rag-core";
+import type { RAGPipelineConfig, EmbeddingProvider, VectorStore, VectorSearchResult } from "@vivantel/virage-core";
+import { createChunker, markdownHeadersStrategy, tokenStrategy, semanticStrategy, wholeFileStrategy } from "@vivantel/virage-core";
 
 // Stubbed providers — replace with real implementations
 const embedder: EmbeddingProvider = {

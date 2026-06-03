@@ -17,15 +17,15 @@ jobs:
   release-please:
     runs-on: ubuntu-latest
     outputs:
-      core_released: ${{ steps.release.outputs['packages/rag-core--release_created'] }}
-      strategies_released: ${{ steps.release.outputs['packages/rag-strategies--release_created'] }}
-      openai_released: ${{ steps.release.outputs['packages/rag-embedder-openai--release_created'] }}
-      transformers_released: ${{ steps.release.outputs['packages/rag-embedder-transformers--release_created'] }}
-      fastembed_released: ${{ steps.release.outputs['packages/rag-embedder-fastembed--release_created'] }}
-      postgres_released: ${{ steps.release.outputs['packages/rag-store-postgres--release_created'] }}
-      qdrant_released: ${{ steps.release.outputs['packages/rag-store-qdrant--release_created'] }}
-      lancedb_released: ${{ steps.release.outputs['packages/rag-store-lancedb--release_created'] }}
-      chromadb_released: ${{ steps.release.outputs['packages/rag-store-chromadb--release_created'] }}
+      core_released: ${{ steps.release.outputs['packages/virage-core--release_created'] }}
+      strategies_released: ${{ steps.release.outputs['packages/virage-strategies--release_created'] }}
+      openai_released: ${{ steps.release.outputs['packages/virage-embedder-openai--release_created'] }}
+      transformers_released: ${{ steps.release.outputs['packages/virage-embedder-transformers--release_created'] }}
+      fastembed_released: ${{ steps.release.outputs['packages/virage-embedder-fastembed--release_created'] }}
+      postgres_released: ${{ steps.release.outputs['packages/virage-store-postgres--release_created'] }}
+      qdrant_released: ${{ steps.release.outputs['packages/virage-store-qdrant--release_created'] }}
+      lancedb_released: ${{ steps.release.outputs['packages/virage-store-lancedb--release_created'] }}
+      chromadb_released: ${{ steps.release.outputs['packages/virage-store-chromadb--release_created'] }}
     steps:
       - name: Run Release Please
         id: release
@@ -37,7 +37,7 @@ jobs:
 
 
   publish-core:
-    name: Publish @vivantel/rag-core
+    name: Publish @vivantel/virage-core
     needs: release-please
     if: ${{ needs.release-please.outputs.core_released == 'true' }}
     runs-on: ubuntu-latest
@@ -52,16 +52,16 @@ jobs:
           registry-url: 'https://registry.npmjs.org'
           cache: "npm"
       - run: npm ci
-      - run: npm test --workspace packages/rag-core
-      - run: npm run build --workspace packages/rag-core
+      - run: npm test --workspace packages/virage-core
+      - run: npm run build --workspace packages/virage-core
       - name: Publish
         run: npm publish --provenance --access public
-        working-directory: packages/rag-core
+        working-directory: packages/virage-core
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
   publish-strategies:
-    name: Publish @vivantel/rag-strategies
+    name: Publish @vivantel/virage-strategies
     needs: release-please
     if: ${{ needs.release-please.outputs.strategies_released == 'true' }}
     runs-on: ubuntu-latest
@@ -76,16 +76,16 @@ jobs:
           registry-url: 'https://registry.npmjs.org'
           cache: "npm"
       - run: npm ci
-      - run: npm run build --workspace packages/rag-core
-      - run: npm run build --workspace packages/rag-strategies
+      - run: npm run build --workspace packages/virage-core
+      - run: npm run build --workspace packages/virage-strategies
       - name: Publish
         run: npm publish --provenance --access public
-        working-directory: packages/rag-strategies
+        working-directory: packages/virage-strategies
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
   publish-embedder-openai:
-    name: Publish @vivantel/rag-embedder-openai
+    name: Publish @vivantel/virage-embedder-openai
     needs: release-please
     if: ${{ needs.release-please.outputs.openai_released == 'true' }}
     runs-on: ubuntu-latest
@@ -100,17 +100,17 @@ jobs:
           registry-url: 'https://registry.npmjs.org'
           cache: "npm"
       - run: npm ci
-      - run: npm run build --workspace packages/rag-core
-      - run: npm test --workspace packages/rag-embedder-openai
-      - run: npm run build --workspace packages/rag-embedder-openai
+      - run: npm run build --workspace packages/virage-core
+      - run: npm test --workspace packages/virage-embedder-openai
+      - run: npm run build --workspace packages/virage-embedder-openai
       - name: Publish
         run: npm publish --provenance --access public
-        working-directory: packages/rag-embedder-openai
+        working-directory: packages/virage-embedder-openai
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
   publish-embedder-transformers:
-    name: Publish @vivantel/rag-embedder-transformers
+    name: Publish @vivantel/virage-embedder-transformers
     needs: release-please
     if: ${{ needs.release-please.outputs.transformers_released == 'true' }}
     runs-on: ubuntu-latest
@@ -125,17 +125,17 @@ jobs:
           registry-url: 'https://registry.npmjs.org'
           cache: "npm"
       - run: npm ci --ignore-scripts
-      - run: npm run build --workspace packages/rag-core
-      - run: npm test --workspace packages/rag-embedder-transformers
-      - run: npm run build --workspace packages/rag-embedder-transformers
+      - run: npm run build --workspace packages/virage-core
+      - run: npm test --workspace packages/virage-embedder-transformers
+      - run: npm run build --workspace packages/virage-embedder-transformers
       - name: Publish
         run: npm publish --provenance --access public
-        working-directory: packages/rag-embedder-transformers
+        working-directory: packages/virage-embedder-transformers
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
   publish-embedder-fastembed:
-    name: Publish @vivantel/rag-embedder-fastembed
+    name: Publish @vivantel/virage-embedder-fastembed
     needs: release-please
     if: ${{ needs.release-please.outputs.fastembed_released == 'true' }}
     runs-on: ubuntu-latest
@@ -150,17 +150,17 @@ jobs:
           registry-url: 'https://registry.npmjs.org'
           cache: "npm"
       - run: npm ci --ignore-scripts
-      - run: npm run build --workspace packages/rag-core
-      - run: npm test --workspace packages/rag-embedder-fastembed
-      - run: npm run build --workspace packages/rag-embedder-fastembed
+      - run: npm run build --workspace packages/virage-core
+      - run: npm test --workspace packages/virage-embedder-fastembed
+      - run: npm run build --workspace packages/virage-embedder-fastembed
       - name: Publish
         run: npm publish --provenance --access public
-        working-directory: packages/rag-embedder-fastembed
+        working-directory: packages/virage-embedder-fastembed
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
   publish-store-postgres:
-    name: Publish @vivantel/rag-store-postgres
+    name: Publish @vivantel/virage-store-postgres
     needs: release-please
     if: ${{ needs.release-please.outputs.postgres_released == 'true' }}
     runs-on: ubuntu-latest
@@ -175,17 +175,17 @@ jobs:
           registry-url: 'https://registry.npmjs.org'
           cache: "npm"
       - run: npm ci --ignore-scripts
-      - run: npm run build --workspace packages/rag-core
-      - run: npm test --workspace packages/rag-store-postgres
-      - run: npm run build --workspace packages/rag-store-postgres
+      - run: npm run build --workspace packages/virage-core
+      - run: npm test --workspace packages/virage-store-postgres
+      - run: npm run build --workspace packages/virage-store-postgres
       - name: Publish
         run: npm publish --provenance --access public
-        working-directory: packages/rag-store-postgres
+        working-directory: packages/virage-store-postgres
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
   publish-store-qdrant:
-    name: Publish @vivantel/rag-store-qdrant
+    name: Publish @vivantel/virage-store-qdrant
     needs: release-please
     if: ${{ needs.release-please.outputs.qdrant_released == 'true' }}
     runs-on: ubuntu-latest
@@ -200,17 +200,17 @@ jobs:
           registry-url: 'https://registry.npmjs.org'
           cache: "npm"
       - run: npm ci
-      - run: npm run build --workspace packages/rag-core
-      - run: npm test --workspace packages/rag-store-qdrant
-      - run: npm run build --workspace packages/rag-store-qdrant
+      - run: npm run build --workspace packages/virage-core
+      - run: npm test --workspace packages/virage-store-qdrant
+      - run: npm run build --workspace packages/virage-store-qdrant
       - name: Publish
         run: npm publish --provenance --access public
-        working-directory: packages/rag-store-qdrant
+        working-directory: packages/virage-store-qdrant
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
   publish-store-lancedb:
-    name: Publish @vivantel/rag-store-lancedb
+    name: Publish @vivantel/virage-store-lancedb
     needs: release-please
     if: ${{ needs.release-please.outputs.lancedb_released == 'true' }}
     runs-on: ubuntu-latest
@@ -225,17 +225,17 @@ jobs:
           registry-url: 'https://registry.npmjs.org'
           cache: "npm"
       - run: npm ci --ignore-scripts
-      - run: npm run build --workspace packages/rag-core
-      - run: npm test --workspace packages/rag-store-lancedb
-      - run: npm run build --workspace packages/rag-store-lancedb
+      - run: npm run build --workspace packages/virage-core
+      - run: npm test --workspace packages/virage-store-lancedb
+      - run: npm run build --workspace packages/virage-store-lancedb
       - name: Publish
         run: npm publish --provenance --access public
-        working-directory: packages/rag-store-lancedb
+        working-directory: packages/virage-store-lancedb
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
   publish-store-chromadb:
-    name: Publish @vivantel/rag-store-chromadb
+    name: Publish @vivantel/virage-store-chromadb
     needs: release-please
     if: ${{ needs.release-please.outputs.chromadb_released == 'true' }}
     runs-on: ubuntu-latest
@@ -250,17 +250,17 @@ jobs:
           registry-url: 'https://registry.npmjs.org'
           cache: "npm"
       - run: npm ci --ignore-scripts
-      - run: npm run build --workspace packages/rag-core
-      - run: npm test --workspace packages/rag-store-chromadb
-      - run: npm run build --workspace packages/rag-store-chromadb
+      - run: npm run build --workspace packages/virage-core
+      - run: npm test --workspace packages/virage-store-chromadb
+      - run: npm run build --workspace packages/virage-store-chromadb
       - name: Publish
         run: npm publish --provenance --access public
-        working-directory: packages/rag-store-chromadb
+        working-directory: packages/virage-store-chromadb
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
   publish-github-packages:
-    name: Publish @vivantel/rag-core to GitHub Packages
+    name: Publish @vivantel/virage-core to GitHub Packages
     needs: release-please
     if: ${{ needs.release-please.outputs.core_released == 'true' }}
     runs-on: ubuntu-latest
@@ -275,10 +275,10 @@ jobs:
           registry-url: 'https://npm.pkg.github.com'
           cache: "npm"
       - run: npm ci
-      - run: npm run build --workspace packages/rag-core
+      - run: npm run build --workspace packages/virage-core
       - name: Publish to GitHub Packages
         run: npm publish
-        working-directory: packages/rag-core
+        working-directory: packages/virage-core
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -296,9 +296,9 @@ jobs:
           node-version: '20.x'
           cache: "npm"
       - run: npm ci
-      - run: npm run build --workspace packages/rag-core
+      - run: npm run build --workspace packages/virage-core
       - name: Generate API documentation
-        run: npm run docs:generate --workspace packages/rag-core
+        run: npm run docs:generate --workspace packages/virage-core
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v4
         with:

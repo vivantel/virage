@@ -1,18 +1,18 @@
 {
-  "$schema": "./packages/rag-core/schemas/rag.config.schema.json",
+  "$schema": "./packages/virage-core/schemas/virage.config.schema.json",
   "chunkers": [
     { "patterns": ["**/*.md", "**/*.mdx"], "strategy": "markdownHeaders" },
     { "patterns": ["src/**/*.ts", "src/**/*.tsx"], "strategy": "token" },
     { "patterns": ["**/*.yaml", "**/*.yml"], "strategy": "wholeFile" }
   ],
   "embedder": {
-    "package": "@vivantel/rag-embedder-fastembed",
+    "package": "@vivantel/virage-embedder-fastembed",
     "config": {
       "model": "BAAI/bge-large-en-v1.5"
     }
   },
   "vectorStore": {
-    "package": "@vivantel/rag-store-postgres",
+    "package": "@vivantel/virage-store-postgres",
     "config": {
       "connectionString": "${DATABASE_URL}",
       "dimensions": 1024

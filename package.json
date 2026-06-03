@@ -1,18 +1,18 @@
 {
-  "name": "vivantel-rag-monorepo",
+  "name": "vivantel-virage-monorepo",
   "private": true,
   "type": "module",
   "workspaces": [
     "packages/*"
   ],
-  "description": "Monorepo for @vivantel/rag-core and related packages",
+  "description": "Monorepo for @vivantel/virage-core and related packages",
   "scripts": {
     "build:all": "npm run build --workspaces --if-present",
     "test": "npm test --workspaces --if-present",
     "type-check": "npm run type-check --workspaces --if-present",
-    "type-check:ci": "npm run type-check -w packages/rag-core -w packages/rag-strategies -w packages/rag-store-postgres -w packages/rag-store-qdrant -w packages/rag-store-lancedb -w packages/rag-store-chromadb -w packages/rag-embedder-fastembed",
-    "lint": "eslint packages/rag-core/src/ packages/*/src/",
-    "lint:fix": "eslint packages/rag-core/src/ packages/*/src/ --fix",
+    "type-check:ci": "npm run type-check -w packages/virage-core -w packages/virage-strategies -w packages/virage-store-postgres -w packages/virage-store-qdrant -w packages/virage-store-lancedb -w packages/virage-store-chromadb -w packages/virage-embedder-fastembed",
+    "lint": "eslint packages/virage-core/src/ packages/*/src/",
+    "lint:fix": "eslint packages/virage-core/src/ packages/*/src/ --fix",
     "format": "prettier --write \"packages/*/src/**/*.ts\"",
     "format:check": "prettier --check \"packages/*/src/**/*.ts\"",
     "fix": "npm run lint:fix && npm run format",
@@ -29,5 +29,5 @@
   "engines": {
     "node": ">=18.0.0"
   },
-  "version": "3.0.0"
+  "version": "0.1.0"
 }

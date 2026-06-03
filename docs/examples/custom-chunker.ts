@@ -2,7 +2,7 @@
  * Example: implementing a custom FileChunker directly (without createChunker).
  * Use this when you need more control than createChunker provides.
  */
-import { FileChunker, Chunk } from "@vivantel/rag-core";
+import { FileChunker, Chunk } from "@vivantel/virage-core";
 import { readFile } from "fs/promises";
 
 export const yamlEventChunker: FileChunker = {

@@ -1,0 +1,62 @@
+{
+  "name": "@vivantel/virage-store-qdrant",
+  "version": "0.1.0",
+  "description": "Qdrant vector store for @vivantel/rag-core (local and cloud)",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "sideEffects": false,
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "tsc",
+    "type-check": "tsc --noEmit",
+    "test": "vitest run",
+    "prepublishOnly": "npm run build",
+    "lint": "eslint src/",
+    "lint:fix": "eslint src/ --fix",
+    "format": "prettier --write \"src/**/*.ts\"",
+    "fix": "npm run lint:fix && npm run format"
+  },
+  "keywords": [
+    "rag",
+    "vector-store",
+    "qdrant",
+    "vector-database",
+    "semantic-search"
+  ],
+  "author": "Vivantel",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/vivantel/virage",
+    "directory": "packages/virage-store-qdrant"
+  },
+  "dependencies": {
+    "@qdrant/js-client-rest": "^1.18.0"
+  },
+  "peerDependencies": {
+    "@vivantel/virage-core": "*"
+  },
+  "devDependencies": {
+    "@types/node": "^25.9.1",
+    "@vitest/coverage-v8": "^4.1.8",
+    "@vivantel/virage-core": "*",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.8"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
