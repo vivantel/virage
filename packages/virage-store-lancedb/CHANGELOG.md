@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.2.4](https://github.com/vivantel/virage/compare/virage-store-lancedb@v0.2.3...virage-store-lancedb@v0.2.4) (2026-06-03)
+
+
+### Features
+
+* SQLite embeddings storage, fail-fast uploads, init UX improvements ([5281bc8](https://github.com/vivantel/virage/commit/5281bc8a03d2960dc2ea6019daeb67bb1f70ab20))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * devDependencies
+    * @vivantel/virage-core bumped from 0.2.3 to 0.2.4
+  * peerDependencies
+    * @vivantel/virage-core bumped from * to 0.2.4
+
 ## [0.2.3](https://github.com/vivantel/virage/compare/virage-store-lancedb@v0.2.2...virage-store-lancedb@v0.2.3) (2026-06-03)
 
 
