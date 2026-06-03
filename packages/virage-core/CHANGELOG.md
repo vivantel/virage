@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.3](https://github.com/vivantel/virage/compare/virage-core@v0.2.2...virage-core@v0.2.3) (2026-06-03)
+
+
+### Features
+
+* Fix retries, remove GitHub Models, add progress bars, time-gate saves, skip dot-dirs ([5f83d4c](https://github.com/vivantel/virage/commit/5f83d4c64053540ba135b9e10223f40e2291f8bb))
+
 ## [0.2.2](https://github.com/vivantel/virage/compare/virage-core@v0.2.1...virage-core@v0.2.2) (2026-06-03)
 
 

@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.2.3](https://github.com/vivantel/virage/compare/virage-embedder-fastembed@v0.2.2...virage-embedder-fastembed@v0.2.3) (2026-06-03)
+
+
+### Features
+
+* Fix retries, remove GitHub Models, add progress bars, time-gate saves, skip dot-dirs ([5f83d4c](https://github.com/vivantel/virage/commit/5f83d4c64053540ba135b9e10223f40e2291f8bb))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * devDependencies
+    * @vivantel/virage-core bumped from 0.2.2 to 0.2.3
+  * peerDependencies
+    * @vivantel/virage-core bumped from * to 0.2.3
+
 ## [0.2.2](https://github.com/vivantel/virage/compare/virage-embedder-fastembed@v0.2.1...virage-embedder-fastembed@v0.2.2) (2026-06-03)
 
 
