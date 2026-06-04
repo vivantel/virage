@@ -102,8 +102,7 @@
       "bump-minor-pre-major": true,
       "bump-patch-for-minor-pre-major": true,
       "draft": false,
-      "prerelease": false,
-      "skip-github-release": true
+      "prerelease": false
     }
   },
   "plugins": [

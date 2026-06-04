@@ -60,7 +60,7 @@ This is an ESM TypeScript monorepo (`type: module`, NodeNext module resolution).
 |---|---|---|
 | `virage-core` | yes | Pipeline engine, interfaces, strategies, eval, telemetry — **no CLI deps** |
 | `virage-cli` | yes | `virage` binary + all CLI commands; depends on virage-core |
-| `virage-dashboard` | no (private) | React + Vite dashboard web app served by `virage dashboard` |
+| `virage-dashboard` | yes | React + Vite dashboard web app served by `virage dashboard`; publishes `dist/` |
 | `virage-strategies` | yes | Re-exports built-in chunk strategies as a standalone install |
 | `virage-embedder-fastembed` | yes | Local FastEmbed embeddings |
 | `virage-embedder-openai` | yes | OpenAI embeddings + semantic cache + judge |
@@ -252,7 +252,7 @@ Never commit when `npm run lint` or `npm run type-check:ci` report errors.
 
 Releases are automated via release-please (`.github/workflows/release.yaml`). Commit messages must follow Conventional Commits (`feat:`, `fix:`, `chore:`, etc.) — this drives version bumping and CHANGELOG generation. The `prepublishOnly` script runs `build && test` before any publish.
 
-All published packages are managed by release-please: `virage-core`, `virage-cli`, `virage-strategies`, `virage-embedder-{openai,transformers,fastembed}`, `virage-store-{postgres,qdrant,lancedb,chromadb}`. `virage-dashboard` is tracked for changelogs and version bumping but is private (`skip-github-release: true`) — it is embedded into the CLI build and not published to npm. `virage-store-test` is private and excluded entirely.
+All published packages are managed by release-please: `virage-core`, `virage-cli`, `virage-dashboard`, `virage-strategies`, `virage-embedder-{openai,transformers,fastembed}`, `virage-store-{postgres,qdrant,lancedb,chromadb}`. `virage-store-test` is private and excluded entirely. The dashboard publishes only its `dist/` folder (the Vite build output) to npm; it is also embedded into the CLI build via a file-copy.
 
 Config: `.github/config/release-please.json`. Manifest (current versions): `.release-please-manifest.json`.
 
