@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.6](https://github.com/vivantel/virage/compare/virage-cli@v0.1.5...virage-cli@v0.1.6) (2026-06-04)
+
+
+### Bug Fixes
+
+* **virage-cli:** Use MultiBar for simultaneous progress bar rendering ([7fe2fb5](https://github.com/vivantel/virage/commit/7fe2fb59799c29436e79c1f41f05151f9f30976d))
+
 ## [0.1.5](https://github.com/vivantel/virage/compare/virage-cli@v0.1.4...virage-cli@v0.1.5) (2026-06-04)
 
 
