@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.3](https://github.com/vivantel/virage/compare/virage-dashboard@v0.1.2...virage-dashboard@v0.1.3) (2026-06-04)
+
+
+### Features
+
+* Publish virage-dashboard to npm ([c098cc4](https://github.com/vivantel/virage/commit/c098cc4a0bf3264e2cd80721f83d413d4d663a3f))
+
 ## [0.1.2](https://github.com/vivantel/virage/compare/virage-dashboard@v0.1.1...virage-dashboard@v0.1.2) (2026-06-04)
 
 
