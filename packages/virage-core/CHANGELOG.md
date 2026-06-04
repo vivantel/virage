@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.6](https://github.com/vivantel/virage/compare/virage-core@v0.2.5...virage-core@v0.2.6) (2026-06-04)
+
+
+### Bug Fixes
+
+* Repair one-char sliding window in tokenStrategy and add comprehensive chunk strategy tests ([0cbd3a2](https://github.com/vivantel/virage/commit/0cbd3a22e635d477f29203b4f4d5204200d04cbb))
+
 ## [0.2.5](https://github.com/vivantel/virage/compare/virage-core@v0.2.4...virage-core@v0.2.5) (2026-06-03)
 
 
