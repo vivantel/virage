@@ -9,7 +9,6 @@ import {
   EmbeddingProvider,
   VectorStore,
   Chunk,
-  EmbeddedChunk,
 } from "../interfaces/index.js";
 import type { Logger } from "../interfaces/logger.js";
 import { NullLogger } from "../logger/null-logger.js";
