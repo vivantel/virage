@@ -11,8 +11,8 @@ import {
 } from "@vivantel/virage-core";
 import type { Logger } from "@vivantel/virage-core";
 import { createLogger } from "../logger/index.js";
-import { createProgressBar } from "../progress/progress-bar.js";
-import type { ProgressBar } from "../progress/progress-bar.js";
+import { createMultiProgressBars } from "../progress/progress-bar.js";
+import type { MultiProgressBars } from "../progress/progress-bar.js";
 import { runInit } from "../cli/init.js";
 import { runValidate } from "../cli/validate.js";
 import { runEvaluate } from "../cli/evaluate.js";
@@ -50,6 +50,45 @@ function handleError(error: unknown): never {
   process.exit(1);
 }
 
+// Routes log output through the MultiBar so messages appear above the bars
+// instead of being interleaved mid-line with bar renders.
+class MultiBarLogger implements Logger {
+  constructor(
+    private readonly inner: Logger,
+    private readonly bars: MultiProgressBars,
+  ) {}
+  fatal(msg: string, ...args: unknown[]) {
+    this.inner.fatal(msg, ...args);
+  }
+  error(msg: string, ...args: unknown[]) {
+    this.inner.error(msg, ...args);
+  }
+  warn(msg: string, ..._args: unknown[]) {
+    this.bars.log(`⚠ ${msg}\n`);
+  }
+  info(msg: string, ..._args: unknown[]) {
+    this.bars.log(`${msg}\n`);
+  }
+  success(msg: string, ..._args: unknown[]) {
+    this.bars.log(`✓ ${msg}\n`);
+  }
+  verbose(msg: string, ..._args: unknown[]) {
+    this.bars.log(`  ${msg}\n`);
+  }
+  debug(msg: string, ..._args: unknown[]) {
+    this.bars.log(`  [debug] ${msg}\n`);
+  }
+  trace(msg: string, ..._args: unknown[]) {
+    this.bars.log(`  [trace] ${msg}\n`);
+  }
+  silly(msg: string, ..._args: unknown[]) {
+    this.bars.log(`  [silly] ${msg}\n`);
+  }
+  withTag(tag: string): Logger {
+    return new MultiBarLogger(this.inner.withTag(tag), this.bars);
+  }
+}
+
 async function runOnce(options: {
   config: string;
   force: boolean;
@@ -59,12 +98,8 @@ async function runOnce(options: {
   logger: Logger;
 }): Promise<void> {
   const cfg = await loadConfig(options.config, options.logger);
-
-  const bars: {
-    chunk: ProgressBar | null;
-    embed: ProgressBar | null;
-    upload: ProgressBar | null;
-  } = { chunk: null, embed: null, upload: null };
+  const bars = createMultiProgressBars();
+  const pipelineLogger = new MultiBarLogger(options.logger, bars);
 
   try {
     const orchestrator = new Orchestrator({
@@ -75,28 +110,24 @@ async function runOnce(options: {
         skipUpload: options.noUpload || cfg.options?.skipUpload,
         dryRun: options.dryRun || cfg.options?.dryRun,
         embeddingsFile: options.embeddingsOut || cfg.options?.embeddingsFile,
-        logger: options.logger,
+        logger: pipelineLogger,
         onChunkProgress: (done, total) => {
-          if (!bars.chunk) bars.chunk = createProgressBar("Chunking", total);
+          bars.chunk.setTotal(total);
           bars.chunk.update(done);
         },
         onEmbedProgress: (done, total) => {
-          if (!bars.embed) bars.embed = createProgressBar("Embedding", total);
-          else bars.embed.setTotal(total);
+          bars.embed.setTotal(total);
           bars.embed.update(done);
         },
         onUploadProgress: (done, total) => {
-          if (!bars.upload) bars.upload = createProgressBar("Uploading", total);
-          else bars.upload.setTotal(total);
+          bars.upload.setTotal(total);
           bars.upload.update(done);
         },
       },
     });
     await orchestrator.run();
   } finally {
-    bars.chunk?.stop();
-    bars.embed?.stop();
-    bars.upload?.stop();
+    bars.stop();
   }
 }
 
