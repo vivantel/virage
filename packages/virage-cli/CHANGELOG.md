@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.3](https://github.com/vivantel/virage/compare/virage-cli@v0.1.2...virage-cli@v0.1.3) (2026-06-04)
+
+
+### Bug Fixes
+
+* **virage-cli:** Add glob as direct dependency ([cde5913](https://github.com/vivantel/virage/commit/cde5913673803b4d23b9c3e5534c957b299e2fab))
+
 ## [0.1.2](https://github.com/vivantel/virage/compare/virage-cli@v0.1.1...virage-cli@v0.1.2) (2026-06-04)
 
 
