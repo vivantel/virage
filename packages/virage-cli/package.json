@@ -50,19 +50,23 @@
   "author": "Vivantel",
   "license": "MIT",
   "dependencies": {
-    "@vivantel/virage-core": "0.2.11",
     "@inquirer/prompts": "^8.5.2",
+    "@vivantel/virage-core": "0.2.11",
     "chokidar": "^5.0.0",
     "cli-progress": "^3.12.0",
     "commander": "^15.0.0",
     "consola": "^3.4.2",
     "dotenv": "^17.4.2",
-    "glob": "^13.0.6"
+    "express": "^5.2.1",
+    "glob": "^13.0.6",
+    "ws": "^8.21.0"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@types/cli-progress": "^3.11.6",
+    "@types/express": "^5.0.6",
     "@types/node": "^25.9.1",
+    "@types/ws": "^8.18.1",
     "eslint": "^10.4.1",
     "prettier": "^3.8.3",
     "tsx": "^4.22.4",

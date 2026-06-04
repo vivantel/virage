@@ -404,14 +404,22 @@ const benchmark = program
 
 benchmark
   .command("embedder")
-  .description("Benchmark a local HuggingFace embedding model")
-  .option("--model <id>", "HuggingFace model ID", "Xenova/all-MiniLM-L6-v2")
-  .option("--device <device>", "'cpu' or 'webgpu'", "cpu")
-  .action(async (opts: { model: string; device: string }) => {
+  .description(
+    "Benchmark any configured embedder (latency p50/p95/p99 + batch throughput)",
+  )
+  .option(
+    "-c, --config <path>",
+    "Path to virage.config.json",
+    "./virage.config.json",
+  )
+  .option("--samples <n>", "Number of latency samples", parseInt, 20)
+  .option("--warmup <n>", "Number of warm-up runs", parseInt, 3)
+  .action(async (opts: { config: string; samples: number; warmup: number }) => {
     try {
       await runBenchmarkEmbedder({
-        model: opts.model,
-        device: opts.device as "cpu" | "webgpu",
+        config: opts.config,
+        samples: opts.samples,
+        warmup: opts.warmup,
       });
     } catch (error) {
       handleError(error);

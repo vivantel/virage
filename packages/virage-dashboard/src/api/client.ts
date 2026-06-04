@@ -26,7 +26,6 @@ export interface AnomaliesData {
 export interface ProjectEntry {
   label: string;
   rootPath: string;
-  chunksFile: string;
   embeddingsDb: string;
   lastUsed: number;
 }
@@ -34,6 +33,46 @@ export interface ProjectEntry {
 export interface ProjectsData {
   projects: ProjectEntry[];
   activeIndex: number;
+}
+
+export interface ChunkRecord {
+  contentHash: string;
+  sourceFile: string;
+  content: string;
+  metadata: Record<string, unknown>;
+}
+
+export interface SearchResult {
+  id: string;
+  content: string;
+  metadata: Record<string, unknown>;
+  similarity: number;
+}
+
+export interface StatTestResult {
+  baselineMrr: number;
+  candidateMrr: number;
+  mrrDelta: number;
+  pValue: number;
+  confidenceInterval95: [number, number];
+  recommendation: "accept" | "reject" | "inconclusive";
+}
+
+export interface EvalResult {
+  mrr: number;
+  precisionAt5: number;
+  recallAt10: number;
+  hitRateAt5: number;
+  queriesEvaluated: number;
+}
+
+export interface ExperimentRun {
+  id: string;
+  name: string;
+  timestamp: string;
+  evalResult: EvalResult;
+  perQueryRrScores?: number[];
+  ragasResult?: Record<string, unknown>;
 }
 
 async function get<T>(path: string): Promise<T> {
@@ -57,7 +96,23 @@ async function post<T>(path: string, body: unknown): Promise<T> {
   return res.json() as Promise<T>;
 }
 
+async function del<T>(path: string, body?: unknown): Promise<T> {
+  const res = await fetch(path, {
+    method: "DELETE",
+    headers: body ? { "Content-Type": "application/json" } : {},
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  if (!res.ok) {
+    const err = (await res.json().catch(() => ({ error: res.statusText }))) as {
+      error?: string;
+    };
+    throw new Error(err.error ?? `${path}: ${res.status}`);
+  }
+  return res.json() as Promise<T>;
+}
+
 export const api = {
+  // Existing
   status: () => get<StatusData>("/api/status"),
   chunks: () => get<ChunksData>("/api/chunks"),
   anomalies: () => get<AnomaliesData>("/api/embeddings/anomalies"),
@@ -66,4 +121,25 @@ export const api = {
     post<ProjectsData>("/api/projects/add", { rootPath }),
   switchProject: (index: number) =>
     post<ProjectsData>("/api/projects/switch", { index }),
+
+  // Chunks
+  chunksAll: (sourceFile?: string) =>
+    get<{ chunks: ChunkRecord[] }>(
+      `/api/chunks/all${sourceFile ? `?sourceFile=${encodeURIComponent(sourceFile)}` : ""}`,
+    ),
+  deleteChunksFile: (sourceFile: string) =>
+    del<{ ok: boolean }>("/api/chunks/file", { sourceFile }),
+  deleteChunksAll: () => del<{ ok: boolean }>("/api/chunks/all"),
+
+  // Search
+  search: (query: string, topK?: number) =>
+    post<{ results: SearchResult[] }>("/api/search", { query, topK }),
+
+  // Experiments
+  experiments: () => get<{ runs: ExperimentRun[] }>("/api/experiments"),
+  experiment: (id: string) => get<ExperimentRun>(`/api/experiments/${id}`),
+  deleteExperiment: (id: string) =>
+    del<{ ok: boolean }>(`/api/experiments/${id}`),
+  compareExperiments: (baseline: string, candidate: string) =>
+    post<StatTestResult>("/api/experiments/compare", { baseline, candidate }),
 };

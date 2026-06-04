@@ -9,5 +9,6 @@
   "packages/virage-store-lancedb": "0.2.11",
   "packages/virage-store-chromadb": "0.2.11",
   "packages/virage-cli": "0.1.7",
-  "packages/virage-dashboard": "0.1.4"
+  "packages/virage-dashboard": "0.1.4",
+  "packages/virage-mcp": "0.1.0"
 }

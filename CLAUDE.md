@@ -70,6 +70,7 @@ This is an ESM TypeScript monorepo (`type: module`, NodeNext module resolution).
 | `virage-store-lancedb` | yes | LanceDB vector store |
 | `virage-store-chromadb` | yes | ChromaDB vector store |
 | `virage-store-test` | no (private) | File-backed mock VectorStore for acceptance testing |
+| `virage-mcp` | yes | MCP stdio server — search and inspect any virage index from AI assistants |
 
 ### Published package checklist
 
@@ -172,7 +173,10 @@ virage report [--dir <path>]     # show telemetry summary from .virage/telemetry
 virage chunks report             # chunk cohesion quality metrics (reads from embeddings.db)
 virage viz embeddings            # 2D UMAP/t-SNE visualization of embedding space
 virage dashboard                 # local real-time monitoring dashboard
-virage benchmark embedder        # benchmark HuggingFace model throughput
+virage benchmark embedder        # benchmark any configured embedder (p50/p95/p99 latency + batch throughput)
+  -c, --config <path>            # config file path (default: ./virage.config.json)
+  --samples <n>                  # number of latency samples (default: 20)
+  --warmup <n>                   # number of warm-up runs (default: 3)
 virage store stats               # vector index quality metrics
 virage store perf                # query performance report (p50/p95/p99 latency)
 ```
@@ -275,7 +279,7 @@ Never commit when `npm run lint` or `npm run type-check:ci` report errors.
 
 Releases are automated via release-please (`.github/workflows/release.yaml`). Commit messages must follow Conventional Commits (`feat:`, `fix:`, `chore:`, etc.) — this drives version bumping and CHANGELOG generation. The `prepublishOnly` script runs `build && test` before any publish.
 
-All published packages are managed by release-please: `virage-core`, `virage-cli`, `virage-dashboard`, `virage-strategies`, `virage-embedder-{openai,transformers,fastembed}`, `virage-store-{postgres,qdrant,lancedb,chromadb}`. `virage-store-test` is private and excluded entirely. The dashboard publishes only its `dist/` folder (the Vite build output) to npm; it is also embedded into the CLI build via a file-copy.
+All published packages are managed by release-please: `virage-core`, `virage-cli`, `virage-dashboard`, `virage-mcp`, `virage-strategies`, `virage-embedder-{openai,transformers,fastembed}`, `virage-store-{postgres,qdrant,lancedb,chromadb}`. `virage-store-test` is private and excluded entirely. The dashboard publishes only its `dist/` folder (the Vite build output) to npm; it is also embedded into the CLI build via a file-copy.
 
 Config: `.github/config/release-please.json`. Manifest (current versions): `.release-please-manifest.json`.
 
