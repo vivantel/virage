@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.9](https://github.com/vivantel/virage/compare/virage-core@v0.2.8...virage-core@v0.2.9) (2026-06-04)
+
+
+### Features
+
+* **virage-core:** Streaming pipeline + BLOB embedding schema ([34d9ce1](https://github.com/vivantel/virage/commit/34d9ce1ce43050b6ccb73481c6a636e692c0cd39))
+
 ## [0.2.8](https://github.com/vivantel/virage/compare/virage-core@v0.2.7...virage-core@v0.2.8) (2026-06-04)
 
 

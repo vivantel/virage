@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.1.4](https://github.com/vivantel/virage/compare/virage-cli@v0.1.3...virage-cli@v0.1.4) (2026-06-04)
+
+
+### Features
+
+* **virage-core:** Streaming pipeline + BLOB embedding schema ([34d9ce1](https://github.com/vivantel/virage/commit/34d9ce1ce43050b6ccb73481c6a636e692c0cd39))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @vivantel/virage-core bumped from 0.2.8 to 0.2.9
+
 ## [0.1.3](https://github.com/vivantel/virage/compare/virage-cli@v0.1.2...virage-cli@v0.1.3) (2026-06-04)
 
 
