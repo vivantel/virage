@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.4](https://github.com/vivantel/virage/compare/virage-dashboard@v0.1.3...virage-dashboard@v0.1.4) (2026-06-04)
+
+
+### Features
+
+* **dashboard:** Add multi-project tracking and switching ([9a9622c](https://github.com/vivantel/virage/commit/9a9622c099cf21ca260c97cc13d706d11c86c248))
+
 ## [0.1.3](https://github.com/vivantel/virage/compare/virage-dashboard@v0.1.2...virage-dashboard@v0.1.3) (2026-06-04)
 
 
