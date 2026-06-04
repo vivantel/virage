@@ -2,14 +2,40 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Maintaining this file
+
+**Claude must keep CLAUDE.md current.** After any change that affects developer workflow, update this file in the same PR/commit as the feature — not after. The goal is that a developer (or Claude in a future session) can open CLAUDE.md and immediately understand the current system without reading the source.
+
+- New package added → add it to the Monorepo overview
+- New CLI subcommand → add it to the CLI section
+- Pipeline stage changed (storage format, flags, default paths) → update Pipeline stages
+- New interface or major type → update Interfaces
+- New test configuration or npm script → update Commands
+- New architectural subsystem → add or update its section
+- Architecture decision made (new storage engine, changed default paths, new subsystem design) → record it in `docs/ADR.md` and reference the ADR number in relevant commit messages or code comments. Before making a significant design decision, check `docs/ADR.md` to see if the trade-off was already evaluated.
+
 ## Commands
+
+Root-level (run from repo root, operate across all workspaces):
+
+```bash
+npm run build:all      # build all workspace packages
+npm run fix            # ESLint auto-fix + Prettier across all packages
+npm run lint           # ESLint (read-only check)
+npm run type-check:ci  # TypeScript check on packages with working type files
+npm run clean          # rm -rf all dist/ and node_modules
+```
+
+Per-package commands (run from `packages/virage-core/` or via `npm run X -w @vivantel/virage-core`):
 
 ```bash
 npm run build          # compile TypeScript to dist/
-npm run build:clean    # rm -rf dist && build
-npm test               # run all tests
+npm run build:clean    # rm -rf dist && build (alias: build)
+npm test               # run all unit tests
 npm run test:watch     # watch mode
 npm run test:coverage  # coverage report
+npm run test:acceptance  # build virage-store-test then run acceptance suite
+npm run docs:generate  # TypeDoc HTML documentation
 npm run type-check     # tsc --noEmit
 npm run lint           # ESLint
 npm run lint:fix       # ESLint with auto-fix
@@ -26,30 +52,51 @@ npx vitest run src/core/git-tracker.test.ts
 
 ## Architecture
 
-This is an ESM TypeScript library (`type: module`, NodeNext module resolution) published as `@vivantel/virage-core`. It provides a four-stage RAG pipeline that consumers wire together via a config file.
+This is an ESM TypeScript monorepo (`type: module`, NodeNext module resolution). The primary published package is `@vivantel/virage-core`. It provides a four-stage RAG pipeline that consumers wire together via a JSON config file.
+
+### Monorepo packages (`packages/`)
+
+| Package | Published | Purpose |
+|---|---|---|
+| `virage-core` | yes | Pipeline engine, CLI, interfaces, strategies, eval, telemetry |
+| `virage-strategies` | yes | Re-exports built-in chunk strategies as a standalone install |
+| `virage-embedder-fastembed` | yes | Local FastEmbed embeddings |
+| `virage-embedder-openai` | yes | OpenAI embeddings + semantic cache + judge |
+| `virage-embedder-transformers` | yes | HuggingFace Transformers embeddings |
+| `virage-store-postgres` | yes | pgvector vector store |
+| `virage-store-qdrant` | yes | Qdrant vector store |
+| `virage-store-lancedb` | yes | LanceDB vector store |
+| `virage-store-chromadb` | yes | ChromaDB vector store |
+| `virage-store-test` | no (private) | File-backed mock VectorStore for acceptance testing |
 
 ### Pipeline stages (all in `src/core/`)
 
 1. **GitTracker** — uses `simple-git` + `glob` to find files matching chunker patterns, computes per-file commit hashes for change detection. Appends `-dirty` to hashes when there are uncommitted changes.
 
-2. **ChunkProcessor** — runs each file through its matched `FileChunker`, adds `contentHash` (SHA-256 first 16 chars) to each chunk, persists to `chunks.json`.
+2. **ChunkProcessor** — runs each file through its matched `FileChunker`, adds `contentHash` (SHA-256 first 16 chars) to each chunk, persists to `.virage/chunks.json` (via `defaultChunksFile()`).
 
-3. **EmbedderProcessor** — reads `chunks.json`, skips chunks whose `contentHash` already appears in `embeddings.json` (incremental), calls `EmbeddingProvider.embed()` or `embedBatch()`, writes `embeddings.json`.
+3. **EmbedderProcessor** — reads `chunks.json`, skips chunks already marked `uploaded = 1` in the SQLite database (`.virage/embeddings.db`), calls `EmbeddingProvider.embed()` or `embedBatch()`, writes vectors to the database. Supports mid-run uploads: set `minIngestionBatchSize` to trigger uploads during embedding via the `onIntermediateBatch` callback.
 
-4. **Uploader** — reads `embeddings.json`, compares against vector store state via `VectorStore.getCurrentState()`, calls `deleteBySourceFile()` then `upsert()` for changed sources.
+4. **Uploader** — reads pending chunks (`uploaded = 0`) from `embeddings.db` via `uploadPending(db)`, compares against vector store state via `VectorStore.getCurrentState()`, calls `deleteBySourceFile()` then `upsert()` for changed sources. Fatal vector store errors (schema mismatch, auth failures) are detected by `isFatalVectorStoreError()` and rethrown immediately without retry backoff.
 
-**Orchestrator** (`src/core/orchestrator.ts`) wires all four stages and is the main entry point for consumers. Default intermediate file paths are `./docs/rag/chunks.json` and `./docs/rag/embeddings.json`.
+**Orchestrator** (`src/core/orchestrator.ts`) wires all four stages and is the main entry point for consumers. Default artifact directory is `.virage/` (overridable via `VIRAGE_DIR` env var or CLI flags).
 
 ### Interfaces (`src/interfaces/`)
 
-Three provider interfaces consumers must implement:
+Provider interfaces consumers must implement:
 - `FileChunker` — `chunk(filePath, commitHash): Promise<Chunk[]>` plus `patterns: string[]`
 - `EmbeddingProvider` — `embed(text): Promise<number[]>`, optional `embedBatch`
 - `VectorStore` — `initialize`, `upsert`, `deleteBySourceFile`, `getCurrentState`, `search`
+- `Logger` — `debug/info/warn/error(msg)` methods; see Logger section below
+
+Quality/observability types in `src/interfaces/quality.ts`:
+`ChunkQualityMetrics`, `EmbeddingMetrics`, `IndexStats`, `QueryPerfReport`, `EvalResult`, `RAGASResult`, `ExperimentRun` — consumed by eval, experiment, and store-diagnostics commands.
 
 ### Strategies (`src/strategies/chunk/`)
 
 Four built-in `ChunkStrategy` implementations returned as factory functions: `tokenStrategy`, `markdownHeadersStrategy`, `semanticStrategy`, `wholeFileStrategy`. Strategies produce `Chunk[]` from raw text; they are lower-level than `FileChunker` — use `createChunker` to compose them.
+
+`ChunkStrategy` has an optional `getQualityMetrics?(chunks: Chunk[]): ChunkQualityMetrics` hook. `computeChunkQualityMetrics()` in `src/strategies/chunk/quality-metrics.ts` provides a standalone implementation usable without a full strategy instance.
 
 ### `createChunker` helper (`src/helpers/create-chunker.ts`)
 
@@ -66,13 +113,51 @@ Wraps the `FileChunker` interface. Two usage styles, enforced by a TypeScript di
 
 `canProcess` is optional on both paths.
 
-### CLI (`bin/virage.ts`)
+### CLI (`src/bin/virage.ts`)
 
-`virage --config virage.config.json` is the consumer-facing CLI. It calls `loadConfig` (reads and parses the JSON config, then dynamically imports each provider package) then `Orchestrator.run()`. Flags: `--force`, `--skip-upload`, `--chunks-file`, `--embeddings-file`.
+Bare `virage` prints help. All actions require a subcommand.
 
-`virage init` generates a `virage.config.json` interactively (`src/cli/init.ts`). It scans the working directory for known file types, presents a pre-checked confirmation prompt, generates chunkers using the strategy shorthand, and prompts for secrets to write to `.env`. After secrets, it detects the project's package manager and offers to auto-install required packages. Falls back to manual strategy selection if no known types are found. Known extension groups: `.md`/`.mdx` → `markdownHeadersStrategy`, `.ts`/`.tsx`/`.js`/`.jsx`/`.py`/`.go`/`.cs`/`.java` → `tokenStrategy`, `.yaml`/`.yml` → `wholeFileStrategy`, `.txt` → `semanticStrategy`. Embedder and store choices are driven by `loadRegistry()` (see plugin registry above), so external plugins appear automatically. Built-in stores: `postgres`, `qdrant`, `lancedb`, `chromadb`, `custom`.
+**Primary pipeline command:**
+```
+virage update                    # run the RAG indexing pipeline
+  -c, --config <path>            # config file path (default: ./virage.config.json)
+  -f, --force                    # force full rebuild
+  --no-upload                    # skip upload to vector store
+  --dry-run                      # show what would change without uploading
+  --chunks-out <path>            # override output path for chunks.json
+  --embeddings-out <path>        # override output path for embeddings
+  --watch                        # re-run on file changes (debounced, uses chokidar)
+  -v / -vv / ... -vvvvv          # verbosity (stackable; 0 = errors only, 5 = full debug)
+```
 
-**Config file loading** (`src/config-loader.ts`): Only JSON configs are supported. `loadConfig()` reads and parses the JSON, validates the schema, expands `${ENV_VAR}` placeholders, and dynamically imports each `embedder.package` / `vectorStore.package` calling its `createEmbedder()` / `createVectorStore()` factory. Passing a `.ts` path throws a `ConfigError` with a migration suggestion pointing to `virage init`.
+**Setup and validation:**
+```
+virage init                      # interactive config generator
+virage validate                  # validate virage.config.json against JSON schema
+```
+
+**Diagnostics and observability:**
+```
+virage report [--dir <path>]     # show telemetry summary from .virage/telemetry.json
+virage chunks report             # chunk cohesion quality metrics
+virage viz embeddings            # 2D UMAP/t-SNE visualization of embedding space
+virage dashboard                 # local real-time monitoring dashboard
+virage benchmark embedder        # benchmark HuggingFace model throughput
+virage store stats               # vector index quality metrics
+virage store perf                # query performance report (p50/p95/p99 latency)
+```
+
+**Evaluation and experiments:**
+```
+virage eval-generate             # generate eval dataset from existing chunks
+virage experiment run --name X   # run experiment and persist results
+virage experiment list           # list saved experiment runs
+virage experiment compare --baseline X --candidate Y  # bootstrap significance test
+```
+
+**`virage init`** (`src/cli/init.ts`): Scans the working directory for known file types, presents a pre-checked confirmation prompt, generates chunkers using the strategy shorthand, and prompts for secrets to write to `.env`. After secrets, it detects the project's package manager and offers to auto-install required packages. Falls back to manual strategy selection if no known types are found. Known extension groups: `.md`/`.mdx` → `markdownHeadersStrategy`, `.ts`/`.tsx`/`.js`/`.jsx`/`.py`/`.go`/`.cs`/`.java` → `tokenStrategy`, `.yaml`/`.yml` → `wholeFileStrategy`, `.txt` → `semanticStrategy`. Embedder and store choices are driven by `loadRegistry()`, so external plugins appear automatically.
+
+**Config file loading** (`src/config-loader.ts`): Only JSON configs are supported. `loadConfig()` reads and parses the JSON, validates against `schemas/virage.config.schema.json`, expands `${ENV_VAR}` placeholders, and dynamically imports each `embedder.package` / `vectorStore.package` calling its `createEmbedder()` / `createVectorStore()` factory. Passing a `.ts` path throws a `ConfigError` with a migration suggestion pointing to `virage init`.
 
 **Plugin registry** (`src/plugin-registry.ts`): `BUILT_IN_PLUGINS` lists all known embedders and stores. `loadRegistry(projectRoot)` merges built-ins with external plugins discovered from `node_modules` packages that declare a `"rag-plugin"` field in their `package.json`. External plugins override built-ins with the same `type:key`. Third-party packages self-register by adding:
 ```jsonc
@@ -88,7 +173,53 @@ The `package` field is auto-filled from the containing `package.json`'s `name`.
 
 **GitTracker glob ignores**: `getAllTrackedFiles()` excludes `node_modules/`, `dist/`, `build/`, `out/`, `coverage/`, `.git/`, `.next/`, `.turbo/`, `.cache/` so broad patterns like `**/*.ts` only match source files.
 
-**Intermediate artifacts**: `docs/rag/chunks.json` and `docs/rag/embeddings.json` are gitignored — they are generated by the pipeline and cached in CI via `actions/cache`. `virage.config.ci.json` at the repo root is the CI-specific config (FastEmbed embedder + Postgres vector store) used by `.github/workflows/virage-update.yaml` — a standalone workflow that triggers on master pushes and installs published packages from npmjs rather than building from source.
+### Logger (`src/logger/`)
+
+`createLogger(verbosity: number): Logger` — factory used by the CLI and Orchestrator.
+- `0` = quiet (errors only), `1–5` = progressively more debug output (`-v` … `-vvvvv`)
+- `ConsolaLogger` wraps `consola`; `NullLogger` is a no-op for tests.
+- All provider packages (embedders, stores) accept `setLogger(logger: Logger)` so log output propagates through the full pipeline.
+
+### Evaluation and Experiments (`src/eval/`)
+
+| File | Purpose |
+|---|---|
+| `generator.ts` | Build eval datasets from existing chunks |
+| `runner.ts` | Execute evaluation with metric collection |
+| `ragas.ts` | RAGAS LLM-as-judge integration (requires OpenAI embedder) |
+| `metrics.ts` | Precision/recall/NDCG computation |
+| `statistics.ts` | Bootstrap confidence intervals, significance tests |
+| `adaptive-tuner.ts` | Grid-search over chunker parameters |
+| `experiment-store.ts` | Persist/load experiment runs; ID format `<name>_<iso-timestamp>` |
+| `dataset-io.ts` | Read/write eval datasets |
+
+Results stored under `.rag-experiments/` (gitignored except `.keep`).
+
+### Telemetry (`src/core/telemetry.ts`)
+
+`TelemetryCollector` records per-stage metrics: git tracking, chunking, embedding latency, upload latency, rate-limit events. Auto-saved to `.virage/telemetry.json` after each pipeline run. `virage report` reads and displays this file.
+
+### Intermediate artifacts
+
+All generated by the pipeline and gitignored. Override the root directory via `VIRAGE_DIR` env var. Cached in CI via `actions/cache`.
+
+| File | Format | Contents |
+|---|---|---|
+| `.virage/chunks.json` | JSON | Chunk metadata with `contentHash` per chunk |
+| `.virage/embeddings.db` | SQLite | Chunks + embedding vectors + `uploaded` flag |
+| `.virage/telemetry.json` | JSON | Pipeline run performance metrics |
+
+`virage.config.ci.json` at the repo root is the CI-specific config (FastEmbed embedder + Postgres vector store) used by `.github/workflows/virage-update.yaml` — a standalone workflow that triggers on master pushes and installs published packages from npmjs rather than building from source.
+
+### Acceptance tests (`packages/virage-core/test/acceptance/`)
+
+A separate vitest suite (`vitest.acceptance.config.ts`) that exercises full CLI commands end-to-end using `virage-store-test` (file-backed mock store). Run from `packages/virage-core/`:
+
+```bash
+npm run test:acceptance
+```
+
+Set `E2E_CLONE_DIR` to reuse an existing clone and skip the slow clone step during iteration. 6-minute timeout; each test file runs in a forked process.
 
 ### Module import style
 
