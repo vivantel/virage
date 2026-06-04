@@ -167,7 +167,8 @@ export class Orchestrator {
         toProcess,
         fileState,
         existingChunks,
-        (done, total) => opts.onChunkProgress?.(done < total ? done : total, total),
+        (done, total) =>
+          opts.onChunkProgress?.(done < total ? done : total, total),
       );
       await chunkProcessor.saveChunksLocal(chunks, this.chunksFile);
 
@@ -205,7 +206,8 @@ export class Orchestrator {
         vectorStoreName: this.config.vectorStore.name,
         minIngestionBatchSize: opts.minIngestionBatchSize,
         logger: opts.logger,
-        onProgress: (done, total) => opts.onEmbedProgress?.(done < total ? done : total, total),
+        onProgress: (done, total) =>
+          opts.onEmbedProgress?.(done < total ? done : total, total),
       });
 
       const newEmbeddings = await embedder.run(
@@ -238,7 +240,11 @@ export class Orchestrator {
       } else if (!opts.skipUpload) {
         logger.info("📤 Step 4: Uploading to vector store...");
         const t4 = Date.now();
-        uploadStats = await uploader.sync(db, opts.force || false, opts.onUploadProgress);
+        uploadStats = await uploader.sync(
+          db,
+          opts.force || false,
+          opts.onUploadProgress,
+        );
 
         const uploadDuration = Date.now() - t4;
         logger.verbose(`Upload done in ${uploadDuration}ms`);

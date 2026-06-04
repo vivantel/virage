@@ -60,7 +60,7 @@ This is an ESM TypeScript monorepo (`type: module`, NodeNext module resolution).
 |---|---|---|
 | `virage-core` | yes | Pipeline engine, interfaces, strategies, eval, telemetry — **no CLI deps** |
 | `virage-cli` | yes | `virage` binary + all CLI commands; depends on virage-core. Use `build:with-dashboard` for a complete local build (embeds dashboard UI). |
-| `virage-dashboard` | yes | React + Vite dashboard web app served by `virage dashboard`; publishes `dist/` to npm and is embedded in virage-cli at build time |
+| `virage-dashboard` | yes | React + Vite dashboard web app served by `virage dashboard`; publishes `dist/` to npm and is embedded in virage-cli at build time. Supports multi-project switching and persists recent projects to `~/.virage/recent-projects.json`. |
 | `virage-strategies` | yes | Re-exports built-in chunk strategies as a standalone install |
 | `virage-embedder-fastembed` | yes | Local FastEmbed embeddings |
 | `virage-embedder-openai` | yes | OpenAI embeddings + semantic cache + judge |

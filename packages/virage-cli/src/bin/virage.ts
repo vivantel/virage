@@ -62,8 +62,11 @@ async function runOnce(options: {
 }): Promise<void> {
   const cfg = await loadConfig(options.config, options.logger);
 
-  const bars: { chunk: ProgressBar | null; embed: ProgressBar | null; upload: ProgressBar | null } =
-    { chunk: null, embed: null, upload: null };
+  const bars: {
+    chunk: ProgressBar | null;
+    embed: ProgressBar | null;
+    upload: ProgressBar | null;
+  } = { chunk: null, embed: null, upload: null };
 
   try {
     const orchestrator = new Orchestrator({

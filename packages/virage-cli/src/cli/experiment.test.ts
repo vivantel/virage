@@ -21,7 +21,12 @@ vi.mock("@vivantel/virage-core", async (importOriginal) => {
 // Imports
 // ---------------------------------------------------------------------------
 
-import { loadConfig, loadEvalDataset, EvalRunner, ExperimentStore } from "@vivantel/virage-core";
+import {
+  loadConfig,
+  loadEvalDataset,
+  EvalRunner,
+  ExperimentStore,
+} from "@vivantel/virage-core";
 import {
   runExperimentRun,
   runExperimentCompare,
