@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.7](https://github.com/vivantel/virage/compare/virage-core@v0.2.6...virage-core@v0.2.7) (2026-06-04)
+
+
+### Features
+
+* Split virage-core into library + CLI packages; add virage-dashboard ([08dcb95](https://github.com/vivantel/virage/commit/08dcb9551e834462fd2d94e0e8f6255dbda4e391))
+
+
+### Bug Fixes
+
+* Remove unused EmbeddedChunk import; exclude virage-dashboard from workspaces ([39c6562](https://github.com/vivantel/virage/commit/39c6562043d1126c4408425302ae9a646a47684e))
+
 ## [0.2.6](https://github.com/vivantel/virage/compare/virage-core@v0.2.5...virage-core@v0.2.6) (2026-06-04)
 
 
