@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.11](https://github.com/vivantel/virage/compare/virage-core@v0.2.10...virage-core@v0.2.11) (2026-06-04)
+
+
+### Bug Fixes
+
+* **virage-cli:** Gate verbose/debug/trace logs and add projected embed totals ([29c11e8](https://github.com/vivantel/virage/commit/29c11e84c1cdf3556ee3b9305ad901a203e594b3))
+
 ## [0.2.10](https://github.com/vivantel/virage/compare/virage-core@v0.2.9...virage-core@v0.2.10) (2026-06-04)
 
 

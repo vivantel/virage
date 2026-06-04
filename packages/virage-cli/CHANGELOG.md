@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.1.7](https://github.com/vivantel/virage/compare/virage-cli@v0.1.6...virage-cli@v0.1.7) (2026-06-04)
+
+
+### Bug Fixes
+
+* **virage-cli:** Gate verbose/debug/trace logs and add projected embed totals ([29c11e8](https://github.com/vivantel/virage/commit/29c11e84c1cdf3556ee3b9305ad901a203e594b3))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @vivantel/virage-core bumped from 0.2.10 to 0.2.11
+
 ## [0.1.6](https://github.com/vivantel/virage/compare/virage-cli@v0.1.5...virage-cli@v0.1.6) (2026-06-04)
 
 
