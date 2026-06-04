@@ -1,0 +1,145 @@
+name: CI
+
+on:
+  push:
+    branches: [master, develop]
+    paths:
+      - 'packages/**'
+      - 'eslint.config.js'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/ci.yaml'
+  pull_request:
+    branches: [master]
+    paths:
+      - 'packages/**'
+      - 'eslint.config.js'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/ci.yaml'
+
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      packages: ${{ steps.filter.outputs.changes }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            virage-core:
+              - 'packages/virage-core/**'
+              - 'eslint.config.js'
+              - 'package.json'
+              - 'package-lock.json'
+              - '.github/workflows/ci.yaml'
+            virage-strategies:
+              - 'packages/virage-strategies/**'
+              - 'eslint.config.js'
+              - 'package.json'
+              - 'package-lock.json'
+              - '.github/workflows/ci.yaml'
+            virage-embedder-openai:
+              - 'packages/virage-embedder-openai/**'
+              - 'eslint.config.js'
+              - 'package.json'
+              - 'package-lock.json'
+              - '.github/workflows/ci.yaml'
+            virage-embedder-transformers:
+              - 'packages/virage-embedder-transformers/**'
+              - 'eslint.config.js'
+              - 'package.json'
+              - 'package-lock.json'
+              - '.github/workflows/ci.yaml'
+            virage-embedder-fastembed:
+              - 'packages/virage-embedder-fastembed/**'
+              - 'eslint.config.js'
+              - 'package.json'
+              - 'package-lock.json'
+              - '.github/workflows/ci.yaml'
+            virage-store-postgres:
+              - 'packages/virage-store-postgres/**'
+              - 'eslint.config.js'
+              - 'package.json'
+              - 'package-lock.json'
+              - '.github/workflows/ci.yaml'
+            virage-store-qdrant:
+              - 'packages/virage-store-qdrant/**'
+              - 'eslint.config.js'
+              - 'package.json'
+              - 'package-lock.json'
+              - '.github/workflows/ci.yaml'
+            virage-store-lancedb:
+              - 'packages/virage-store-lancedb/**'
+              - 'eslint.config.js'
+              - 'package.json'
+              - 'package-lock.json'
+              - '.github/workflows/ci.yaml'
+            virage-store-chromadb:
+              - 'packages/virage-store-chromadb/**'
+              - 'eslint.config.js'
+              - 'package.json'
+              - 'package-lock.json'
+              - '.github/workflows/ci.yaml'
+            virage-cli:
+              - 'packages/virage-cli/**'
+              - 'eslint.config.js'
+              - 'package.json'
+              - 'package-lock.json'
+              - '.github/workflows/ci.yaml'
+            virage-dashboard:
+              - 'packages/virage-dashboard/**'
+              - 'eslint.config.js'
+              - 'package.json'
+              - 'package-lock.json'
+              - '.github/workflows/ci.yaml'
+            virage-mcp:
+              - 'packages/virage-mcp/**'
+              - 'eslint.config.js'
+              - 'package.json'
+              - 'package-lock.json'
+              - '.github/workflows/ci.yaml'
+
+  build-and-test:
+    needs: changes
+    if: ${{ needs.changes.outputs.packages != '[]' && needs.changes.outputs.packages != '' }}
+    name: CI — ${{ matrix.package }} / Node ${{ matrix.node-version }}
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        node-version: [22, 24, 26]
+        package: ${{ fromJSON(needs.changes.outputs.packages) }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci --ignore-scripts
+
+      - name: Type check
+        run: npm run type-check --workspace packages/${{ matrix.package }}
+
+      - name: Format check
+        run: npm run format:check --workspace packages/${{ matrix.package }}
+
+      - name: Lint
+        run: npm run lint --workspace packages/${{ matrix.package }}
+
+      - name: Run tests
+        run: npm test --workspace packages/${{ matrix.package }}
+
+      - name: Build
+        run: npm run build --workspace packages/${{ matrix.package }}

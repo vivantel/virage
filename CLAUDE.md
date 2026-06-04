@@ -283,6 +283,20 @@ All published packages are managed by release-please: `virage-core`, `virage-cli
 
 Config: `.github/config/release-please.json`. Manifest (current versions): `.release-please-manifest.json`.
 
+### Adding a new published package
+
+When a new public package is added under `packages/`, update three files in the same commit:
+
+1. **`.github/config/release-please.json`** — add an entry under `"packages"` (copy any sibling entry, update the key and `package-name`).
+
+2. **`.github/workflows/release.yaml`**:
+   - In the `release-please` job `outputs:` block, add: `<package-name>: ${{ steps.release.outputs['packages/<package-name>--release_created'] }}`
+   - In the `publish` job `strategy.matrix.package:` array, add the bare package name as a string (e.g., `- virage-newpkg`). Path, dependency builds, and `--ignore-scripts` are derived from the name in the step conditions.
+
+3. **`.github/workflows/ci.yaml`** — add an entry to the `filters:` block in the `changes` job (copy any sibling, update the package name and path). The `build-and-test` matrix is driven by the `changes` output automatically. If the new package needs `--ignore-scripts` (native binary postinstall scripts), add its name to the `contains()` list in the "Install dependencies" step in both workflows.
+
+`virage-store-test` is private and excluded from all three files.
+
 ## Planning rules
 
 Do not parallelize planning steps. Execute each step in order of appearance, or — when steps have explicit dependencies — in dependency order (fewest dependencies first). Wait for each step to complete before starting the next.
