@@ -194,6 +194,10 @@ export class Orchestrator {
       let embedDone = 0;
       let uploadDone = 0;
 
+      // Snapshot carry-over counts for projection arithmetic below.
+      const initialPendingEmbed = pendingEmbed.length;
+      const initialPendingUpload = pendingUpload.length;
+
       opts.onChunkProgress?.(0, toProcess.length);
       opts.onEmbedProgress?.(0, embedTotal);
       opts.onUploadProgress?.(0, uploadTotal);
@@ -292,6 +296,18 @@ export class Orchestrator {
         chunksGenerated += newChunks.length;
         chunkDone++;
         opts.onChunkProgress?.(chunkDone, toProcess.length);
+
+        // Project embed/upload totals using average chunks-per-file so the bars
+        // show a meaningful scale before the first flushEmbed triggers.
+        if (toProcess.length > 0) {
+          const avgChunksPerFile = chunksGenerated / chunkDone;
+          const projectedNew = Math.ceil(toProcess.length * avgChunksPerFile);
+          opts.onEmbedProgress?.(embedDone, initialPendingEmbed + projectedNew);
+          opts.onUploadProgress?.(
+            uploadDone,
+            initialPendingUpload + projectedNew,
+          );
+        }
 
         await flushEmbed(false);
       }

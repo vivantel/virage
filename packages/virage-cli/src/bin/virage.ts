@@ -50,12 +50,14 @@ function handleError(error: unknown): never {
   process.exit(1);
 }
 
-// Routes log output through the MultiBar so messages appear above the bars
-// instead of being interleaved mid-line with bar renders.
+// Routes log output through the MultiBar so messages appear above the bars.
+// Thresholds match ConsolaLogger's VERBOSITY_LEVELS: verbose=-v, debug=-vv,
+// trace=-vvv, silly=-vvvvv.
 class MultiBarLogger implements Logger {
   constructor(
     private readonly inner: Logger,
     private readonly bars: MultiProgressBars,
+    private readonly verbosity: number,
   ) {}
   fatal(msg: string, ...args: unknown[]) {
     this.inner.fatal(msg, ...args);
@@ -73,19 +75,23 @@ class MultiBarLogger implements Logger {
     this.bars.log(`✓ ${msg}\n`);
   }
   verbose(msg: string, ..._args: unknown[]) {
-    this.bars.log(`  ${msg}\n`);
+    if (this.verbosity >= 1) this.bars.log(`  ${msg}\n`);
   }
   debug(msg: string, ..._args: unknown[]) {
-    this.bars.log(`  [debug] ${msg}\n`);
+    if (this.verbosity >= 2) this.bars.log(`  [debug] ${msg}\n`);
   }
   trace(msg: string, ..._args: unknown[]) {
-    this.bars.log(`  [trace] ${msg}\n`);
+    if (this.verbosity >= 3) this.bars.log(`  [trace] ${msg}\n`);
   }
   silly(msg: string, ..._args: unknown[]) {
-    this.bars.log(`  [silly] ${msg}\n`);
+    if (this.verbosity >= 5) this.bars.log(`  [silly] ${msg}\n`);
   }
   withTag(tag: string): Logger {
-    return new MultiBarLogger(this.inner.withTag(tag), this.bars);
+    return new MultiBarLogger(
+      this.inner.withTag(tag),
+      this.bars,
+      this.verbosity,
+    );
   }
 }
 
@@ -96,10 +102,15 @@ async function runOnce(options: {
   dryRun: boolean;
   embeddingsOut?: string;
   logger: Logger;
+  verbosity: number;
 }): Promise<void> {
   const cfg = await loadConfig(options.config, options.logger);
   const bars = createMultiProgressBars();
-  const pipelineLogger = new MultiBarLogger(options.logger, bars);
+  const pipelineLogger = new MultiBarLogger(
+    options.logger,
+    bars,
+    options.verbosity,
+  );
 
   try {
     const orchestrator = new Orchestrator({
@@ -173,6 +184,7 @@ program
         dryRun: cmdOpts.dryRun,
         embeddingsOut: cmdOpts.embeddingsOut,
         logger,
+        verbosity: verbose,
       };
 
       logger.info("🚀 Virage");
