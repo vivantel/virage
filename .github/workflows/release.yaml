@@ -28,6 +28,7 @@ jobs:
       chromadb_released: ${{ steps.release.outputs['packages/virage-store-chromadb--release_created'] }}
       cli_released: ${{ steps.release.outputs['packages/virage-cli--release_created'] }}
       dashboard_released: ${{ steps.release.outputs['packages/virage-dashboard--release_created'] }}
+      mcp_released: ${{ steps.release.outputs['packages/virage-mcp--release_created'] }}
     steps:
       - name: Run Release Please
         id: release
@@ -284,6 +285,30 @@ jobs:
       - name: Publish
         run: npm publish --provenance --access public
         working-directory: packages/virage-cli
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+  publish-mcp:
+    name: Publish @vivantel/virage-mcp
+    needs: release-please
+    if: ${{ needs.release-please.outputs.mcp_released == 'true' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '20.x'
+          registry-url: 'https://registry.npmjs.org'
+          cache: "npm"
+      - run: npm ci
+      - run: npm run build --workspace packages/virage-core
+      - run: npm run build --workspace packages/virage-mcp
+      - name: Publish
+        run: npm publish --provenance --access public
+        working-directory: packages/virage-mcp
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
