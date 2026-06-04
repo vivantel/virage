@@ -140,7 +140,7 @@ export class EmbeddingsDb {
           row.content,
           row.metadata_json,
           blob,
-          row.embedded_at,
+          row.embedded_at != null ? Math.floor(row.embedded_at) : null,
           row.uploaded,
         );
       }
