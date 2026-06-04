@@ -58,7 +58,9 @@ This is an ESM TypeScript monorepo (`type: module`, NodeNext module resolution).
 
 | Package | Published | Purpose |
 |---|---|---|
-| `virage-core` | yes | Pipeline engine, CLI, interfaces, strategies, eval, telemetry |
+| `virage-core` | yes | Pipeline engine, interfaces, strategies, eval, telemetry — **no CLI deps** |
+| `virage-cli` | yes | `virage` binary + all CLI commands; depends on virage-core |
+| `virage-dashboard` | no (private) | React + Vite dashboard web app served by `virage dashboard` |
 | `virage-strategies` | yes | Re-exports built-in chunk strategies as a standalone install |
 | `virage-embedder-fastembed` | yes | Local FastEmbed embeddings |
 | `virage-embedder-openai` | yes | OpenAI embeddings + semantic cache + judge |
@@ -79,7 +81,9 @@ This is an ESM TypeScript monorepo (`type: module`, NodeNext module resolution).
 
 4. **Uploader** — reads pending chunks (`uploaded = 0`) from `embeddings.db` via `uploadPending(db)`, compares against vector store state via `VectorStore.getCurrentState()`, calls `deleteBySourceFile()` then `upsert()` for changed sources. Fatal vector store errors (schema mismatch, auth failures) are detected by `isFatalVectorStoreError()` and rethrown immediately without retry backoff.
 
-**Orchestrator** (`src/core/orchestrator.ts`) wires all four stages and is the main entry point for consumers. Default artifact directory is `.virage/` (overridable via `VIRAGE_DIR` env var or CLI flags).
+**Orchestrator** (`packages/virage-core/src/core/orchestrator.ts`) wires all four stages and is the main entry point for consumers. Default artifact directory is `.virage/` (overridable via `VIRAGE_DIR` env var or CLI flags).
+
+Progress reporting is callback-based: `RAGPipelineConfig.options` accepts `onChunkProgress`, `onEmbedProgress`, `onUploadProgress` callbacks. The CLI (`virage-cli`) creates progress bars and passes them as callbacks; library consumers can pass their own or omit them.
 
 ### Interfaces (`src/interfaces/`)
 
@@ -113,7 +117,9 @@ Wraps the `FileChunker` interface. Two usage styles, enforced by a TypeScript di
 
 `canProcess` is optional on both paths.
 
-### CLI (`src/bin/virage.ts`)
+### CLI (`packages/virage-cli/src/bin/virage.ts`)
+
+The `virage` binary is provided by `@vivantel/virage-cli`. Install that package (not `@vivantel/virage-core`) to get the CLI.
 
 Bare `virage` prints help. All actions require a subcommand.
 
@@ -173,9 +179,12 @@ The `package` field is auto-filled from the containing `package.json`'s `name`.
 
 **GitTracker glob ignores**: `getAllTrackedFiles()` excludes `node_modules/`, `dist/`, `build/`, `out/`, `coverage/`, `.git/`, `.next/`, `.turbo/`, `.cache/` so broad patterns like `**/*.ts` only match source files.
 
-### Logger (`src/logger/`)
+### Logger
 
-`createLogger(verbosity: number): Logger` — factory used by the CLI and Orchestrator.
+**`packages/virage-cli/src/logger/`** — `createLogger(verbosity: number): Logger` factory used by the CLI. `ConsolaLogger` wraps `consola` for terminal output.
+
+**`packages/virage-core/src/logger/null-logger.ts`** — `NullLogger` no-op for tests and library use (no consola dep).
+
 - `0` = quiet (errors only), `1–5` = progressively more debug output (`-v` … `-vvvvv`)
 - `ConsolaLogger` wraps `consola`; `NullLogger` is a no-op for tests.
 - All provider packages (embedders, stores) accept `setLogger(logger: Logger)` so log output propagates through the full pipeline.

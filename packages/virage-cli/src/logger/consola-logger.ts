@@ -1,5 +1,5 @@
 import { createConsola, type ConsolaInstance } from "consola";
-import type { Logger } from "../interfaces/logger.js";
+import type { Logger } from "@vivantel/virage-core";
 
 const VERBOSITY_LEVELS = [3, 4, 5, 6, 9, 999] as const;
 

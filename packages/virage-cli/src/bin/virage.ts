@@ -2,11 +2,18 @@
 
 import { Command } from "commander";
 import { config } from "dotenv";
-import { loadConfig } from "../config-loader.js";
-import { Orchestrator } from "../core/orchestrator.js";
-import { RagError } from "../core/errors.js";
+import {
+  loadConfig,
+  Orchestrator,
+  RagError,
+  defaultChunksFile,
+  defaultEmbeddingsDb,
+  getVirageDir,
+} from "@vivantel/virage-core";
+import type { Logger } from "@vivantel/virage-core";
 import { createLogger } from "../logger/index.js";
-import type { Logger } from "../interfaces/logger.js";
+import { createProgressBar } from "../progress/progress-bar.js";
+import type { ProgressBar } from "../progress/progress-bar.js";
 import { runInit } from "../cli/init.js";
 import { runValidate } from "../cli/validate.js";
 import { runEvaluate } from "../cli/evaluate.js";
@@ -21,11 +28,6 @@ import { runReport } from "../cli/report.js";
 import { runChunksReport } from "../cli/chunks-report.js";
 import { runVizEmbeddings } from "../cli/viz.js";
 import { runDashboard } from "../cli/dashboard.js";
-import {
-  defaultChunksFile,
-  defaultEmbeddingsDb,
-  getVirageDir,
-} from "../core/virage-defaults.js";
 
 config({ quiet: true });
 
@@ -59,19 +61,41 @@ async function runOnce(options: {
   logger: Logger;
 }): Promise<void> {
   const cfg = await loadConfig(options.config, options.logger);
-  const orchestrator = new Orchestrator({
-    ...cfg,
-    options: {
-      ...cfg.options,
-      force: options.force || cfg.options?.force,
-      skipUpload: options.noUpload || cfg.options?.skipUpload,
-      dryRun: options.dryRun || cfg.options?.dryRun,
-      chunksFile: options.chunksOut || cfg.options?.chunksFile,
-      embeddingsFile: options.embeddingsOut || cfg.options?.embeddingsFile,
-      logger: options.logger,
-    },
-  });
-  await orchestrator.run();
+
+  const bars: { chunk: ProgressBar | null; embed: ProgressBar | null; upload: ProgressBar | null } =
+    { chunk: null, embed: null, upload: null };
+
+  try {
+    const orchestrator = new Orchestrator({
+      ...cfg,
+      options: {
+        ...cfg.options,
+        force: options.force || cfg.options?.force,
+        skipUpload: options.noUpload || cfg.options?.skipUpload,
+        dryRun: options.dryRun || cfg.options?.dryRun,
+        chunksFile: options.chunksOut || cfg.options?.chunksFile,
+        embeddingsFile: options.embeddingsOut || cfg.options?.embeddingsFile,
+        logger: options.logger,
+        onChunkProgress: (done, total) => {
+          if (!bars.chunk) bars.chunk = createProgressBar("Chunking", total);
+          bars.chunk.update(done);
+        },
+        onEmbedProgress: (done, total) => {
+          if (!bars.embed) bars.embed = createProgressBar("Embedding", total);
+          bars.embed.update(done);
+        },
+        onUploadProgress: (done, total) => {
+          if (!bars.upload) bars.upload = createProgressBar("Uploading", total);
+          bars.upload.update(done);
+        },
+      },
+    });
+    await orchestrator.run();
+  } finally {
+    bars.chunk?.stop();
+    bars.embed?.stop();
+    bars.upload?.stop();
+  }
 }
 
 program
@@ -264,7 +288,7 @@ program
         const chunks = Array.isArray(raw)
           ? raw
           : ((raw as { chunks?: unknown[] }).chunks ?? []);
-        const { generateEvalDataset } = await import("../eval/generator.js");
+        const { generateEvalDataset } = await import("@vivantel/virage-core");
         await generateEvalDataset(
           chunks as Parameters<typeof generateEvalDataset>[0],
           {

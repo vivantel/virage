@@ -1,6 +1,6 @@
 import { writeFile } from "fs/promises";
 import { extname } from "path";
-import { EmbeddingsDb } from "../core/embeddings-db.js";
+import { EmbeddingsDb } from "@vivantel/virage-core";
 
 export interface VizEmbeddingsOptions {
   dbPath: string;

@@ -1,6 +1,9 @@
 import { createServer, type IncomingMessage, type ServerResponse } from "http";
 import { readFile } from "fs/promises";
-import { EmbeddingsDb } from "../core/embeddings-db.js";
+import { existsSync } from "fs";
+import { join, extname } from "path";
+import { fileURLToPath } from "url";
+import { EmbeddingsDb } from "@vivantel/virage-core";
 
 export interface DashboardOptions {
   port: number;
@@ -8,92 +11,62 @@ export interface DashboardOptions {
   dbPath: string;
 }
 
-const HTML_TEMPLATE = `<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <title>RAG Dashboard</title>
-  <meta http-equiv="refresh" content="5">
-  <style>
-    body { font-family: monospace; background: #1a1a2e; color: #eee; padding: 20px; }
-    h1 { color: #7ec8e3; }
-    .card { background: #16213e; border-radius: 8px; padding: 16px; margin: 12px 0; }
-    .metric { display: inline-block; margin: 8px 16px; }
-    .metric .value { font-size: 2em; color: #7ec8e3; }
-    .metric .label { font-size: 0.8em; color: #888; }
-    .bar { height: 16px; background: #0f3460; border-radius: 4px; margin: 4px 0; position: relative; }
-    .bar-fill { height: 100%; background: #7ec8e3; border-radius: 4px; }
-    .anomaly { color: #ff6b6b; }
-    table { width: 100%; border-collapse: collapse; }
-    td, th { padding: 6px 12px; text-align: left; border-bottom: 1px solid #333; }
-  </style>
-</head>
-<body>
-  <h1>🤖 RAG Dashboard</h1>
-  <div id="content">Loading...</div>
-  <script>
-    async function refresh() {
-      const [status, chunks, anomalies] = await Promise.all([
-        fetch('/api/status').then(r => r.json()),
-        fetch('/api/chunks').then(r => r.json()),
-        fetch('/api/embeddings/anomalies').then(r => r.json()),
-      ]);
+const MIME: Record<string, string> = {
+  ".html": "text/html; charset=utf-8",
+  ".js": "application/javascript",
+  ".css": "text/css",
+  ".svg": "image/svg+xml",
+  ".ico": "image/x-icon",
+};
 
-      let html = '';
+// Resolve the compiled dashboard-ui/ directory shipped alongside this package.
+// At runtime the compiled CLI lives at dist/cli/dashboard.js; dashboard-ui is at dist/dashboard-ui/.
+const THIS_DIR = fileURLToPath(new URL(".", import.meta.url));
+const UI_DIR = join(THIS_DIR, "..", "dashboard-ui");
+const HAS_UI = existsSync(join(UI_DIR, "index.html"));
 
-      // Status card
-      html += '<div class="card"><h2>System Status</h2>';
-      html += '<div class="metric"><div class="value">' + (status.totalChunks || 0) + '</div><div class="label">Total Chunks</div></div>';
-      html += '<div class="metric"><div class="value">' + (status.totalEmbeddings || 0) + '</div><div class="label">Embeddings</div></div>';
-      html += '<div class="metric"><div class="value">' + (status.memoryMB || 0) + ' MB</div><div class="label">Heap Used</div></div>';
-      html += '</div>';
+async function serveStatic(urlPath: string, res: ServerResponse): Promise<boolean> {
+  if (!HAS_UI) return false;
 
-      // Chunk histogram
-      if (chunks.histogram && chunks.histogram.length > 0) {
-        html += '<div class="card"><h2>Chunk Size Distribution</h2>';
-        const maxCount = Math.max(...chunks.histogram.map(b => b.count));
-        for (const bucket of chunks.histogram) {
-          const pct = maxCount > 0 ? Math.round((bucket.count / maxCount) * 100) : 0;
-          html += '<div style="font-size:12px">' + bucket.label + '</div>';
-          html += '<div class="bar"><div class="bar-fill" style="width:' + pct + '%"></div></div>';
-          html += '<div style="font-size:11px;color:#888">' + bucket.count + ' chunks</div>';
-        }
-        html += '</div>';
+  const normalized = urlPath === "/" || urlPath === "" ? "/index.html" : urlPath;
+  // Only serve known static assets; fall back to index.html for SPA routing
+  const filePath = join(UI_DIR, normalized);
+  const ext = extname(filePath).toLowerCase();
+
+  try {
+    const content = await readFile(filePath);
+    res.setHeader("Content-Type", MIME[ext] ?? "application/octet-stream");
+    res.end(content);
+    return true;
+  } catch {
+    // Try index.html for SPA client-side routing (non-asset paths)
+    if (!normalized.startsWith("/assets/") && ext === ".html") {
+      try {
+        const html = await readFile(join(UI_DIR, "index.html"));
+        res.setHeader("Content-Type", "text/html; charset=utf-8");
+        res.end(html);
+        return true;
+      } catch {
+        return false;
       }
-
-      // Anomalies
-      if (anomalies.anomalies && anomalies.anomalies.length > 0) {
-        html += '<div class="card"><h2>⚠️ Embedding Anomalies (' + anomalies.anomalies.length + ')</h2>';
-        html += '<table><tr><th>File</th><th>z-score</th><th>Preview</th></tr>';
-        for (const a of anomalies.anomalies.slice(0, 10)) {
-          html += '<tr class="anomaly"><td>' + a.sourceFile + '</td><td>' + a.zscore.toFixed(2) + '</td><td>' + a.preview + '</td></tr>';
-        }
-        html += '</table></div>';
-      } else {
-        html += '<div class="card">✅ No embedding anomalies detected</div>';
-      }
-
-      document.getElementById('content').innerHTML = html;
     }
-    refresh();
-    setInterval(refresh, 5000);
-  </script>
-</body>
-</html>`;
+    return false;
+  }
+}
 
 export async function runDashboard(opts: DashboardOptions): Promise<void> {
+  if (!HAS_UI) {
+    console.warn(
+      "⚠️  Dashboard UI not found. Run `npm run build -w @vivantel/virage-dashboard` first.",
+    );
+  }
+
   const server = createServer(
     async (req: IncomingMessage, res: ServerResponse) => {
       const url = req.url ?? "/";
       res.setHeader("Content-Type", "application/json");
 
       try {
-        if (url === "/" || url === "/index.html") {
-          res.setHeader("Content-Type", "text/html");
-          res.end(HTML_TEMPLATE);
-          return;
-        }
-
         if (url === "/api/status") {
           const status = await getStatus(opts.chunksFile, opts.dbPath);
           res.end(JSON.stringify(status));
@@ -112,8 +85,12 @@ export async function runDashboard(opts: DashboardOptions): Promise<void> {
           return;
         }
 
-        res.statusCode = 404;
-        res.end(JSON.stringify({ error: "Not found" }));
+        // Serve React app static assets
+        const served = await serveStatic(url, res);
+        if (!served) {
+          res.statusCode = 404;
+          res.end(JSON.stringify({ error: "Not found" }));
+        }
       } catch (err) {
         res.statusCode = 500;
         res.end(JSON.stringify({ error: (err as Error).message }));

@@ -1,0 +1,24 @@
+{
+  "name": "@vivantel/virage-dashboard",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "React dashboard web app for the Virage RAG pipeline — served by virage-cli",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview",
+    "type-check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.5",
+    "@types/react-dom": "^18.3.0",
+    "@vitejs/plugin-react": "^4.3.1",
+    "typescript": "^5.5.3",
+    "vite": "^5.4.2"
+  }
+}

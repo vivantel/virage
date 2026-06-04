@@ -5,10 +5,6 @@ import { Uploader } from "./uploader.js";
 import { EmbeddingsDb } from "./embeddings-db.js";
 import { TelemetryCollector } from "./telemetry.js";
 import {
-  createProgressBar,
-  type ProgressBar,
-} from "../progress/progress-bar.js";
-import {
   FileChunker,
   EmbeddingProvider,
   VectorStore,
@@ -40,6 +36,9 @@ export interface RAGPipelineConfig {
     telemetry?: boolean;
     notifications?: { webhookUrl?: string };
     logger?: Logger;
+    onChunkProgress?: (done: number, total: number) => void;
+    onEmbedProgress?: (done: number, total: number) => void;
+    onUploadProgress?: (done: number, total: number) => void;
   };
 }
 
@@ -165,18 +164,12 @@ export class Orchestrator {
         ? []
         : await loadExistingChunks(this.chunksFile);
 
-      const chunkBar = createProgressBar("Chunking", toProcess.length);
-      let chunks: Chunk[];
-      try {
-        chunks = await chunkProcessor.processFiles(
-          toProcess,
-          fileState,
-          existingChunks,
-          (done, total) => chunkBar.update(done < total ? done : total),
-        );
-      } finally {
-        chunkBar.stop();
-      }
+      const chunks = await chunkProcessor.processFiles(
+        toProcess,
+        fileState,
+        existingChunks,
+        (done, total) => opts.onChunkProgress?.(done < total ? done : total, total),
+      );
       await chunkProcessor.saveChunksLocal(chunks, this.chunksFile);
 
       const chunkDuration = Date.now() - t2;
@@ -198,7 +191,6 @@ export class Orchestrator {
       // Step 3: Generate embeddings
       logger.info("🔢 Step 3: Generating embeddings...");
       const t3 = Date.now();
-      const embedBars: ProgressBar[] = [];
 
       const uploader = new Uploader(this.config.vectorStore, {
         retry: opts.retry,
@@ -214,28 +206,19 @@ export class Orchestrator {
         vectorStoreName: this.config.vectorStore.name,
         minIngestionBatchSize: opts.minIngestionBatchSize,
         logger: opts.logger,
-        onProgress: (done, total) => {
-          if (embedBars.length === 0)
-            embedBars.push(createProgressBar("Embedding", total));
-          embedBars[0].update(done < total ? done : total);
-        },
+        onProgress: (done, total) => opts.onEmbedProgress?.(done < total ? done : total, total),
       });
 
-      let newEmbeddings: EmbeddedChunk[];
-      try {
-        newEmbeddings = await embedder.run(
-          db,
-          this.chunksFile,
-          opts.force || false,
-          opts.skipUpload
-            ? undefined
-            : async () => {
-                await uploader.uploadPending(db);
-              },
-        );
-      } finally {
-        embedBars[0]?.stop();
-      }
+      const newEmbeddings = await embedder.run(
+        db,
+        this.chunksFile,
+        opts.force || false,
+        opts.skipUpload
+          ? undefined
+          : async () => {
+              await uploader.uploadPending(db);
+            },
+      );
 
       const embedDuration = Date.now() - t3;
       logger.verbose(`Embedding done in ${embedDuration}ms`);
@@ -256,17 +239,7 @@ export class Orchestrator {
       } else if (!opts.skipUpload) {
         logger.info("📤 Step 4: Uploading to vector store...");
         const t4 = Date.now();
-        const uploadBars: ProgressBar[] = [];
-        uploadStats = await uploader.sync(
-          db,
-          opts.force || false,
-          (done, total) => {
-            if (uploadBars.length === 0)
-              uploadBars.push(createProgressBar("Uploading", total));
-            uploadBars[0].update(done < total ? done : total);
-          },
-        );
-        uploadBars[0]?.stop();
+        uploadStats = await uploader.sync(db, opts.force || false, opts.onUploadProgress);
 
         const uploadDuration = Date.now() - t4;
         logger.verbose(`Upload done in ${uploadDuration}ms`);

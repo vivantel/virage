@@ -1,5 +1,5 @@
-import { loadConfig } from "../config-loader.js";
-import type { VectorStore } from "../interfaces/index.js";
+import { loadConfig } from "@vivantel/virage-core";
+import type { VectorStore } from "@vivantel/virage-core";
 
 export interface StoreStatsOptions {
   config: string;

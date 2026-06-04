@@ -5,7 +5,7 @@ import type { Logger } from "../interfaces/logger.js";
 import { NullLogger } from "../logger/null-logger.js";
 import { minimatch } from "minimatch";
 import path from "path";
-import { IGNORED_DIRS } from "../cli/file-detect.js";
+import { IGNORED_DIRS } from "./virage-defaults.js";
 
 export class GitTracker {
   private git: SimpleGit;

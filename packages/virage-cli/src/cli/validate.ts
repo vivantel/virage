@@ -1,7 +1,5 @@
 import { glob } from "glob";
-import { loadConfig } from "../config-loader.js";
-import { GitTracker } from "../core/git-tracker.js";
-import { ConfigError } from "../core/errors.js";
+import { loadConfig, GitTracker, ConfigError } from "@vivantel/virage-core";
 import { detectFileExtensions } from "./file-detect.js";
 
 export async function runValidate(configPath: string): Promise<void> {

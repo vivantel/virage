@@ -1,5 +1,8 @@
 import { readdir } from "fs/promises";
 import { extname, join } from "path";
+import { IGNORED_DIRS } from "@vivantel/virage-core";
+
+export { IGNORED_DIRS };
 
 export interface ExtGroup {
   exts: string[];
@@ -22,18 +25,6 @@ export const EXT_GROUPS: ExtGroup[] = [
   { exts: [".yaml", ".yml"], strategyFn: "wholeFileStrategy", name: "yaml" },
   { exts: [".txt"], strategyFn: "semanticStrategy", name: "text" },
 ];
-
-export const IGNORED_DIRS = new Set([
-  "node_modules",
-  ".git",
-  "dist",
-  "build",
-  "coverage",
-  ".cache",
-  ".next",
-  "out",
-  ".turbo",
-]);
 
 export async function collectExtensions(
   dir: string,

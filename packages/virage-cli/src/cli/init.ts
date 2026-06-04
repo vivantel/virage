@@ -3,12 +3,13 @@ import { existsSync } from "fs";
 import { readFile, rename, writeFile } from "fs/promises";
 import { join } from "path";
 import { spawn } from "child_process";
-import { loadRegistry, type PluginRegistry } from "../plugin-registry.js";
 import {
+  loadRegistry,
   defaultChunksFile,
   defaultEmbeddingsFile,
   getVirageDir,
-} from "../core/virage-defaults.js";
+} from "@vivantel/virage-core";
+import type { PluginRegistry } from "@vivantel/virage-core";
 import {
   EXT_GROUPS,
   type ExtGroup,

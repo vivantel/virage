@@ -1,0 +1,76 @@
+body {
+  font-family: monospace;
+  background: #1a1a2e;
+  color: #eee;
+  padding: 20px;
+  margin: 0;
+}
+
+.container {
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+h1 { color: #7ec8e3; }
+h2 { color: #7ec8e3; margin-top: 0; }
+
+.card {
+  background: #16213e;
+  border-radius: 8px;
+  padding: 16px;
+  margin: 12px 0;
+}
+
+.card.error {
+  border-left: 4px solid #ff6b6b;
+}
+
+.metrics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.metric {
+  display: inline-block;
+  margin: 8px 16px;
+}
+
+.metric .value {
+  font-size: 2em;
+  color: #7ec8e3;
+}
+
+.metric .label {
+  font-size: 0.8em;
+  color: #888;
+}
+
+.bar {
+  height: 16px;
+  background: #0f3460;
+  border-radius: 4px;
+  margin: 4px 0;
+  position: relative;
+}
+
+.bar-fill {
+  height: 100%;
+  background: #7ec8e3;
+  border-radius: 4px;
+}
+
+.anomaly {
+  color: #ff6b6b;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+td, th {
+  padding: 6px 12px;
+  text-align: left;
+  border-bottom: 1px solid #333;
+}

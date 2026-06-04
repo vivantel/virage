@@ -1,11 +1,11 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import type { IndexStats, QueryPerfReport } from "../interfaces/quality.js";
+import type { IndexStats, QueryPerfReport } from "@vivantel/virage-core";
 
 // ---------------------------------------------------------------------------
 // Module mocks
 // ---------------------------------------------------------------------------
 
-vi.mock("../config-loader.js", () => ({
+vi.mock("@vivantel/virage-core", () => ({
   loadConfig: vi.fn(),
 }));
 
@@ -13,7 +13,7 @@ vi.mock("../config-loader.js", () => ({
 // Imports
 // ---------------------------------------------------------------------------
 
-import { loadConfig } from "../config-loader.js";
+import { loadConfig } from "@vivantel/virage-core";
 import { runStoreStats, runStorePerf } from "./store-cmd.js";
 
 // ---------------------------------------------------------------------------

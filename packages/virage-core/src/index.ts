@@ -30,6 +30,20 @@ export type { RetryOptions } from "./core/utils.js";
 
 // Plugin ecosystem
 export { discoverPlugins, RagPlugin } from "./core/plugin-discovery.js";
+export { loadRegistry } from "./plugin-registry.js";
+export type { PluginRegistry } from "./plugin-registry.js";
+
+// Storage
+export { EmbeddingsDb } from "./core/embeddings-db.js";
+
+// Defaults and constants
+export {
+  getVirageDir,
+  defaultChunksFile,
+  defaultEmbeddingsFile,
+  defaultEmbeddingsDb,
+  IGNORED_DIRS,
+} from "./core/virage-defaults.js";
 
 /**
  * Chunking strategies.
@@ -62,9 +76,10 @@ export type { EmbeddingsReadResult } from "./core/embeddings-io.js";
 export { loadConfig, autoDetectConfig } from "./config-loader.js";
 
 // Logger
-export { ConsolaLogger, NullLogger, createLogger } from "./logger/index.js";
+export { NullLogger } from "./logger/null-logger.js";
 
 // Evaluation framework
+export { generateEvalDataset } from "./eval/generator.js";
 export { EvalRunner } from "./eval/runner.js";
 export { RAGASRunner } from "./eval/ragas.js";
 export type { EvalRunResult } from "./eval/runner.js";

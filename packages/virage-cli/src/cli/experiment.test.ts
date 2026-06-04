@@ -1,35 +1,27 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import type { EvalResult, ExperimentRun } from "../interfaces/quality.js";
+import type { EvalResult, ExperimentRun } from "@vivantel/virage-core";
 
 // ---------------------------------------------------------------------------
 // Module mocks
 // ---------------------------------------------------------------------------
 
-vi.mock("../config-loader.js", () => ({
-  loadConfig: vi.fn(),
-}));
-
-vi.mock("../eval/dataset-io.js", () => ({
-  loadEvalDataset: vi.fn(),
-}));
-
-vi.mock("../eval/runner.js", () => ({
-  EvalRunner: vi.fn(),
-}));
-
-vi.mock("../eval/experiment-store.js", () => ({
-  ExperimentStore: vi.fn(),
-  makeRunId: vi.fn().mockReturnValue("my-exp_2026-06-02T00-00-00"),
-}));
+vi.mock("@vivantel/virage-core", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@vivantel/virage-core")>();
+  return {
+    ...actual,
+    loadConfig: vi.fn(),
+    loadEvalDataset: vi.fn(),
+    EvalRunner: vi.fn(),
+    ExperimentStore: vi.fn(),
+    makeRunId: vi.fn().mockReturnValue("my-exp_2026-06-02T00-00-00"),
+  };
+});
 
 // ---------------------------------------------------------------------------
 // Imports
 // ---------------------------------------------------------------------------
 
-import { loadConfig } from "../config-loader.js";
-import { loadEvalDataset } from "../eval/dataset-io.js";
-import { EvalRunner } from "../eval/runner.js";
-import { ExperimentStore } from "../eval/experiment-store.js";
+import { loadConfig, loadEvalDataset, EvalRunner, ExperimentStore } from "@vivantel/virage-core";
 import {
   runExperimentRun,
   runExperimentCompare,

@@ -1,9 +1,12 @@
-import { loadConfig } from "../config-loader.js";
-import { loadEvalDataset } from "../eval/dataset-io.js";
-import { EvalRunner } from "../eval/runner.js";
-import { ExperimentStore, makeRunId } from "../eval/experiment-store.js";
+import {
+  loadConfig,
+  loadEvalDataset,
+  EvalRunner,
+  ExperimentStore,
+  makeRunId,
+} from "@vivantel/virage-core";
 import { createProgressBar } from "../progress/progress-bar.js";
-import type { EvalResult, ExperimentRun } from "../interfaces/quality.js";
+import type { EvalResult, ExperimentRun } from "@vivantel/virage-core";
 
 export interface EvaluateOptions {
   config: string;
