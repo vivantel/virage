@@ -1,6 +1,6 @@
 {
   "name": "@vivantel/virage-cli",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "type": "module",
   "description": "CLI for the Virage RAG pipeline — provides the virage command",
   "repository": {
@@ -40,7 +40,13 @@
     "test:coverage": "vitest --coverage --config vitest.config.ts",
     "prepublishOnly": "npm run build && npm test"
   },
-  "keywords": ["rag", "embeddings", "cli", "vector", "pipeline"],
+  "keywords": [
+    "rag",
+    "embeddings",
+    "cli",
+    "vector",
+    "pipeline"
+  ],
   "author": "Vivantel",
   "license": "MIT",
   "dependencies": {

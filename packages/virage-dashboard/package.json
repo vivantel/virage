@@ -1,6 +1,6 @@
 {
   "name": "@vivantel/virage-dashboard",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "type": "module",
   "description": "React dashboard web app for the Virage RAG pipeline — served by virage-cli",
