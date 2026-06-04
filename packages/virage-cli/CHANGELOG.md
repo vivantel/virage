@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.1.2](https://github.com/vivantel/virage/compare/virage-cli@v0.1.1...virage-cli@v0.1.2) (2026-06-04)
+
+
+### Features
+
+* **dashboard:** Add multi-project tracking and switching ([9a9622c](https://github.com/vivantel/virage/commit/9a9622c099cf21ca260c97cc13d706d11c86c248))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @vivantel/virage-core bumped from * to 0.2.8
+
 ## [0.1.1](https://github.com/vivantel/virage/compare/virage-cli@v0.1.0...virage-cli@v0.1.1) (2026-06-04)
 
 
