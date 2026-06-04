@@ -3,17 +3,7 @@
   "private": true,
   "type": "module",
   "workspaces": [
-    "packages/virage-core",
-    "packages/virage-cli",
-    "packages/virage-strategies",
-    "packages/virage-embedder-fastembed",
-    "packages/virage-embedder-openai",
-    "packages/virage-embedder-transformers",
-    "packages/virage-store-postgres",
-    "packages/virage-store-qdrant",
-    "packages/virage-store-lancedb",
-    "packages/virage-store-chromadb",
-    "packages/virage-store-test"
+    "packages/*"
   ],
   "description": "Monorepo for @vivantel/virage-core and related packages",
   "scripts": {
