@@ -71,6 +71,27 @@ This is an ESM TypeScript monorepo (`type: module`, NodeNext module resolution).
 | `virage-store-chromadb` | yes | ChromaDB vector store |
 | `virage-store-test` | no (private) | File-backed mock VectorStore for acceptance testing |
 
+### Published package checklist
+
+Every published package must include these `package.json` fields:
+
+| Field | Value / example |
+|---|---|
+| `author` | `"Vivantel"` |
+| `license` | `"MIT"` |
+| `keywords` | RAG-related terms + package-specific terms |
+| `repository` | `{ "type": "git", "url": "https://github.com/vivantel/virage", "directory": "packages/<name>" }` |
+| `engines` | `{ "node": ">=18.0.0" }` |
+| `publishConfig` | `{ "access": "public" }` |
+| `files` | Must include `"README.md"` alongside output dir |
+| `prepublishOnly` | At minimum `"npm run build"` |
+
+Required scripts: `lint`, `lint:fix`, `format`, `format:check`, `fix` (matching pattern of sibling packages).
+
+Required files: `README.md` (badges, description, install/usage).
+
+Packages that are web apps (not Node.js libraries) omit `main`, `types`, and `exports`.
+
 ### Pipeline stages (all in `src/core/`)
 
 1. **GitTracker** — uses `simple-git` + `glob` to find files matching chunker patterns, computes per-file commit hashes for change detection. Appends `-dirty` to hashes when there are uncommitted changes.

@@ -21,5 +21,14 @@ export default tseslint.config(
       'no-console': 'off',
       'no-undef': 'off'
     }
+  },
+  {
+    files: ['packages/virage-dashboard/src/**/*.{ts,tsx}'],
+    rules: {
+      '@typescript-eslint/no-explicit-any': 'warn',
+      '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
+      'no-console': 'off',
+      'no-undef': 'off'
+    }
   }
 );
