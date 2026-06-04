@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.10](https://github.com/vivantel/virage/compare/virage-core@v0.2.9...virage-core@v0.2.10) (2026-06-04)
+
+
+### Bug Fixes
+
+* **virage-core:** Floor embedded_at during embeddings→chunks migration ([02a484b](https://github.com/vivantel/virage/commit/02a484b2ce309693055f16560f4d29c41658df9d))
+
 ## [0.2.9](https://github.com/vivantel/virage/compare/virage-core@v0.2.8...virage-core@v0.2.9) (2026-06-04)
 
 
