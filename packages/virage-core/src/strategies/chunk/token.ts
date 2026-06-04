@@ -19,7 +19,10 @@ export function tokenStrategy(
   const overlap = options.overlap ?? 50;
   const charsPerToken = 4;
   const maxChars = maxTokens * charsPerToken;
-  const overlapChars = overlap * charsPerToken;
+  // Clamp overlap so it never equals or exceeds maxChars, guaranteeing forward progress.
+  const safeOverlap = Math.min(overlap, maxTokens - 1);
+  const overlapChars = safeOverlap * charsPerToken;
+  const stepChars = maxChars - overlapChars; // minimum advance per iteration
 
   return {
     name: `token-${maxTokens}`,
@@ -31,12 +34,16 @@ export function tokenStrategy(
       while (start < text.length) {
         let end = Math.min(start + maxChars, text.length);
 
-        // Try to break at sentence boundary
+        // Only snap to a sentence/line boundary when it falls in the second half
+        // of the window. Searching from the full end position can land on a break
+        // point just past `start` (e.g. first newline inside a template literal),
+        // which produces tiny chunks and triggers the one-char crawl loop.
         if (end < text.length) {
+          const minBreak = start + Math.floor(maxChars / 2);
           const lastPeriod = text.lastIndexOf(".", end);
           const lastNewline = text.lastIndexOf("\n", end);
           const breakPoint = Math.max(lastPeriod, lastNewline);
-          if (breakPoint > start) {
+          if (breakPoint >= minBreak) {
             end = breakPoint + 1;
           }
         }
@@ -57,7 +64,10 @@ export function tokenStrategy(
           });
         }
 
-        start = Math.max(end - overlapChars, start + 1);
+        // Advance by overlap window, but never less than stepChars to prevent
+        // the one-char crawl when the boundary lands too close to start.
+        const nextStart = end - overlapChars;
+        start = nextStart > start ? nextStart : start + stepChars;
       }
 
       return chunks;

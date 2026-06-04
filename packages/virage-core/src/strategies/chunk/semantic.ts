@@ -50,7 +50,7 @@ export function semanticStrategy(
         currentSize += sentenceSize;
       }
 
-      // Last chunk
+      // Last chunk: append to previous if too small, otherwise save as its own chunk.
       if (currentChunk.length > 0) {
         const content = currentChunk.join(" ").trim();
         if (content.length >= minChars) {
@@ -65,6 +65,11 @@ export function semanticStrategy(
             sourceFile: filePath || "unknown",
             commitHash: "",
           });
+        } else if (chunks.length > 0) {
+          // Merge into the previous chunk rather than silently dropping it.
+          const prev = chunks[chunks.length - 1];
+          prev.content = `${prev.content} ${content}`.trim();
+          prev.metadata.is_last = true;
         }
       }
 

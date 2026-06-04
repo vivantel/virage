@@ -18,7 +18,8 @@ export function markdownHeadersStrategy(
 
     async chunk(text: string, filePath?: string): Promise<Chunk[]> {
       const chunks: Chunk[] = [];
-      const lines = text.split("\n");
+      // Normalise line endings so CRLF files don't leave \r on header text/content.
+      const lines = text.split("\n").map((l) => l.replace(/\r$/, ""));
 
       let currentChunk: string[] = [];
       let currentHeader = "";
@@ -64,12 +65,14 @@ export function markdownHeadersStrategy(
               strategy: this.name,
               header: currentHeader,
               header_level: currentHeaderLevel,
+              source_file: filePath,
               truncated: true,
             },
             sourceFile: filePath || "unknown",
             commitHash: "",
           });
-          currentChunk = [];
+          // Keep the header line so the continuation chunk is self-contained.
+          currentChunk = currentChunk.length > 0 ? [currentChunk[0]] : [];
         }
       }
 
