@@ -8,14 +8,12 @@ import { EmbeddingsDb } from "@vivantel/virage-core";
 
 export interface DashboardOptions {
   port: number;
-  chunksFile: string;
   dbPath: string;
 }
 
 export interface ProjectEntry {
   label: string;
   rootPath: string;
-  chunksFile: string;
   embeddingsDb: string;
   lastUsed: number;
 }
@@ -46,13 +44,12 @@ const HAS_UI = existsSync(join(UI_DIR, "index.html"));
 
 function projectFromRoot(
   rootPath: string,
-  overrides?: { chunksFile?: string; embeddingsDb?: string },
+  overrides?: { embeddingsDb?: string },
 ): ProjectEntry {
   const abs = resolve(rootPath);
   return {
     label: basename(abs),
     rootPath: abs,
-    chunksFile: overrides?.chunksFile ?? join(abs, ".virage", "chunks.json"),
     embeddingsDb:
       overrides?.embeddingsDb ?? join(abs, ".virage", "embeddings.db"),
     lastUsed: Date.now(),
@@ -138,9 +135,8 @@ export async function runDashboard(opts: DashboardOptions): Promise<void> {
   }
 
   // Derive the startup project from CLI options and register it
-  const startupRoot = resolve(opts.chunksFile, "..", "..");
+  const startupRoot = resolve(opts.dbPath, "..", "..");
   const startupProject = projectFromRoot(startupRoot, {
-    chunksFile: resolve(opts.chunksFile),
     embeddingsDb: resolve(opts.dbPath),
   });
 
@@ -166,16 +162,13 @@ export async function runDashboard(opts: DashboardOptions): Promise<void> {
         const active = projectsState.projects[projectsState.activeIndex];
 
         if (url === "/api/status" && req.method === "GET") {
-          const status = await getStatus(
-            active.chunksFile,
-            active.embeddingsDb,
-          );
+          const status = await getStatus(active.embeddingsDb);
           res.end(JSON.stringify(status));
           return;
         }
 
         if (url === "/api/chunks" && req.method === "GET") {
-          const chunks = await getChunksHistogram(active.chunksFile);
+          const chunks = await getChunksHistogram(active.embeddingsDb);
           res.end(JSON.stringify(chunks));
           return;
         }
@@ -201,10 +194,7 @@ export async function runDashboard(opts: DashboardOptions): Promise<void> {
             return;
           }
           const entry = projectFromRoot(body.rootPath.trim());
-          if (
-            !existsSync(entry.chunksFile) &&
-            !existsSync(entry.embeddingsDb)
-          ) {
+          if (!existsSync(entry.embeddingsDb)) {
             res.statusCode = 422;
             res.end(
               JSON.stringify({
@@ -284,21 +274,13 @@ export async function runDashboard(opts: DashboardOptions): Promise<void> {
   });
 }
 
-async function getStatus(chunksFile: string, dbPath: string) {
+async function getStatus(dbPath: string) {
   let totalChunks = 0;
   let totalEmbeddings = 0;
 
   try {
-    const chunks = JSON.parse(await readFile(chunksFile, "utf-8")) as unknown;
-    totalChunks = Array.isArray(chunks)
-      ? chunks.length
-      : ((chunks as { chunks?: unknown[] }).chunks?.length ?? 0);
-  } catch {
-    /* file may not exist yet */
-  }
-
-  try {
     const db = new EmbeddingsDb(dbPath);
+    totalChunks = db.getAllChunks().length;
     totalEmbeddings = db.getAll().length;
     db.close();
   } catch {
@@ -310,14 +292,13 @@ async function getStatus(chunksFile: string, dbPath: string) {
   return { totalChunks, totalEmbeddings, memoryMB };
 }
 
-async function getChunksHistogram(chunksFile: string) {
+async function getChunksHistogram(dbPath: string) {
   try {
-    const raw = JSON.parse(await readFile(chunksFile, "utf-8")) as unknown;
-    const chunks = (
-      Array.isArray(raw) ? raw : ((raw as { chunks?: unknown[] }).chunks ?? [])
-    ) as Array<{ content: string }>;
-    const sizes = chunks.map((c) => c.content?.length ?? 0);
+    const db = new EmbeddingsDb(dbPath);
+    const chunks = db.getAllChunks();
+    db.close();
 
+    const sizes = chunks.map((c) => c.content?.length ?? 0);
     const buckets = [
       { label: "< 200 chars", min: 0, max: 200 },
       { label: "200–500 chars", min: 200, max: 500 },

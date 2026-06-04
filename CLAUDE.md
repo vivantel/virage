@@ -96,15 +96,19 @@ Packages that are web apps (not Node.js libraries) omit `main`, `types`, and `ex
 
 1. **GitTracker** — uses `simple-git` + `glob` to find files matching chunker patterns, computes per-file commit hashes for change detection. Appends `-dirty` to hashes when there are uncommitted changes.
 
-2. **ChunkProcessor** — runs each file through its matched `FileChunker`, adds `contentHash` (SHA-256 first 16 chars) to each chunk, persists to `.virage/chunks.json` (via `defaultChunksFile()`).
+2. **ChunkProcessor** — runs each file through its matched `FileChunker`, adds `contentHash` (SHA-256 first 16 chars) to each chunk. The orchestrator atomically replaces old chunk rows in the DB with new ones (`replaceChunks()`), so the DB is always consistent.
 
-3. **EmbedderProcessor** — reads `chunks.json`, skips chunks already marked `uploaded = 1` in the SQLite database (`.virage/embeddings.db`), calls `EmbeddingProvider.embed()` or `embedBatch()`, writes vectors to the database. Supports mid-run uploads: set `minIngestionBatchSize` to trigger uploads during embedding via the `onIntermediateBatch` callback.
+3. **EmbedderProcessor** — provides `embedChunks(chunks)` for batch embedding with automatic sub-batching by `batchSize` and `maxBatchChars`. The orchestrator calls this when the pending-embed queue reaches `minEmbeddingBatchSize`.
 
-4. **Uploader** — reads pending chunks (`uploaded = 0`) from `embeddings.db` via `uploadPending(db)`, compares against vector store state via `VectorStore.getCurrentState()`, calls `deleteBySourceFile()` then `upsert()` for changed sources. Fatal vector store errors (schema mismatch, auth failures) are detected by `isFatalVectorStoreError()` and rethrown immediately without retry backoff.
+4. **Uploader** — `prepareUpdate()` deletes stale vector store entries before the chunking loop; `upsertBatch()` uploads a batch, marks chunks uploaded, and clears the `embedding` BLOB from the DB to reclaim storage. Fatal vector store errors are detected by `isFatalVectorStoreError()`.
 
-**Orchestrator** (`packages/virage-core/src/core/orchestrator.ts`) wires all four stages and is the main entry point for consumers. Default artifact directory is `.virage/` (overridable via `VIRAGE_DIR` env var or CLI flags).
+**Orchestrator** (`packages/virage-core/src/core/orchestrator.ts`) runs a single streaming loop: chunk → embed → upload interleave as batches accumulate. Default artifact directory is `.virage/` (overridable via `VIRAGE_DIR` env var or CLI flags).
 
-Progress reporting is callback-based: `RAGPipelineConfig.options` accepts `onChunkProgress`, `onEmbedProgress`, `onUploadProgress` callbacks. The CLI (`virage-cli`) creates progress bars and passes them as callbacks; library consumers can pass their own or omit them.
+Pipeline config batch sizes (`RAGPipelineConfig.options`):
+- `minEmbeddingBatchSize` (default 10): trigger embedding when this many chunks are pending
+- `minUploadingBatchSize` (default 20): trigger upload when this many embeddings are pending
+
+Progress reporting is callback-based: `RAGPipelineConfig.options` accepts `onChunkProgress`, `onEmbedProgress`, `onUploadProgress` callbacks. The CLI creates all three progress bars at pipeline start; totals for embed/upload grow dynamically via `setTotal()` as chunks are discovered.
 
 ### Interfaces (`src/interfaces/`)
 
@@ -151,8 +155,7 @@ virage update                    # run the RAG indexing pipeline
   -f, --force                    # force full rebuild
   --no-upload                    # skip upload to vector store
   --dry-run                      # show what would change without uploading
-  --chunks-out <path>            # override output path for chunks.json
-  --embeddings-out <path>        # override output path for embeddings
+  --embeddings-out <path>        # override output path for embeddings.db
   --watch                        # re-run on file changes (debounced, uses chokidar)
   -v / -vv / ... -vvvvv          # verbosity (stackable; 0 = errors only, 5 = full debug)
 ```
@@ -166,7 +169,7 @@ virage validate                  # validate virage.config.json against JSON sche
 **Diagnostics and observability:**
 ```
 virage report [--dir <path>]     # show telemetry summary from .virage/telemetry.json
-virage chunks report             # chunk cohesion quality metrics
+virage chunks report             # chunk cohesion quality metrics (reads from embeddings.db)
 virage viz embeddings            # 2D UMAP/t-SNE visualization of embedding space
 virage dashboard                 # local real-time monitoring dashboard
 virage benchmark embedder        # benchmark HuggingFace model throughput
@@ -176,7 +179,7 @@ virage store perf                # query performance report (p50/p95/p99 latency
 
 **Evaluation and experiments:**
 ```
-virage eval-generate             # generate eval dataset from existing chunks
+virage eval-generate             # generate eval dataset from embeddings.db chunks
 virage experiment run --name X   # run experiment and persist results
 virage experiment list           # list saved experiment runs
 virage experiment compare --baseline X --candidate Y  # bootstrap significance test
@@ -235,8 +238,7 @@ All generated by the pipeline and gitignored. Override the root directory via `V
 
 | File | Format | Contents |
 |---|---|---|
-| `.virage/chunks.json` | JSON | Chunk metadata with `contentHash` per chunk |
-| `.virage/embeddings.db` | SQLite | Chunks + embedding vectors + `uploaded` flag |
+| `.virage/embeddings.db` | SQLite (STRICT) | Chunk metadata + embedding BLOBs (Float32 LE) + `uploaded` flag. Embeddings cleared after upload to save storage. |
 | `.virage/telemetry.json` | JSON | Pipeline run performance metrics |
 
 `virage.config.ci.json` at the repo root is the CI-specific config (FastEmbed embedder + Postgres vector store) used by `.github/workflows/virage-update.yaml` — a standalone workflow that triggers on master pushes and installs published packages from npmjs rather than building from source. The pipeline step runs `virage update --config virage.config.ci.json` (the subcommand is required; `--config` is not a root-level flag).

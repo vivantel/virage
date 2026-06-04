@@ -1,20 +1,11 @@
-import { readFile } from "fs/promises";
+import { EmbeddingsDb } from "@vivantel/virage-core";
 
-interface ChunksFileEntry {
+interface ChunkEntry {
   content: string;
   metadata?: { strategy?: string; [key: string]: unknown };
-  sourceFile?: string;
 }
 
-function isChunkArray(val: unknown): val is ChunksFileEntry[] {
-  return (
-    Array.isArray(val) &&
-    val.length > 0 &&
-    typeof (val[0] as ChunksFileEntry).content === "string"
-  );
-}
-
-function computeCohesion(chunks: ChunksFileEntry[]): {
+function computeCohesion(chunks: ChunkEntry[]): {
   cohesion: number;
   midSentenceCuts: number;
   suggestion: string;
@@ -33,44 +24,20 @@ function computeCohesion(chunks: ChunksFileEntry[]): {
   return { cohesion, midSentenceCuts: midSentence.length, suggestion };
 }
 
-export async function runChunksReport(chunksFile: string): Promise<void> {
-  let raw: string;
-  try {
-    raw = await readFile(chunksFile, "utf-8");
-  } catch {
+export async function runChunksReport(dbPath: string): Promise<void> {
+  const db = new EmbeddingsDb(dbPath);
+  const chunks = db.getAllChunks();
+  db.close();
+
+  if (chunks.length === 0) {
     console.error(
-      `❌ Could not read chunks file "${chunksFile}".\n` +
+      `❌ No chunks found in "${dbPath}".\n` +
         `   Run the pipeline first to generate chunks.`,
     );
     process.exit(1);
   }
 
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(raw);
-  } catch {
-    console.error(`❌ "${chunksFile}" is not valid JSON`);
-    process.exit(1);
-  }
-
-  // chunks.json can be a bare array or an object with a chunks property
-  let chunks: ChunksFileEntry[];
-  if (isChunkArray(parsed)) {
-    chunks = parsed;
-  } else if (
-    parsed &&
-    typeof parsed === "object" &&
-    "chunks" in (parsed as object) &&
-    isChunkArray((parsed as { chunks: unknown }).chunks)
-  ) {
-    chunks = (parsed as { chunks: ChunksFileEntry[] }).chunks;
-  } else {
-    console.error(`❌ Unexpected chunks file format in "${chunksFile}"`);
-    process.exit(1);
-  }
-
-  // Group by strategy
-  const byStrategy = new Map<string, ChunksFileEntry[]>();
+  const byStrategy = new Map<string, ChunkEntry[]>();
   for (const chunk of chunks) {
     const strategy =
       (chunk.metadata?.strategy as string | undefined) ?? "unknown";

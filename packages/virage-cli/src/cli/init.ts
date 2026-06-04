@@ -5,7 +5,6 @@ import { join } from "path";
 import { spawn } from "child_process";
 import {
   loadRegistry,
-  defaultChunksFile,
   defaultEmbeddingsFile,
   getVirageDir,
 } from "@vivantel/virage-core";
@@ -169,8 +168,7 @@ function generateJsonConfig(
   const storeEntry = registry.stores.find((s) => s.key === state.vectorStore)!;
 
   // For local file-based stores, resolve paths relative to the virage dir so
-  // the VIRAGE_DIR env var override is respected at config generation time
-  // (same pattern as chunksFile/embeddingsFile).
+  // the VIRAGE_DIR env var override is respected at config generation time.
   const resolvedStoreConfig =
     storeEntry.key === "lancedb"
       ? { ...storeEntry.defaultConfig, uri: `${getVirageDir()}/lancedb` }
@@ -189,7 +187,6 @@ function generateJsonConfig(
       config: resolvedStoreConfig,
     },
     options: {
-      chunksFile: defaultChunksFile(),
       embeddingsFile: defaultEmbeddingsFile(),
     },
   };

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { Orchestrator, RAGPipelineConfig } from "./orchestrator.js";
-import { defaultChunksFile } from "./virage-defaults.js";
+import { defaultEmbeddingsFile } from "./virage-defaults.js";
 import {
   FileChunker,
   EmbeddingProvider,
@@ -66,15 +66,16 @@ describe("Orchestrator", () => {
     await expect(orchestrator.run()).resolves.toBeUndefined();
   });
 
-  it("should use custom chunksFile from options", () => {
-    const config = makeConfig({ chunksFile: "./custom/chunks.json" });
+  it("should use custom embeddingsFile from options", () => {
+    const config = makeConfig({ embeddingsFile: "./custom/embeddings.json" });
     const orchestrator = new Orchestrator(config);
-    // Access the private field via any to verify constructor assignment
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    expect((orchestrator as any).chunksFile).toBe("./custom/chunks.json");
+    expect((orchestrator as any).embeddingsFile).toBe(
+      "./custom/embeddings.json",
+    );
   });
 
-  it("should fall back to default chunksFile when not specified", () => {
+  it("should fall back to default embeddingsFile when not specified", () => {
     const config: RAGPipelineConfig = {
       chunkers: [mockChunker],
       embedder: mockEmbedder,
@@ -82,7 +83,7 @@ describe("Orchestrator", () => {
     };
     const orchestrator = new Orchestrator(config);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    expect((orchestrator as any).chunksFile).toBe(defaultChunksFile());
+    expect((orchestrator as any).embeddingsFile).toBe(defaultEmbeddingsFile());
   });
 
   it("should use VIRAGE_DIR env var as default path prefix", () => {
@@ -94,7 +95,9 @@ describe("Orchestrator", () => {
     };
     const orchestrator = new Orchestrator(config);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    expect((orchestrator as any).chunksFile).toBe("/custom/dir/chunks.json");
+    expect((orchestrator as any).embeddingsFile).toBe(
+      "/custom/dir/embeddings.json",
+    );
     vi.unstubAllEnvs();
   });
 });

@@ -39,7 +39,6 @@ export { EmbeddingsDb } from "./core/embeddings-db.js";
 // Defaults and constants
 export {
   getVirageDir,
-  defaultChunksFile,
   defaultEmbeddingsFile,
   defaultEmbeddingsDb,
   IGNORED_DIRS,

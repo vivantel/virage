@@ -6,7 +6,6 @@ import {
   loadConfig,
   Orchestrator,
   RagError,
-  defaultChunksFile,
   defaultEmbeddingsDb,
   getVirageDir,
 } from "@vivantel/virage-core";
@@ -56,7 +55,6 @@ async function runOnce(options: {
   force: boolean;
   noUpload: boolean;
   dryRun: boolean;
-  chunksOut?: string;
   embeddingsOut?: string;
   logger: Logger;
 }): Promise<void> {
@@ -76,7 +74,6 @@ async function runOnce(options: {
         force: options.force || cfg.options?.force,
         skipUpload: options.noUpload || cfg.options?.skipUpload,
         dryRun: options.dryRun || cfg.options?.dryRun,
-        chunksFile: options.chunksOut || cfg.options?.chunksFile,
         embeddingsFile: options.embeddingsOut || cfg.options?.embeddingsFile,
         logger: options.logger,
         onChunkProgress: (done, total) => {
@@ -85,10 +82,12 @@ async function runOnce(options: {
         },
         onEmbedProgress: (done, total) => {
           if (!bars.embed) bars.embed = createProgressBar("Embedding", total);
+          else bars.embed.setTotal(total);
           bars.embed.update(done);
         },
         onUploadProgress: (done, total) => {
           if (!bars.upload) bars.upload = createProgressBar("Uploading", total);
+          else bars.upload.setTotal(total);
           bars.upload.update(done);
         },
       },
@@ -122,8 +121,7 @@ program
   .option("-f, --force", "Force full rebuild", false)
   .option("--no-upload", "Skip upload to vector store")
   .option("--dry-run", "Show what would change without uploading", false)
-  .option("--chunks-out <path>", "Output path for chunks.json")
-  .option("--embeddings-out <path>", "Output path for embeddings.json")
+  .option("--embeddings-out <path>", "Output path for embeddings.db")
   .option("--watch", "Re-run pipeline on file changes", false)
   .action(
     async (cmdOpts: {
@@ -131,7 +129,6 @@ program
       force: boolean;
       upload: boolean; // commander inverts --no-upload → upload = false
       dryRun: boolean;
-      chunksOut?: string;
       embeddingsOut?: string;
       watch: boolean;
     }) => {
@@ -143,7 +140,6 @@ program
         force: cmdOpts.force,
         noUpload: !cmdOpts.upload,
         dryRun: cmdOpts.dryRun,
-        chunksOut: cmdOpts.chunksOut,
         embeddingsOut: cmdOpts.embeddingsOut,
         logger,
       };
@@ -269,7 +265,7 @@ program
 program
   .command("eval-generate")
   .description("Generate an eval dataset from existing chunks")
-  .option("--chunks <path>", "Chunks file path", defaultChunksFile())
+  .option("--embeddings <path>", "Embeddings DB path", defaultEmbeddingsDb())
   .option("--output <path>", "Output dataset path", "./eval/queries.json")
   .option("--include-negatives", "Add negative examples")
   .option(
@@ -280,20 +276,19 @@ program
   )
   .action(
     async (opts: {
-      chunks: string;
+      embeddings: string;
       output: string;
       includeNegatives: boolean;
       paraphraseRatio: number;
     }) => {
       try {
-        const { readFile } = await import("fs/promises");
-        const raw = JSON.parse(await readFile(opts.chunks, "utf-8")) as unknown;
-        const chunks = Array.isArray(raw)
-          ? raw
-          : ((raw as { chunks?: unknown[] }).chunks ?? []);
-        const { generateEvalDataset } = await import("@vivantel/virage-core");
+        const { EmbeddingsDb, generateEvalDataset } =
+          await import("@vivantel/virage-core");
+        const db = new EmbeddingsDb(opts.embeddings);
+        const chunks = db.getAllChunks();
+        db.close();
         await generateEvalDataset(
-          chunks as Parameters<typeof generateEvalDataset>[0],
+          chunks,
           {
             includeNegatives: opts.includeNegatives ?? false,
             paraphraseRatio: opts.paraphraseRatio,
@@ -335,10 +330,10 @@ const chunks = program.command("chunks").description("Chunk analysis tools");
 chunks
   .command("report")
   .description("Show chunk cohesion report")
-  .option("--file <path>", "Chunks file path", defaultChunksFile())
-  .action(async (opts: { file: string }) => {
+  .option("--embeddings <path>", "Embeddings DB path", defaultEmbeddingsDb())
+  .action(async (opts: { embeddings: string }) => {
     try {
-      await runChunksReport(opts.file);
+      await runChunksReport(opts.embeddings);
     } catch (error) {
       handleError(error);
     }
@@ -348,21 +343,17 @@ program
   .command("dashboard")
   .description("Start a local RAG monitoring dashboard")
   .option("--port <n>", "Port to serve on", parseInt, 3000)
-  .option("--chunks <path>", "Chunks file path", defaultChunksFile())
   .option("--embeddings <path>", "Embeddings DB path", defaultEmbeddingsDb())
-  .action(
-    async (opts: { port: number; chunks: string; embeddings: string }) => {
-      try {
-        await runDashboard({
-          port: opts.port,
-          chunksFile: opts.chunks,
-          dbPath: opts.embeddings,
-        });
-      } catch (error) {
-        handleError(error);
-      }
-    },
-  );
+  .action(async (opts: { port: number; embeddings: string }) => {
+    try {
+      await runDashboard({
+        port: opts.port,
+        dbPath: opts.embeddings,
+      });
+    } catch (error) {
+      handleError(error);
+    }
+  });
 
 const benchmark = program
   .command("benchmark")

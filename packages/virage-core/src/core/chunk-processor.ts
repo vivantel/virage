@@ -35,28 +35,10 @@ export class ChunkProcessor {
   async processFiles(
     files: string[],
     fileState: Map<string, { commitHash: string; chunker: FileChunker }>,
-    existingChunks: Chunk[] = [],
     onProgress?: (completed: number, total: number) => void,
   ): Promise<Chunk[]> {
     const allChunks: Chunk[] = [];
     let errorCount = 0;
-
-    // Build resume cache: sourceFile → { commitHash, chunks }
-    const resumeCache = new Map<
-      string,
-      { commitHash: string; chunks: Chunk[] }
-    >();
-    for (const chunk of existingChunks) {
-      const entry = resumeCache.get(chunk.sourceFile);
-      if (!entry) {
-        resumeCache.set(chunk.sourceFile, {
-          commitHash: chunk.commitHash,
-          chunks: [chunk],
-        });
-      } else {
-        entry.chunks.push(chunk);
-      }
-    }
 
     for (let i = 0; i < files.length; i++) {
       const filePath = files[i];
@@ -64,17 +46,6 @@ export class ChunkProcessor {
 
       if (!info) {
         this.logger.warn(`⚠️ No chunker for: ${filePath}`);
-        continue;
-      }
-
-      // Resume: reuse cached chunks when commitHash matches
-      const cached = resumeCache.get(filePath);
-      if (cached && cached.commitHash === info.commitHash) {
-        this.logger.verbose(
-          `⏭️ Cached [${i + 1}/${files.length}] ${filePath} (${cached.chunks.length} chunk(s))`,
-        );
-        allChunks.push(...cached.chunks);
-        onProgress?.(i + 1, files.length);
         continue;
       }
 
@@ -112,31 +83,5 @@ export class ChunkProcessor {
     }
 
     return allChunks;
-  }
-
-  async saveChunksLocal(chunks: Chunk[], outputFile: string): Promise<void> {
-    const { dirname } = await import("path");
-    const { mkdir, writeFile, readFile } = await import("fs/promises");
-
-    await mkdir(dirname(outputFile), { recursive: true });
-
-    let existing: Chunk[] = [];
-    try {
-      const content = await readFile(outputFile, "utf-8");
-      const parsed: unknown = JSON.parse(content);
-      if (Array.isArray(parsed)) {
-        existing = parsed as Chunk[];
-      }
-    } catch {
-      // File doesn't exist or is not valid JSON — start fresh
-    }
-
-    const processedFiles = new Set(chunks.map((c) => c.sourceFile));
-    const filtered = existing.filter((c) => !processedFiles.has(c.sourceFile));
-
-    const allChunks = [...filtered, ...chunks];
-
-    await writeFile(outputFile, JSON.stringify(allChunks, null, 2));
-    this.logger.verbose(`Saved ${allChunks.length} chunks to ${outputFile}`);
   }
 }

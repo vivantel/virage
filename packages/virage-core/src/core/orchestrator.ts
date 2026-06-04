@@ -9,18 +9,20 @@ import {
   EmbeddingProvider,
   VectorStore,
   Chunk,
+  EmbeddedChunk,
+  EmbeddingsMeta,
 } from "../interfaces/index.js";
 import type { Logger } from "../interfaces/logger.js";
 import { NullLogger } from "../logger/null-logger.js";
-import { readFile } from "fs/promises";
 import { RetryOptions } from "./utils.js";
-import { defaultChunksFile, defaultEmbeddingsFile } from "./virage-defaults.js";
+import { defaultEmbeddingsFile } from "./virage-defaults.js";
 
 export interface RAGPipelineConfig {
   chunkers: FileChunker[];
   embedder: EmbeddingProvider;
   vectorStore: VectorStore;
   options?: {
+    /** @deprecated No longer used; chunks.json has been removed. */
     chunksFile?: string;
     embeddingsFile?: string;
     force?: boolean;
@@ -31,7 +33,12 @@ export interface RAGPipelineConfig {
     maxBatchChars?: number;
     retry?: RetryOptions;
     concurrency?: number;
+    /** @deprecated Use minUploadingBatchSize instead. */
     minIngestionBatchSize?: number;
+    /** Minimum pending-chunk queue size before triggering an embedding run. Default: 10. */
+    minEmbeddingBatchSize?: number;
+    /** Minimum embedded-chunk queue size before triggering an upload batch. Default: 20. */
+    minUploadingBatchSize?: number;
     telemetry?: boolean;
     notifications?: { webhookUrl?: string };
     logger?: Logger;
@@ -39,26 +46,6 @@ export interface RAGPipelineConfig {
     onEmbedProgress?: (done: number, total: number) => void;
     onUploadProgress?: (done: number, total: number) => void;
   };
-}
-
-function loadPreviousState(db: EmbeddingsDb): Map<string, string> {
-  const state = new Map<string, string>();
-  for (const chunk of db.getAll()) {
-    if (chunk.sourceFile && chunk.commitHash) {
-      state.set(chunk.sourceFile, chunk.commitHash);
-    }
-  }
-  return state;
-}
-
-async function loadExistingChunks(chunksFile: string): Promise<Chunk[]> {
-  try {
-    const content = await readFile(chunksFile, "utf-8");
-    const parsed: unknown = JSON.parse(content);
-    return Array.isArray(parsed) ? (parsed as Chunk[]) : [];
-  } catch {
-    return [];
-  }
 }
 
 async function notifyWebhook(
@@ -79,12 +66,10 @@ async function notifyWebhook(
 
 export class Orchestrator {
   private config: RAGPipelineConfig;
-  private chunksFile: string;
   private embeddingsFile: string;
 
   constructor(config: RAGPipelineConfig) {
     this.config = config;
-    this.chunksFile = config.options?.chunksFile ?? defaultChunksFile();
     this.embeddingsFile =
       config.options?.embeddingsFile ?? defaultEmbeddingsFile();
   }
@@ -98,24 +83,46 @@ export class Orchestrator {
     const dbPath = this.embeddingsFile.replace(/\.json$/, ".db");
     const db = new EmbeddingsDb(dbPath);
 
-    let uploadStats = { uploaded: 0, deleted: 0 };
+    let uploadedCount = 0;
+    let deletedCount = 0;
 
     logger.debug(
-      `Config: chunksFile=${this.chunksFile} embeddingsFile=${this.embeddingsFile} force=${opts.force ?? false}`,
+      `Config: embeddingsFile=${this.embeddingsFile} force=${opts.force ?? false}`,
     );
 
     try {
       logger.info("🚀 Starting RAG pipeline...");
 
-      // Step 1: Scan for changes
-      logger.info("📂 Step 1: Scanning for changes...");
+      // Detect model/dimension change — triggers full re-embed
+      const existingMeta = db.getMeta();
+      let effectiveForce = opts.force || false;
+
+      if (!effectiveForce && existingMeta) {
+        const modelChanged =
+          existingMeta.model !== undefined &&
+          this.config.embedder.model !== undefined &&
+          existingMeta.model !== this.config.embedder.model;
+        const dimensionsChanged =
+          existingMeta.providerDimensions !== this.config.embedder.dimensions;
+
+        if (modelChanged || dimensionsChanged) {
+          logger.warn(
+            `⚠️ Embedding model changed — clearing DB and re-embedding all.`,
+          );
+          db.clearAll();
+          effectiveForce = true;
+        }
+      }
+
+      // Git tracking
+      logger.info("📂 Scanning for changes...");
       const t1 = Date.now();
       const gitTracker = new GitTracker(this.config.chunkers, opts.logger);
       const currentState = await gitTracker.getCurrentState();
 
-      const previousState = opts.force
+      const previousState = effectiveForce
         ? new Map<string, string>()
-        : loadPreviousState(db);
+        : db.getFileStates();
 
       const { toProcess, toDelete } = await gitTracker.getChangedFiles(
         previousState,
@@ -124,7 +131,6 @@ export class Orchestrator {
 
       const gitDuration = Date.now() - t1;
       logger.verbose(`Git tracking done in ${gitDuration}ms`);
-
       telemetry?.recordGitTracking({
         durationMs: gitDuration,
         filesScanned: currentState.size,
@@ -132,71 +138,70 @@ export class Orchestrator {
         toDelete: toDelete.length,
       });
 
-      if (toProcess.length === 0 && toDelete.length === 0 && !opts.force) {
+      // Load resume queues — exclude files that will be re-processed this run
+      const skipSet = new Set([...toProcess, ...toDelete]);
+      const pendingEmbed: Chunk[] = db
+        .getPendingEmbedChunks()
+        .filter((c) => !skipSet.has(c.sourceFile));
+      const pendingUpload: EmbeddedChunk[] = db
+        .getPendingUploadChunks()
+        .filter((c) => !skipSet.has(c.sourceFile));
+
+      if (
+        toProcess.length === 0 &&
+        toDelete.length === 0 &&
+        pendingEmbed.length === 0 &&
+        pendingUpload.length === 0 &&
+        !effectiveForce
+      ) {
         logger.info("✨ No changes detected.");
-        db.close();
         return;
       }
 
       logger.info(
-        `📊 Changes: ${toProcess.length} to process, ${toDelete.length} to delete`,
+        `📊 ${toProcess.length} to process, ${toDelete.length} to delete` +
+          (pendingEmbed.length > 0
+            ? `, ${pendingEmbed.length} embed-pending`
+            : "") +
+          (pendingUpload.length > 0
+            ? `, ${pendingUpload.length} upload-pending`
+            : ""),
       );
 
-      // Step 2: Generate chunks (with resume)
-      logger.info("🔪 Step 2: Generating chunks...");
-      const t2 = Date.now();
-      const chunkProcessor = new ChunkProcessor(
-        this.config.chunkers,
-        opts.logger,
-      );
-
-      const fileState = new Map<
-        string,
-        { commitHash: string; chunker: FileChunker }
-      >();
-      for (const file of toProcess) {
-        const info = currentState.get(file);
-        if (info) fileState.set(file, info);
-      }
-
-      const existingChunks = opts.force
-        ? []
-        : await loadExistingChunks(this.chunksFile);
-
-      const chunks = await chunkProcessor.processFiles(
-        toProcess,
-        fileState,
-        existingChunks,
-        (done, total) =>
-          opts.onChunkProgress?.(done < total ? done : total, total),
-      );
-      await chunkProcessor.saveChunksLocal(chunks, this.chunksFile);
-
-      const chunkDuration = Date.now() - t2;
-      logger.verbose(`Chunking done in ${chunkDuration}ms`);
-
-      telemetry?.recordChunking({
-        durationMs: chunkDuration,
-        filesProcessed: toProcess.length,
-        chunksGenerated: chunks.length,
-        errors: 0,
-      });
-
-      if (chunks.length === 0) {
-        logger.warn("⚠️ No chunks generated. Exiting.");
-        db.close();
-        return;
-      }
-
-      // Step 3: Generate embeddings
-      logger.info("🔢 Step 3: Generating embeddings...");
-      const t3 = Date.now();
-
+      // Delete stale vector store entries before producing new ones
       const uploader = new Uploader(this.config.vectorStore, {
         retry: opts.retry,
         logger: opts.logger,
       });
 
+      if (!opts.skipUpload && !opts.dryRun) {
+        await uploader.prepareUpdate(db, toDelete, toProcess, effectiveForce);
+        deletedCount = toDelete.length;
+      }
+
+      for (const file of toDelete) {
+        db.deleteBySourceFile(file);
+      }
+
+      // Streaming loop configuration
+      const minEmbedBatch = opts.minEmbeddingBatchSize ?? 10;
+      const minUploadBatch =
+        opts.minUploadingBatchSize ?? opts.minIngestionBatchSize ?? 20;
+
+      let embedTotal = pendingEmbed.length;
+      let uploadTotal = pendingUpload.length;
+      let chunkDone = 0;
+      let embedDone = 0;
+      let uploadDone = 0;
+
+      opts.onChunkProgress?.(0, toProcess.length);
+      opts.onEmbedProgress?.(0, embedTotal);
+      opts.onUploadProgress?.(0, uploadTotal);
+
+      const chunkProcessor = new ChunkProcessor(
+        this.config.chunkers,
+        opts.logger,
+      );
       const embedder = new EmbedderProcessor(this.config.embedder, {
         rateLimitMs: opts.rateLimitMs,
         batchSize: opts.batchSize,
@@ -204,56 +209,132 @@ export class Orchestrator {
         retry: opts.retry,
         concurrency: opts.concurrency,
         vectorStoreName: this.config.vectorStore.name,
-        minIngestionBatchSize: opts.minIngestionBatchSize,
         logger: opts.logger,
-        onProgress: (done, total) =>
-          opts.onEmbedProgress?.(done < total ? done : total, total),
       });
 
-      const newEmbeddings = await embedder.run(
-        db,
-        this.chunksFile,
-        opts.force || false,
-        opts.skipUpload
-          ? undefined
-          : async () => {
-              await uploader.uploadPending(db);
-            },
-      );
+      // Build meta once; stored to DB after the first embedding batch
+      const now = Math.floor(Date.now() / 1000);
+      const newMeta: EmbeddingsMeta = {
+        schemaVersion: 1,
+        providerName: this.config.embedder.name,
+        providerDimensions: this.config.embedder.dimensions,
+        ...(this.config.embedder.model !== undefined
+          ? { model: this.config.embedder.model }
+          : {}),
+        ...(this.config.vectorStore.name !== undefined
+          ? { vectorStoreName: this.config.vectorStore.name }
+          : {}),
+        createdAt: existingMeta?.createdAt ?? now,
+        updatedAt: now,
+      };
 
+      let chunksGenerated = 0;
+      let chunksEmbedded = 0;
+      const t2 = Date.now();
+
+      const flushUpload = async (all: boolean) => {
+        if (opts.skipUpload || opts.dryRun) return;
+        const limit = all ? pendingUpload.length : minUploadBatch;
+        while (pendingUpload.length >= (all ? 1 : minUploadBatch)) {
+          const ubatch = pendingUpload.splice(0, limit);
+          await uploader.upsertBatch(db, ubatch);
+          uploadDone += ubatch.length;
+          uploadedCount += ubatch.length;
+          opts.onUploadProgress?.(uploadDone, uploadTotal);
+        }
+      };
+
+      const flushEmbed = async (all: boolean) => {
+        const limit = all ? pendingEmbed.length : minEmbedBatch;
+        while (pendingEmbed.length >= (all ? 1 : minEmbedBatch)) {
+          const batch = pendingEmbed.splice(0, limit);
+          const embedded = await embedder.embedChunks(batch);
+          const embeddedAt = Math.floor(Date.now() / 1000);
+          for (const chunk of embedded) {
+            db.updateEmbedding(chunk.contentHash!, chunk.embedding, embeddedAt);
+          }
+          db.setMeta(newMeta);
+          pendingUpload.push(...embedded);
+          uploadTotal += embedded.length;
+          embedDone += batch.length;
+          chunksEmbedded += batch.length;
+          opts.onEmbedProgress?.(embedDone, embedTotal);
+          await flushUpload(false);
+        }
+      };
+
+      // Main streaming loop
+      for (const file of toProcess) {
+        const info = currentState.get(file);
+        if (!info) continue;
+
+        let newChunks: Chunk[] = [];
+        try {
+          newChunks = await chunkProcessor.processFile(
+            file,
+            info.commitHash,
+            info.chunker,
+          );
+        } catch (err) {
+          logger.error(
+            `❌ Chunking failed for ${file}: ${
+              err instanceof Error ? err.message : String(err)
+            }`,
+          );
+          chunkDone++;
+          opts.onChunkProgress?.(chunkDone, toProcess.length);
+          continue;
+        }
+
+        db.replaceChunks(file, newChunks);
+        pendingEmbed.push(...newChunks);
+        embedTotal += newChunks.length;
+        chunksGenerated += newChunks.length;
+        chunkDone++;
+        opts.onChunkProgress?.(chunkDone, toProcess.length);
+
+        await flushEmbed(false);
+      }
+
+      const chunkDuration = Date.now() - t2;
+      telemetry?.recordChunking({
+        durationMs: chunkDuration,
+        filesProcessed: toProcess.length,
+        chunksGenerated,
+        errors: 0,
+      });
+
+      // Flush remaining pending embed and upload
+      const t3 = Date.now();
+      await flushEmbed(true);
       const embedDuration = Date.now() - t3;
-      logger.verbose(`Embedding done in ${embedDuration}ms`);
+
+      const t4 = Date.now();
+      await flushUpload(true);
+      const uploadDuration = Date.now() - t4;
 
       telemetry?.recordEmbedding({
         durationMs: embedDuration,
-        chunksEmbedded: newEmbeddings.length,
-        chunksSkipped: chunks.length - newEmbeddings.length,
+        chunksEmbedded,
+        chunksSkipped: 0,
       });
 
-      // Step 4: Upload
-      if (opts.dryRun) {
-        const { toUpload: dryUpload, toDelete: dryDelete } =
-          await uploader.getItemsToUpload(db, opts.force || false);
-        logger.info("📤 Step 4: Upload (dry-run — no changes written)");
-        logger.info(`   Would upload: ${dryUpload.length} document(s)`);
-        logger.info(`   Would delete: ${dryDelete.length} source file(s)`);
-      } else if (!opts.skipUpload) {
-        logger.info("📤 Step 4: Uploading to vector store...");
-        const t4 = Date.now();
-        uploadStats = await uploader.sync(
-          db,
-          opts.force || false,
-          opts.onUploadProgress,
-        );
-
-        const uploadDuration = Date.now() - t4;
-        logger.verbose(`Upload done in ${uploadDuration}ms`);
-
+      if (!opts.skipUpload && !opts.dryRun) {
         telemetry?.recordUpload({
           durationMs: uploadDuration,
-          uploaded: uploadStats.uploaded,
-          deleted: uploadStats.deleted,
+          uploaded: uploadedCount,
+          deleted: deletedCount,
         });
+      }
+
+      if (opts.dryRun) {
+        logger.info("📤 Upload (dry-run — no changes written)");
+        logger.info(
+          `   Would upload: ${uploadDone + pendingUpload.length} document(s)`,
+        );
+        logger.info(
+          `   Would delete: ${toDelete.length + toProcess.length} source file(s)`,
+        );
       }
 
       logger.success("✨ RAG pipeline complete!");
@@ -261,8 +342,8 @@ export class Orchestrator {
       if (telemetry) {
         telemetry.finish();
         telemetry.printSummary(opts.logger);
-        const telemetryFile = this.chunksFile.replace(
-          "chunks.json",
+        const telemetryFile = this.embeddingsFile.replace(
+          /[^/\\]+\.json$/,
           "telemetry.json",
         );
         await telemetry.save(telemetryFile, opts.logger);
@@ -272,8 +353,8 @@ export class Orchestrator {
         await notifyWebhook(opts.notifications.webhookUrl, "success", {
           durationMs: telemetry?.getData().durationMs,
           stages: telemetry?.getData().stages,
-          uploaded: uploadStats.uploaded,
-          deleted: uploadStats.deleted,
+          uploaded: uploadedCount,
+          deleted: deletedCount,
         });
       }
     } catch (err) {

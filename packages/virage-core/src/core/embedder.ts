@@ -131,6 +131,26 @@ export class EmbedderProcessor {
     return withConcurrency(tasks, this.concurrency);
   }
 
+  /**
+   * Embed a list of chunks, handling sub-batching by batchSize and maxBatchChars.
+   * Use this instead of embedBatch() when the caller doesn't know the provider's
+   * preferred batch size.
+   */
+  async embedChunks(chunks: Chunk[]): Promise<EmbeddedChunk[]> {
+    if (chunks.length === 0) return [];
+    const batches = batchBySize(
+      chunks,
+      this.batchSize,
+      (c) => c.content.length,
+      this.maxBatchChars,
+    );
+    const all: EmbeddedChunk[] = [];
+    for (const b of batches) {
+      all.push(...(await this.embedBatch(b)));
+    }
+    return all;
+  }
+
   async getChunksToEmbed(
     db: EmbeddingsDb,
     chunks: Chunk[],

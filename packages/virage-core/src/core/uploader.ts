@@ -118,6 +118,75 @@ export class Uploader {
     };
   }
 
+  /**
+   * Called once before the streaming loop. Deletes stale vector store entries for
+   * all files that will be re-chunked (toProcess) or removed (toDelete).
+   * On force mode or vector-store change, deletes all tracked source files.
+   */
+  async prepareUpdate(
+    db: EmbeddingsDb,
+    toDelete: string[],
+    toProcess: string[],
+    force: boolean = false,
+  ): Promise<void> {
+    await this.vectorStore.initialize();
+
+    const meta = db.getMeta();
+    const storeChanged =
+      !force &&
+      !!meta?.vectorStoreName &&
+      meta.vectorStoreName !== this.vectorStore.name;
+
+    let filesToDelete: string[];
+
+    if (force || storeChanged) {
+      filesToDelete = [...db.getFileStates().keys()];
+      if (storeChanged) {
+        this.logger.warn(
+          `⚠️ Vector store changed from ${meta!.vectorStoreName} to ${this.vectorStore.name} — forcing full re-upload.`,
+        );
+      }
+    } else {
+      filesToDelete = [...new Set([...toDelete, ...toProcess])];
+    }
+
+    if (filesToDelete.length > 0) {
+      await withRetry(
+        () => this.vectorStore.deleteBySourceFile(filesToDelete),
+        {
+          ...this.retryOptions,
+          isRetryable: (err) => !isFatalVectorStoreError(err),
+        },
+        this.logger,
+      );
+      this.logger.verbose(
+        `🗑️ Deleted ${filesToDelete.length} source file(s) from vector store`,
+      );
+    }
+  }
+
+  /**
+   * Upload a batch of embedded chunks to the vector store, then mark them
+   * uploaded and clear the embedding BLOB to reclaim storage.
+   */
+  async upsertBatch(db: EmbeddingsDb, chunks: EmbeddedChunk[]): Promise<void> {
+    if (chunks.length === 0) return;
+    const documents = chunks.map((e) => this.chunkToDocument(e));
+    await withRetry(
+      () => this.vectorStore.upsert(documents),
+      {
+        ...this.retryOptions,
+        isRetryable: (err) => !isFatalVectorStoreError(err),
+      },
+      this.logger,
+    );
+    const hashes = chunks.map((e) => contentHash(e));
+    db.markUploaded(hashes);
+    for (const hash of hashes) {
+      db.clearEmbedding(hash);
+    }
+  }
+
   async uploadPending(
     db: EmbeddingsDb,
     onProgress?: (done: number, total: number) => void,
