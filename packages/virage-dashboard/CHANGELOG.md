@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.5](https://github.com/vivantel/virage/compare/virage-dashboard@v0.1.4...virage-dashboard@v0.1.5) (2026-06-04)
+
+
+### Features
+
+* Generic embedder benchmark, virage-mcp package, and full dashboard ([2174585](https://github.com/vivantel/virage/commit/2174585107bcc5b22ecab8529bd23e5e11794c0f))
+
 ## [0.1.4](https://github.com/vivantel/virage/compare/virage-dashboard@v0.1.3...virage-dashboard@v0.1.4) (2026-06-04)
 
 

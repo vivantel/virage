@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.8](https://github.com/vivantel/virage/compare/virage-cli@v0.1.7...virage-cli@v0.1.8) (2026-06-04)
+
+
+### Features
+
+* Generic embedder benchmark, virage-mcp package, and full dashboard ([2174585](https://github.com/vivantel/virage/commit/2174585107bcc5b22ecab8529bd23e5e11794c0f))
+
 ## [0.1.7](https://github.com/vivantel/virage/compare/virage-cli@v0.1.6...virage-cli@v0.1.7) (2026-06-04)
 
 
