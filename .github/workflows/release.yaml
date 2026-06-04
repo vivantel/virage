@@ -26,6 +26,8 @@ jobs:
       qdrant_released: ${{ steps.release.outputs['packages/virage-store-qdrant--release_created'] }}
       lancedb_released: ${{ steps.release.outputs['packages/virage-store-lancedb--release_created'] }}
       chromadb_released: ${{ steps.release.outputs['packages/virage-store-chromadb--release_created'] }}
+      cli_released: ${{ steps.release.outputs['packages/virage-cli--release_created'] }}
+      dashboard_released: ${{ steps.release.outputs['packages/virage-dashboard--release_created'] }}
     steps:
       - name: Run Release Please
         id: release
@@ -256,6 +258,32 @@ jobs:
       - name: Publish
         run: npm publish --provenance --access public
         working-directory: packages/virage-store-chromadb
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+  publish-cli:
+    name: Publish @vivantel/virage-cli
+    needs: release-please
+    if: ${{ needs.release-please.outputs.cli_released == 'true' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '20.x'
+          registry-url: 'https://registry.npmjs.org'
+          cache: "npm"
+      - run: npm ci
+      - run: npm run build --workspace packages/virage-core
+      - run: npm run build --workspace packages/virage-dashboard
+      - run: npm test --workspace packages/virage-cli
+      - run: npm run build --workspace packages/virage-cli
+      - name: Publish
+        run: npm publish --provenance --access public
+        working-directory: packages/virage-cli
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 

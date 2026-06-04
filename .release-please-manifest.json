@@ -7,5 +7,7 @@
   "packages/virage-store-postgres": "0.2.7",
   "packages/virage-store-qdrant": "0.2.7",
   "packages/virage-store-lancedb": "0.2.7",
-  "packages/virage-store-chromadb": "0.2.7"
+  "packages/virage-store-chromadb": "0.2.7",
+  "packages/virage-cli": "0.1.0",
+  "packages/virage-dashboard": "0.1.0"
 }
