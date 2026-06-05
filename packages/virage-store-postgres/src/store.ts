@@ -154,7 +154,9 @@ export class PostgresVectorStore implements VectorStore {
       source_file: string;
       commit_hash: string;
     }>(`SELECT source_file, commit_hash FROM ${this.table}`);
-    const state = new Map(rows.map((r) => [r.source_file, r.commit_hash]));
+    const state = new Map<string, string>(
+      rows.map((r) => [r.source_file, r.commit_hash]),
+    );
     this.logger?.verbose(`getCurrentState: ${state.size} source version(s)`);
     return state;
   }

@@ -1,6 +1,12 @@
 import { describe, it, expect } from "vitest";
 import { createMcpServer } from "./server.js";
-import { handleSearch, handleListChunks, handleGetChunk, handleListSourceFiles, handleGetStats } from "./tools.js";
+import {
+  handleSearch,
+  handleListChunks,
+  handleGetChunk,
+  handleListSourceFiles,
+  handleGetStats,
+} from "./tools.js";
 
 describe("package exports", () => {
   it("createMcpServer is a function", () => {
@@ -18,7 +24,11 @@ describe("package exports", () => {
 
 describe("createMcpServer", () => {
   it("creates a server with registered tools", () => {
-    const ctx = { db: {} as never, embedder: {} as never, vectorStore: {} as never };
+    const ctx = {
+      db: {} as never,
+      embedder: {} as never,
+      vectorStore: {} as never,
+    };
     const server = createMcpServer(ctx);
     expect(server).toBeDefined();
   });

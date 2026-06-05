@@ -12,6 +12,7 @@ function percentile(sorted: number[], p: number): number {
 }
 
 export async function getQueryPerfReport(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   table: any,
   dimensions: number,
   timeframeHours: number,
