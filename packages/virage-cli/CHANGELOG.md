@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.1.13](https://github.com/vivantel/virage/compare/virage-cli@v0.1.12...virage-cli@v0.1.13) (2026-06-05)
+
+
+### Bug Fixes
+
+* **core:** Propagate embedder dimensions to vectorStore at config load time ([cbfb781](https://github.com/vivantel/virage/commit/cbfb78119b5383dcac426baf8345d1660fd150e2))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @vivantel/virage-core bumped from 0.2.14 to 0.2.15
+
 ## [0.1.12](https://github.com/vivantel/virage/compare/virage-cli@v0.1.11...virage-cli@v0.1.12) (2026-06-05)
 
 

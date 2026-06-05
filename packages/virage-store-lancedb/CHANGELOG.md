@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.2.16](https://github.com/vivantel/virage/compare/virage-store-lancedb@v0.2.15...virage-store-lancedb@v0.2.16) (2026-06-05)
+
+
+### Bug Fixes
+
+* **core:** Propagate embedder dimensions to vectorStore at config load time ([cbfb781](https://github.com/vivantel/virage/commit/cbfb78119b5383dcac426baf8345d1660fd150e2))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * devDependencies
+    * @vivantel/virage-core bumped from 0.2.14 to 0.2.15
+  * peerDependencies
+    * @vivantel/virage-core bumped from * to 0.2.15
+
 ## [0.2.15](https://github.com/vivantel/virage/compare/virage-store-lancedb@v0.2.14...virage-store-lancedb@v0.2.15) (2026-06-05)
 
 
