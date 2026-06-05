@@ -1,5 +1,6 @@
 import { createHash } from "crypto";
-import { existsSync, readFileSync } from "fs";
+import { existsSync, mkdirSync, readFileSync } from "fs";
+import { dirname } from "path";
 import { rename } from "fs/promises";
 import Database from "better-sqlite3";
 import type { Chunk } from "../interfaces/index.js";
@@ -58,6 +59,7 @@ export class EmbeddingsDb {
   private db: Database.Database;
 
   constructor(dbPath: string) {
+    mkdirSync(dirname(dbPath), { recursive: true });
     this.db = new Database(dbPath);
     this.db.pragma("journal_mode = WAL");
     this.db.exec(META_DDL);
