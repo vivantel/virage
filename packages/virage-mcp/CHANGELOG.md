@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.1.4](https://github.com/vivantel/virage/compare/virage-mcp@v0.1.3...virage-mcp@v0.1.4) (2026-06-05)
+
+
+### Features
+
+* Index command, ignorePatterns, lancedb CI, MCP reconnect, drop embeddings.json ([27b77eb](https://github.com/vivantel/virage/commit/27b77eb44cd670f42dd170dfba3e5772a1c2eef7))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @vivantel/virage-core bumped from 0.2.12 to 0.2.13
+  * devDependencies
+    * @vivantel/virage-core bumped from 0.2.12 to 0.2.13
+  * peerDependencies
+    * @vivantel/virage-core bumped from * to 0.2.13
+
 ## [0.1.3](https://github.com/vivantel/virage/compare/virage-mcp@v0.1.2...virage-mcp@v0.1.3) (2026-06-05)
 
 
