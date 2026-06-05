@@ -25,6 +25,12 @@
 | Built-in strategies | New strategy added to virage-strategies |
 | CLI flags/subcommands | New subcommand or flag added or removed |
 | Plugin system | Plugin registration interface changed |
+| Embedders | New embedder package added or removed |
+| Vector stores | New store package added or removed |
+| Tuning | New pipeline option added to `options` block |
+| MCP integration | virage-mcp tool list or setup steps change |
+| Dashboard | Dashboard feature or launch command changes |
+| Contributing | Link target or CONTRIBUTING.md structure changes |
 
 > **Keep this table current.** After adding a new README section, add a row here.
 
