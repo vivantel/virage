@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.9](https://github.com/vivantel/virage/compare/virage-cli@v0.1.8...virage-cli@v0.1.9) (2026-06-05)
+
+
+### Bug Fixes
+
+* **virage-cli:** Fix dashboard startup failures with Express 5 ([e2e75d0](https://github.com/vivantel/virage/commit/e2e75d0ae2ac9109b6890ad6312b2ba4e4254636))
+
 ## [0.1.8](https://github.com/vivantel/virage/compare/virage-cli@v0.1.7...virage-cli@v0.1.8) (2026-06-04)
 
 
