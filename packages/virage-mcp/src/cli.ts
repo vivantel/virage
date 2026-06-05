@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { watch } from "fs";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import {
   loadConfig,
@@ -18,11 +19,7 @@ const configPath = process.argv[configIdx + 1];
 
 const cfg = await loadConfig(configPath);
 
-const dbPath =
-  (
-    cfg.options as { embeddingsFile?: string } | undefined
-  )?.embeddingsFile?.replace(/\.json$/, ".db") ?? defaultEmbeddingsDb();
-
+const dbPath = defaultEmbeddingsDb();
 const db = new EmbeddingsDb(dbPath);
 await cfg.vectorStore.initialize();
 
@@ -31,11 +28,34 @@ const server = createMcpServer(ctx);
 const transport = new StdioServerTransport();
 await server.connect(transport);
 
-process.on("SIGINT", () => {
+// Watch the LanceDB directory (or any file-backed store) and reinitialize
+// when the index is replaced by a fresh `virage index` run.
+const lanceDbUri: string | undefined = (
+  cfg.vectorStore as unknown as { uri?: string }
+).uri;
+if (lanceDbUri && !lanceDbUri.startsWith("db://") && !lanceDbUri.startsWith("https://")) {
+  let debounce: ReturnType<typeof setTimeout> | null = null;
+  try {
+    watch(lanceDbUri, { recursive: false }, () => {
+      if (debounce) clearTimeout(debounce);
+      debounce = setTimeout(async () => {
+        try {
+          await cfg.vectorStore.initialize();
+        } catch {
+          // non-fatal — next request will retry
+        }
+      }, 500);
+    });
+  } catch {
+    // directory may not exist yet; skip watching
+  }
+}
+
+async function shutdown() {
+  await cfg.vectorStore.close?.();
   db.close();
   process.exit(0);
-});
-process.on("SIGTERM", () => {
-  db.close();
-  process.exit(0);
-});
+}
+
+process.on("SIGINT", () => void shutdown());
+process.on("SIGTERM", () => void shutdown());

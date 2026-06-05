@@ -19,6 +19,7 @@ import type { Logger } from "./interfaces/logger.js";
 interface JsonChunkerConfig {
   name?: string;
   patterns: string[];
+  ignorePatterns?: string[];
   strategy: BuiltinStrategyName;
   strategyOptions?: StrategyOptions;
 }
@@ -136,7 +137,12 @@ async function loadJsonConfig(
         ch.strategyOptions,
       );
       const name = ch.name ?? `${ch.strategy}:${ch.patterns[0]}`;
-      return createChunker({ name, patterns: ch.patterns, strategy });
+      return createChunker({
+        name,
+        patterns: ch.patterns,
+        ignorePatterns: ch.ignorePatterns,
+        strategy,
+      });
     }),
   );
 

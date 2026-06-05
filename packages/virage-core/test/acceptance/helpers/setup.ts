@@ -39,8 +39,6 @@ function buildConfig(env: TestEnv): Record<string, unknown> {
       config: { path: './rag-test/vector-store.json' },
     },
     options: {
-      chunksFile: './rag-test/chunks.json',
-      embeddingsFile: './rag-test/embeddings.json',
       batchSize: 32,
       telemetry: true,
     },

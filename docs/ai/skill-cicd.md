@@ -20,7 +20,7 @@
 |---|---|---|
 | `ci.yaml` | push/PR to master/develop | Dynamic matrix: build + test only changed packages |
 | `release.yaml` | release-please PR merged | Publish all packages to npm (OIDC trusted publisher) |
-| `virage-update.yaml` | schedule + push to master | Run `virage update --config virage.config.ci.json` to reindex the repo |
+| `virage-update.yaml` | push to master | Run `virage index --config virage.config.ci.json` to reindex the repo using lancedb (no DB secret needed) |
 | `automerge-release-please.yaml` | PR labeled by release-please | Auto-approve and merge release PRs after CI passes |
 
 **Currently published packages in the release matrix** (in sync with `.github/config/release-please.json`):

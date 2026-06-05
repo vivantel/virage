@@ -89,6 +89,9 @@ export interface VectorStore {
 
   /** Optional: write embedder metadata alongside the index */
   writeMeta?(meta: VectorStoreMeta): Promise<void>;
+
+  /** Optional: close/disconnect from the store (important for file-backed stores like LanceDB) */
+  close?(): Promise<void>;
 }
 
 export interface VectorStoreConfig {

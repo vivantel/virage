@@ -39,7 +39,6 @@ export { EmbeddingsDb } from "./core/embeddings-db.js";
 // Defaults and constants
 export {
   getVirageDir,
-  defaultEmbeddingsFile,
   defaultEmbeddingsDb,
   IGNORED_DIRS,
 } from "./core/virage-defaults.js";

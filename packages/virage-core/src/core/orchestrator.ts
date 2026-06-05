@@ -15,7 +15,7 @@ import {
 import type { Logger } from "../interfaces/logger.js";
 import { NullLogger } from "../logger/null-logger.js";
 import { RetryOptions } from "./utils.js";
-import { defaultEmbeddingsFile } from "./virage-defaults.js";
+import { defaultEmbeddingsDb } from "./virage-defaults.js";
 
 export interface RAGPipelineConfig {
   chunkers: FileChunker[];
@@ -71,7 +71,7 @@ export class Orchestrator {
   constructor(config: RAGPipelineConfig) {
     this.config = config;
     this.embeddingsFile =
-      config.options?.embeddingsFile ?? defaultEmbeddingsFile();
+      config.options?.embeddingsFile ?? defaultEmbeddingsDb();
   }
 
   async run(): Promise<void> {
@@ -80,14 +80,13 @@ export class Orchestrator {
     const telemetry = opts.telemetry ? new TelemetryCollector() : null;
     telemetry?.start();
 
-    const dbPath = this.embeddingsFile.replace(/\.json$/, ".db");
-    const db = new EmbeddingsDb(dbPath);
+    const db = new EmbeddingsDb(this.embeddingsFile);
 
     let uploadedCount = 0;
     let deletedCount = 0;
 
     logger.debug(
-      `Config: embeddingsFile=${this.embeddingsFile} force=${opts.force ?? false}`,
+      `Config: embeddingsDb=${this.embeddingsFile} force=${opts.force ?? false}`,
     );
 
     try {

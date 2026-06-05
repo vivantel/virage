@@ -28,6 +28,11 @@
             "items": { "type": "string" },
             "description": "Glob patterns for files this chunker handles."
           },
+          "ignorePatterns": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Glob patterns for files this chunker should skip."
+          },
           "strategy": {
             "type": "string",
             "enum": ["markdownHeaders", "token", "wholeFile", "semantic"],
@@ -81,8 +86,6 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "chunksFile": { "type": "string", "description": "Path to chunks.json output." },
-        "embeddingsFile": { "type": "string", "description": "Path to embeddings.json output." },
         "force": { "type": "boolean" },
         "skipUpload": { "type": "boolean" },
         "dryRun": { "type": "boolean" },

@@ -1,4 +1,5 @@
 import { FileChunker, ChunkStrategy, Chunk } from "../interfaces/index.js";
+import { minimatch } from "minimatch";
 
 type WithStrategy = {
   strategy: ChunkStrategy;
@@ -18,6 +19,7 @@ type WithProcess = {
 
 export type CreateChunkerOptions = {
   patterns: string[];
+  ignorePatterns?: string[];
   canProcess?: (filePath: string, content?: string) => Promise<boolean>;
 } & (WithStrategy | WithProcess);
 
@@ -43,6 +45,14 @@ export function createChunker(options: CreateChunkerOptions): FileChunker {
     patterns: options.patterns,
 
     async chunk(filePath: string, commitHash: string): Promise<Chunk[]> {
+      if (
+        options.ignorePatterns?.some((p) =>
+          minimatch(filePath, p, { matchBase: true }),
+        )
+      ) {
+        return [];
+      }
+
       const { readFile } = await import("fs/promises");
       const content = await readFile(filePath, "utf-8");
 
@@ -57,6 +67,13 @@ export function createChunker(options: CreateChunkerOptions): FileChunker {
     },
 
     async canProcess(filePath: string, content?: string): Promise<boolean> {
+      if (
+        options.ignorePatterns?.some((p) =>
+          minimatch(filePath, p, { matchBase: true }),
+        )
+      ) {
+        return false;
+      }
       if (options.canProcess) {
         return options.canProcess(filePath, content);
       }

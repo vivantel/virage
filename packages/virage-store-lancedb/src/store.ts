@@ -83,19 +83,40 @@ export class LanceDBVectorStore implements VectorStore {
     ]);
 
     const tableNames: string[] = await this.db.tableNames();
+    const metaTableName = `${this.tableName}_meta`;
+
     if (tableNames.includes(this.tableName)) {
-      this.table = await this.db.openTable(this.tableName);
+      const existing = await this.db.openTable(this.tableName);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const embField = (existing.schema as any).fields?.find(
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (f: any) => f.name === "embedding",
+      );
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const existingDims: number | undefined = (embField?.type as any)?.listSize;
+      if (existingDims !== undefined && existingDims !== this.dimensions) {
+        this.logger?.warn(
+          `LanceDB dimension mismatch (${existingDims}→${this.dimensions}), dropping and recreating tables`,
+        );
+        await this.db.dropTable(this.tableName);
+        if (tableNames.includes(metaTableName)) {
+          await this.db.dropTable(metaTableName);
+        }
+        this.table = await this.db.createEmptyTable(this.tableName, schema);
+      } else {
+        this.table = existing;
+      }
     } else {
       this.table = await this.db.createEmptyTable(this.tableName, schema);
     }
     this.logger?.debug(`Table "${this.tableName}" ready (${this.dimensions}d)`);
 
-    const metaTableName = `${this.tableName}_meta`;
     const metaSchema = new Schema([
       new Field("key", new Utf8()),
       new Field("value", new Utf8()),
     ]);
-    if (tableNames.includes(metaTableName)) {
+    const currentTableNames: string[] = await this.db.tableNames();
+    if (currentTableNames.includes(metaTableName)) {
       this.metaTable = await this.db.openTable(metaTableName);
     } else {
       this.metaTable = await this.db.createEmptyTable(
@@ -103,6 +124,12 @@ export class LanceDBVectorStore implements VectorStore {
         metaSchema,
       );
     }
+  }
+
+  async close(): Promise<void> {
+    this.db = undefined;
+    this.table = undefined;
+    this.metaTable = undefined;
   }
 
   async upsert(documents: VectorDocument[]): Promise<void> {

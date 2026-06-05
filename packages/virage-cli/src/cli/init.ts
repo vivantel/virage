@@ -5,7 +5,6 @@ import { join } from "path";
 import { spawn } from "child_process";
 import {
   loadRegistry,
-  defaultEmbeddingsFile,
   getVirageDir,
 } from "@vivantel/virage-core";
 import type { PluginRegistry } from "@vivantel/virage-core";
@@ -185,9 +184,6 @@ function generateJsonConfig(
     vectorStore: {
       package: storeEntry.package,
       config: resolvedStoreConfig,
-    },
-    options: {
-      embeddingsFile: defaultEmbeddingsFile(),
     },
   };
 

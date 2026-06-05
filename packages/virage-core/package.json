@@ -26,7 +26,7 @@
     "access": "public"
   },
   "scripts": {
-    "build": "rm -rf dist && tsc && echo \"✅ Build completed successfully\"",
+    "build": "rm -rf dist && tsc && echo \"\u2705 Build completed successfully\"",
     "dev": "tsx watch src/index.ts",
     "type-check": "tsc --noEmit",
     "lint": "eslint src/",
@@ -54,7 +54,8 @@
     "better-sqlite3": "^12.10.0",
     "chokidar": "^5.0.0",
     "glob": "^13.0.6",
-    "simple-git": "^3.25.0"
+    "simple-git": "^3.25.0",
+    "minimatch": "^10.0.0"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

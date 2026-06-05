@@ -1,25 +1,35 @@
 {
   "$schema": "./packages/virage-core/schemas/virage.config.schema.json",
   "chunkers": [
-    { "patterns": ["**/*.md", "**/*.mdx"], "strategy": "markdownHeaders" },
-    { "patterns": ["src/**/*.ts", "src/**/*.tsx"], "strategy": "token" },
-    { "patterns": ["**/*.yaml", "**/*.yml"], "strategy": "wholeFile" }
+    {
+      "patterns": ["**/*.md", "**/*.mdx"],
+      "strategy": "markdownHeaders",
+      "ignorePatterns": ["**/node_modules/**", "CHANGELOG.md"]
+    },
+    {
+      "patterns": ["packages/**/*.ts"],
+      "strategy": "token",
+      "ignorePatterns": ["**/*.test.ts", "**/*.d.ts", "**/dist/**"]
+    },
+    {
+      "patterns": ["**/*.yaml", "**/*.yml"],
+      "strategy": "wholeFile",
+      "ignorePatterns": ["**/node_modules/**"]
+    }
   ],
   "embedder": {
-    "package": "@vivantel/virage-embedder-fastembed",
+    "package": "@vivantel/virage-embedder-transformers",
     "config": {
-      "model": "BAAI/bge-large-en-v1.5"
+      "model": "Xenova/all-MiniLM-L6-v2",
+      "dimensions": 384,
+      "cacheDir": ".virage/model-cache"
     }
   },
   "vectorStore": {
-    "package": "@vivantel/virage-store-postgres",
+    "package": "@vivantel/virage-store-lancedb",
     "config": {
-      "connectionString": "${DATABASE_URL}",
-      "dimensions": 1024
+      "uri": ".virage/lancedb",
+      "dimensions": 384
     }
-  },
-  "options": {
-    "chunksFile": "./docs/rag/chunks.json",
-    "embeddingsFile": "./docs/rag/embeddings.json"
   }
 }

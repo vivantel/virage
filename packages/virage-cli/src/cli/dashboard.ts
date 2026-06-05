@@ -117,7 +117,7 @@ async function getCachedConfig(configPath: string): Promise<RAGPipelineConfig> {
           ` (${storedMeta.dimensions}d, model "${storedMeta.model ?? "unknown"}")` +
           ` but current config uses ${cfg.embedder.name}` +
           ` (${cfg.embedder.dimensions}d, model "${cfg.embedder.model ?? "unknown"}").` +
-          ` Run "virage update --force" to rebuild the index.`,
+          ` Run "virage index --force" to rebuild the index.`,
       );
     }
   }

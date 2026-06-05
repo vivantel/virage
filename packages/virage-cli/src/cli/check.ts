@@ -14,7 +14,7 @@ export async function runCheck(opts: CheckOptions): Promise<void> {
     console.log(
       "⚠️  No embedder metadata found in the index.\n" +
         "   This index was built before virage check was available, or the index is empty.\n" +
-        "   Run `virage update` to write metadata.",
+        "   Run `virage index` to write metadata.",
     );
     return;
   }
@@ -47,7 +47,7 @@ export async function runCheck(opts: CheckOptions): Promise<void> {
         `   Index model : ${stored.model} → config model: ${cfg.embedder.model}`,
       );
     }
-    console.log("\n   Fix: run `virage update --force` to rebuild the index.");
+    console.log("\n   Fix: run `virage index --force` to rebuild the index.");
     process.exitCode = 1;
   } else {
     console.log("\n✅ Index is compatible with the current embedder config.");

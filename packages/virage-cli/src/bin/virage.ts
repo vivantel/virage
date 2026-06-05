@@ -146,7 +146,7 @@ async function runOnce(options: {
 program
   .name("virage")
   .description(
-    "RAG pipeline CLI — run 'virage update' to index, or a subcommand for diagnostics",
+    "RAG pipeline CLI — run 'virage index' to index, or a subcommand for diagnostics",
   )
   .version("2.0.0")
   .option(
@@ -158,7 +158,7 @@ program
   .action(() => program.outputHelp());
 
 program
-  .command("update")
+  .command("index")
   .description("Run the RAG indexing pipeline")
   .option("-c, --config <path>", "Path to config file", "./virage.config.json")
   .option("-f, --force", "Force full rebuild", false)
@@ -324,7 +324,7 @@ program
   .command("eval-generate")
   .description("Generate an eval dataset from existing chunks")
   .option("--embeddings <path>", "Embeddings DB path", defaultEmbeddingsDb())
-  .option("--output <path>", "Output dataset path", "./eval/queries.json")
+  .option("--output <path>", "Output dataset path", `${getVirageDir()}/eval/queries.json`)
   .option("--include-negatives", "Add negative examples")
   .option(
     "--paraphrase-ratio <n>",

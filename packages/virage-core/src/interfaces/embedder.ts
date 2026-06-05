@@ -53,7 +53,7 @@ export interface EmbeddedChunk extends Chunk {
   embeddedAt: number;
 }
 
-/** Metadata stored in embeddings.json to detect model/store changes across runs. */
+/** Metadata stored in the embeddings SQLite DB to detect model/store changes across runs. */
 export interface EmbeddingsMeta {
   schemaVersion: number;
   /** Informational only — not used for mismatch detection. */
@@ -68,7 +68,7 @@ export interface EmbeddingsMeta {
   updatedAt: number;
 }
 
-/** The on-disk format of embeddings.json (v2+). Legacy format is a bare EmbeddedChunk[]. */
+/** The legacy JSON on-disk format (v2+) used for migration. Current storage is SQLite via EmbeddingsDb. */
 export interface EmbeddingsFileFormat {
   _meta: EmbeddingsMeta;
   chunks: EmbeddedChunk[];

@@ -22,7 +22,7 @@
 | Eval datasets | `.rag-experiments/` | JSON files | Query + ground-truth pairs |
 | Experiment results | `.rag-experiments/<name>_<iso>.json` | JSON | Metrics: MRR, P@5, R@10, HitRate@5 |
 
-**Override paths**: set `VIRAGE_DIR` env var to change the `.virage/` root, or set `options.embeddingsFile` in the config to target a specific DB path.
+**Override paths**: set `VIRAGE_DIR` env var to change the `.virage/` root.
 
 > **Keep this table current.** After adding a new artifact type or changing default paths, update this snapshot.
 
@@ -71,10 +71,10 @@ Bootstrap significance test (`virage experiment compare`): delta per metric, p-v
 ## Pipeline verbosity flags for live diagnosis
 
 ```bash
-virage update -v        # verbosity 1: basic progress
-virage update -vvvvv    # verbosity 5: full debug (all provider calls, batch sizes, timings)
-virage update --dry-run # show what would change without uploading
-virage update --no-upload  # chunk + embed but skip vector store upload
+virage index -v        # verbosity 1: basic progress
+virage index -vvvvv    # verbosity 5: full debug (all provider calls, batch sizes, timings)
+virage index --dry-run # show what would change without uploading
+virage index --no-upload  # chunk + embed but skip vector store upload
 ```
 
 ---

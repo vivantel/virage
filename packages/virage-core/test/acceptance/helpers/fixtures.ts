@@ -1,52 +1,48 @@
 import { writeFileSync, mkdirSync } from 'fs';
 import { join, dirname } from 'path';
-import { randomUUID } from 'crypto';
+import Database from 'better-sqlite3';
 
 function ensureDir(filePath: string): void {
   mkdirSync(dirname(filePath), { recursive: true });
 }
 
-/** Write a minimal chunks.json with `count` stub chunks. */
-export function writeChunks(dir: string, count = 10): void {
-  const chunks = Array.from({ length: count }, (_, i) => ({
-    content: `Chunk content ${i}. This is a sentence ending properly.`,
-    sourceFile: `skills/file${i % 3}.md`,
-    commitHash: 'abc123',
-    contentHash: `hash${i}`,
-    metadata: { strategy: 'markdownHeaders', heading: `## Section ${i}` },
-  }));
-  const path = join(dir, 'rag-test', 'chunks.json');
+/** Write a minimal virage embeddings SQLite DB with `count` embedded chunks. */
+export function writeEmbeddingsDb(dir: string, count = 10, dim = 384): void {
+  const path = join(dir, 'rag-test', 'embeddings.db');
   ensureDir(path);
-  writeFileSync(path, JSON.stringify(chunks, null, 2));
-}
-
-/** Write a minimal embeddings.json with 384-dim zero vectors. */
-export function writeEmbeddings(dir: string, count = 10, dim = 384): void {
-  const embedding = Object.fromEntries(Array.from({ length: dim }, (_, i) => [String(i), 0.0]));
-  const chunks = Array.from({ length: count }, (_, i) => ({
-    content: `Chunk ${i}`,
-    sourceFile: `skills/file${i % 3}.md`,
-    commitHash: 'abc123',
-    contentHash: `hash${i}`,
-    embedding,
-    embeddedAt: new Date().toISOString(),
-    metadata: {},
-  }));
-  const record = {
-    _meta: {
-      schemaVersion: 1,
-      providerName: 'fastembed',
-      providerDimensions: dim,
-      model: 'fast-bge-small-en-v1.5',
-      vectorStoreName: 'file-test-store',
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    },
-    chunks,
-  };
-  const path = join(dir, 'rag-test', 'embeddings.json');
-  ensureDir(path);
-  writeFileSync(path, JSON.stringify(record, null, 2));
+  const db = new Database(path);
+  db.pragma('journal_mode = WAL');
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+    CREATE TABLE IF NOT EXISTS chunks (
+      content_hash TEXT PRIMARY KEY,
+      source_file TEXT NOT NULL,
+      commit_hash TEXT NOT NULL,
+      content TEXT NOT NULL,
+      metadata_json TEXT NOT NULL,
+      embedding BLOB,
+      embedded_at INTEGER,
+      uploaded INTEGER NOT NULL DEFAULT 0
+    ) STRICT;
+    CREATE INDEX IF NOT EXISTS idx_source_file ON chunks(source_file);
+  `);
+  const insert = db.prepare(
+    'INSERT INTO chunks (content_hash, source_file, commit_hash, content, metadata_json, embedding, embedded_at, uploaded) VALUES (?, ?, ?, ?, ?, ?, ?, 1)',
+  );
+  const embedding = Buffer.from(new Float32Array(new Array(dim).fill(0.0)).buffer);
+  const now = Math.floor(Date.now() / 1000);
+  for (let i = 0; i < count; i++) {
+    insert.run(
+      `hash${i}`,
+      `skills/file${i % 3}.md`,
+      'abc123',
+      `Chunk content ${i}. This is a sentence ending properly.`,
+      JSON.stringify({ strategy: 'markdownHeaders', heading: `## Section ${i}` }),
+      embedding,
+      now,
+    );
+  }
+  db.close();
 }
 
 /** Write a minimal telemetry.json that the `report` command can parse. */
@@ -116,10 +112,6 @@ export function writeConfig(
     vectorStore: {
       package: options.storePkg,
       config: { path: './rag-test/vector-store.json' },
-    },
-    options: {
-      chunksFile: './rag-test/chunks.json',
-      embeddingsFile: './rag-test/embeddings.json',
     },
   };
   writeFileSync(join(dir, 'virage.config.json'), JSON.stringify(cfg, null, 2));

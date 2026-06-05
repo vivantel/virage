@@ -22,7 +22,7 @@
 | Import extensions | `.js` on all internal imports (e.g. `from "./foo.js"` even though file is `.ts`) |
 | TypeScript target | ES2022 |
 | Pipeline model | 4-stage linear: GitTracker → ChunkProcessor → EmbedderProcessor → Uploader |
-| Default artifact dir | `.virage/` (override via `VIRAGE_DIR` env var or `options.embeddingsFile` in config) |
+| Default artifact dir | `.virage/` (override via `VIRAGE_DIR` env var) |
 | Config format | JSON only; `loadConfig()` validates schema, expands `${ENV_VAR}`, dynamic-imports providers |
 | Core package constraint | `virage-core` has no CLI dependencies |
 

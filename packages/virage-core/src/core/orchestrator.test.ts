@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { Orchestrator, RAGPipelineConfig } from "./orchestrator.js";
-import { defaultEmbeddingsFile } from "./virage-defaults.js";
+import { defaultEmbeddingsDb } from "./virage-defaults.js";
 import {
   FileChunker,
   EmbeddingProvider,
@@ -36,8 +36,7 @@ function makeConfig(
     embedder: mockEmbedder,
     vectorStore: mockVectorStore,
     options: {
-      chunksFile: "./test-chunks.json",
-      embeddingsFile: "./test-embeddings.json",
+      embeddingsFile: "./test-embeddings.db",
       force: false,
       skipUpload: true,
       ...overrides,
@@ -67,15 +66,15 @@ describe("Orchestrator", () => {
   });
 
   it("should use custom embeddingsFile from options", () => {
-    const config = makeConfig({ embeddingsFile: "./custom/embeddings.json" });
+    const config = makeConfig({ embeddingsFile: "./custom/embeddings.db" });
     const orchestrator = new Orchestrator(config);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     expect((orchestrator as any).embeddingsFile).toBe(
-      "./custom/embeddings.json",
+      "./custom/embeddings.db",
     );
   });
 
-  it("should fall back to default embeddingsFile when not specified", () => {
+  it("should fall back to default embeddingsDb when not specified", () => {
     const config: RAGPipelineConfig = {
       chunkers: [mockChunker],
       embedder: mockEmbedder,
@@ -83,7 +82,7 @@ describe("Orchestrator", () => {
     };
     const orchestrator = new Orchestrator(config);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    expect((orchestrator as any).embeddingsFile).toBe(defaultEmbeddingsFile());
+    expect((orchestrator as any).embeddingsFile).toBe(defaultEmbeddingsDb());
   });
 
   it("should use VIRAGE_DIR env var as default path prefix", () => {
@@ -96,7 +95,7 @@ describe("Orchestrator", () => {
     const orchestrator = new Orchestrator(config);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     expect((orchestrator as any).embeddingsFile).toBe(
-      "/custom/dir/embeddings.json",
+      "/custom/dir/embeddings.db",
     );
     vi.unstubAllEnvs();
   });

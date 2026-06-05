@@ -13,53 +13,43 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
       - name: Setup Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v4
         with:
           node-version: "lts/*"
 
-      - name: Install Virage packages from npm
+      - name: Install Virage packages
         run: |
           npm install --prefix ./virage-runner \
             @vivantel/virage-core@latest \
-            @vivantel/virage-embedder-fastembed@latest \
-            @vivantel/virage-store-postgres@latest
+            @vivantel/virage-embedder-transformers@latest \
+            @vivantel/virage-store-lancedb@latest
 
       - name: Restore Virage cache
-        uses: actions/cache@v4
+        uses: actions/cache/restore@v4
         with:
-          path: docs/rag/
+          path: |
+            .virage/lancedb
+            .virage/embeddings.db
+            .virage/model-cache
           key: virage-${{ github.ref_name }}-${{ github.sha }}
           restore-keys: |
             virage-${{ github.ref_name }}-
             virage-
 
-      - name: Restore embedding progress
-        uses: actions/cache/restore@v4
-        with:
-          path: docs/rag/embeddings.json
-          key: virage-embeddings-${{ github.ref_name }}-${{ github.sha }}
-          restore-keys: |
-            virage-embeddings-${{ github.ref_name }}-
-
       - name: Run Virage pipeline
-        run: ./virage-runner/node_modules/.bin/virage update --config virage.config.ci.json
-        env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: ./virage-runner/node_modules/.bin/virage index --config virage.config.ci.json
 
       - name: Save Virage cache
-        uses: actions/cache/save@v4
-        with:
-          path: docs/rag/
-          key: virage-${{ github.ref_name }}-${{ github.sha }}
-
-      - name: Save embedding progress
         if: always()
         uses: actions/cache/save@v4
         with:
-          path: docs/rag/embeddings.json
-          key: virage-embeddings-${{ github.ref_name }}-${{ github.sha }}
+          path: |
+            .virage/lancedb
+            .virage/embeddings.db
+            .virage/model-cache
+          key: virage-${{ github.ref_name }}-${{ github.sha }}

@@ -3,14 +3,14 @@ import { mkdtempSync, rmSync, existsSync } from 'fs';
 import { join } from 'path';
 import { tmpdir } from 'os';
 import { runCLI } from './helpers/setup.js';
-import { writeEmbeddings } from './helpers/fixtures.js';
+import { writeEmbeddingsDb } from './helpers/fixtures.js';
 
 let dir: string;
 
 describe('virage viz embeddings', () => {
   beforeAll(() => {
     dir = mkdtempSync(join(tmpdir(), 'rag-viz-'));
-    writeEmbeddings(dir, 15);
+    writeEmbeddingsDb(dir, 15);
   });
 
   afterAll(() => rmSync(dir, { recursive: true, force: true }));
@@ -20,7 +20,7 @@ describe('virage viz embeddings', () => {
     const result = runCLI(
       dir,
       'viz', 'embeddings',
-      '--embeddings', join(dir, 'rag-test', 'embeddings.json'),
+      '--embeddings', join(dir, 'rag-test', 'embeddings.db'),
       '--output', outputFile,
     );
     expect(result.status, result.stderr).toBe(0);

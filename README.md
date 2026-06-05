@@ -42,7 +42,7 @@ npx virage init
 Run the pipeline:
 
 ```bash
-npx virage update
+npx virage index
 ```
 
 ## Configuration
@@ -105,7 +105,7 @@ Commands:
   experiment      Experiment tracking and statistical comparison
 ```
 
-`virage update` flags:
+`virage index` flags:
 
 ```
 Options:
@@ -146,7 +146,7 @@ Fine-tune indexing performance via the `options` block in `virage.config.json`:
 | `batchSize` | `100` | Chunks sent per embedding request |
 
 Use `--force` to discard the incremental cache and re-index everything from scratch.  
-Use `-v` / `-vv` / `-vvv` with `virage update` to increase log verbosity for debugging.
+Use `-v` / `-vv` / `-vvv` with `virage index` to increase log verbosity for debugging.
 
 ## AI assistant integration (MCP)
 
