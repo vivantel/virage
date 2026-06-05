@@ -135,11 +135,13 @@ describe("tokenStrategy", () => {
 
   it("prefers to break at a sentence boundary (period)", async () => {
     const strategy = tokenStrategy({ maxTokens: 20, overlap: 0 });
-    // Sentence ending well within the first window
-    const text = "First sentence ends here. " + "x".repeat(200);
+    // maxTokens=20 → maxChars=80, minBreak=40. The strategy only snaps to a
+    // boundary if it falls in the second half of the window (≥40 chars in).
+    // "This sentence is long enough to pass the midpoint." is 50 chars; period at 49.
+    const text =
+      "This sentence is long enough to pass the midpoint. " + "x".repeat(200);
     const chunks = await strategy.chunk(text, "f.ts");
 
-    // The first chunk should end with the sentence, not mid-word
     expect(chunks[0].content.endsWith(".")).toBe(true);
   });
 
