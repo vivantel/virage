@@ -269,7 +269,7 @@ program
   .option(
     "-d, --dataset <path>",
     "Eval dataset path",
-    `${getVirageDir()}/eval/queries.json`,
+    `${getVirageDir()}/eval-dataset.json`,
   )
   .option("--with-llm-judge", "Enable RAGAS LLM-as-judge metrics")
   .option(
@@ -323,7 +323,7 @@ program
   .option(
     "--output <path>",
     "Output dataset path",
-    `${getVirageDir()}/eval/queries.json`,
+    `${getVirageDir()}/eval-dataset.json`,
   )
   .option("--include-negatives", "Add negative examples")
   .option(
@@ -483,7 +483,7 @@ experiment
   .option(
     "-d, --dataset <path>",
     "Eval dataset path",
-    `${getVirageDir()}/eval/queries.json`,
+    `${getVirageDir()}/eval-dataset.json`,
   )
   .action(async (opts: { name: string; config: string; dataset: string }) => {
     try {

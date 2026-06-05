@@ -119,7 +119,7 @@ describe("runEvaluate", () => {
   it("happy path: prints metrics and saves experiment run", async () => {
     await runEvaluate({
       config: "./virage.config.json",
-      dataset: "./eval/queries.json",
+      dataset: "./eval-dataset.json",
       withLlmJudge: false,
       ci: false,
     });
@@ -141,7 +141,7 @@ describe("runEvaluate", () => {
   it("quality gate: prints success when MRR meets threshold", async () => {
     await runEvaluate({
       config: "./virage.config.json",
-      dataset: "./eval/queries.json",
+      dataset: "./eval-dataset.json",
       withLlmJudge: false,
       thresholdMrr: 0.5,
       ci: false,
@@ -155,7 +155,7 @@ describe("runEvaluate", () => {
   it("quality gate: prints failure when MRR is below threshold (no --ci)", async () => {
     await runEvaluate({
       config: "./virage.config.json",
-      dataset: "./eval/queries.json",
+      dataset: "./eval-dataset.json",
       withLlmJudge: false,
       thresholdMrr: 0.9,
       ci: false,
@@ -170,7 +170,7 @@ describe("runEvaluate", () => {
     await expect(
       runEvaluate({
         config: "./virage.config.json",
-        dataset: "./eval/queries.json",
+        dataset: "./eval-dataset.json",
         withLlmJudge: false,
         thresholdMrr: 0.9,
         ci: true,
@@ -183,7 +183,7 @@ describe("runEvaluate", () => {
   it("withLlmJudge: prints RAGAS requires-judge message", async () => {
     await runEvaluate({
       config: "./virage.config.json",
-      dataset: "./eval/queries.json",
+      dataset: "./eval-dataset.json",
       withLlmJudge: true,
       ci: false,
     });
@@ -194,13 +194,13 @@ describe("runEvaluate", () => {
 
   it("propagates error when loadEvalDataset throws", async () => {
     vi.mocked(loadEvalDataset).mockRejectedValue(
-      new Error("File not found: ./eval/queries.json"),
+      new Error("File not found: ./eval-dataset.json"),
     );
 
     await expect(
       runEvaluate({
         config: "./virage.config.json",
-        dataset: "./eval/queries.json",
+        dataset: "./eval-dataset.json",
         withLlmJudge: false,
         ci: false,
       }),

@@ -15,7 +15,7 @@ describe("virage eval-generate", () => {
 
   afterAll(() => rmSync(dir, { recursive: true, force: true }));
 
-  it("exits 0 and writes eval/queries.json", () => {
+  it("exits 0 and writes eval-dataset.json", () => {
     const outputFile = join(dir, "eval", "queries.json");
     const result = runCLI(
       dir,

@@ -50,7 +50,7 @@
 virage eval-generate
 ```
 
-Reads chunks from `.virage/embeddings.db`, generates query–ground-truth pairs. Output: `.virage/eval/queries.json` (override with `--output`).
+Reads chunks from `.virage/embeddings.db`, generates query–ground-truth pairs. Output: `.virage/eval-dataset.json` (override with `--output`).
 
 ### 2. Run an experiment
 

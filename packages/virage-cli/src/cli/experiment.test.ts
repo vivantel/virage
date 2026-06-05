@@ -57,7 +57,7 @@ function makeRun(overrides: Partial<ExperimentRun> = {}): ExperimentRun {
     timestamp: "2026-06-01T12:00:00.000Z",
     config: {
       configFile: "./virage.config.json",
-      dataset: "./eval/queries.json",
+      dataset: "./eval-dataset.json",
     },
     evalResult: { ...EVAL_RESULT, mrr: 0.5 },
     perQueryRrScores: BASELINE_SCORES,
@@ -129,7 +129,7 @@ describe("runExperimentRun", () => {
     await runExperimentRun({
       name: "my-exp",
       config: "./virage.config.json",
-      dataset: "./eval/queries.json",
+      dataset: "./eval-dataset.json",
     });
 
     expect(mockSave).toHaveBeenCalledOnce();
@@ -144,7 +144,7 @@ describe("runExperimentRun", () => {
     await runExperimentRun({
       name: "my-exp",
       config: "./virage.config.json",
-      dataset: "./eval/queries.json",
+      dataset: "./eval-dataset.json",
     });
 
     const output = consoleSpy.mock.calls.flat().join("\n");
