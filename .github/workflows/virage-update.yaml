@@ -25,7 +25,7 @@ jobs:
       - name: Install Virage packages
         run: |
           npm install --prefix ./virage-runner \
-            @vivantel/virage-core@latest \
+            @vivantel/virage-cli@latest \
             @vivantel/virage-embedder-transformers@latest \
             @vivantel/virage-store-lancedb@latest
 
