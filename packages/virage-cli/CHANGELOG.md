@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.14](https://github.com/vivantel/virage/compare/virage-cli@v0.1.13...virage-cli@v0.1.14) (2026-06-05)
+
+
+### Bug Fixes
+
+* Await lancedb schema(), fix eval dataset path, single index bar, safe ETA ([54d50a3](https://github.com/vivantel/virage/commit/54d50a3c5713732ff7976b1817099f3862c29099))
+
 ## [0.1.13](https://github.com/vivantel/virage/compare/virage-cli@v0.1.12...virage-cli@v0.1.13) (2026-06-05)
 
 
