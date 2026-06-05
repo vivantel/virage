@@ -93,7 +93,8 @@ export class LanceDBVectorStore implements VectorStore {
         (f: any) => f.name === "embedding",
       );
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const existingDims: number | undefined = (embField?.type as any)?.listSize;
+      const existingDims: number | undefined = (embField?.type as any)
+        ?.listSize;
       if (existingDims !== undefined && existingDims !== this.dimensions) {
         this.logger?.warn(
           `LanceDB dimension mismatch (${existingDims}→${this.dimensions}), dropping and recreating tables`,
@@ -200,12 +201,28 @@ export class LanceDBVectorStore implements VectorStore {
     topK: number,
   ): Promise<VectorSearchResult[]> {
     this.logger?.debug(`Search: topK=${topK}`);
-    const rows = await this.table
-      .vectorSearch(queryEmbedding)
-      .column("embedding")
-      .distanceType("cosine")
-      .limit(topK)
-      .toArray();
+    let rows: unknown[];
+    try {
+      rows = await this.table
+        .vectorSearch(queryEmbedding)
+        .column("embedding")
+        .distanceType("cosine")
+        .limit(topK)
+        .toArray();
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (
+        msg.includes("query dim") ||
+        msg.includes("doesn't match the column embedding vector dim")
+      ) {
+        throw new Error(
+          `Embedder mismatch: the stored index was built with a different embedding model (query is ${queryEmbedding.length}d but index vectors are larger). ` +
+            `Run "virage index --force" to rebuild the index with the current embedder.`,
+          { cause: err },
+        );
+      }
+      throw err;
+    }
 
     return (rows as Record<string, unknown>[]).map((row) => {
       const distance = typeof row._distance === "number" ? row._distance : 1;
@@ -242,13 +259,37 @@ export class LanceDBVectorStore implements VectorStore {
         .where(`key = 'meta'`)
         .limit(1)
         .toArray();
-      if (!rows.length) return null;
-      const value = (rows[0] as Record<string, unknown>).value;
-      if (typeof value !== "string") return null;
-      return JSON.parse(value) as VectorStoreMeta;
+      if (rows.length) {
+        const value = (rows[0] as Record<string, unknown>).value;
+        if (typeof value === "string") {
+          return JSON.parse(value) as VectorStoreMeta;
+        }
+      }
     } catch {
-      return null;
+      /* ignore */
     }
+    // Fall back to reading dimensions from the table schema so that old indexes
+    // (written before writeMeta was introduced) are still detected as mismatched.
+    if (this.table) {
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const fields = (this.table.schema as any)?.fields as
+          | Array<{ name: string; type: { listSize?: number } }>
+          | undefined;
+        const embField = fields?.find((f) => f.name === "embedding");
+        const schemaDims = embField?.type?.listSize;
+        if (typeof schemaDims === "number") {
+          return {
+            providerName: "unknown",
+            dimensions: schemaDims,
+            createdAt: 0,
+          };
+        }
+      } catch {
+        /* ignore */
+      }
+    }
+    return null;
   }
 
   async writeMeta(meta: VectorStoreMeta): Promise<void> {

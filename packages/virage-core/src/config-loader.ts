@@ -151,8 +151,19 @@ async function loadJsonConfig(
     "createEmbedder",
   );
 
+  // Propagate embedder dimensions to the vectorStore so the schema always
+  // matches without requiring users to repeat the value in two config blocks.
+  // An explicit vectorStore.config.dimensions still takes precedence.
+  const vectorStoreSpec: JsonProviderConfig = {
+    ...jsonConfig.vectorStore,
+    config: {
+      dimensions: embedder.dimensions,
+      ...jsonConfig.vectorStore.config,
+    },
+  };
+
   const vectorStore = await resolveProvider<VectorStore>(
-    jsonConfig.vectorStore,
+    vectorStoreSpec,
     "createVectorStore",
   );
 

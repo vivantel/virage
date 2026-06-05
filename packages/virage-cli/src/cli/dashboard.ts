@@ -112,9 +112,12 @@ async function getCachedConfig(configPath: string): Promise<RAGPipelineConfig> {
       cfg.embedder.model &&
       storedMeta.model !== cfg.embedder.model;
     if (dimMismatch || modelMismatch) {
+      const indexDesc =
+        storedMeta.providerName === "unknown"
+          ? `${storedMeta.dimensions}d vectors`
+          : `${storedMeta.providerName} (${storedMeta.dimensions}d, model "${storedMeta.model ?? "unknown"}")`;
       throw new Error(
-        `Embedder mismatch: index was built with ${storedMeta.providerName}` +
-          ` (${storedMeta.dimensions}d, model "${storedMeta.model ?? "unknown"}")` +
+        `Embedder mismatch: index was built with ${indexDesc}` +
           ` but current config uses ${cfg.embedder.name}` +
           ` (${cfg.embedder.dimensions}d, model "${cfg.embedder.model ?? "unknown"}").` +
           ` Run "virage index --force" to rebuild the index.`,
@@ -704,4 +707,5 @@ export async function runDashboard(opts: DashboardOptions): Promise<void> {
       resolve();
     });
   });
+  process.exit(0);
 }
