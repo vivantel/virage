@@ -129,6 +129,14 @@ jobs:
       - name: Install dependencies
         run: npm ci --ignore-scripts
 
+      - name: Rebuild better-sqlite3
+        if: contains(fromJSON('["virage-core", "virage-cli"]'), matrix.package)
+        run: npm rebuild better-sqlite3
+
+      - name: Build virage-core (required by dependents)
+        if: matrix.package != 'virage-core'
+        run: npm run build --workspace packages/virage-core
+
       - name: Type check
         run: npm run type-check --workspace packages/${{ matrix.package }}
 
