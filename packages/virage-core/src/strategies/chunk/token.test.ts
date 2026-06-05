@@ -178,6 +178,56 @@ describe("tokenStrategy", () => {
     });
   });
 
+  describe("realistic TypeScript source", () => {
+    it("produces no one-char chunks from realistic TS content", async () => {
+      const ts = `
+import { describe, it, expect } from "vitest";
+import { Foo } from "./foo.js";
+
+describe("Foo", () => {
+  it("does something", async () => {
+    const obj = new Foo({ model: "test", dimensions: 3 });
+    expect(obj.name).toBe("foo");
+    expect(obj.model).toBe("test");
+    expect(obj.dimensions).toBe(3);
+    const result = await obj.embed("hello");
+    expect(result).toEqual([0.1, 0.2, 0.3]);
+  });
+  it("batch returns one vector per input", async () => {
+    const obj = new Foo({ model: "test", dimensions: 3 });
+    const results = await obj.embedBatch(["a", "b"]);
+    expect(results).toHaveLength(2);
+    expect(results[0].length).toBe(obj.dimensions).toBe(3);
+  });
+});
+`.repeat(30);
+
+      const s = tokenStrategy({ maxTokens: 50, overlap: 10 });
+      const chunks = await s.chunk(ts, "embedder.test.ts");
+
+      expect(chunks.length).toBeGreaterThan(1);
+      for (const chunk of chunks) {
+        expect(chunk.content.length).toBeGreaterThan(1);
+      }
+      for (let i = 1; i < chunks.length; i++) {
+        const prevStart = chunks[i - 1].metadata.start_char as number;
+        const currStart = chunks[i].metadata.start_char as number;
+        expect(currStart - prevStart).toBeGreaterThan(1);
+      }
+    });
+
+    it("non-final chunks are at least half maxChars for TS method-chain content", async () => {
+      // Mirrors the exact line pattern that produced the bug in embedder.test.ts
+      const ts = "expect(embedder.dimensions).toBe(768);\n".repeat(100);
+      const s = tokenStrategy({ maxTokens: 50, overlap: 10 });
+      const chunks = await s.chunk(ts, "test.ts");
+
+      for (let i = 0; i < chunks.length - 1; i++) {
+        expect(chunks[i].content.length).toBeGreaterThanOrEqual(50);
+      }
+    });
+  });
+
   describe("getQualityMetrics", () => {
     it("returns valid metric shape for non-empty chunks", async () => {
       const s = tokenStrategy({ maxTokens: 50, overlap: 10 });
