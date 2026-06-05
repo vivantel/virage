@@ -1,5 +1,24 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { api, type ExperimentRun, type StatTestResult } from "../api/client";
+import { useWs, type WsMessage } from "../context/WebSocketContext";
+
+function formatMessage(msg: WsMessage): string {
+  if (msg.type === "progress") {
+    if (msg["message"])
+      return `[${String(msg["stage"] ?? "info")}] ${String(msg["message"])}`;
+    return `[${String(msg["stage"] ?? "progress")}] ${String(msg["done"] ?? 0)} / ${String(msg["total"] ?? "?")}`;
+  }
+  if (msg.type === "done") {
+    const extra = msg["message"] ? ` — ${String(msg["message"])}` : "";
+    return `✓ Completed${extra}`;
+  }
+  if (msg.type === "error")
+    return `✗ Error: ${String(msg["message"] ?? "unknown")}`;
+  if (msg.type === "busy")
+    return "⚠ Server busy — another operation is running";
+  if (msg.type === "raw") return String(msg["text"] ?? "");
+  return JSON.stringify(msg);
+}
 
 export function ExperimentsPage() {
   const [runs, setRuns] = useState<ExperimentRun[]>([]);
@@ -10,6 +29,10 @@ export function ExperimentsPage() {
   );
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const [newName, setNewName] = useState("");
+  const { startOp, messages, operationRunning } = useWs();
+  const logRef = useRef<HTMLPreElement>(null);
 
   async function load() {
     setLoading(true);
@@ -27,6 +50,20 @@ export function ExperimentsPage() {
   useEffect(() => {
     void load();
   }, []);
+
+  // Refresh list when an experiment-run operation completes
+  useEffect(() => {
+    const last = messages[messages.length - 1];
+    if (last?.type === "done") {
+      void load();
+    }
+  }, [messages]);
+
+  useEffect(() => {
+    if (logRef.current) {
+      logRef.current.scrollTop = logRef.current.scrollHeight;
+    }
+  }, [messages]);
 
   async function handleDelete(id: string) {
     try {
@@ -66,6 +103,31 @@ export function ExperimentsPage() {
     <div>
       <h2>Experiments</h2>
       {error && <div className="card error">⚠️ {error}</div>}
+
+      <div className="card">
+        <h3 style={{ marginTop: 0 }}>New Experiment</h3>
+        <div className="pipeline-controls">
+          <input
+            type="text"
+            placeholder="Experiment name"
+            value={newName}
+            onChange={(e) => setNewName(e.target.value)}
+            disabled={operationRunning}
+            style={{ flex: 1 }}
+          />
+          <button
+            onClick={() => startOp({ op: "experiment-run", name: newName })}
+            disabled={operationRunning || !newName.trim()}
+          >
+            {operationRunning ? "Running…" : "Run"}
+          </button>
+        </div>
+        {messages.length > 0 && (
+          <pre ref={logRef} className="pipeline-log" style={{ marginTop: 8 }}>
+            {messages.map(formatMessage).join("\n")}
+          </pre>
+        )}
+      </div>
 
       {selected.length === 2 && (
         <div className="toolbar">
@@ -135,8 +197,7 @@ export function ExperimentsPage() {
         <div className="card">Loading…</div>
       ) : runs.length === 0 ? (
         <div className="card">
-          No experiments found. Run{" "}
-          <code>virage experiment run --name &lt;name&gt;</code> first.
+          No experiments found. Enter a name above and click Run to create one.
         </div>
       ) : (
         <table className="experiment-table">

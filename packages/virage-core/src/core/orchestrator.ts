@@ -329,6 +329,16 @@ export class Orchestrator {
       await flushUpload(true);
       const uploadDuration = Date.now() - t4;
 
+      if (!opts.skipUpload && !opts.dryRun) {
+        await this.config.vectorStore.writeMeta?.({
+          providerName: this.config.embedder.name,
+          model: this.config.embedder.model,
+          dimensions: this.config.embedder.dimensions,
+          distanceMetric: "cosine",
+          createdAt: Math.floor(Date.now() / 1000),
+        });
+      }
+
       telemetry?.recordEmbedding({
         durationMs: embedDuration,
         chunksEmbedded,

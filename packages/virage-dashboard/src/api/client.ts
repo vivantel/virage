@@ -47,6 +47,7 @@ export interface SearchResult {
   content: string;
   metadata: Record<string, unknown>;
   similarity: number;
+  sourceFile?: string;
 }
 
 export interface StatTestResult {
@@ -130,6 +131,12 @@ export const api = {
   deleteChunksFile: (sourceFile: string) =>
     del<{ ok: boolean }>("/api/chunks/file", { sourceFile }),
   deleteChunksAll: () => del<{ ok: boolean }>("/api/chunks/all"),
+
+  // Meta check
+  metaCheck: () =>
+    get<{ status: "ok" | "mismatch" | "unknown"; message?: string }>(
+      "/api/meta-check",
+    ),
 
   // Search
   search: (query: string, topK?: number) =>

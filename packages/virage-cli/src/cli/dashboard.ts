@@ -10,11 +10,13 @@ import {
   loadConfig,
   Orchestrator,
   ExperimentStore,
+  makeRunId,
   bootstrapPairedTest,
   generateEvalDataset,
   EvalRunner,
   loadEvalDataset,
   type RAGPipelineConfig,
+  type ExperimentRun,
 } from "@vivantel/virage-core";
 
 export interface DashboardOptions {
@@ -101,6 +103,25 @@ async function getCachedConfig(configPath: string): Promise<RAGPipelineConfig> {
   if (configCache?.path === configPath) return configCache.cfg;
   const cfg = await loadConfig(configPath);
   await cfg.vectorStore.initialize();
+
+  const storedMeta = await cfg.vectorStore.readMeta?.();
+  if (storedMeta) {
+    const dimMismatch = storedMeta.dimensions !== cfg.embedder.dimensions;
+    const modelMismatch =
+      storedMeta.model &&
+      cfg.embedder.model &&
+      storedMeta.model !== cfg.embedder.model;
+    if (dimMismatch || modelMismatch) {
+      throw new Error(
+        `Embedder mismatch: index was built with ${storedMeta.providerName}` +
+          ` (${storedMeta.dimensions}d, model "${storedMeta.model ?? "unknown"}")` +
+          ` but current config uses ${cfg.embedder.name}` +
+          ` (${cfg.embedder.dimensions}d, model "${cfg.embedder.model ?? "unknown"}").` +
+          ` Run "virage update --force" to rebuild the index.`,
+      );
+    }
+  }
+
   configCache = { path: configPath, cfg };
   return cfg;
 }
@@ -182,7 +203,8 @@ function safeSend(ws: WebSocket, msg: unknown) {
   }
 }
 
-async function handleWsOperation(ws: WebSocket, op: string) {
+async function handleWsOperation(ws: WebSocket, msg: Record<string, unknown>) {
+  const op = String(msg.op ?? "");
   const active = activeProject();
   if (!active) {
     safeSend(ws, { type: "error", message: "No active project" });
@@ -261,6 +283,49 @@ async function handleWsOperation(ws: WebSocket, op: string) {
         }),
       );
       safeSend(ws, { type: "done", result });
+    } else if (op === "experiment-run") {
+      const name =
+        typeof msg.name === "string" && msg.name.trim()
+          ? msg.name.trim()
+          : "experiment";
+      const datasetPath = join(active.rootPath, ".virage", "eval-dataset.json");
+      if (!existsSync(datasetPath)) {
+        safeSend(ws, {
+          type: "error",
+          message:
+            'No eval dataset found. Run "Generate eval dataset" from the Pipeline tab first.',
+        });
+        return;
+      }
+      const dataset = await loadEvalDataset(datasetPath);
+      safeSend(ws, {
+        type: "progress",
+        stage: "experiment",
+        message: `Running experiment "${name}" — ${dataset.queries.length} queries…`,
+      });
+      const runner = new EvalRunner(cfg.vectorStore, cfg.embedder, dataset, 10);
+      const { evalResult, perQueryRrScores } = await runner.run(
+        (completed, total) =>
+          safeSend(ws, {
+            type: "progress",
+            stage: "experiment",
+            done: completed,
+            total,
+          }),
+      );
+      const store = new ExperimentStore(
+        join(active.rootPath, ".rag-experiments"),
+      );
+      const run: ExperimentRun = {
+        id: makeRunId(name),
+        name,
+        timestamp: new Date().toISOString(),
+        config: { configFile: configPath, dataset: datasetPath },
+        evalResult,
+        perQueryRrScores,
+      };
+      await store.save(run);
+      safeSend(ws, { type: "done", result: run });
     } else {
       safeSend(ws, { type: "error", message: `Unknown operation: ${op}` });
     }
@@ -430,6 +495,32 @@ export async function runDashboard(opts: DashboardOptions): Promise<void> {
     }
   });
 
+  // ─── Meta-check route ────────────────────────────────────────────────────────
+
+  app.get("/api/meta-check", async (_req: Request, res: Response) => {
+    const active = activeProject();
+    if (!active) {
+      res.json({ status: "unknown", message: "No active project" });
+      return;
+    }
+    const configPath = join(active.rootPath, "virage.config.json");
+    if (!existsSync(configPath)) {
+      res.json({ status: "unknown", message: "virage.config.json not found" });
+      return;
+    }
+    try {
+      await getCachedConfig(configPath);
+      res.json({ status: "ok" });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (msg.includes("Embedder mismatch")) {
+        res.json({ status: "mismatch", message: msg });
+      } else {
+        res.json({ status: "unknown", message: msg });
+      }
+    }
+  });
+
   // ─── RAG search route ────────────────────────────────────────────────────────
 
   app.post("/api/search", async (req: Request, res: Response) => {
@@ -586,9 +677,9 @@ export async function runDashboard(opts: DashboardOptions): Promise<void> {
 
   wss.on("connection", (ws: WebSocket) => {
     ws.on("message", (raw) => {
-      let msg: { op?: string };
+      let msg: Record<string, unknown>;
       try {
-        msg = JSON.parse(raw.toString()) as { op?: string };
+        msg = JSON.parse(raw.toString()) as Record<string, unknown>;
       } catch {
         safeSend(ws, { type: "error", message: "Invalid JSON" });
         return;
@@ -600,7 +691,7 @@ export async function runDashboard(opts: DashboardOptions): Promise<void> {
       }
 
       wsOperationRunning = true;
-      handleWsOperation(ws, msg.op ?? "").finally(() => {
+      handleWsOperation(ws, msg).finally(() => {
         wsOperationRunning = false;
       });
     });

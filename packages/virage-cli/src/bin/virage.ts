@@ -27,6 +27,7 @@ import { runReport } from "../cli/report.js";
 import { runChunksReport } from "../cli/chunks-report.js";
 import { runVizEmbeddings } from "../cli/viz.js";
 import { runDashboard } from "../cli/dashboard.js";
+import { runCheck } from "../cli/check.js";
 
 config({ quiet: true });
 
@@ -239,6 +240,20 @@ program
         console.log("\nCancelled.");
         process.exit(0);
       }
+      handleError(error);
+    }
+  });
+
+program
+  .command("check")
+  .description(
+    "Validate that the current embedder config matches the stored index",
+  )
+  .option("-c, --config <path>", "Path to config file", "./virage.config.json")
+  .action(async (opts: { config: string }) => {
+    try {
+      await runCheck({ config: opts.config });
+    } catch (error) {
       handleError(error);
     }
   });

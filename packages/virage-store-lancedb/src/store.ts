@@ -2,6 +2,7 @@ import type {
   VectorDocument,
   VectorSearchResult,
   VectorStore,
+  VectorStoreMeta,
   IndexStats,
   QueryPerfReport,
   Logger,
@@ -31,6 +32,8 @@ export class LanceDBVectorStore implements VectorStore {
   private db: any;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private table: any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private metaTable: any;
   private logger: Logger | null = null;
 
   constructor(options: LanceDBVectorStoreOptions) {
@@ -86,6 +89,20 @@ export class LanceDBVectorStore implements VectorStore {
       this.table = await this.db.createEmptyTable(this.tableName, schema);
     }
     this.logger?.debug(`Table "${this.tableName}" ready (${this.dimensions}d)`);
+
+    const metaTableName = `${this.tableName}_meta`;
+    const metaSchema = new Schema([
+      new Field("key", new Utf8()),
+      new Field("value", new Utf8()),
+    ]);
+    if (tableNames.includes(metaTableName)) {
+      this.metaTable = await this.db.openTable(metaTableName);
+    } else {
+      this.metaTable = await this.db.createEmptyTable(
+        metaTableName,
+        metaSchema,
+      );
+    }
   }
 
   async upsert(documents: VectorDocument[]): Promise<void> {
@@ -184,7 +201,32 @@ export class LanceDBVectorStore implements VectorStore {
           }
         })(),
         similarity: 1 - distance,
+        sourceFile:
+          typeof row.source_file === "string" ? row.source_file : undefined,
       };
     });
+  }
+
+  async readMeta(): Promise<VectorStoreMeta | null> {
+    if (!this.metaTable) return null;
+    try {
+      const rows = await this.metaTable
+        .query()
+        .where(`key = 'meta'`)
+        .limit(1)
+        .toArray();
+      if (!rows.length) return null;
+      const value = (rows[0] as Record<string, unknown>).value;
+      if (typeof value !== "string") return null;
+      return JSON.parse(value) as VectorStoreMeta;
+    } catch {
+      return null;
+    }
+  }
+
+  async writeMeta(meta: VectorStoreMeta): Promise<void> {
+    if (!this.metaTable) return;
+    await this.metaTable.delete(`key = 'meta'`);
+    await this.metaTable.add([{ key: "meta", value: JSON.stringify(meta) }]);
   }
 }

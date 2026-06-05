@@ -21,11 +21,12 @@ export class ChunkProcessor {
     commitHash: string,
     chunker: FileChunker,
   ): Promise<Chunk[]> {
-    const chunks = await chunker.chunk(filePath, commitHash);
+    const normalizedPath = filePath.replace(/\\/g, "/");
+    const chunks = await chunker.chunk(normalizedPath, commitHash);
 
     for (const chunk of chunks) {
       chunk.contentHash = computeContentHash(chunk.content);
-      chunk.sourceFile = filePath;
+      chunk.sourceFile = normalizedPath;
       chunk.commitHash = commitHash;
     }
 

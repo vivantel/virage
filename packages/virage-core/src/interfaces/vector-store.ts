@@ -4,6 +4,14 @@
 
 import type { IndexStats, QueryPerfReport } from "./quality.js";
 
+export interface VectorStoreMeta {
+  providerName: string;
+  model?: string;
+  dimensions: number;
+  distanceMetric?: string;
+  createdAt: number;
+}
+
 export interface VectorDocument {
   /** Unique ID (optional, auto-generated if not provided) */
   id?: string;
@@ -35,6 +43,7 @@ export interface VectorSearchResult {
   content: string;
   metadata: Record<string, unknown>;
   similarity: number;
+  sourceFile?: string;
 }
 
 export interface VectorStore {
@@ -74,6 +83,12 @@ export interface VectorStore {
 
   /** Optional: get query performance report */
   getQueryPerfReport?(timeframeHours: number): Promise<QueryPerfReport>;
+
+  /** Optional: read embedder metadata stored alongside the index */
+  readMeta?(): Promise<VectorStoreMeta | null>;
+
+  /** Optional: write embedder metadata alongside the index */
+  writeMeta?(meta: VectorStoreMeta): Promise<void>;
 }
 
 export interface VectorStoreConfig {

@@ -67,6 +67,11 @@ h2 { color: #7ec8e3; margin-top: 0; }
   border-left: 4px solid #ff6b6b;
 }
 
+.card.warning {
+  border-left: 4px solid #f5a623;
+  color: #f5a623;
+}
+
 .metrics {
   display: flex;
   flex-wrap: wrap;

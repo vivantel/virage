@@ -65,7 +65,9 @@ export function SearchPage() {
           <div key={r.id} className="search-result-card card">
             <div className="result-header">
               <span className="source-badge">
-                {(r.metadata["sourceFile"] as string) ?? r.id}
+                {r.sourceFile ??
+                  (r.metadata["source_file"] as string | undefined) ??
+                  r.id}
               </span>
               <span className="similarity-badge">
                 {(r.similarity * 100).toFixed(1)}% match

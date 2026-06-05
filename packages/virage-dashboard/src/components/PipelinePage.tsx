@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { useWebSocket, type WsMessage } from "../hooks/useWebSocket";
+import { useWs, type WsMessage } from "../context/WebSocketContext";
 
 type PipelineOp = "update" | "eval-generate" | "evaluate";
 
@@ -23,7 +23,7 @@ function formatMessage(msg: WsMessage): string {
 
 export function PipelinePage() {
   const [op, setOp] = useState<PipelineOp>("update");
-  const { connect, send, messages, status } = useWebSocket("/ws");
+  const { startOp, messages, status, operationRunning } = useWs();
   const logRef = useRef<HTMLPreElement>(null);
 
   useEffect(() => {
@@ -32,28 +32,10 @@ export function PipelinePage() {
     }
   }, [messages]);
 
-  // Auto-disconnect when operation finishes
-  useEffect(() => {
-    const last = messages[messages.length - 1];
-    if (
-      last &&
-      (last.type === "done" || last.type === "error" || last.type === "busy")
-    ) {
-      // leave connected so user can see final state; disconnect on next run
-    }
-  }, [messages]);
-
-  function handleRun() {
-    connect();
-    // send after a tick so the ws.onopen fires first
-    setTimeout(() => send({ op }), 50);
-  }
-
-  const isRunning = status === "connecting" || status === "connected";
   const statusLabel: Record<typeof status, string> = {
     disconnected: "Idle",
     connecting: "Connecting…",
-    connected: "Running",
+    connected: operationRunning ? "Running" : "Idle",
     error: "Error",
   };
 
@@ -64,14 +46,14 @@ export function PipelinePage() {
         <select
           value={op}
           onChange={(e) => setOp(e.target.value as PipelineOp)}
-          disabled={isRunning}
+          disabled={operationRunning}
         >
           <option value="update">Update index (virage update)</option>
           <option value="eval-generate">Generate eval dataset</option>
           <option value="evaluate">Run evaluation</option>
         </select>
-        <button onClick={handleRun} disabled={isRunning}>
-          {isRunning ? "Running…" : "Run"}
+        <button onClick={() => startOp({ op })} disabled={operationRunning}>
+          {operationRunning ? "Running…" : "Run"}
         </button>
         <span className={`status-badge status-${status}`}>
           {statusLabel[status]}

@@ -18,6 +18,7 @@ interface HomeState {
   chunks: ChunksData | null;
   anomalies: AnomaliesData | null;
   projects: ProjectsData | null;
+  metaMismatch: string | null;
   error: string | null;
   addProjectError: string | null;
 }
@@ -28,24 +29,31 @@ export function HomePage() {
     chunks: null,
     anomalies: null,
     projects: null,
+    metaMismatch: null,
     error: null,
     addProjectError: null,
   });
 
   async function refresh() {
     try {
-      const [status, chunks, anomalies, projects] = await Promise.all([
-        api.status(),
-        api.chunks(),
-        api.anomalies(),
-        api.projects(),
-      ]);
+      const [status, chunks, anomalies, projects, metaResult] =
+        await Promise.all([
+          api.status(),
+          api.chunks(),
+          api.anomalies(),
+          api.projects(),
+          api.metaCheck(),
+        ]);
       setState((prev) => ({
         ...prev,
         status,
         chunks,
         anomalies,
         projects,
+        metaMismatch:
+          metaResult.status === "mismatch"
+            ? (metaResult.message ?? null)
+            : null,
         error: null,
       }));
     } catch (err) {
@@ -108,6 +116,9 @@ export function HomePage() {
         />
       )}
       <h1>RAG Dashboard</h1>
+      {state.metaMismatch && (
+        <div className="card warning">⚠️ {state.metaMismatch}</div>
+      )}
       {state.error && <div className="card error">⚠️ {state.error}</div>}
       {state.status && <StatusCard data={state.status} />}
       {state.chunks && <ChunkHistogram buckets={state.chunks.histogram} />}
