@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.12](https://github.com/vivantel/virage/compare/virage-core@v0.2.11...virage-core@v0.2.12) (2026-06-05)
+
+
+### Bug Fixes
+
+* **dashboard:** Single WS, _virage_meta table, source file in search, path normalization ([174aba0](https://github.com/vivantel/virage/commit/174aba0cf398dce4808e32625b30b01fbc94d700))
+
 ## [0.2.11](https://github.com/vivantel/virage/compare/virage-core@v0.2.10...virage-core@v0.2.11) (2026-06-04)
 
 

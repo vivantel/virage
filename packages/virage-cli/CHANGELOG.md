@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.1.10](https://github.com/vivantel/virage/compare/virage-cli@v0.1.9...virage-cli@v0.1.10) (2026-06-05)
+
+
+### Bug Fixes
+
+* **dashboard:** Single WS, _virage_meta table, source file in search, path normalization ([174aba0](https://github.com/vivantel/virage/commit/174aba0cf398dce4808e32625b30b01fbc94d700))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @vivantel/virage-core bumped from 0.2.11 to 0.2.12
+
 ## [0.1.9](https://github.com/vivantel/virage/compare/virage-cli@v0.1.8...virage-cli@v0.1.9) (2026-06-05)
 
 

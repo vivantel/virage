@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.2.13](https://github.com/vivantel/virage/compare/virage-store-lancedb@v0.2.12...virage-store-lancedb@v0.2.13) (2026-06-05)
+
+
+### Bug Fixes
+
+* **dashboard:** Single WS, _virage_meta table, source file in search, path normalization ([174aba0](https://github.com/vivantel/virage/commit/174aba0cf398dce4808e32625b30b01fbc94d700))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * devDependencies
+    * @vivantel/virage-core bumped from 0.2.11 to 0.2.12
+  * peerDependencies
+    * @vivantel/virage-core bumped from * to 0.2.12
+
 ## [0.2.12](https://github.com/vivantel/virage/compare/virage-store-lancedb@v0.2.11...virage-store-lancedb@v0.2.12) (2026-06-05)
 
 
