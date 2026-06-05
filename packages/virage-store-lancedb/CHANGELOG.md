@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.2.12](https://github.com/vivantel/virage/compare/virage-store-lancedb@v0.2.11...virage-store-lancedb@v0.2.12) (2026-06-05)
+
+
+### Bug Fixes
+
+* **ci:** Add missing format:check script to 8 packages ([d475d12](https://github.com/vivantel/virage/commit/d475d120806082a7460a8c50569ab0986eb96c97))
+* **ci:** Resolve formatting and type errors across newly matrix-checked packages ([ebd0c33](https://github.com/vivantel/virage/commit/ebd0c33addd3fda3d9f8700a55d547831fbb782c))
+
 ## [0.2.11](https://github.com/vivantel/virage/compare/virage-store-lancedb@v0.2.10...virage-store-lancedb@v0.2.11) (2026-06-04)
 
 

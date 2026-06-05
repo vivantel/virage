@@ -1,6 +1,6 @@
 {
   "name": "@vivantel/virage-store-postgres",
-  "version": "0.2.11",
+  "version": "0.2.12",
   "description": "PostgreSQL + pgvector store for @vivantel/rag-core",
   "type": "module",
   "main": "dist/index.js",

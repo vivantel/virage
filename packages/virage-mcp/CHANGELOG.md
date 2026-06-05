@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.1.2](https://github.com/vivantel/virage/compare/virage-mcp@v0.1.1...virage-mcp@v0.1.2) (2026-06-05)
+
+
+### Bug Fixes
+
+* **ci:** Resolve formatting and type errors across newly matrix-checked packages ([ebd0c33](https://github.com/vivantel/virage/commit/ebd0c33addd3fda3d9f8700a55d547831fbb782c))
+
+
+### Code Refactoring
+
+* **ci:** Consolidate workflows into matrix-based ci.yaml and release.yaml ([c4e22b8](https://github.com/vivantel/virage/commit/c4e22b84ee540d353b3a277200ad58239aae9e42))
+
 ## [0.1.1](https://github.com/vivantel/virage/compare/virage-mcp@v0.1.0...virage-mcp@v0.1.1) (2026-06-04)
 
 

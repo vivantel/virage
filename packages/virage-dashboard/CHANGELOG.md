@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.1.6](https://github.com/vivantel/virage/compare/virage-dashboard@v0.1.5...virage-dashboard@v0.1.6) (2026-06-05)
+
+
+### Bug Fixes
+
+* **ci:** Resolve formatting and type errors across newly matrix-checked packages ([ebd0c33](https://github.com/vivantel/virage/commit/ebd0c33addd3fda3d9f8700a55d547831fbb782c))
+
+
+### Code Refactoring
+
+* **ci:** Consolidate workflows into matrix-based ci.yaml and release.yaml ([c4e22b8](https://github.com/vivantel/virage/commit/c4e22b84ee540d353b3a277200ad58239aae9e42))
+
 ## [0.1.5](https://github.com/vivantel/virage/compare/virage-dashboard@v0.1.4...virage-dashboard@v0.1.5) (2026-06-04)
 
 
