@@ -1,0 +1,31 @@
+name: Auto-merge Release Please PRs
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    branches: [master]
+
+permissions: {}
+
+jobs:
+  auto-merge:
+    name: Enable auto-merge
+    runs-on: ubuntu-latest
+    # Filter conditions — both must be true to avoid matching human PRs:
+    #   1. head branch follows release-please naming convention
+    #   2. PR title follows the "chore: release" pattern set in release-please.json
+    #
+    # Note: this repo uses a PAT for RELEASE_TOKEN so PRs are attributed to the
+    # token owner rather than release-please[bot]. If you switch to the GitHub App,
+    # add a third condition: github.actor == 'release-please[bot]'
+    if: |
+      startsWith(github.head_ref, 'release-please--branches--') &&
+      startsWith(github.event.pull_request.title, 'chore: release')
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Enable auto-merge
+        run: gh pr merge --auto --merge "${{ github.event.pull_request.html_url }}"
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_TOKEN }}
