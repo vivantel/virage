@@ -32,6 +32,7 @@ Trigger on any of these events:
 | `skill-architect.md` | Architecture principles, ADR process, interfaces, patterns | Architecture facts, ADR log |
 | `skill-qa.md` | Testing strategy: unit, acceptance, eval, quality metrics | Test type map, eval workflow |
 | `skill-analyst.md` | Telemetry, artifact locations, diagnostic commands | Artifact paths, diagnostic commands list |
+| `skill-code-guardian.md` | Guardrails, style rules, active fix sequence | Active guardrails list, fix sequence steps |
 
 > **Keep this table current.** After adding a skill file, add a row here and add a row to the `INDEX.md` decision table.
 

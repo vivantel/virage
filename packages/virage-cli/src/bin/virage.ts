@@ -324,7 +324,11 @@ program
   .command("eval-generate")
   .description("Generate an eval dataset from existing chunks")
   .option("--embeddings <path>", "Embeddings DB path", defaultEmbeddingsDb())
-  .option("--output <path>", "Output dataset path", `${getVirageDir()}/eval/queries.json`)
+  .option(
+    "--output <path>",
+    "Output dataset path",
+    `${getVirageDir()}/eval/queries.json`,
+  )
   .option("--include-negatives", "Add negative examples")
   .option(
     "--paraphrase-ratio <n>",

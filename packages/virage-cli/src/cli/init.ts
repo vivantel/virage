@@ -3,10 +3,7 @@ import { existsSync } from "fs";
 import { readFile, rename, writeFile } from "fs/promises";
 import { join } from "path";
 import { spawn } from "child_process";
-import {
-  loadRegistry,
-  getVirageDir,
-} from "@vivantel/virage-core";
+import { loadRegistry, getVirageDir } from "@vivantel/virage-core";
 import type { PluginRegistry } from "@vivantel/virage-core";
 import {
   EXT_GROUPS,

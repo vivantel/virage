@@ -33,7 +33,11 @@ await server.connect(transport);
 const lanceDbUri: string | undefined = (
   cfg.vectorStore as unknown as { uri?: string }
 ).uri;
-if (lanceDbUri && !lanceDbUri.startsWith("db://") && !lanceDbUri.startsWith("https://")) {
+if (
+  lanceDbUri &&
+  !lanceDbUri.startsWith("db://") &&
+  !lanceDbUri.startsWith("https://")
+) {
   let debounce: ReturnType<typeof setTimeout> | null = null;
   try {
     watch(lanceDbUri, { recursive: false }, () => {

@@ -69,9 +69,7 @@ describe("Orchestrator", () => {
     const config = makeConfig({ embeddingsFile: "./custom/embeddings.db" });
     const orchestrator = new Orchestrator(config);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    expect((orchestrator as any).embeddingsFile).toBe(
-      "./custom/embeddings.db",
-    );
+    expect((orchestrator as any).embeddingsFile).toBe("./custom/embeddings.db");
   });
 
   it("should fall back to default embeddingsDb when not specified", () => {

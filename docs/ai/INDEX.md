@@ -15,6 +15,7 @@ Load this index before any task. Pick a skill, load it, then execute.
 | Keep docs/ai/ skills in sync with codebase | `docs/ai/skill-overseer.md` |
 | Make or review an architecture decision | `docs/ai/skill-architect.md` |
 | Set up, run, or debug tests and eval | `docs/ai/skill-qa.md` |
+| Enforce code quality, fix lint/format/type errors | `docs/ai/skill-code-guardian.md` |
 | Analyze telemetry or diagnose the pipeline | `docs/ai/skill-analyst.md` |
 
 ---

@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "cd /home/ubuntu/data/projects/vivantel/rag_core && npm run fix 2>&1; npm run lint 2>&1 && npm run type-check:ci 2>&1",
+            "command": "cd /home/ubuntu/data/projects/vivantel/rag_core && npm run fix && git add -u && npm run lint && npm run type-check:ci",
             "statusMessage": "Running lint:fix + format + lint + type-check before commit..."
           }
         ]
