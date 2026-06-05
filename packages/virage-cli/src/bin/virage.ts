@@ -127,14 +127,6 @@ async function runOnce(options: {
           bars.chunk.setTotal(total);
           bars.chunk.update(done);
         },
-        onEmbedProgress: (done, total) => {
-          bars.embed.setTotal(total);
-          bars.embed.update(done);
-        },
-        onUploadProgress: (done, total) => {
-          bars.upload.setTotal(total);
-          bars.upload.update(done);
-        },
       },
     });
     await orchestrator.run();
@@ -274,7 +266,11 @@ program
   .command("evaluate")
   .description("Evaluate retrieval quality against an eval dataset")
   .option("-c, --config <path>", "Path to config file", "./virage.config.json")
-  .option("-d, --dataset <path>", "Eval dataset path", "./eval/queries.json")
+  .option(
+    "-d, --dataset <path>",
+    "Eval dataset path",
+    `${getVirageDir()}/eval/queries.json`,
+  )
   .option("--with-llm-judge", "Enable RAGAS LLM-as-judge metrics")
   .option(
     "--threshold-mrr <n>",
@@ -484,7 +480,11 @@ experiment
   .description("Run an experiment and save results")
   .requiredOption("--name <name>", "Experiment name")
   .option("-c, --config <path>", "Path to config file", "./virage.config.json")
-  .option("-d, --dataset <path>", "Eval dataset path", "./eval/queries.json")
+  .option(
+    "-d, --dataset <path>",
+    "Eval dataset path",
+    `${getVirageDir()}/eval/queries.json`,
+  )
   .action(async (opts: { name: string; config: string; dataset: string }) => {
     try {
       await runExperimentRun({

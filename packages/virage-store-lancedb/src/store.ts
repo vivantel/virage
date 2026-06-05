@@ -87,8 +87,11 @@ export class LanceDBVectorStore implements VectorStore {
 
     if (tableNames.includes(this.tableName)) {
       const existing = await this.db.openTable(this.tableName);
+      // schema() is an async method in LanceDB 0.18+; must be called and awaited
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const embField = (existing.schema as any).fields?.find(
+      const existingSchema = await (existing as any).schema();
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const embField = (existingSchema as any).fields?.find(
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (f: any) => f.name === "embedding",
       );
@@ -272,8 +275,11 @@ export class LanceDBVectorStore implements VectorStore {
     // (written before writeMeta was introduced) are still detected as mismatched.
     if (this.table) {
       try {
+        // schema() is an async method in LanceDB 0.18+; must be called and awaited
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const fields = (this.table.schema as any)?.fields as
+        const tableSchema = await (this.table as any).schema();
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const fields = (tableSchema as any)?.fields as
           | Array<{ name: string; type: { listSize?: number } }>
           | undefined;
         const embField = fields?.find((f) => f.name === "embedding");

@@ -1,5 +1,13 @@
 import cliProgress from "cli-progress";
 
+// Guards against NaN/Infinity ETA at the first render frame (t=0, rate=0).
+function safeFormatTime(t: number): string {
+  if (!isFinite(t) || isNaN(t) || t <= 0) return "?";
+  if (t > 3600) return `${Math.floor(t / 3600)}h${Math.floor((t % 3600) / 60)}m`;
+  if (t > 60) return `${Math.floor(t / 60)}m${Math.round(t % 60)}s`;
+  return `${Math.round(t)}s`;
+}
+
 export interface ProgressBar {
   update(current: number): void;
   setTotal(total: number): void;
@@ -12,6 +20,7 @@ export function createProgressBar(label: string, total: number): ProgressBar {
       format: `${label} [{bar}] {percentage}% | {value}/{total} | {duration_formatted} elapsed | ETA: {eta_formatted}`,
       clearOnComplete: false,
       hideCursor: true,
+      formatTime: safeFormatTime,
     },
     cliProgress.Presets.shades_classic,
   );
@@ -51,6 +60,7 @@ export function createMultiProgressBars(): MultiProgressBars {
       forceRedraw: true,
       autopadding: true,
       format: BAR_FORMAT,
+      formatTime: safeFormatTime,
     },
     cliProgress.Presets.shades_classic,
   );
