@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.15](https://github.com/vivantel/virage/compare/virage-core@v0.2.14...virage-core@v0.2.15) (2026-06-05)
+
+
+### Bug Fixes
+
+* **core:** Propagate embedder dimensions to vectorStore at config load time ([cbfb781](https://github.com/vivantel/virage/commit/cbfb78119b5383dcac426baf8345d1660fd150e2))
+
 ## [0.2.14](https://github.com/vivantel/virage/compare/virage-core@v0.2.13...virage-core@v0.2.14) (2026-06-05)
 
 
