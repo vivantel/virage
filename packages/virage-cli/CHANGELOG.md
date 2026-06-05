@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.1.11](https://github.com/vivantel/virage/compare/virage-cli@v0.1.10...virage-cli@v0.1.11) (2026-06-05)
+
+
+### Features
+
+* Index command, ignorePatterns, lancedb CI, MCP reconnect, drop embeddings.json ([27b77eb](https://github.com/vivantel/virage/commit/27b77eb44cd670f42dd170dfba3e5772a1c2eef7))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @vivantel/virage-core bumped from 0.2.12 to 0.2.13
+
 ## [0.1.10](https://github.com/vivantel/virage/compare/virage-cli@v0.1.9...virage-cli@v0.1.10) (2026-06-05)
 
 
