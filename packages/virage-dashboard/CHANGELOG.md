@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.7](https://github.com/vivantel/virage/compare/virage-dashboard@v0.1.6...virage-dashboard@v0.1.7) (2026-06-05)
+
+
+### Bug Fixes
+
+* **dashboard:** Single WS, _virage_meta table, source file in search, path normalization ([174aba0](https://github.com/vivantel/virage/commit/174aba0cf398dce4808e32625b30b01fbc94d700))
+
 ## [0.1.6](https://github.com/vivantel/virage/compare/virage-dashboard@v0.1.5...virage-dashboard@v0.1.6) (2026-06-05)
 
 
