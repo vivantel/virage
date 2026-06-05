@@ -1,14 +1,14 @@
 {
   "packages/virage-core": "0.2.11",
-  "packages/virage-strategies": "0.2.11",
-  "packages/virage-embedder-openai": "0.2.11",
-  "packages/virage-embedder-transformers": "0.2.11",
-  "packages/virage-embedder-fastembed": "0.2.11",
-  "packages/virage-store-postgres": "0.2.11",
-  "packages/virage-store-qdrant": "0.2.11",
-  "packages/virage-store-lancedb": "0.2.11",
-  "packages/virage-store-chromadb": "0.2.11",
+  "packages/virage-strategies": "0.2.12",
+  "packages/virage-embedder-openai": "0.2.12",
+  "packages/virage-embedder-transformers": "0.2.12",
+  "packages/virage-embedder-fastembed": "0.2.12",
+  "packages/virage-store-postgres": "0.2.12",
+  "packages/virage-store-qdrant": "0.2.12",
+  "packages/virage-store-lancedb": "0.2.12",
+  "packages/virage-store-chromadb": "0.2.12",
   "packages/virage-cli": "0.1.8",
-  "packages/virage-dashboard": "0.1.5",
-  "packages/virage-mcp": "0.1.1"
+  "packages/virage-dashboard": "0.1.6",
+  "packages/virage-mcp": "0.1.2"
 }

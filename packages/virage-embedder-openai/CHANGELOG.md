@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.12](https://github.com/vivantel/virage/compare/virage-embedder-openai@v0.2.11...virage-embedder-openai@v0.2.12) (2026-06-05)
+
+
+### Bug Fixes
+
+* **ci:** Add missing format:check script to 8 packages ([d475d12](https://github.com/vivantel/virage/commit/d475d120806082a7460a8c50569ab0986eb96c97))
+
 ## [0.2.11](https://github.com/vivantel/virage/compare/virage-embedder-openai@v0.2.10...virage-embedder-openai@v0.2.11) (2026-06-04)
 
 
