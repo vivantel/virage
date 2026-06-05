@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.17](https://github.com/vivantel/virage/compare/virage-core@v0.2.16...virage-core@v0.2.17) (2026-06-05)
+
+
+### Bug Fixes
+
+* **virage-core:** Include contentHash in document metadata for eval matching ([6e55d20](https://github.com/vivantel/virage/commit/6e55d2041b775df43151ee8a4d2bdca22b700210))
+
 ## [0.2.16](https://github.com/vivantel/virage/compare/virage-core@v0.2.15...virage-core@v0.2.16) (2026-06-05)
 
 
