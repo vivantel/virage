@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.1.15](https://github.com/vivantel/virage/compare/virage-cli@v0.1.14...virage-cli@v0.1.15) (2026-06-05)
+
+
+### Bug Fixes
+
+* Use ./eval-dataset.json as default evaluation dataset path ([2d2ea03](https://github.com/vivantel/virage/commit/2d2ea0303fe881d1f96294bf68f454fa41f6841c))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @vivantel/virage-core bumped from 0.2.15 to 0.2.16
+
 ## [0.1.14](https://github.com/vivantel/virage/compare/virage-cli@v0.1.13...virage-cli@v0.1.14) (2026-06-05)
 
 ### Bug Fixes
