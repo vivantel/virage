@@ -39,10 +39,37 @@ jobs:
           manifest-file: .release-please-manifest.json
 
 
+  compute-publish-matrix:
+    needs: release-please
+    runs-on: ubuntu-latest
+    outputs:
+      packages: ${{ steps.set.outputs.packages }}
+    steps:
+      - id: set
+        run: |
+          packages=()
+          if [[ "${{ needs.release-please.outputs.virage-core }}" == "true" ]]; then packages+=("virage-core"); fi
+          if [[ "${{ needs.release-please.outputs.virage-strategies }}" == "true" ]]; then packages+=("virage-strategies"); fi
+          if [[ "${{ needs.release-please.outputs.virage-embedder-openai }}" == "true" ]]; then packages+=("virage-embedder-openai"); fi
+          if [[ "${{ needs.release-please.outputs.virage-embedder-transformers }}" == "true" ]]; then packages+=("virage-embedder-transformers"); fi
+          if [[ "${{ needs.release-please.outputs.virage-embedder-fastembed }}" == "true" ]]; then packages+=("virage-embedder-fastembed"); fi
+          if [[ "${{ needs.release-please.outputs.virage-store-postgres }}" == "true" ]]; then packages+=("virage-store-postgres"); fi
+          if [[ "${{ needs.release-please.outputs.virage-store-qdrant }}" == "true" ]]; then packages+=("virage-store-qdrant"); fi
+          if [[ "${{ needs.release-please.outputs.virage-store-lancedb }}" == "true" ]]; then packages+=("virage-store-lancedb"); fi
+          if [[ "${{ needs.release-please.outputs.virage-store-chromadb }}" == "true" ]]; then packages+=("virage-store-chromadb"); fi
+          if [[ "${{ needs.release-please.outputs.virage-cli }}" == "true" ]]; then packages+=("virage-cli"); fi
+          if [[ "${{ needs.release-please.outputs.virage-dashboard }}" == "true" ]]; then packages+=("virage-dashboard"); fi
+          if [[ "${{ needs.release-please.outputs.virage-mcp }}" == "true" ]]; then packages+=("virage-mcp"); fi
+          if [[ ${#packages[@]} -gt 0 ]]; then
+            echo "packages=$(printf '%s\n' "${packages[@]}" | jq -R . | jq -sc .)" >> $GITHUB_OUTPUT
+          else
+            echo "packages=[]" >> $GITHUB_OUTPUT
+          fi
+
   publish:
     name: Publish ${{ matrix.package }}
-    needs: release-please
-    if: ${{ needs.release-please.outputs[matrix.package] == 'true' }}
+    needs: [release-please, compute-publish-matrix]
+    if: ${{ needs.compute-publish-matrix.outputs.packages != '[]' }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -50,19 +77,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        package:
-          - virage-core
-          - virage-strategies
-          - virage-embedder-openai
-          - virage-embedder-transformers
-          - virage-embedder-fastembed
-          - virage-store-postgres
-          - virage-store-qdrant
-          - virage-store-lancedb
-          - virage-store-chromadb
-          - virage-cli
-          - virage-dashboard
-          - virage-mcp
+        package: ${{ fromJSON(needs.compute-publish-matrix.outputs.packages) }}
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-node@v6
