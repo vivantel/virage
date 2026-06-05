@@ -23,6 +23,7 @@ Trigger on any of these events:
 
 | Skill file | Covers | Key snapshot to verify |
 |---|---|---|
+| `skill-planner.md` | Implementation planning: phases, alternatives format, ADR gate, progress tracking | Plan structure, §Presenting alternatives format |
 | `INDEX.md` | Decision table, commands, cross-cutting rules, memory slugs | Decision table rows, command list |
 | `skill-readme.md` | Root README section map | Section triggers table |
 | `skill-package.md` | Package lifecycle (add/update/develop/sync/test) | Package inventory table, §Add steps |
@@ -69,6 +70,9 @@ Run the relevant items after a structural change:
 [ ] New skill file added or renamed
       → skill-overseer.md §Current State (this table)
       → INDEX.md §Skills (decision table)
+
+[ ] New plan written or completed
+      → docs/internal/next_plan.md (update checkbox states)
 ```
 
 ---

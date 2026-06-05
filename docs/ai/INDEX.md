@@ -8,6 +8,7 @@ Load this index before any task. Pick a skill, load it, then execute.
 
 | I want to… | Load |
 |---|---|
+| Plan, sequence, and track implementation work | `docs/ai/skill-planner.md` |
 | Maintain root README.md | `docs/ai/skill-readme.md` |
 | Add / update / develop / test a package | `docs/ai/skill-package.md` |
 | Modify CI/CD or release config | `docs/ai/skill-cicd.md` |
