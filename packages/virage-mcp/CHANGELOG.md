@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.1.8](https://github.com/vivantel/virage/compare/virage-mcp@v0.1.7...virage-mcp@v0.1.8) (2026-06-05)
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @vivantel/virage-core bumped from 0.2.16 to 0.2.17
+  * devDependencies
+    * @vivantel/virage-core bumped from 0.2.16 to 0.2.17
+  * peerDependencies
+    * @vivantel/virage-core bumped from * to 0.2.17
+
 ## [0.1.7](https://github.com/vivantel/virage/compare/virage-mcp@v0.1.6...virage-mcp@v0.1.7) (2026-06-05)
 
 
