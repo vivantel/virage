@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.17](https://github.com/vivantel/virage/compare/virage-store-lancedb@v0.2.16...virage-store-lancedb@v0.2.17) (2026-06-05)
+
+
+### Bug Fixes
+
+* Await lancedb schema(), fix eval dataset path, single index bar, safe ETA ([54d50a3](https://github.com/vivantel/virage/commit/54d50a3c5713732ff7976b1817099f3862c29099))
+
 ## [0.2.16](https://github.com/vivantel/virage/compare/virage-store-lancedb@v0.2.15...virage-store-lancedb@v0.2.16) (2026-06-05)
 
 

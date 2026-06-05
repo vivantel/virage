@@ -6,9 +6,9 @@
   "packages/virage-embedder-fastembed": "0.2.16",
   "packages/virage-store-postgres": "0.2.16",
   "packages/virage-store-qdrant": "0.2.16",
-  "packages/virage-store-lancedb": "0.2.16",
+  "packages/virage-store-lancedb": "0.2.17",
   "packages/virage-store-chromadb": "0.2.16",
-  "packages/virage-cli": "0.1.13",
+  "packages/virage-cli": "0.1.14",
   "packages/virage-dashboard": "0.1.7",
   "packages/virage-mcp": "0.1.6"
 }
