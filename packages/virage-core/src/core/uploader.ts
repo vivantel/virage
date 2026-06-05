@@ -41,13 +41,15 @@ export class Uploader {
     chunk: EmbeddedChunk,
     collection?: string,
   ): VectorDocument {
+    const hash = contentHash(chunk);
     return {
+      id: hash,
       content: chunk.content,
-      metadata: chunk.metadata,
+      metadata: { ...chunk.metadata, contentHash: hash },
       embedding: chunk.embedding,
       sourceFile: chunk.sourceFile,
       commitHash: chunk.commitHash,
-      contentHash: contentHash(chunk),
+      contentHash: hash,
       collection,
     };
   }
