@@ -8,7 +8,7 @@
   "packages/virage-store-qdrant": "0.2.12",
   "packages/virage-store-lancedb": "0.2.12",
   "packages/virage-store-chromadb": "0.2.12",
-  "packages/virage-cli": "0.1.8",
+  "packages/virage-cli": "0.1.9",
   "packages/virage-dashboard": "0.1.6",
   "packages/virage-mcp": "0.1.2"
 }
