@@ -43,12 +43,12 @@ Pass your LanceDB Cloud URI and API key:
 
 ## Configuration
 
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `uri` | `string` | **required** | Local path (`"./lancedb"`) or LanceDB Cloud URI (`"db://…"`) |
-| `apiKey` | `string` | `undefined` | LanceDB Cloud API key |
-| `tableName` | `string` | `"documents"` | Table name inside the database |
-| `dimensions` | `number` | `1536` | Vector size — must match your embedder |
+| Option       | Type     | Default       | Description                                                  |
+| ------------ | -------- | ------------- | ------------------------------------------------------------ |
+| `uri`        | `string` | **required**  | Local path (`"./lancedb"`) or LanceDB Cloud URI (`"db://…"`) |
+| `apiKey`     | `string` | `undefined`   | LanceDB Cloud API key                                        |
+| `tableName`  | `string` | `"documents"` | Table name inside the database                               |
+| `dimensions` | `number` | `1536`        | Vector size — must match your embedder                       |
 
 ## TypeScript usage
 

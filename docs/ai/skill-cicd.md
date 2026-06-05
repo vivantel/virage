@@ -10,18 +10,19 @@
 [ ] List current .github/workflows/ to confirm file names
 [ ] Identify which workflow(s) to change
 [ ] For release changes: check .release-please-manifest.json for current versions
+[ ] Before committing: npm run fix && npm run lint && npm run type-check:ci (see skill-code-guardian.md)
 ```
 
 ---
 
 ## Current State — Workflow file map
 
-| File | Trigger | Purpose |
-|---|---|---|
-| `ci.yaml` | push/PR to master/develop | Dynamic matrix: build + test only changed packages |
-| `release.yaml` | release-please PR merged | Publish all packages to npm (OIDC trusted publisher) |
-| `virage-update.yaml` | push to master | Run `virage index --config virage.config.ci.json` to reindex the repo using lancedb (no DB secret needed) |
-| `automerge-release-please.yaml` | PR labeled by release-please | Auto-approve and merge release PRs after CI passes |
+| File                            | Trigger                      | Purpose                                                                                                   |
+| ------------------------------- | ---------------------------- | --------------------------------------------------------------------------------------------------------- |
+| `ci.yaml`                       | push/PR to master/develop    | Dynamic matrix: build + test only changed packages                                                        |
+| `release.yaml`                  | release-please PR merged     | Publish all packages to npm (OIDC trusted publisher)                                                      |
+| `virage-update.yaml`            | push to master               | Run `virage index --config virage.config.ci.json` to reindex the repo using lancedb (no DB secret needed) |
+| `automerge-release-please.yaml` | PR labeled by release-please | Auto-approve and merge release PRs after CI passes                                                        |
 
 **Currently published packages in the release matrix** (in sync with `.github/config/release-please.json`):
 
@@ -48,6 +49,7 @@
 3. **`.github/workflows/ci.yaml`** — `filters:` block in the `changes` job: copy a sibling entry, update the package name and path glob
 
 4. **`.release-please-manifest.json`** → add:
+
    ```json
    "packages/<name>": "<initial-version>"
    ```
@@ -70,6 +72,7 @@ If the new package has native binary postinstall scripts: add its name to the `c
 ## Common tasks
 
 **Add a workflow secret:**
+
 1. GitHub repo → Settings → Secrets → Actions → New secret
 2. Reference as `${{ secrets.MY_SECRET }}` in a step `env:` block
 

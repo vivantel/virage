@@ -39,22 +39,22 @@ The pipeline initializes lazily — the model is downloaded on the first `embed(
 
 ## Recommended models
 
-| Model | Dimensions | Notes |
-| --- | --- | --- |
-| `Xenova/all-MiniLM-L6-v2` | 384 | Fast, good quality, 80 MB |
-| `Xenova/all-mpnet-base-v2` | 768 | Higher quality, 420 MB |
-| `Xenova/paraphrase-multilingual-MiniLM-L12-v2` | 384 | Multilingual |
+| Model                                          | Dimensions | Notes                     |
+| ---------------------------------------------- | ---------- | ------------------------- |
+| `Xenova/all-MiniLM-L6-v2`                      | 384        | Fast, good quality, 80 MB |
+| `Xenova/all-mpnet-base-v2`                     | 768        | Higher quality, 420 MB    |
+| `Xenova/paraphrase-multilingual-MiniLM-L12-v2` | 384        | Multilingual              |
 
 Any ONNX-compatible model on the HuggingFace hub can be used.
 
 ## Options
 
-| Option | Type | Description |
-| --- | --- | --- |
-| `model` | `string` | HuggingFace model ID (required) |
-| `dimensions` | `number` | Output dimensions (default: 384) |
-| `device` | `"cpu" \| "webgpu"` | Inference device (default: `"cpu"`) |
-| `cacheDir` | `string` | Local model cache directory |
+| Option       | Type                | Description                         |
+| ------------ | ------------------- | ----------------------------------- |
+| `model`      | `string`            | HuggingFace model ID (required)     |
+| `dimensions` | `number`            | Output dimensions (default: 384)    |
+| `device`     | `"cpu" \| "webgpu"` | Inference device (default: `"cpu"`) |
+| `cacheDir`   | `string`            | Local model cache directory         |
 
 ## First run
 

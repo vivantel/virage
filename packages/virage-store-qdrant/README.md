@@ -37,12 +37,12 @@ For a local instance (no API key required):
 
 ## Configuration
 
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `url` | `string` | **required** | Qdrant instance URL |
-| `apiKey` | `string` | `undefined` | API key for Qdrant Cloud |
-| `collection` | `string` | `"documents"` | Collection name |
-| `dimensions` | `number` | `1536` | Vector size — must match your embedder |
+| Option       | Type     | Default       | Description                            |
+| ------------ | -------- | ------------- | -------------------------------------- |
+| `url`        | `string` | **required**  | Qdrant instance URL                    |
+| `apiKey`     | `string` | `undefined`   | API key for Qdrant Cloud               |
+| `collection` | `string` | `"documents"` | Collection name                        |
+| `dimensions` | `number` | `1536`        | Vector size — must match your embedder |
 
 ## TypeScript usage
 

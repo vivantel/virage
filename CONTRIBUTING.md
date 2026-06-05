@@ -16,16 +16,16 @@ npm run build:all    # compile every package
 
 ## Development commands
 
-| Command | What it does |
-| --- | --- |
-| `npm run build:all` | Compile all packages |
-| `npm run build -w @vivantel/<pkg>` | Compile one package |
-| `npm run fix` | ESLint auto-fix + Prettier format (run before committing) |
-| `npm run lint` | Lint check only |
-| `npm run type-check:ci` | TypeScript check across all packages |
-| `npm test -w @vivantel/<pkg>` | Run unit tests for one package |
-| `npm run test:acceptance -w @vivantel/virage-core` | Run acceptance tests |
-| `npm run test:coverage -w @vivantel/<pkg>` | Test with coverage report |
+| Command                                            | What it does                                              |
+| -------------------------------------------------- | --------------------------------------------------------- |
+| `npm run build:all`                                | Compile all packages                                      |
+| `npm run build -w @vivantel/<pkg>`                 | Compile one package                                       |
+| `npm run fix`                                      | ESLint auto-fix + Prettier format (run before committing) |
+| `npm run lint`                                     | Lint check only                                           |
+| `npm run type-check:ci`                            | TypeScript check across all packages                      |
+| `npm test -w @vivantel/<pkg>`                      | Run unit tests for one package                            |
+| `npm run test:acceptance -w @vivantel/virage-core` | Run acceptance tests                                      |
+| `npm run test:coverage -w @vivantel/<pkg>`         | Test with coverage report                                 |
 
 A pre-commit hook runs `npm run fix && npm run lint && npm run type-check:ci` automatically — do not skip it.
 
@@ -33,12 +33,12 @@ A pre-commit hook runs `npm run fix && npm run lint && npm run type-check:ci` au
 
 This repo uses [Conventional Commits](https://www.conventionalcommits.org/) — automated releases and changelogs are driven by commit messages.
 
-| Prefix | When to use |
-| --- | --- |
-| `feat:` | New user-facing feature |
-| `fix:` | Bug fix |
-| `chore:` | Tooling, deps, CI — no production change |
-| `docs:` | Documentation only |
+| Prefix              | When to use                                     |
+| ------------------- | ----------------------------------------------- |
+| `feat:`             | New user-facing feature                         |
+| `fix:`              | Bug fix                                         |
+| `chore:`            | Tooling, deps, CI — no production change        |
+| `docs:`             | Documentation only                              |
 | `feat!:` or `fix!:` | Breaking change (triggers a major version bump) |
 
 ## Code style

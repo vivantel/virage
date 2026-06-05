@@ -18,9 +18,9 @@
 
 ## Current State — Active plan
 
-| Property | Value |
-|---|---|
-| Plan file | `docs/internal/next_plan.md` |
+| Property   | Value                                                       |
+| ---------- | ----------------------------------------------------------- |
+| Plan file  | `docs/internal/next_plan.md`                                |
 | Status key | `[ ]` todo · `[~]` in progress · `[x]` done · `[-]` skipped |
 
 > **Keep this current.** Update checkbox states in `docs/internal/next_plan.md` as steps complete.
@@ -79,7 +79,7 @@ Write the plan to `docs/internal/next_plan.md` with this structure:
 - [ ] Step 1 — <description>
 - [ ] Step 2 — <description> (requires Step 1)
 - [ ] Step 3 — <description>
-...
+      ...
 
 ---
 
@@ -102,6 +102,7 @@ Write the plan to `docs/internal/next_plan.md` with this structure:
 ```
 
 Execution rules (from INDEX.md §Planning rules):
+
 - Steps execute in dependency order, not in parallel
 - Wait for each step to complete before starting the next
 
@@ -129,8 +130,8 @@ When a step has more than one viable approach, do not decide unilaterally. Prese
 ```markdown
 ### Decision: <what needs to be decided>
 
-| Option | Summary | Pros | Cons |
-|---|---|---|---|
+| Option     | Summary    | Pros     | Cons     |
+| ---------- | ---------- | -------- | -------- |
 | A — <name> | <one line> | <bullet> | <bullet> |
 | B — <name> | <one line> | <bullet> | <bullet> |
 
@@ -138,6 +139,7 @@ When a step has more than one viable approach, do not decide unilaterally. Prese
 ```
 
 Use this format for decisions about:
+
 - Implementation strategy (e.g. extend vs. replace vs. wrap)
 - Where logic lives (which package, which layer)
 - Interface shape choices with downstream consequences
@@ -175,11 +177,11 @@ If unsure whether a change is architectural: err on the side of writing the ADR.
 
 Each commit from the plan follows Conventional Commits (drives release-please versioning):
 
-| Change type | Prefix | Example |
-|---|---|---|
-| New feature | `feat(<scope>):` | `feat(virage-core): add streaming chunker` |
-| Bug fix | `fix(<scope>):` | `fix(virage-cli): handle missing config path` |
-| Non-functional | `chore(<scope>):` | `chore(docs): update skill-planner` |
+| Change type     | Prefix                                  | Example                                                       |
+| --------------- | --------------------------------------- | ------------------------------------------------------------- |
+| New feature     | `feat(<scope>):`                        | `feat(virage-core): add streaming chunker`                    |
+| Bug fix         | `fix(<scope>):`                         | `fix(virage-cli): handle missing config path`                 |
+| Non-functional  | `chore(<scope>):`                       | `chore(docs): update skill-planner`                           |
 | Breaking change | `feat!(<scope>):` or append `[ADR-NNN]` | `feat!(virage-core): replace VectorStore interface [ADR-006]` |
 
 The `<scope>` is the package name (without `@vivantel/`) or `docs`.

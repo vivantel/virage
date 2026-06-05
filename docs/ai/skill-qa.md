@@ -12,21 +12,22 @@
       npm run build -w @vivantel/virage-store-test
 [ ] For acceptance tests: set E2E_CLONE_DIR to reuse an existing clone (skips slow clone step)
       export E2E_CLONE_DIR=/path/to/existing/clone
+[ ] Before committing: npm run fix && npm run lint && npm run type-check:ci (see skill-code-guardian.md)
 ```
 
 ---
 
 ## Current State — Test type map
 
-| Type | Command | Location | Notes |
-|---|---|---|---|
-| Unit | `npm test -w @vivantel/<pkg>` | `packages/<pkg>/src/**/*.test.ts` | Per-package vitest |
+| Type             | Command                                            | Location                                | Notes                                     |
+| ---------------- | -------------------------------------------------- | --------------------------------------- | ----------------------------------------- |
+| Unit             | `npm test -w @vivantel/<pkg>`                      | `packages/<pkg>/src/**/*.test.ts`       | Per-package vitest                        |
 | Acceptance (E2E) | `npm run test:acceptance -w @vivantel/virage-core` | `packages/virage-core/test/acceptance/` | Full CLI, 6-min timeout, forked processes |
-| Type check | `npm run type-check:ci` | All included packages | tsc --noEmit |
-| Coverage | `npm run test:coverage -w @vivantel/<pkg>` | Same as unit | HTML output |
-| Single file | `npx vitest run src/core/<file>.test.ts` | Any package | Run from package dir |
+| Type check       | `npm run type-check:ci`                            | All included packages                   | tsc --noEmit                              |
+| Coverage         | `npm run test:coverage -w @vivantel/<pkg>`         | Same as unit                            | HTML output                               |
+| Single file      | `npx vitest run src/core/<file>.test.ts`           | Any package                             | Run from package dir                      |
 
-**Type-check exclusions**: `virage-embedder-openai` and `virage-embedder-transformers` are excluded from `type-check:ci` — their third-party type declaration files are corrupted in this environment (empty `.d.ts` files from a broken `npm install` that predates the project). Run `npm ci` in those packages individually to restore.
+**Type-check exclusions**: `virage-embedder-openai`, `virage-embedder-transformers`, and `virage-store-lancedb` are excluded from `type-check:ci`. The embedder packages have corrupted third-party `.d.ts` files from a broken `npm install` that predates the project (run `npm ci` in those packages individually to restore). `virage-store-lancedb` is excluded because `@lancedb/lancedb` is missing from `node_modules` (disk-space constraint prevented installation).
 
 > **Keep this table current.** After adding a new test type or test infrastructure, add a row.
 
@@ -44,26 +45,33 @@
 ## Eval workflow
 
 ### 1. Generate eval dataset
+
 ```bash
 virage eval-generate
 ```
+
 Reads chunks from `.virage/embeddings.db`, generates query–ground-truth pairs. Output: `.virage/eval/queries.json` (override with `--output`).
 
 ### 2. Run an experiment
+
 ```bash
 virage experiment run --name <name>
 ```
+
 Runs the RAG pipeline against the eval dataset and persists results.  
 Result path: `.rag-experiments/<name>_<iso-timestamp>.json`  
 Metrics collected: MRR, P@5, R@10, HitRate@5.
 
 ### 3. Compare experiments
+
 ```bash
 virage experiment compare --baseline <id> --candidate <id>
 ```
+
 Runs a bootstrap significance test. Outputs: delta per metric, p-value, confidence interval, recommendation (accept / reject / inconclusive).
 
 ### 4. List saved experiments
+
 ```bash
 virage experiment list
 ```
@@ -73,9 +81,11 @@ virage experiment list
 ## Quality metrics
 
 **Chunk quality** (`packages/virage-core/src/strategies/chunk/quality-metrics.ts`):
+
 ```bash
 virage chunks report   # reads embeddings.db, prints cohesion metrics
 ```
+
 - `ChunkQualityMetrics` interface: `src/interfaces/quality.ts`
 - `computeChunkQualityMetrics()`: standalone function, usable without a full strategy instance
 - `ChunkStrategy.getQualityMetrics?(chunks)`: optional hook on strategy objects
@@ -86,13 +96,13 @@ virage chunks report   # reads embeddings.db, prints cohesion metrics
 
 ## Eval source files (`packages/virage-core/src/eval/`)
 
-| File | Purpose |
-|---|---|
-| `generator.ts` | Build eval datasets from existing chunks |
-| `runner.ts` | Execute evaluation with metric collection |
-| `ragas.ts` | RAGAS LLM-as-judge integration (requires OpenAI embedder) |
-| `metrics.ts` | Precision / recall / NDCG computation |
-| `statistics.ts` | Bootstrap confidence intervals, significance tests |
-| `adaptive-tuner.ts` | Grid-search over chunker parameters |
+| File                  | Purpose                                                    |
+| --------------------- | ---------------------------------------------------------- |
+| `generator.ts`        | Build eval datasets from existing chunks                   |
+| `runner.ts`           | Execute evaluation with metric collection                  |
+| `ragas.ts`            | RAGAS LLM-as-judge integration (requires OpenAI embedder)  |
+| `metrics.ts`          | Precision / recall / NDCG computation                      |
+| `statistics.ts`       | Bootstrap confidence intervals, significance tests         |
+| `adaptive-tuner.ts`   | Grid-search over chunker parameters                        |
 | `experiment-store.ts` | Persist/load experiment runs; ID: `<name>_<iso-timestamp>` |
-| `dataset-io.ts` | Read/write eval datasets |
+| `dataset-io.ts`       | Read/write eval datasets                                   |

@@ -42,7 +42,7 @@ interface FileChunker {
 interface EmbeddingProvider {
   name: string;
   dimensions: number;
-  model?: string;           // used for cache invalidation
+  model?: string; // used for cache invalidation
   embed(text: string): Promise<number[]>;
   embedBatch?(texts: string[]): Promise<number[][]>;
 }
@@ -64,13 +64,18 @@ import { createChunker } from "@vivantel/virage-core";
 import { markdownHeadersStrategy } from "@vivantel/virage-strategies";
 
 // Strategy shorthand
-createChunker({ patterns: ["docs/**/*.md"], strategy: markdownHeadersStrategy() });
+createChunker({
+  patterns: ["docs/**/*.md"],
+  strategy: markdownHeadersStrategy(),
+});
 
 // Custom process function
 createChunker({
   name: "custom",
   patterns: ["**/*.txt"],
-  process: async (content, filePath, commitHash) => [{ content, metadata: {}, sourceFile: filePath, commitHash }],
+  process: async (content, filePath, commitHash) => [
+    { content, metadata: {}, sourceFile: filePath, commitHash },
+  ],
 });
 ```
 

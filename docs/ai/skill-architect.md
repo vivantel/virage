@@ -10,21 +10,22 @@
 [ ] Read docs/ADR.md before making any new architecture decision
 [ ] Check if the trade-off was already evaluated in an existing ADR
 [ ] Read relevant source interfaces in packages/virage-core/src/interfaces/ before designing new ones
+[ ] Before committing: npm run fix && npm run lint && npm run type-check:ci (see skill-code-guardian.md)
 ```
 
 ---
 
 ## Current State — Architecture facts
 
-| Property | Value |
-|---|---|
-| Module system | ESM (`"type": "module"`), NodeNext resolution |
-| Import extensions | `.js` on all internal imports (e.g. `from "./foo.js"` even though file is `.ts`) |
-| TypeScript target | ES2022 |
-| Pipeline model | 4-stage linear: GitTracker → ChunkProcessor → EmbedderProcessor → Uploader |
-| Default artifact dir | `.virage/` (override via `VIRAGE_DIR` env var) |
-| Config format | JSON only; `loadConfig()` validates schema, expands `${ENV_VAR}`, dynamic-imports providers |
-| Core package constraint | `virage-core` has no CLI dependencies |
+| Property                | Value                                                                                       |
+| ----------------------- | ------------------------------------------------------------------------------------------- |
+| Module system           | ESM (`"type": "module"`), NodeNext resolution                                               |
+| Import extensions       | `.js` on all internal imports (e.g. `from "./foo.js"` even though file is `.ts`)            |
+| TypeScript target       | ES2022                                                                                      |
+| Pipeline model          | 4-stage linear: GitTracker → ChunkProcessor → EmbedderProcessor → Uploader                  |
+| Default artifact dir    | `.virage/` (override via `VIRAGE_DIR` env var)                                              |
+| Config format           | JSON only; `loadConfig()` validates schema, expands `${ENV_VAR}`, dynamic-imports providers |
+| Core package constraint | `virage-core` has no CLI dependencies                                                       |
 
 > **Keep these facts current.** After any architectural change, update this table and write an ADR.
 
@@ -32,12 +33,12 @@
 
 ## Current State — ADR log
 
-| ADR | Decision |
-|---|---|
-| ADR-001 | ESM-first with NodeNext module resolution |
-| ADR-002 | Four-stage linear pipeline |
-| ADR-003 | Consumer-implemented provider interfaces |
-| ADR-004 | Git commit hash for change detection |
+| ADR     | Decision                                          |
+| ------- | ------------------------------------------------- |
+| ADR-001 | ESM-first with NodeNext module resolution         |
+| ADR-002 | Four-stage linear pipeline                        |
+| ADR-003 | Consumer-implemented provider interfaces          |
+| ADR-004 | Git commit hash for change detection              |
 | ADR-005 | Content hash for embedding-layer incremental skip |
 
 > **Keep this log current.** After writing a new ADR in `docs/ADR.md`, add a row here.
@@ -83,12 +84,12 @@
 
 ## Provider interfaces (`packages/virage-core/src/interfaces/`)
 
-| Interface | Key methods |
-|---|---|
-| `FileChunker` | `chunk(filePath, commitHash): Promise<Chunk[]>` + `patterns: string[]` |
-| `EmbeddingProvider` | `embed(text): Promise<number[]>`, optional `embedBatch` |
-| `VectorStore` | `initialize`, `upsert`, `deleteBySourceFile`, `getCurrentState`, `search` |
-| `Logger` | `debug/info/warn/error(msg)` |
+| Interface           | Key methods                                                               |
+| ------------------- | ------------------------------------------------------------------------- |
+| `FileChunker`       | `chunk(filePath, commitHash): Promise<Chunk[]>` + `patterns: string[]`    |
+| `EmbeddingProvider` | `embed(text): Promise<number[]>`, optional `embedBatch`                   |
+| `VectorStore`       | `initialize`, `upsert`, `deleteBySourceFile`, `getCurrentState`, `search` |
+| `Logger`            | `debug/info/warn/error(msg)`                                              |
 
 Quality/observability types in `src/interfaces/quality.ts`: `ChunkQualityMetrics`, `EmbeddingMetrics`, `IndexStats`, `QueryPerfReport`, `EvalResult`, `ExperimentRun`.
 

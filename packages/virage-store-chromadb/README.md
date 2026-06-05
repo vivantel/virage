@@ -49,12 +49,12 @@ Pass your Chroma Cloud URL and API key:
 
 ## Configuration
 
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `path` | `string` | `"http://localhost:8000"` | Chroma server URL |
-| `apiKey` | `string` | `undefined` | API key for hosted Chroma (token auth) |
-| `collectionName` | `string` | `"documents"` | Collection name |
-| `dimensions` | `number` | `undefined` | Vector size (inferred from first upsert if omitted) |
+| Option           | Type     | Default                   | Description                                         |
+| ---------------- | -------- | ------------------------- | --------------------------------------------------- |
+| `path`           | `string` | `"http://localhost:8000"` | Chroma server URL                                   |
+| `apiKey`         | `string` | `undefined`               | API key for hosted Chroma (token auth)              |
+| `collectionName` | `string` | `"documents"`             | Collection name                                     |
+| `dimensions`     | `number` | `undefined`               | Vector size (inferred from first upsert if omitted) |
 
 ## TypeScript usage
 

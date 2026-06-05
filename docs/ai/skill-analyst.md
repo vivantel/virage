@@ -15,12 +15,12 @@
 
 ## Current State — Artifact locations
 
-| Artifact | Default path | Format | Contents |
-|---|---|---|---|
-| Embeddings DB | `.virage/embeddings.db` | SQLite STRICT | Chunk metadata, embedding BLOBs (Float32 LE), `uploaded` flag |
-| Telemetry | `.virage/telemetry.json` | JSON | Per-stage pipeline performance metrics |
-| Eval datasets | `.rag-experiments/` | JSON files | Query + ground-truth pairs |
-| Experiment results | `.rag-experiments/<name>_<iso>.json` | JSON | Metrics: MRR, P@5, R@10, HitRate@5 |
+| Artifact           | Default path                         | Format        | Contents                                                      |
+| ------------------ | ------------------------------------ | ------------- | ------------------------------------------------------------- |
+| Embeddings DB      | `.virage/embeddings.db`              | SQLite STRICT | Chunk metadata, embedding BLOBs (Float32 LE), `uploaded` flag |
+| Telemetry          | `.virage/telemetry.json`             | JSON          | Per-stage pipeline performance metrics                        |
+| Eval datasets      | `.rag-experiments/`                  | JSON files    | Query + ground-truth pairs                                    |
+| Experiment results | `.rag-experiments/<name>_<iso>.json` | JSON          | Metrics: MRR, P@5, R@10, HitRate@5                            |
 
 **Override paths**: set `VIRAGE_DIR` env var to change the `.virage/` root.
 
@@ -44,12 +44,12 @@ virage viz embeddings            # 2D UMAP or t-SNE visualization of the embeddi
 
 `TelemetryCollector` (`packages/virage-core/src/core/telemetry.ts`) records per-stage:
 
-| Stage | Metrics captured |
-|---|---|
-| Git tracking | Duration, file count, files changed |
-| Chunking | Duration, chunks produced, files processed |
-| Embedding | Latency per batch, total latency, rate-limit events |
-| Upload | Latency per batch, total latency, retry events |
+| Stage        | Metrics captured                                    |
+| ------------ | --------------------------------------------------- |
+| Git tracking | Duration, file count, files changed                 |
+| Chunking     | Duration, chunks produced, files processed          |
+| Embedding    | Latency per batch, total latency, rate-limit events |
+| Upload       | Latency per batch, total latency, retry events      |
 
 Auto-saved to `.virage/telemetry.json` after each pipeline run. `virage report` reads and displays it.
 
@@ -57,12 +57,12 @@ Auto-saved to `.virage/telemetry.json` after each pipeline run. `virage report` 
 
 ## Eval metrics reference
 
-| Metric | Range | Description |
-|---|---|---|
-| MRR | 0–1 | Mean Reciprocal Rank — average rank position of first relevant result |
-| P@5 | 0–1 | Precision at 5 — fraction of top-5 results that are relevant |
-| R@10 | 0–1 | Recall at 10 — fraction of relevant results found in top 10 |
-| HitRate@5 | 0–1 | Fraction of queries where a relevant result appears in top 5 |
+| Metric    | Range | Description                                                           |
+| --------- | ----- | --------------------------------------------------------------------- |
+| MRR       | 0–1   | Mean Reciprocal Rank — average rank position of first relevant result |
+| P@5       | 0–1   | Precision at 5 — fraction of top-5 results that are relevant          |
+| R@10      | 0–1   | Recall at 10 — fraction of relevant results found in top 10           |
+| HitRate@5 | 0–1   | Fraction of queries where a relevant result appears in top 5          |
 
 Bootstrap significance test (`virage experiment compare`): delta per metric, p-value, confidence interval, recommendation label (accept / reject / inconclusive).
 

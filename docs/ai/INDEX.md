@@ -6,17 +6,17 @@ Load this index before any task. Pick a skill, load it, then execute.
 
 ## Skills
 
-| I want to… | Load |
-|---|---|
-| Plan, sequence, and track implementation work | `docs/ai/skill-planner.md` |
-| Maintain root README.md | `docs/ai/skill-readme.md` |
-| Add / update / develop / test a package | `docs/ai/skill-package.md` |
-| Modify CI/CD or release config | `docs/ai/skill-cicd.md` |
-| Keep docs/ai/ skills in sync with codebase | `docs/ai/skill-overseer.md` |
-| Make or review an architecture decision | `docs/ai/skill-architect.md` |
-| Set up, run, or debug tests and eval | `docs/ai/skill-qa.md` |
+| I want to…                                        | Load                             |
+| ------------------------------------------------- | -------------------------------- |
+| Plan, sequence, and track implementation work     | `docs/ai/skill-planner.md`       |
+| Maintain root README.md                           | `docs/ai/skill-readme.md`        |
+| Add / update / develop / test a package           | `docs/ai/skill-package.md`       |
+| Modify CI/CD or release config                    | `docs/ai/skill-cicd.md`          |
+| Keep docs/ai/ skills in sync with codebase        | `docs/ai/skill-overseer.md`      |
+| Make or review an architecture decision           | `docs/ai/skill-architect.md`     |
+| Set up, run, or debug tests and eval              | `docs/ai/skill-qa.md`            |
 | Enforce code quality, fix lint/format/type errors | `docs/ai/skill-code-guardian.md` |
-| Analyze telemetry or diagnose the pipeline | `docs/ai/skill-analyst.md` |
+| Analyze telemetry or diagnose the pipeline        | `docs/ai/skill-analyst.md`       |
 
 ---
 
@@ -46,11 +46,11 @@ npm run build:with-dashboard -w @vivantel/virage-cli  # CLI build including dash
 
 ## Memory pointers
 
-| Slug | Tracks |
-|---|---|
-| `project_streaming_pipeline.md` | Current in-flight features and decisions |
-| `project_monorepo_packages.md` | Package inventory and key architectural choices |
-| `feedback_pre_commit_fix.md` | Pre-commit enforcement rule |
+| Slug                            | Tracks                                          |
+| ------------------------------- | ----------------------------------------------- |
+| `project_streaming_pipeline.md` | Current in-flight features and decisions        |
+| `project_monorepo_packages.md`  | Package inventory and key architectural choices |
+| `feedback_pre_commit_fix.md`    | Pre-commit enforcement rule                     |
 
 ---
 

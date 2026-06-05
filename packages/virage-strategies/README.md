@@ -22,8 +22,14 @@ import {
 } from "@vivantel/virage-strategies";
 
 const chunkers = [
-  createChunker({ patterns: ["docs/**/*.md"], strategy: markdownHeadersStrategy() }),
-  createChunker({ patterns: ["src/**/*.ts"], strategy: tokenStrategy({ maxTokens: 500 }) }),
+  createChunker({
+    patterns: ["docs/**/*.md"],
+    strategy: markdownHeadersStrategy(),
+  }),
+  createChunker({
+    patterns: ["src/**/*.ts"],
+    strategy: tokenStrategy({ maxTokens: 500 }),
+  }),
   createChunker({ patterns: ["**/*.yaml"], strategy: wholeFileStrategy() }),
 ];
 ```
@@ -34,7 +40,11 @@ Or via JSON config (no TypeScript needed):
 {
   "chunkers": [
     { "patterns": ["docs/**/*.md"], "strategy": "markdownHeaders" },
-    { "patterns": ["src/**/*.ts"], "strategy": "token", "strategyOptions": { "maxTokens": 500 } }
+    {
+      "patterns": ["src/**/*.ts"],
+      "strategy": "token",
+      "strategyOptions": { "maxTokens": 500 }
+    }
   ]
 }
 ```
@@ -51,10 +61,10 @@ Best for: documentation, wikis, README files.
 
 Splits text into fixed-size token windows with optional overlap.
 
-| Option | Default | Description |
-| --- | --- | --- |
-| `maxTokens` | `512` | Maximum tokens per chunk |
-| `overlap` | `50` | Token overlap between consecutive chunks |
+| Option      | Default | Description                              |
+| ----------- | ------- | ---------------------------------------- |
+| `maxTokens` | `512`   | Maximum tokens per chunk                 |
+| `overlap`   | `50`    | Token overlap between consecutive chunks |
 
 Best for: source code, structured text, anything that needs size control.
 

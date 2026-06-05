@@ -9,6 +9,7 @@
 ```
 [ ] Read INDEX.md cross-cutting rules (imports, commit style, pre-commit hook)
 [ ] Identify which operation: Add / Update / Develop / Sync / Test
+[ ] Before committing: npm run fix && npm run lint && npm run type-check:ci (see skill-code-guardian.md)
 ```
 
 ---
@@ -28,21 +29,21 @@ What are you doing?
 
 ## Current State — Package inventory
 
-| Package | Published | Purpose |
-|---|---|---|
-| virage-core | yes | Pipeline engine, interfaces, strategies, eval — no CLI deps |
-| virage-cli | yes | `virage` binary + all CLI commands; embeds dashboard at build time |
-| virage-dashboard | yes | React + Vite dashboard served by `virage dashboard`; publishes `dist/` |
-| virage-strategies | yes | Re-export of built-in chunk strategies as standalone install |
-| virage-embedder-openai | yes | OpenAI embeddings + semantic cache + LLM judge |
-| virage-embedder-transformers | yes | HuggingFace Transformers (local inference) |
-| virage-embedder-fastembed | yes | FastEmbed ONNX (local inference) |
-| virage-store-postgres | yes | pgvector vector store |
-| virage-store-qdrant | yes | Qdrant vector store (local or cloud) |
-| virage-store-lancedb | yes | LanceDB embedded vector store (file-based) |
-| virage-store-chromadb | yes | ChromaDB vector store (local or hosted) |
-| virage-mcp | yes | MCP stdio server — search and inspect any virage index from AI assistants |
-| virage-store-test | no (private) | File-backed mock VectorStore for acceptance testing |
+| Package                      | Published    | Purpose                                                                   |
+| ---------------------------- | ------------ | ------------------------------------------------------------------------- |
+| virage-core                  | yes          | Pipeline engine, interfaces, strategies, eval — no CLI deps               |
+| virage-cli                   | yes          | `virage` binary + all CLI commands; embeds dashboard at build time        |
+| virage-dashboard             | yes          | React + Vite dashboard served by `virage dashboard`; publishes `dist/`    |
+| virage-strategies            | yes          | Re-export of built-in chunk strategies as standalone install              |
+| virage-embedder-openai       | yes          | OpenAI embeddings + semantic cache + LLM judge                            |
+| virage-embedder-transformers | yes          | HuggingFace Transformers (local inference)                                |
+| virage-embedder-fastembed    | yes          | FastEmbed ONNX (local inference)                                          |
+| virage-store-postgres        | yes          | pgvector vector store                                                     |
+| virage-store-qdrant          | yes          | Qdrant vector store (local or cloud)                                      |
+| virage-store-lancedb         | yes          | LanceDB embedded vector store (file-based)                                |
+| virage-store-chromadb        | yes          | ChromaDB vector store (local or hosted)                                   |
+| virage-mcp                   | yes          | MCP stdio server — search and inspect any virage index from AI assistants |
+| virage-store-test            | no (private) | File-backed mock VectorStore for acceptance testing                       |
 
 > **Keep this table current.** After adding or removing a package, update this snapshot, then run `skill-overseer.md`.
 
@@ -52,16 +53,16 @@ What are you doing?
 
 Every published `package.json` must have:
 
-| Field | Value |
-|---|---|
-| `author` | `"Vivantel"` |
-| `license` | `"MIT"` |
-| `keywords` | RAG-related terms + package-specific terms |
-| `repository` | `{ "type": "git", "url": "...", "directory": "packages/<name>" }` |
-| `engines` | `{ "node": ">=18.0.0" }` |
-| `publishConfig` | `{ "access": "public" }` |
-| `files` | Must include `"README.md"` alongside output dir |
-| `prepublishOnly` | At minimum `"npm run build"` |
+| Field            | Value                                                             |
+| ---------------- | ----------------------------------------------------------------- |
+| `author`         | `"Vivantel"`                                                      |
+| `license`        | `"MIT"`                                                           |
+| `keywords`       | RAG-related terms + package-specific terms                        |
+| `repository`     | `{ "type": "git", "url": "...", "directory": "packages/<name>" }` |
+| `engines`        | `{ "node": ">=18.0.0" }`                                          |
+| `publishConfig`  | `{ "access": "public" }`                                          |
+| `files`          | Must include `"README.md"` alongside output dir                   |
+| `prepublishOnly` | At minimum `"npm run build"`                                      |
 
 Required scripts: `build`, `type-check`, `lint`, `lint:fix`, `format`, `format:check`, `fix`.
 
@@ -107,13 +108,13 @@ npm run build:with-dashboard -w @vivantel/virage-cli     # CLI + embedded dashbo
 
 Items to keep consistent across all packages:
 
-| Config | Expected value |
-|---|---|
-| `tsconfig.json` module | `"NodeNext"` |
-| `tsconfig.json` moduleResolution | `"NodeNext"` |
-| `tsconfig.json` target | `"ES2022"` |
-| ESLint config | Inherited from root `eslint.config.js` |
-| `engines.node` | `">=18.0.0"` |
+| Config                           | Expected value                         |
+| -------------------------------- | -------------------------------------- |
+| `tsconfig.json` module           | `"NodeNext"`                           |
+| `tsconfig.json` moduleResolution | `"NodeNext"`                           |
+| `tsconfig.json` target           | `"ES2022"`                             |
+| ESLint config                    | Inherited from root `eslint.config.js` |
+| `engines.node`                   | `">=18.0.0"`                           |
 
 ---
 

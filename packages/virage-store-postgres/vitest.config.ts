@@ -1,18 +1,18 @@
-import { defineConfig } from 'vitest/config';
+import { defineConfig } from "vitest/config";
 
 export default defineConfig({
   test: {
     maxWorkers: 4,
     coverage: {
-      provider: 'v8',
-      reporter: ['text', 'json', 'html'],
+      provider: "v8",
+      reporter: ["text", "json", "html"],
       // store.ts and index.ts require a live Postgres connection — excluded from unit coverage
-      include: ['src/stats.ts', 'src/query-perf.ts'],
-      exclude: ['src/**/*.test.ts'],
+      include: ["src/stats.ts", "src/query-perf.ts"],
+      exclude: ["src/**/*.test.ts"],
     },
-    exclude: ['node_modules', '.git'],
+    exclude: ["node_modules", ".git"],
     globals: true,
     testTimeout: 30000,
-    environment: 'node',
+    environment: "node",
   },
 });

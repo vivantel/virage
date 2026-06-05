@@ -80,14 +80,14 @@ Any OpenAI-compatible endpoint (including GitHub Models, Azure OpenAI, Ollama) c
 
 ## Options
 
-| Option | Type | Required | Description |
-| --- | --- | --- | --- |
-| `apiKey` | `string` | ✓ | API key |
-| `model` | `string` | ✓ | Model identifier |
-| `dimensions` | `number` | — | Output dimensions (default: 1536) |
-| `baseURL` | `string` | — | API base URL (default: OpenAI) |
-| `organizationId` | `string` | — | OpenAI organization ID |
-| `maxRetries` | `number` | — | Retry attempts (default: 3) |
+| Option           | Type     | Required | Description                       |
+| ---------------- | -------- | -------- | --------------------------------- |
+| `apiKey`         | `string` | ✓        | API key                           |
+| `model`          | `string` | ✓        | Model identifier                  |
+| `dimensions`     | `number` | —        | Output dimensions (default: 1536) |
+| `baseURL`        | `string` | —        | API base URL (default: OpenAI)    |
+| `organizationId` | `string` | —        | OpenAI organization ID            |
+| `maxRetries`     | `number` | —        | Retry attempts (default: 3)       |
 
 ## License
 

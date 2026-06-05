@@ -41,21 +41,21 @@ The inner model is initialized lazily on the first `embed()` call.
 
 ## Supported models
 
-| Model | Dimensions | Notes |
-| --- | --- | --- |
-| `BAAI/bge-small-en-v1.5` | 384 | Default — fast and compact |
-| `BAAI/bge-base-en-v1.5` | 768 | Better quality |
-| `BAAI/bge-large-en-v1.5` | 1024 | Highest quality |
-| `nomic-ai/nomic-embed-text-v1.5` | 768 | Long context (8192 tokens) |
+| Model                            | Dimensions | Notes                      |
+| -------------------------------- | ---------- | -------------------------- |
+| `BAAI/bge-small-en-v1.5`         | 384        | Default — fast and compact |
+| `BAAI/bge-base-en-v1.5`          | 768        | Better quality             |
+| `BAAI/bge-large-en-v1.5`         | 1024       | Highest quality            |
+| `nomic-ai/nomic-embed-text-v1.5` | 768        | Long context (8192 tokens) |
 
 ## Options
 
-| Option | Type | Description |
-| --- | --- | --- |
-| `model` | `string` | Model name (default: `"BAAI/bge-small-en-v1.5"`) |
-| `dimensions` | `number` | Output dimensions (auto-detected from model if omitted) |
-| `cacheDir` | `string` | Local model cache directory |
-| `showDownloadProgress` | `boolean` | Show download progress bar (default: `false`) |
+| Option                 | Type      | Description                                             |
+| ---------------------- | --------- | ------------------------------------------------------- |
+| `model`                | `string`  | Model name (default: `"BAAI/bge-small-en-v1.5"`)        |
+| `dimensions`           | `number`  | Output dimensions (auto-detected from model if omitted) |
+| `cacheDir`             | `string`  | Local model cache directory                             |
+| `showDownloadProgress` | `boolean` | Show download progress bar (default: `false`)           |
 
 ## License
 

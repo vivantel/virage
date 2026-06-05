@@ -1,8 +1,19 @@
 /**
  * Advanced RAG config showing all available options.
  */
-import type { RAGPipelineConfig, EmbeddingProvider, VectorStore, VectorSearchResult } from "@vivantel/virage-core";
-import { createChunker, markdownHeadersStrategy, tokenStrategy, semanticStrategy, wholeFileStrategy } from "@vivantel/virage-core";
+import type {
+  RAGPipelineConfig,
+  EmbeddingProvider,
+  VectorStore,
+  VectorSearchResult,
+} from "@vivantel/virage-core";
+import {
+  createChunker,
+  markdownHeadersStrategy,
+  tokenStrategy,
+  semanticStrategy,
+  wholeFileStrategy,
+} from "@vivantel/virage-core";
 
 // Stubbed providers — replace with real implementations
 const embedder: EmbeddingProvider = {
@@ -37,8 +48,14 @@ const vectorStore: VectorStore = {
 const config: RAGPipelineConfig = {
   chunkers: [
     // Different .md directories can use different strategies
-    createChunker({ patterns: ["docs/**/*.md"], strategy: markdownHeadersStrategy() }),
-    createChunker({ patterns: ["rules/**/*.md"], strategy: wholeFileStrategy() }),
+    createChunker({
+      patterns: ["docs/**/*.md"],
+      strategy: markdownHeadersStrategy(),
+    }),
+    createChunker({
+      patterns: ["rules/**/*.md"],
+      strategy: wholeFileStrategy(),
+    }),
     createChunker({ patterns: ["blog/**/*.md"], strategy: semanticStrategy() }),
     createChunker({
       patterns: ["src/**/*.ts", "src/**/*.tsx"],

@@ -7,6 +7,7 @@
 ## When to run this skill
 
 Trigger on any of these events:
+
 - Package added or removed
 - Pipeline stage changed (new stage, changed storage format, new config option)
 - New CLI subcommand or flag added
@@ -21,18 +22,18 @@ Trigger on any of these events:
 
 ## Current State — Skill inventory
 
-| Skill file | Covers | Key snapshot to verify |
-|---|---|---|
-| `skill-planner.md` | Implementation planning: phases, alternatives format, ADR gate, progress tracking | Plan structure, §Presenting alternatives format |
-| `INDEX.md` | Decision table, commands, cross-cutting rules, memory slugs | Decision table rows, command list |
-| `skill-readme.md` | Root README section map | Section triggers table |
-| `skill-package.md` | Package lifecycle (add/update/develop/sync/test) | Package inventory table, §Add steps |
-| `skill-cicd.md` | Workflows + release config | Workflow map, published packages list |
-| `skill-overseer.md` | This file — skill sync | Skill inventory table (this table) |
-| `skill-architect.md` | Architecture principles, ADR process, interfaces, patterns | Architecture facts, ADR log |
-| `skill-qa.md` | Testing strategy: unit, acceptance, eval, quality metrics | Test type map, eval workflow |
-| `skill-analyst.md` | Telemetry, artifact locations, diagnostic commands | Artifact paths, diagnostic commands list |
-| `skill-code-guardian.md` | Guardrails, style rules, active fix sequence | Active guardrails list, fix sequence steps |
+| Skill file               | Covers                                                                            | Key snapshot to verify                          |
+| ------------------------ | --------------------------------------------------------------------------------- | ----------------------------------------------- |
+| `skill-planner.md`       | Implementation planning: phases, alternatives format, ADR gate, progress tracking | Plan structure, §Presenting alternatives format |
+| `INDEX.md`               | Decision table, commands, cross-cutting rules, memory slugs                       | Decision table rows, command list               |
+| `skill-readme.md`        | Root README section map                                                           | Section triggers table                          |
+| `skill-package.md`       | Package lifecycle (add/update/develop/sync/test)                                  | Package inventory table, §Add steps             |
+| `skill-cicd.md`          | Workflows + release config                                                        | Workflow map, published packages list           |
+| `skill-overseer.md`      | This file — skill sync                                                            | Skill inventory table (this table)              |
+| `skill-architect.md`     | Architecture principles, ADR process, interfaces, patterns                        | Architecture facts, ADR log                     |
+| `skill-qa.md`            | Testing strategy: unit, acceptance, eval, quality metrics                         | Test type map, eval workflow                    |
+| `skill-analyst.md`       | Telemetry, artifact locations, diagnostic commands                                | Artifact paths, diagnostic commands list        |
+| `skill-code-guardian.md` | Guardrails, style rules, active fix sequence                                      | Active guardrails list, fix sequence steps      |
 
 > **Keep this table current.** After adding a skill file, add a row here and add a row to the `INDEX.md` decision table.
 
@@ -74,6 +75,14 @@ Run the relevant items after a structural change:
 
 [ ] New plan written or completed
       → docs/internal/next_plan.md (update checkbox states)
+```
+
+---
+
+## Before committing
+
+```
+[ ] Before committing: npm run fix && npm run lint && npm run type-check:ci (see skill-code-guardian.md)
 ```
 
 ---

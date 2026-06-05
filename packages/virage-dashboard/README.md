@@ -27,11 +27,11 @@ cd packages/virage-dashboard && npm run dev
 
 ## Panels
 
-| Panel | Description |
-|---|---|
-| Status | Live chunk count, embedding count, and memory usage |
-| Chunk histogram | Distribution of chunk sizes across the index |
-| Anomalies | Embeddings with high z-scores flagged for review |
+| Panel           | Description                                         |
+| --------------- | --------------------------------------------------- |
+| Status          | Live chunk count, embedding count, and memory usage |
+| Chunk histogram | Distribution of chunk sizes across the index        |
+| Anomalies       | Embeddings with high z-scores flagged for review    |
 
 ## License
 

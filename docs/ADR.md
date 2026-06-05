@@ -10,12 +10,15 @@ This document captures the key architectural decisions made in the `@vivantel/vi
 **Status:** Accepted
 
 ### Context
+
 The library targets Node.js ≥ 18, which ships native ESM support. Consumers of RAG tooling are increasingly ESM-first themselves. CJS dual-publishing adds build complexity and frequently causes subtle interop bugs with dynamic `import()`.
 
 ### Decision
+
 Ship as a pure ESM package (`"type": "module"` in `package.json`, `"module": "NodeNext"` in `tsconfig.json`). All internal imports use explicit `.js` extensions as required by NodeNext resolution (e.g. `from "./git-tracker.js"` even though source files are `.ts`).
 
 ### Consequences
+
 - **+** Native ESM consumers get zero-friction integration.
 - **+** No dual-build tooling to maintain.
 - **−** CJS consumers (`require()`) cannot use the package without a wrapper.
@@ -29,12 +32,15 @@ Ship as a pure ESM package (`"type": "module"` in `package.json`, `"module": "No
 **Status:** Accepted
 
 ### Context
+
 A RAG indexing pipeline has four natural concerns: discovering which files changed, splitting files into chunks, embedding those chunks, and syncing embeddings to a vector store. Conflating these makes each stage harder to test, profile, and skip independently.
 
 ### Decision
+
 Implement four discrete processor classes — `GitTracker`, `ChunkProcessor`, `EmbedderProcessor`, `Uploader` — wired together by `Orchestrator`. Each stage reads/writes intermediate JSON files (`chunks.json`, `embeddings.json`) so any stage can be re-run in isolation.
 
 ### Consequences
+
 - **+** Each stage is independently testable and replaceable.
 - **+** `--no-upload` and resume capabilities are natural fall-outs of the staged design.
 - **+** Per-stage telemetry is straightforward to add (see ADR-010).
@@ -49,12 +55,15 @@ Implement four discrete processor classes — `GitTracker`, `ChunkProcessor`, `E
 **Status:** Accepted
 
 ### Context
+
 Different projects use different embedding providers (OpenAI, local models, GitHub Models) and different vector stores (Postgres, Pinecone, Supabase). Shipping one concrete implementation inside the core package would create tight coupling and a dependency explosion.
 
 ### Decision
+
 Define three minimal TypeScript interfaces — `FileChunker`, `EmbeddingProvider`, `VectorStore` — that consumers implement. The core package ships no concrete implementations; it only ships the interfaces and the pipeline engine.
 
 ### Consequences
+
 - **+** Core has zero provider-specific dependencies.
 - **+** Any provider can be swapped at config time without touching the pipeline.
 - **−** Getting started requires either writing an implementation or installing a companion package.
@@ -68,12 +77,15 @@ Define three minimal TypeScript interfaces — `FileChunker`, `EmbeddingProvider
 **Status:** Accepted
 
 ### Context
+
 Re-embedding all files on every pipeline run is prohibitively expensive (API cost and latency). We need a cheap, reliable signal for "this file changed since last run."
 
 ### Decision
+
 `GitTracker` reads the HEAD commit hash for each tracked file via `simple-git`. This hash is stored in `chunks.json` alongside the chunks it produced. On the next run, the tracker compares stored hashes against current ones — only files with a changed hash are re-processed. When there are uncommitted changes, `-dirty` is appended to the hash to force re-processing of the working-copy state.
 
 ### Consequences
+
 - **+** Incremental runs are cheap; only genuinely changed files flow through the pipeline.
 - **+** The `-dirty` suffix gives correct behavior for local development.
 - **−** Requires a git repository; non-git projects cannot use this mechanism.
@@ -87,12 +99,15 @@ Re-embedding all files on every pipeline run is prohibitively expensive (API cos
 **Status:** Accepted
 
 ### Context
+
 File-level commit hashes (ADR-004) detect file changes, but a single file produces multiple chunks. If a file changes but only some chunks are modified, we would still re-embed all chunks from that file.
 
 ### Decision
+
 `ChunkProcessor` computes a `contentHash` (SHA-256, first 16 hex chars) for each chunk's text. `EmbedderProcessor` skips any chunk whose `contentHash` already exists in `embeddings.json`, regardless of the file-level commit hash.
 
 ### Consequences
+
 - **+** Embedding is idempotent: re-running on an unchanged chunk is a no-op.
 - **+** Cheap insurance against partial failures — a crashed run resumes from the last checkpoint.
 - **−** Content-hash comparisons happen in-memory against the full `embeddings.json`; very large embedding files could add startup latency.
@@ -105,18 +120,23 @@ File-level commit hashes (ADR-004) detect file changes, but a single file produc
 **Status:** Accepted
 
 ### Context
+
 Chunking logic varies by file type. Markdown files benefit from header-based splitting; code files benefit from token-window splitting; YAML configs are best kept whole. We need composability without requiring every consumer to write a full `FileChunker` class.
 
 ### Decision
+
 Split chunking into two layers:
+
 1. **`ChunkStrategy`** — lower-level, operates on raw text (`chunk(text, filePath)`). Four built-ins: `tokenStrategy`, `markdownHeadersStrategy`, `semanticStrategy`, `wholeFileStrategy`.
 2. **`FileChunker`** — higher-level, reads files from disk (`chunk(filePath, commitHash)`). Consumers typically don't implement this directly.
 
 The `createChunker` helper bridges the two via a TypeScript discriminated union:
+
 - **Strategy shorthand**: `createChunker({ patterns, strategy })` — wraps any `ChunkStrategy` into a `FileChunker`, auto-derives a name.
 - **Custom process**: `createChunker({ name, patterns, process })` — full control, name required.
 
 ### Consequences
+
 - **+** Most configs need only one line per file type.
 - **+** Strategies are independently testable without the file-system layer.
 - **+** Custom chunkers remain a first-class option without API friction.
@@ -131,12 +151,15 @@ The `createChunker` helper bridges the two via a TypeScript discriminated union:
 **Status:** Superseded by ADR-013
 
 ### Context
+
 Consumer config files (`rag.config.ts`) are TypeScript. If consumers had to compile their config to JS before running the CLI, the DX would be painful. We need to load `.ts` files at runtime without requiring consumers to configure `ts-node` or Node's `--experimental-transform-types` flag.
 
 ### Decision
+
 `loadConfig()` detects `.ts` extensions and loads them via `tsImport()` from `tsx/esm/api` (a runtime dependency). Plain `.js` configs use native `import()`. Consumers write TypeScript configs; no build step required.
 
 ### Consequences
+
 - **+** `rag.config.ts` is ergonomic and type-safe for consumers.
 - **+** Consumers get editor autocompletion on the config type.
 - **−** `tsx` is a runtime dependency (not devDependency), increasing the installed footprint.
@@ -151,24 +174,27 @@ Consumer config files (`rag.config.ts`) are TypeScript. If consumers had to comp
 **Status:** Accepted
 
 ### Context
+
 Provider implementations (embedders, vector stores) have incompatible peer dependencies (e.g. `fastembed` vs `openai` vs `@xenova/transformers`). Shipping all of them inside `rag-core` would force consumers to install every provider's dependency tree regardless of which they use.
 
 ### Decision
+
 Convert the repository to an npm workspaces monorepo (`packages/*`). Each provider is a separate package with its own `package.json`, CI workflow, CHANGELOG, and semver version:
 
-| Package | Role |
-|---|---|
-| `@vivantel/virage-core` | Pipeline engine + interfaces + CLI |
-| `@vivantel/virage-strategies` | Built-in chunk strategies (re-export, strategies deprecated in core) |
-| `@vivantel/virage-embedder-openai` | OpenAI embedding provider |
-| `@vivantel/virage-embedder-fastembed` | FastEmbed (local) provider |
-| `@vivantel/virage-embedder-transformers` | Hugging Face Transformers provider |
-| `@vivantel/virage-store-postgres` | PostgreSQL + pgvector store |
-| `@vivantel/virage-store-qdrant` | Qdrant vector store (local and cloud) |
+| Package                                  | Role                                                                 |
+| ---------------------------------------- | -------------------------------------------------------------------- |
+| `@vivantel/virage-core`                  | Pipeline engine + interfaces + CLI                                   |
+| `@vivantel/virage-strategies`            | Built-in chunk strategies (re-export, strategies deprecated in core) |
+| `@vivantel/virage-embedder-openai`       | OpenAI embedding provider                                            |
+| `@vivantel/virage-embedder-fastembed`    | FastEmbed (local) provider                                           |
+| `@vivantel/virage-embedder-transformers` | Hugging Face Transformers provider                                   |
+| `@vivantel/virage-store-postgres`        | PostgreSQL + pgvector store                                          |
+| `@vivantel/virage-store-qdrant`          | Qdrant vector store (local and cloud)                                |
 
 `release-please` is configured in manifest mode to publish each package independently.
 
 ### Consequences
+
 - **+** Consumers install only the providers they use.
 - **+** Provider packages can ship breaking changes without bumping `rag-core`.
 - **+** Per-package CI catches regressions in isolation.
@@ -184,12 +210,15 @@ Convert the repository to an npm workspaces monorepo (`packages/*`). Each provid
 **Status:** Accepted
 
 ### Context
+
 `rag.config.ts` contains provider credentials (API keys via environment references), path configurations, and project-specific chunker setups. Committing it risks leaking credentials and creates merge conflicts across forks.
 
 ### Decision
+
 Add `rag.config.ts` to `.gitignore`, treating it like `.env`. The CI-specific config (`virage.config.ci.json`) is tracked because it is infrastructure-as-code — it references published package names and no secrets directly (credentials come from GitHub Actions secrets via `${VAR}` expansion at runtime).
 
 ### Consequences
+
 - **+** No accidental credential commits.
 - **+** Each consumer's config is tailored to their project without merge friction.
 - **−** New contributors must run `virage init` or manually create the config — not apparent from a `git clone`.
@@ -203,12 +232,15 @@ Add `rag.config.ts` to `.gitignore`, treating it like `.env`. The CI-specific co
 **Status:** Accepted
 
 ### Context
+
 Understanding pipeline performance (per-stage duration, chunk counts, embedding latency) is useful for tuning but irrelevant to most runs. Baking telemetry into every stage would clutter the core logic.
 
 ### Decision
+
 `TelemetryCollector` is instantiated only when `options.telemetry: true`. The `Orchestrator` holds a nullable reference (`telemetry?.recordX()`). On completion, telemetry prints a summary and saves to `telemetry.json` alongside `chunks.json`. Webhook notifications are a separate opt-in (`options.notifications.webhookUrl`).
 
 ### Consequences
+
 - **+** Zero overhead when telemetry is off (the default).
 - **+** Webhook notifications decouple alerting from the telemetry data model.
 - **−** Telemetry data is local-file-only; no remote sink is built in.
@@ -221,10 +253,13 @@ Understanding pipeline performance (per-stage duration, chunk counts, embedding 
 **Status:** Accepted
 
 ### Context
+
 TypeScript configs (`rag.config.ts`) require `tsx` at runtime and are developer-authored. For CI environments where the embedder and vector store are always the same published packages, a JSON config is simpler to generate, validate against a schema, and diff in PRs.
 
 ### Decision
+
 `loadConfig()` dispatches on file extension: `.json` configs go through `loadJsonConfig()`, which:
+
 1. Validates against a known schema (required fields, strategy names, package references).
 2. Resolves `${ENV_VAR}` expressions recursively via `expandEnvVars()`.
 3. Dynamically imports each provider package and calls `createEmbedder(config)` / `createVectorStore(config)`.
@@ -233,6 +268,7 @@ TypeScript configs (`rag.config.ts`) require `tsx` at runtime and are developer-
 A JSON Schema is published at `schemas/virage.config.schema.json` for editor validation.
 
 ### Consequences
+
 - **+** CI config is declarative, schema-validated, and credential-free.
 - **+** Reduces friction for non-TypeScript environments.
 - **−** JSON config cannot express custom chunker logic — only built-in strategies.
@@ -246,10 +282,13 @@ A JSON Schema is published at `schemas/virage.config.schema.json` for editor val
 **Status:** Accepted
 
 ### Context
+
 If the embedding model changes between runs, all cached embeddings are invalid — vectors from different models are not comparable. Manual cache invalidation is error-prone.
 
 ### Decision
+
 `embeddings.json` stores a `_meta` header (`EmbeddingsMeta`) with `model`, `providerDimensions`, `providerName`, `vectorStoreName`, `createdAt`, and `updatedAt`. On startup, `EmbedderProcessor` compares the current provider's model and dimensions against `_meta`:
+
 - **Model or dimensions changed** → clear all embeddings, force full re-embed (loud warning to stdout).
 - **Provider name changed but model/dimensions unchanged** → no invalidation (same model via OpenAI vs Azure vs GitHub Models produces identical vectors).
 - **Vector store name changed** → `Uploader` forces a full re-upload on the next run.
@@ -257,6 +296,7 @@ If the embedding model changes between runs, all cached embeddings are invalid �
 Legacy `embeddings.json` files (bare arrays, no `_meta`) are read transparently via `embeddings-io.ts`.
 
 ### Consequences
+
 - **+** Prevents silent vector corruption when switching models.
 - **+** Provider name changes (e.g. OpenAI → Azure OpenAI, same model) do not wastefully re-embed.
 - **+** Backwards compatible with existing `embeddings.json` files.
@@ -270,12 +310,15 @@ Legacy `embeddings.json` files (bare arrays, no `_meta`) are read transparently 
 **Status:** Accepted
 
 ### Context
+
 As the provider ecosystem grows, consumers should be able to reference providers by package name in their config rather than hand-writing import wiring. A lightweight discovery contract avoids a central registry.
 
 ### Decision
+
 `discoverPlugins(packageNames)` dynamically imports each listed package and looks for `ragPlugin: RagPlugin` (single) or `ragPlugins: RagPlugin[]` (multiple) named exports. Each `RagPlugin` carries a `type` (`"embedder" | "store" | "chunker"`) and a `factory` function. Packages not following the convention emit a warning and are skipped.
 
 ### Consequences
+
 - **+** Any npm package can become a RAG plugin with a trivial two-field export.
 - **+** No central registry or peer-dependency declaration needed.
 - **−** Discovery is eager (all listed packages are imported at startup).
@@ -290,16 +333,20 @@ As the provider ecosystem grows, consumers should be able to reference providers
 **Status:** Accepted
 
 ### Context
+
 Running the RAG update pipeline in CI used to build `rag-core` from source as part of the same job. After the monorepo restructure, the source layout changed and build ordering became fragile. Additionally, "run the RAG pipeline on docs" is a content-update concern, not a library-build concern.
 
 ### Decision
+
 Extract the RAG pipeline into a dedicated workflow (`.github/workflows/virage.yaml`) that:
+
 1. Installs `@vivantel/virage-core` and companion packages from the published npm registry (not from source).
 2. Uses `virage.config.ci.json` (tracked, schema-validated).
 3. Caches `docs/rag/chunks.json` and `docs/rag/embeddings.json` via `actions/cache` to make incremental runs fast.
 4. Triggers only on pushes to `master`.
 
 ### Consequences
+
 - **+** Decouples RAG pipeline health from library CI; each can fail independently.
 - **+** CI config is pinned to released versions, not to whatever is on `master`.
 - **+** Contributors don't need to build the library to run the pipeline locally.
@@ -313,12 +360,15 @@ Extract the RAG pipeline into a dedicated workflow (`.github/workflows/virage.ya
 **Status:** Accepted
 
 ### Context
+
 The initial vector store implementation targeted Supabase (`rag-store-supabase`). Supabase is PostgreSQL under the hood and exposes pgvector. Managing the Supabase client SDK (auth, realtime, storage bundled) was unnecessary overhead for a backend-only vector store use case.
 
 ### Decision
+
 Replace `@vivantel/virage-store-supabase` with `@vivantel/virage-store-postgres`, which connects directly to PostgreSQL via `pg` + `pgvector`. The new package exposes `createVectorStore(config)` compatible with the JSON config format (ADR-011). Connection details are passed via environment variables expanded at load time.
 
 ### Consequences
+
 - **+** Direct Postgres connection is simpler, lighter, and works with any Postgres host (self-hosted, RDS, Supabase, Neon, etc.).
 - **+** Removes the Supabase SDK from the dependency tree.
 - **−** Supabase-specific features (Row Level Security policies, realtime subscriptions) are no longer available.
@@ -332,15 +382,18 @@ Replace `@vivantel/virage-store-supabase` with `@vivantel/virage-store-postgres`
 **Status:** Accepted
 
 ### Context
+
 Manual version bumps and CHANGELOG maintenance are error-prone. npm provenance (linking a published package to its source commit) is a supply-chain security best practice.
 
 ### Decision
+
 - All commit messages follow Conventional Commits (`feat:`, `fix:`, `chore:`, `feat!:` etc.).
 - `release-please` runs in GitHub Actions manifest mode, generating version-bump PRs per package based on commit types.
 - Publish uses GitHub Actions OIDC (`id-token: write`) for npm's trusted publisher mechanism, attaching a verifiable provenance attestation to every published tarball.
 - `prepublishOnly` runs `build && test` as a final gate.
 
 ### Consequences
+
 - **+** CHANGELOG and version bumps are automatic and consistent.
 - **+** Each package versions independently (monorepo-safe).
 - **+** npm provenance protects consumers from tampered packages.
@@ -356,12 +409,15 @@ Manual version bumps and CHANGELOG maintenance are error-prone. npm provenance (
 **Supersedes:** ADR-007
 
 ### Context
+
 Two config formats (`virage.config.json` and `rag.config.ts`) were supported. The JSON format handles all practical use cases via `${ENV_VAR}` expansion and named built-in strategies. The TypeScript format required `tsx` as a runtime dependency, added complexity to `loadConfig()`, and was never the recommended path for CI (which always used JSON). Maintaining both added surface area without a proportional benefit.
 
 ### Decision
+
 Remove TypeScript config loading entirely. `loadConfig()` now only handles JSON. Passing a `.ts` path raises a `ConfigError` with a migration suggestion. `tsx` is moved from `dependencies` to `devDependencies` (kept only for the `dev` watch script). The `init` command no longer offers a "TypeScript format" option.
 
 ### Consequences
+
 - **+** Simpler `loadConfig()` — one code path, one format.
 - **+** `tsx` removed from the published package's runtime dependency tree.
 - **+** `init` wizard is simpler and always produces a working JSON config.
@@ -375,12 +431,15 @@ Remove TypeScript config loading entirely. `loadConfig()` now only handles JSON.
 **Status:** Accepted
 
 ### Context
+
 Raw `console.*` calls were scattered across the pipeline and all plugin packages. There was no way to silence output in tests or increase verbosity in debugging sessions without editing source code.
 
 ### Decision
+
 Introduce a `Logger` interface with two implementations: `ConsolaLogger` (wraps `consola`, default) and `NullLogger` (silences all output). The CLI exposes a stackable `-v` flag (0–5 levels); the resolved log level is passed to `createLogger(verbosity)` and threaded through `Orchestrator` and all pipeline stages. All plugin packages add a `setLogger(logger: Logger)` method so the orchestrator can propagate the logger without coupling plugins to a specific logging library.
 
 ### Consequences
+
 - **+** Tests can use `NullLogger` to silence pipeline output without I/O redirection.
 - **+** `-vvv` gives progressively more detailed output without code changes.
 - **+** Plugins remain decoupled from any specific logging library.
@@ -394,12 +453,15 @@ Introduce a `Logger` interface with two implementations: `ConsolaLogger` (wraps 
 **Status:** Accepted
 
 ### Context
+
 The prior shell-script e2e test was not integrated with CI, produced no structured output, had no per-test isolation, and required manual inspection to determine pass/fail.
 
 ### Decision
+
 Replace the shell script with a Vitest-based acceptance suite under `packages/rag-core/test/acceptance/`. Separate `vitest.acceptance.config.ts` sets a 6-minute test timeout, `forks` pool (for subprocess isolation), and verbose reporter. Fixture helpers (`writeChunks`, `writeEmbeddings`, `writeTelemetry`, `writeExperimentRun`) allow most tests to skip the full pipeline. `E2E_CLONE_DIR` environment variable bypasses the slow `git clone` step so developers can iterate quickly. One test per CLI command.
 
 ### Consequences
+
 - **+** Per-test failure isolation; JUnit-compatible output for CI.
 - **+** Typed JSON assertions instead of stdout grep.
 - **+** Fixture-based tests run in seconds; only `update` and `store` require the full pipeline.
@@ -413,12 +475,15 @@ Replace the shell script with a Vitest-based acceptance suite under `packages/ra
 **Status:** Accepted
 
 ### Context
+
 The acceptance tests needed a `VectorStore` implementation that persists state to a local JSON file so the full pipeline can run without a real database. The implementation lived in `scripts/test-store.mjs` and was referenced by an absolute file path in `vectorStore.package` — fragile and not resolvable by the standard `import()` mechanism used by `loadConfig()`.
 
 ### Decision
+
 Promote the implementation to a private TypeScript workspace package `@vivantel/virage-store-test`. The config references it as `"package": "@vivantel/virage-store-test"` and the npm workspace symlink resolves it correctly. The package deliberately has no `rag-plugin` field so it is not auto-discovered by `loadRegistry()`. It fully implements `VectorStore` including `getIndexStats()` and `getQueryPerfReport()` (returning stub zeroes).
 
 ### Consequences
+
 - **+** Config uses a clean package name rather than a fragile absolute path.
 - **+** Type-safe TypeScript implementation; peer-depends on `@vivantel/virage-core` for the interface types.
 - **+** No risk of accidental production use (no `rag-plugin` field, `private: true`).
@@ -432,12 +497,15 @@ Promote the implementation to a private TypeScript workspace package `@vivantel/
 **Status:** Accepted (renamed `update` → `index` 2026-06-05)
 
 ### Context
+
 Running bare `virage` executed the full pipeline silently — a poor experience for first-time users and dangerous in scripts that accidentally call the wrong binary. Other popular CLIs (git, npm, cargo) show help when called without a subcommand.
 
 ### Decision
+
 Move the pipeline execution logic from the root program action into an explicit `index` subcommand (originally `update`, renamed for clarity). The root program's `.action()` now calls `program.outputHelp()`. All existing flags (`--force`, `--no-upload`, `--dry-run`, `--embeddings-out`, `--watch`) are unchanged, just moved under `index`. The stackable `-v` flag remains on the root program and is inherited by `index` via `program.opts()`.
 
 ### Consequences
+
 - **+** Running `virage` with no arguments prints help — discoverable and safe.
 - **+** All subcommands now follow the same `virage <command>` pattern.
 - **−** Breaking change: scripts calling `virage update` must be updated to `virage index`.
@@ -494,7 +562,9 @@ Before this change, the upload stage ran only after all embeddings were complete
 `EmbedderProcessor.run()` accepts an optional `onIntermediateBatch?: () => Promise<void>` callback and a `minIngestionBatchSize` constructor option (default `Infinity` — disabled). After each timed save, if `db.pendingCount() >= minIngestionBatchSize`, the callback is invoked. The orchestrator wires this to:
 
 ```typescript
-async () => { await uploader.uploadPending(db); }
+async () => {
+  await uploader.uploadPending(db);
+};
 ```
 
 `uploadPending(db)` uploads only pending rows (no delta check against the vector store, no delete phase) and calls `db.markUploaded(contentHashes)` after each batch.
@@ -526,7 +596,9 @@ Introduce `isFatalVectorStoreError(err: unknown): boolean` in `uploader.ts`:
 
 ```typescript
 const msg = String(err instanceof Error ? err.message : err).toLowerCase();
-return /schema error|schema mismatch|unauthorized|authentication failed/.test(msg);
+return /schema error|schema mismatch|unauthorized|authentication failed/.test(
+  msg,
+);
 ```
 
 All `withRetry` calls in `Uploader` (both `sync()` and `uploadPending()`) now pass `isRetryable: (err) => !isFatalVectorStoreError(err)`. A fatal error causes `withRetry` to rethrow immediately, skipping all remaining retry attempts.

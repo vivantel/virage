@@ -1,13 +1,13 @@
 {
   "types": [
-    {"type": "feat", "section": "Features"},
-    {"type": "fix", "section": "Bug Fixes"},
-    {"type": "perf", "section": "Performance Improvements"},
-    {"type": "refactor", "section": "Code Refactoring"},
-    {"type": "docs", "section": "Documentation"},
-    {"type": "style", "hidden": true},
-    {"type": "chore", "hidden": true},
-    {"type": "test", "hidden": true}
+    { "type": "feat", "section": "Features" },
+    { "type": "fix", "section": "Bug Fixes" },
+    { "type": "perf", "section": "Performance Improvements" },
+    { "type": "refactor", "section": "Code Refactoring" },
+    { "type": "docs", "section": "Documentation" },
+    { "type": "style", "hidden": true },
+    { "type": "chore", "hidden": true },
+    { "type": "test", "hidden": true }
   ],
   "releaseCommitMessageFormat": "chore: release {{currentTag}}",
   "skip": {

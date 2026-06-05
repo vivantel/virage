@@ -1,6 +1,7 @@
 # Roadmap: @vivantel/virage-core
 
 ## Current Status
+
 - **Current version:** 1.1.2
 - **State:** Core interfaces + GitTracker + Orchestrator + CLI working
 - **Provenance:** Fixed with `repository.url`
@@ -14,22 +15,25 @@
 
 ### Features
 
-| Feature | Description | Priority |
-|---------|-------------|----------|
-| **CLI `init` command** | Generate `virage.config.json` config | P0 |
-| **CLI `validate` command** | Validate config without running | P0 |
-| **Better error messages** | Human-readable errors with suggestions | P0 |
-| **Dry-run mode** | `--dry-run` shows what would change | P1 |
-| **Progress bar** | Visual feedback during long operations | P1 |
-| **TypeScript examples** | More examples in docs | P1 |
+| Feature                    | Description                            | Priority |
+| -------------------------- | -------------------------------------- | -------- |
+| **CLI `init` command**     | Generate `virage.config.json` config   | P0       |
+| **CLI `validate` command** | Validate config without running        | P0       |
+| **Better error messages**  | Human-readable errors with suggestions | P0       |
+| **Dry-run mode**           | `--dry-run` shows what would change    | P1       |
+| **Progress bar**           | Visual feedback during long operations | P1       |
+| **TypeScript examples**    | More examples in docs                  | P1       |
 
 ### Breaking Changes
+
 - None (minor version)
 
 ### Migration Effort
+
 - None — fully backward compatible
 
 ### Estimated Delivery
+
 - 2 weeks
 
 ---
@@ -40,17 +44,18 @@
 
 ### Features
 
-| Feature | Description | Priority |
-|---------|-------------|----------|
-| **Retry logic** | Exponential backoff for failed API calls | P0 |
-| **Parallel processing** | Configurable concurrency for embeddings | P0 |
-| **Resume capability** | Continue interrupted pipeline | P1 |
-| **Telemetry** | Optional usage metrics (opt-in) | P2 |
-| **Slack/Webhook notifications** | Notify on completion/failure | P2 |
+| Feature                         | Description                              | Priority |
+| ------------------------------- | ---------------------------------------- | -------- |
+| **Retry logic**                 | Exponential backoff for failed API calls | P0       |
+| **Parallel processing**         | Configurable concurrency for embeddings  | P0       |
+| **Resume capability**           | Continue interrupted pipeline            | P1       |
+| **Telemetry**                   | Optional usage metrics (opt-in)          | P2       |
+| **Slack/Webhook notifications** | Notify on completion/failure             | P2       |
 
 ### Technical Details
 
 **Retry configuration:**
+
 ```typescript
 options: {
   maxRetries: 3,
@@ -60,19 +65,23 @@ options: {
 ```
 
 **Parallel processing:**
+
 ```typescript
 options: {
-  concurrency: 5  // parallel embedding requests
+  concurrency: 5; // parallel embedding requests
 }
 ```
 
 ### Breaking Changes
+
 - None
 
 ### Migration Effort
+
 - None
 
 ### Estimated Delivery
+
 - 3 weeks
 
 ---
@@ -83,23 +92,24 @@ options: {
 
 ### Features
 
-| Feature | Description | Priority |
-|---------|-------------|----------|
-| **Separate provider packages** | Move embedders/vector stores to own packages | P0 |
-| **Plugin discovery** | Auto-detect installed providers | P0 |
-| **Configuration schema** | JSON Schema for `virage.config.json` | P1 |
-| **Hot reload** | Watch mode for config changes | P2 |
+| Feature                        | Description                                  | Priority |
+| ------------------------------ | -------------------------------------------- | -------- |
+| **Separate provider packages** | Move embedders/vector stores to own packages | P0       |
+| **Plugin discovery**           | Auto-detect installed providers              | P0       |
+| **Configuration schema**       | JSON Schema for `virage.config.json`         | P1       |
+| **Hot reload**                 | Watch mode for config changes                | P2       |
 
 ### Breaking Changes
 
-| Change | Reason | Migration |
-|--------|--------|-----------|
-| `EmbeddingProvider` interface changed | Support streaming | Implement new methods |
-| `VectorStore` interface changed | Better batch operations | Update implementations |
-| Removed built-in strategies | Move to separate package | Install `@vivantel/virage-strategies` |
-| CLI options renamed | Consistency | Update scripts |
+| Change                                | Reason                   | Migration                             |
+| ------------------------------------- | ------------------------ | ------------------------------------- |
+| `EmbeddingProvider` interface changed | Support streaming        | Implement new methods                 |
+| `VectorStore` interface changed       | Better batch operations  | Update implementations                |
+| Removed built-in strategies           | Move to separate package | Install `@vivantel/virage-strategies` |
+| CLI options renamed                   | Consistency              | Update scripts                        |
 
 ### Migration Path
+
 ```bash
 # Old way
 import { tokenStrategy } from '@vivantel/virage-core';
@@ -110,20 +120,21 @@ import { tokenStrategy } from '@vivantel/virage-strategies';
 ```
 
 ### Estimated Delivery
+
 - 4-5 weeks
 
 ---
 
 ## Separated Packages (v2.0 companion)
 
-| Package | Description | Status |
-|---------|-------------|--------|
-| `@vivantel/virage-strategies` | Built-in chunking strategies | Planned |
-| `@vivantel/virage-embedder-github` | GitHub Models provider | Planned |
-| `@vivantel/virage-embedder-openai` | OpenAI provider | Planned |
-| `@vivantel/virage-store-postgres` | PostgreSQL / pgvector store | Existing |
-| `@vivantel/virage-store-pinecone` | Pinecone store | Planned |
-| `@vivantel/virage-chunker-event` | Event YAML chunker (Vivantel-specific) | Planned |
+| Package                            | Description                            | Status   |
+| ---------------------------------- | -------------------------------------- | -------- |
+| `@vivantel/virage-strategies`      | Built-in chunking strategies           | Planned  |
+| `@vivantel/virage-embedder-github` | GitHub Models provider                 | Planned  |
+| `@vivantel/virage-embedder-openai` | OpenAI provider                        | Planned  |
+| `@vivantel/virage-store-postgres`  | PostgreSQL / pgvector store            | Existing |
+| `@vivantel/virage-store-pinecone`  | Pinecone store                         | Planned  |
+| `@vivantel/virage-chunker-event`   | Event YAML chunker (Vivantel-specific) | Planned  |
 
 ---
 
@@ -170,8 +181,8 @@ import { tokenStrategy } from '@vivantel/virage-strategies';
 
 ## Timeline Summary
 
-| Version | Focus | Weeks | Cumulative |
-|---------|-------|-------|------------|
-| 1.2.0 | Developer Experience | 2 | 2 |
-| 1.3.0 | Production Hardening | 3 | 5 |
-| 2.0.0 | Plugin Ecosystem | 5 | 10 |
+| Version | Focus                | Weeks | Cumulative |
+| ------- | -------------------- | ----- | ---------- |
+| 1.2.0   | Developer Experience | 2     | 2          |
+| 1.3.0   | Production Hardening | 3     | 5          |
+| 2.0.0   | Plugin Ecosystem     | 5     | 10         |
