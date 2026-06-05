@@ -385,7 +385,7 @@ chunks
 program
   .command("dashboard")
   .description("Start a local RAG monitoring dashboard")
-  .option("--port <n>", "Port to serve on", parseInt, 3000)
+  .option("--port <n>", "Port to serve on", (v) => parseInt(v, 10), 3000)
   .option("--embeddings <path>", "Embeddings DB path", defaultEmbeddingsDb())
   .action(async (opts: { port: number; embeddings: string }) => {
     try {

@@ -570,7 +570,7 @@ export async function runDashboard(opts: DashboardOptions): Promise<void> {
 
   if (HAS_UI) {
     app.use(express.static(UI_DIR));
-    app.get("*", (_req: Request, res: Response) => {
+    app.get("/{*splat}", (_req: Request, res: Response) => {
       res.sendFile(join(UI_DIR, "index.html"));
     });
   }
