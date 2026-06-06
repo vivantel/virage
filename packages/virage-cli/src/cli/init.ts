@@ -51,6 +51,8 @@ function getRequiredPackages(
   if (embedderEntry && embedderEntry.key !== "custom")
     pkgs.add(embedderEntry.package);
   if (storeEntry && storeEntry.key !== "custom") pkgs.add(storeEntry.package);
+  if (state.groups.some((g) => g.strategyFn === "codeChunkStrategy"))
+    pkgs.add("@vivantel/virage-code-chunk-chunker");
   return Array.from(pkgs);
 }
 
@@ -141,6 +143,7 @@ const STRATEGY_FN_TO_JSON: Record<string, string> = {
   tokenStrategy: "token",
   wholeFileStrategy: "wholeFile",
   semanticStrategy: "semantic",
+  codeChunkStrategy: "codeChunkAst",
 };
 
 function generateJsonConfig(

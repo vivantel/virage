@@ -105,7 +105,6 @@ async function runOnce(options: {
   logger: Logger;
   verbosity: number;
 }): Promise<void> {
-  const cfg = await loadConfig(options.config, options.logger);
   const bars = createMultiProgressBars();
   const pipelineLogger = new MultiBarLogger(
     options.logger,
@@ -114,6 +113,7 @@ async function runOnce(options: {
   );
 
   try {
+    const cfg = await loadConfig(options.config, pipelineLogger);
     const orchestrator = new Orchestrator({
       ...cfg,
       options: {
@@ -126,6 +126,14 @@ async function runOnce(options: {
         onChunkProgress: (done, total) => {
           bars.chunk.setTotal(total);
           bars.chunk.update(done);
+        },
+        onEmbedProgress: (done, total) => {
+          bars.embed.setTotal(total);
+          bars.embed.update(done);
+        },
+        onUploadProgress: (done, total) => {
+          bars.upload.setTotal(total);
+          bars.upload.update(done);
         },
       },
     });

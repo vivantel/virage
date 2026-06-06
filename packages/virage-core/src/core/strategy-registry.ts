@@ -5,13 +5,15 @@ export type BuiltinStrategyName =
   | "markdownHeaders"
   | "token"
   | "wholeFile"
-  | "semantic";
+  | "semantic"
+  | "codeChunkAst";
 
 export const BUILTIN_STRATEGY_NAMES: BuiltinStrategyName[] = [
   "markdownHeaders",
   "token",
   "wholeFile",
   "semantic",
+  "codeChunkAst",
 ];
 
 export interface StrategyOptions {
@@ -71,6 +73,24 @@ export async function resolveStrategy(
     case "semantic":
       if (!mod.semanticStrategy) break;
       return mod.semanticStrategy(options);
+    case "codeChunkAst": {
+      const pkg = "@vivantel/virage-code-chunk-chunker";
+      try {
+        const mod = (await import(pkg)) as {
+          codeChunkStrategy: (opts?: StrategyOptions) => ChunkStrategy;
+        };
+        return mod.codeChunkStrategy(options);
+      } catch (err) {
+        const isNotFound =
+          err instanceof Error && err.message.includes("Cannot find module");
+        throw new ConfigError(`Cannot load strategy package "${pkg}"`, {
+          suggestion: isNotFound
+            ? `Install it first: npm install ${pkg}`
+            : undefined,
+          cause: err,
+        });
+      }
+    }
     default:
       throw new ConfigError(
         `Unknown strategy name: "${name}". Valid values: ${BUILTIN_STRATEGY_NAMES.join(", ")}`,

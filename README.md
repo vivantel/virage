@@ -23,6 +23,7 @@ Monorepo for the **Virage** ecosystem — a Git-aware RAG pipeline that turns yo
 | [`@vivantel/virage-store-qdrant`](packages/virage-store-qdrant)                   | [![npm](https://img.shields.io/npm/v/@vivantel/virage-store-qdrant.svg)](https://www.npmjs.com/package/@vivantel/virage-store-qdrant)                   | Qdrant vector store (local and cloud)                             |
 | [`@vivantel/virage-store-lancedb`](packages/virage-store-lancedb)                 | [![npm](https://img.shields.io/npm/v/@vivantel/virage-store-lancedb.svg)](https://www.npmjs.com/package/@vivantel/virage-store-lancedb)                 | LanceDB vector store (embedded, file-based)                       |
 | [`@vivantel/virage-store-chromadb`](packages/virage-store-chromadb)               | [![npm](https://img.shields.io/npm/v/@vivantel/virage-store-chromadb.svg)](https://www.npmjs.com/package/@vivantel/virage-store-chromadb)               | ChromaDB vector store (local or hosted)                           |
+| [`@vivantel/virage-code-chunk-chunker`](packages/virage-code-chunk-chunker)       | [![npm](https://img.shields.io/npm/v/@vivantel/virage-code-chunk-chunker.svg)](https://www.npmjs.com/package/@vivantel/virage-code-chunk-chunker)       | AST-aware code chunking for TS, JS, Python, Go, Java              |
 
 ## Quick start
 
@@ -33,7 +34,7 @@ npm install @vivantel/virage-core @vivantel/virage-cli @vivantel/virage-strategi
   @vivantel/virage-embedder-fastembed @vivantel/virage-store-lancedb
 ```
 
-Generate a config interactively (scans installed plugins automatically):
+Generate a config interactively (detects file types and selects strategies automatically; installs required packages including `@vivantel/virage-code-chunk-chunker` for code projects):
 
 ```bash
 npx virage init
@@ -55,11 +56,7 @@ All configuration lives in `virage.config.json`. The `$schema` field enables IDE
   "$schema": "./node_modules/@vivantel/virage-core/schemas/virage.config.schema.json",
   "chunkers": [
     { "patterns": ["**/*.md"], "strategy": "markdownHeaders" },
-    {
-      "patterns": ["src/**/*.ts"],
-      "strategy": "token",
-      "strategyOptions": { "maxTokens": 400 }
-    }
+    { "patterns": ["src/**/*.ts", "src/**/*.tsx"], "strategy": "codeChunkAst" }
   ],
   "embedder": {
     "package": "@vivantel/virage-embedder-fastembed",
@@ -78,12 +75,13 @@ All configuration lives in `virage.config.json`. The `$schema` field enables IDE
 
 ## Built-in strategies
 
-| Strategy          | Best for                                                          |
-| ----------------- | ----------------------------------------------------------------- |
-| `markdownHeaders` | Markdown documentation — splits at `##` headings                  |
-| `token`           | Source code, structured text — respects `maxTokens` and `overlap` |
-| `semantic`        | Prose, articles — splits on paragraph/sentence boundaries         |
-| `wholeFile`       | Small configs, YAML, rule files — one chunk per file              |
+| Strategy          | Best for                                                                                                         |
+| ----------------- | ---------------------------------------------------------------------------------------------------------------- |
+| `markdownHeaders` | Markdown documentation — splits at `##` headings                                                                 |
+| `codeChunkAst`    | Source code (TS, JS, Python, Go, Java) — AST-aware splits at function/class boundaries; requires `@vivantel/virage-code-chunk-chunker` |
+| `token`           | Source code, structured text — respects `maxTokens` and `overlap`                                               |
+| `semantic`        | Prose, articles — splits on paragraph/sentence boundaries                                                        |
+| `wholeFile`       | Small configs, YAML, rule files — one chunk per file                                                             |
 
 ## CLI commands
 
@@ -95,7 +93,7 @@ Options:
   -h, --help      Display help
 
 Commands:
-  update          Run the indexing pipeline (default)
+  index           Run the indexing pipeline (default)
   init            Generate virage.config.json interactively
   validate        Validate config without running the pipeline
   dashboard       Start the local monitoring dashboard

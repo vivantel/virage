@@ -30,6 +30,38 @@
             "statusMessage": "Reminding to check skill-guru standard..."
           }
         ]
+      },
+      {
+        "matcher": "Write(docs/internal/next_plan.md)",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo 'PLANNER SKILL: Load .agents/skills/planner/SKILL.md before writing this plan file to follow the planning workflow.'",
+            "statusMessage": "Loading planner skill guidance..."
+          }
+        ]
+      },
+      {
+        "matcher": "Edit(docs/internal/next_plan.md)",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo 'PLANNER SKILL: Load .agents/skills/planner/SKILL.md before editing this plan file to follow the planning workflow.'",
+            "statusMessage": "Loading planner skill guidance..."
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit(packages/**)",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo 'DOCS: If this edit adds/removes/renames a user-visible feature (strategy, CLI flag, package, config field), load .agents/skills/readme/SKILL.md and update README.md.'",
+            "statusMessage": "Checking if README needs updating..."
+          }
+        ]
       }
     ]
   }
