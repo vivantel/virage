@@ -76,10 +76,14 @@ Required scripts: `build`, `type-check`, `lint`, `lint:fix`, `format`, `format:c
 3. Copy `tsconfig.json` from `packages/virage-store-lancedb/tsconfig.json` (NodeNext pattern, `rootDir: "./src"`, `outDir: "./dist"`)
 4. Create `src/index.ts` (exports) and `README.md` (badges, description, install, usage)
 5. Wire release-please (see `skill-cicd.md` §Adding a new publishable package)
-6. Wire CI: `.github/workflows/ci.yaml` filters + `.github/workflows/release.yaml` matrix + root `package.json` `type-check:ci` script (`-w packages/<name>`)
+6. Wire CI workflows: add path filter to `.github/workflows/ci.yaml` `filters:` block; add output + `packages+=` line to `.github/workflows/release.yaml`
+6a. Add `-w packages/<name>` to the `type-check:ci` script in root `package.json`
 7. Update §Current State table above
 8. Update `skill-cicd.md` §Current State published packages list
-9. `npm install` from repo root (links workspace)
+9. `npm install` from repo root — links workspace and updates `package-lock.json`.  
+   **STOP if this fails for any reason** (disk space, network, native build error). Do not write source files or proceed to later steps until `npm install` completes successfully and `package-lock.json` contains the new package name.  
+   Stage `package-lock.json` alongside source files — a stale lock file breaks `npm ci` in CI.
+9a. Verify lock file updated: `grep -c "<package-name>" package-lock.json` must return > 0. If it returns 0, re-run `npm install`.
 10. `npm run type-check -w @vivantel/<name>` must pass
 11. `npm run build -w @vivantel/<name>` must pass
 12. Run `skill-overseer.md` reactive checklist
@@ -130,4 +134,4 @@ npm run type-check:ci                                     # all included package
 npx vitest run src/core/git-tracker.test.ts               # single test file
 ```
 
-**Type-check exclusions**: `virage-embedder-openai` and `virage-embedder-transformers` are excluded from `type-check:ci` due to corrupted third-party type declarations in this environment.
+**Type-check exclusions**: `virage-embedder-openai`, `virage-embedder-transformers`, and `virage-mcp` are excluded from `type-check:ci` due to corrupted third-party type declarations in this environment (`@modelcontextprotocol/sdk` `stdio.d.ts` is empty).
