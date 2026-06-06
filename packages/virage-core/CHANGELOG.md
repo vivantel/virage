@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.19](https://github.com/vivantel/virage/compare/virage-core@v0.2.18...virage-core@v0.2.19) (2026-06-06)
+
+
+### Features
+
+* **virage-cli:** Use codeChunkAst for code files in init; fix index -vv progress bars ([0cfe3f9](https://github.com/vivantel/virage/commit/0cfe3f9a44dda0ab8a744808093a2367774a39d5))
+
 ## [0.2.18](https://github.com/vivantel/virage/compare/virage-core@v0.2.17...virage-core@v0.2.18) (2026-06-06)
 
 

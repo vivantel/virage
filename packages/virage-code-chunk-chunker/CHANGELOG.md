@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.1.3](https://github.com/vivantel/virage/compare/virage-code-chunk-chunker@v0.1.2...virage-code-chunk-chunker@v0.1.3) (2026-06-06)
+
+
+### Features
+
+* **virage-cli:** Use codeChunkAst for code files in init; fix index -vv progress bars ([0cfe3f9](https://github.com/vivantel/virage/commit/0cfe3f9a44dda0ab8a744808093a2367774a39d5))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * devDependencies
+    * @vivantel/virage-core bumped from 0.2.18 to 0.2.19
+  * peerDependencies
+    * @vivantel/virage-core bumped from * to 0.2.19
+
 ## [0.1.2](https://github.com/vivantel/virage/compare/virage-code-chunk-chunker@v0.1.1...virage-code-chunk-chunker@v0.1.2) (2026-06-06)
 
 
