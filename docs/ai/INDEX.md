@@ -11,7 +11,7 @@ Load this index before any task. Pick a skill, load it, then execute.
 | Plan, sequence, and track implementation work     | `.agents/skills/planner/SKILL.md`             |
 | Maintain root README.md                           | `.agents/skills/readme/SKILL.md`              |
 | Add / update / develop / test a package           | `.agents/skills/package/SKILL.md`             |
-| Modify CI/CD or release config                    | `.agents/skills/cicd/SKILL.md`                |
+| Modify CI/CD or release config                    | `.agents/skills/devops/SKILL.md`                |
 | Keep skill files in sync with codebase            | `.agents/skills/overseer/SKILL.md`            |
 | Make or review an architecture decision           | `.agents/skills/architect/SKILL.md`           |
 | Set up, run, or debug tests and eval              | `.agents/skills/qa/SKILL.md`                  |

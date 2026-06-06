@@ -93,11 +93,11 @@ Required scripts: `build`, `type-check`, `lint`, `lint:fix`, `format`, `format:c
 2. Create `packages/<name>/package.json` — all required fields above; set `"type": "module"`
 3. Copy `tsconfig.json` from `packages/virage-store-lancedb/tsconfig.json` (NodeNext pattern, `rootDir: "./src"`, `outDir: "./dist"`)
 4. Create `src/index.ts` (exports) and `README.md` (badges, description, install, usage)
-5. Wire release-please (see `.agents/skills/cicd/SKILL.md` §Adding a new publishable package)
+5. Wire release-please (see `.agents/skills/devops/SKILL.md` §Adding a new publishable package)
 6. Wire CI workflows: add path filter to `.github/workflows/ci.yaml` `filters:` block; add output + `packages+=` line to `.github/workflows/release.yaml`
 6a. Add `-w packages/<name>` to the `type-check:ci` script in root `package.json`
 7. Update §Current State table above
-8. Update `.agents/skills/cicd/SKILL.md` §Current State published packages list
+8. Update `.agents/skills/devops/SKILL.md` §Current State published packages list
 9. `npm install` from repo root — links workspace and updates `package-lock.json`.  
    **STOP if this fails for any reason** (disk space, network, native build error). Do not write source files or proceed to later steps until `npm install` completes successfully and `package-lock.json` contains the new package name.  
    Stage `package-lock.json` alongside source files — a stale lock file breaks `npm ci` in CI.

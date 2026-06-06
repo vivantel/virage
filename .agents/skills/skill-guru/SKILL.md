@@ -114,7 +114,7 @@ Include these when the data is available:
 | --------- | ---------- | ------- |
 | `.agents/skills/analyst/` | `analyst` | Telemetry, diagnostics, eval metrics, pipeline observability |
 | `.agents/skills/architect/` | `architect` | Architecture decisions, ADRs, interface design, pipeline structure |
-| `.agents/skills/cicd/` | `cicd` | CI/CD workflows, release-please config, publish matrix |
+| `.agents/skills/devops/` | `devops` | CI/CD workflows, release-please config, publish matrix |
 | `.agents/skills/code-guardian/` | `code-guardian` | Code quality guardrails, fix sequence, ESLint/Prettier/TypeScript rules |
 | `.agents/skills/overseer/` | `overseer` | Keeps all skill files in sync after codebase structural changes |
 | `.agents/skills/package/` | `package` | Package lifecycle: add, update, build, sync, test |

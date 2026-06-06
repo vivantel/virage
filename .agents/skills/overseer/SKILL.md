@@ -37,7 +37,7 @@ Trigger on any of these events:
 | `docs/ai/INDEX.md`                        | Decision table, commands, cross-cutting rules, memory slugs                       | Decision table rows, command list               |
 | `.agents/skills/readme/SKILL.md`          | Root README section map                                                           | Section triggers table                          |
 | `.agents/skills/package/SKILL.md`         | Package lifecycle (add/update/develop/sync/test)                                  | Package inventory table, §Add steps             |
-| `.agents/skills/cicd/SKILL.md`            | Workflows + release config                                                        | Workflow map, published packages list           |
+| `.agents/skills/devops/SKILL.md`            | Workflows + release config                                                        | Workflow map, published packages list           |
 | `.agents/skills/overseer/SKILL.md`        | This file — skill sync                                                            | Skill inventory table (this table)              |
 | `.agents/skills/architect/SKILL.md`       | Architecture principles, ADR process, interfaces, patterns                        | Architecture facts, ADR log                     |
 | `.agents/skills/qa/SKILL.md`              | Testing strategy: unit, acceptance, eval, quality metrics                         | Test type map, eval workflow                    |
@@ -56,7 +56,7 @@ Run the relevant items after a structural change:
 ```
 [ ] Package added/removed
       → .agents/skills/package/SKILL.md §Current State (package inventory table)
-      → .agents/skills/cicd/SKILL.md §Current State (published packages list, if publishable)
+      → .agents/skills/devops/SKILL.md §Current State (published packages list, if publishable)
 
 [ ] CLI command added or changed
       → docs/ai/INDEX.md §Essential commands (if commonly used)
@@ -68,7 +68,7 @@ Run the relevant items after a structural change:
       → .agents/skills/architect/SKILL.md §Provider interfaces
 
 [ ] CI/CD workflow added, renamed, or restructured
-      → .agents/skills/cicd/SKILL.md §Current State (workflow file map)
+      → .agents/skills/devops/SKILL.md §Current State (workflow file map)
 
 [ ] New ADR written
       → .agents/skills/architect/SKILL.md §ADR log (add a row)

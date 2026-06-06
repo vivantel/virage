@@ -1,5 +1,5 @@
 ---
-name: cicd
+name: devops
 description: Modify CI/CD workflows and release configuration for the Virage monorepo.
 license: MIT
 metadata:
