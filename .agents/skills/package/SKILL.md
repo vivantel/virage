@@ -101,7 +101,7 @@ Required scripts: `build`, `type-check`, `lint`, `lint:fix`, `format`, `format:c
 9. `npm install` from repo root — links workspace and updates `package-lock.json`.  
    **STOP if this fails for any reason** (disk space, network, native build error). Do not write source files or proceed to later steps until `npm install` completes successfully and `package-lock.json` contains the new package name.  
    Stage `package-lock.json` alongside source files — a stale lock file breaks `npm ci` in CI.
-9a. Verify lock file updated: `grep -c "<package-name>" package-lock.json` must return > 0. If it returns 0, re-run `npm install`.
+9a. Verify lock file integrity: `npm ci --dry-run` from repo root must pass. If it fails, re-run `npm install` and retry. A simple `grep` is insufficient — it misses missing transitive dependency entries that will break `npm ci` in CI.
 10. `npm run type-check -w @vivantel/<name>` must pass
 11. `npm run build -w @vivantel/<name>` must pass
 12. Run `.agents/skills/overseer/SKILL.md` reactive checklist

@@ -55,14 +55,15 @@ metadata:
 1. **`.github/config/release-please.json`** — copy any sibling entry under `"packages"`, update the key and `package-name`
 
 2. **`.github/workflows/release.yaml`** — two locations:
-   - `outputs:` block → add:
+   - `outputs:` block of the `release-please` job → add:
      ```yaml
      <name>: ${{ steps.release.outputs['packages/<name>--release_created'] }}
      ```
-   - `strategy.matrix.package:` array → add:
-     ```yaml
-     - virage-<name>
+   - `compute-publish-matrix` step bash block → add one conditional line:
+     ```bash
+     if [[ "${{ needs.release-please.outputs.<name> }}" == "true" ]]; then packages+=("virage-<name>"); fi
      ```
+   > There is no static matrix array — the `publish` job uses `fromJSON(needs.compute-publish-matrix.outputs.packages)`.
 
 3. **`.github/workflows/ci.yaml`** — `filters:` block in the `changes` job: copy a sibling entry, update the package name and path glob
 
