@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.2.19](https://github.com/vivantel/virage/compare/virage-store-postgres@v0.2.18...virage-store-postgres@v0.2.19) (2026-06-06)
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * devDependencies
+    * @vivantel/virage-core bumped from 0.2.17 to 0.2.18
+  * peerDependencies
+    * @vivantel/virage-core bumped from * to 0.2.18
+
 ## [0.2.18](https://github.com/vivantel/virage/compare/virage-store-postgres@v0.2.17...virage-store-postgres@v0.2.18) (2026-06-05)
 
 
