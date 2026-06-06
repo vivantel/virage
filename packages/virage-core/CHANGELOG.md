@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.18](https://github.com/vivantel/virage/compare/virage-core@v0.2.17...virage-core@v0.2.18) (2026-06-06)
+
+
+### Features
+
+* **virage-code-chunk-chunker:** Add AST-aware code chunking package ([aa7d4c9](https://github.com/vivantel/virage/commit/aa7d4c9c3aa825752528f536cd33deb2f748df48))
+
 ## [0.2.17](https://github.com/vivantel/virage/compare/virage-core@v0.2.16...virage-core@v0.2.17) (2026-06-05)
 
 
