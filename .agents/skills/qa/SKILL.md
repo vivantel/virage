@@ -1,6 +1,24 @@
+---
+name: qa
+description: Set up, run, and debug tests; generate eval datasets; run experiments; interpret quality metrics.
+license: MIT
+metadata:
+  author: vivantel-team
+  version: "1.0.0"
+---
+
 # Skill: QA — Tests, Eval, Quality Metrics
 
 **Purpose:** Set up, run, and debug tests; generate eval datasets; run experiments; interpret quality metrics.
+
+---
+
+## When to use this skill
+
+- Running unit, acceptance, or type-check tests
+- Setting up new test infrastructure or a new test type
+- Generating eval datasets and running retrieval experiments
+- Interpreting eval metrics (MRR, P@5, R@10, HitRate@5)
 
 ---
 
@@ -12,7 +30,7 @@
       npm run build -w @vivantel/virage-store-test
 [ ] For acceptance tests: set E2E_CLONE_DIR to reuse an existing clone (skips slow clone step)
       export E2E_CLONE_DIR=/path/to/existing/clone
-[ ] Before committing: npm run fix && npm run lint && npm run type-check:ci (see skill-code-guardian.md)
+[ ] Before committing: npm run fix && npm run lint && npm run type-check:ci (see .agents/skills/code-guardian/SKILL.md)
 ```
 
 ---
@@ -90,7 +108,7 @@ virage chunks report   # reads embeddings.db, prints cohesion metrics
 - `computeChunkQualityMetrics()`: standalone function, usable without a full strategy instance
 - `ChunkStrategy.getQualityMetrics?(chunks)`: optional hook on strategy objects
 
-**Embedding quality** (`virage store stats`, `virage store perf`) — see `skill-analyst.md`.
+**Embedding quality** (`virage store stats`, `virage store perf`) — see `.agents/skills/analyst/SKILL.md`.
 
 ---
 

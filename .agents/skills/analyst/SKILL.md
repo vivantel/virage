@@ -1,6 +1,24 @@
+---
+name: analyst
+description: Read and interpret pipeline telemetry, vector store metrics, and eval results to diagnose issues or assess performance.
+license: MIT
+metadata:
+  author: vivantel-team
+  version: "1.0.0"
+---
+
 # Skill: Analyst — Telemetry, Observability, Diagnostics
 
 **Purpose:** Read and interpret pipeline telemetry, vector store metrics, and eval results to diagnose issues or assess performance.
+
+---
+
+## When to use this skill
+
+- User asks to diagnose pipeline performance or bottlenecks
+- Interpreting telemetry, eval results, or vector store metrics
+- Debugging slow, incorrect, or stalled pipeline runs
+- Inspecting the embeddings DB or running diagnostic queries
 
 ---
 

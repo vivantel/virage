@@ -1,6 +1,24 @@
+---
+name: readme
+description: Update README.md to reflect codebase changes. User-facing only — no internal details.
+license: MIT
+metadata:
+  author: vivantel-team
+  version: "1.0.0"
+---
+
 # Skill: Maintain Root README.md
 
 **Purpose:** Update `README.md` to reflect codebase changes. User-facing only — no internal details.
+
+---
+
+## When to use this skill
+
+- After any change that affects user-visible features or CLI commands
+- When a new package, strategy, or integration is added or removed
+- When the README is visibly out of sync with the current codebase
+- After updating the Quick Start, config format, or CLI flags
 
 ---
 
@@ -10,7 +28,7 @@
 [ ] Read current README.md
 [ ] Run: git log --oneline -20   (identify recent unreflected changes)
 [ ] Identify which sections need updating (use section map below)
-[ ] Before committing: npm run fix && npm run lint && npm run type-check:ci (see skill-code-guardian.md)
+[ ] Before committing: npm run fix && npm run lint && npm run type-check:ci (see .agents/skills/code-guardian/SKILL.md)
 ```
 
 ---
@@ -43,7 +61,7 @@
 - Code snippets must be copy-paste valid; test against actual `virage --help` output if in doubt
 - Badge URLs follow the existing pattern — verify format before adding new ones
 - Keep Quick Start under ~20 lines; link to docs for depth
-- Package list must match the `packages/` directory — cross-check with `skill-package.md` inventory
+- Package list must match the `packages/` directory — cross-check with `.agents/skills/package/SKILL.md` inventory
 
 ---
 
@@ -61,4 +79,4 @@
 
 ## After updating
 
-Run `skill-overseer.md` reactive checklist if any section was added or removed.
+Run `.agents/skills/overseer/SKILL.md` reactive checklist if any section was added or removed.

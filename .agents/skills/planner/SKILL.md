@@ -1,6 +1,24 @@
+---
+name: planner
+description: Break a request into a sequenced, scope-bounded implementation plan, document it, and drive execution to verified completion.
+license: MIT
+metadata:
+  author: vivantel-team
+  version: "1.0.0"
+---
+
 # Skill: Planner
 
 **Purpose:** Break a request into a sequenced, scope-bounded implementation plan, document it, and drive execution to verified completion.
+
+---
+
+## When to use this skill
+
+- Breaking down a complex request into ordered implementation steps
+- Creating or updating a plan in `docs/internal/next_plan.md`
+- Tracking and driving execution of an in-flight implementation plan
+- Surfacing design decisions that need user input before proceeding
 
 ---
 
@@ -8,7 +26,7 @@
 
 ```
 [ ] Read docs/ai/INDEX.md — cross-cutting rules (imports, commit style, pre-commit hook, ADR gate)
-[ ] Read the relevant skill file for the work type (skill-package.md, skill-architect.md, etc.)
+[ ] Read the relevant skill file for the work type (.agents/skills/package/SKILL.md, .agents/skills/architect/SKILL.md, etc.)
 [ ] Read docs/ADR.md — check whether any proposed design touches an already-decided trade-off
 [ ] Read docs/internal/next_plan.md — check for an existing in-flight plan before creating a new one
 [ ] Understand the full request before writing a single step
@@ -51,7 +69,7 @@ Do not proceed to Phase 2 until scope is clear.
 [ ] List steps in dependency order (prerequisite steps first)
 [ ] Assign each step to the smallest self-contained unit of work
 [ ] Identify which steps can be verified independently
-[ ] Note which steps require a skill file load (skill-package.md, skill-qa.md, etc.)
+[ ] Note which steps require a skill file load (.agents/skills/package/SKILL.md, .agents/skills/qa/SKILL.md, etc.)
 [ ] Where alternatives exist, surface them now (see §Presenting alternatives)
 ```
 
@@ -101,7 +119,7 @@ Write the plan to `docs/internal/next_plan.md` with this structure:
 [ ] Update docs/internal/next_plan.md after every state change
 ```
 
-Execution rules (from INDEX.md §Planning rules):
+Execution rules (from `docs/ai/INDEX.md` §Planning rules):
 
 - Steps execute in dependency order, not in parallel
 - Wait for each step to complete before starting the next
@@ -117,8 +135,8 @@ After all steps reach `[x]` or `[-]`:
 [ ] Run: npm run type-check:ci
 [ ] Run: npm run lint
 [ ] Confirm pre-commit hook will pass (it auto-runs npm run fix && npm run lint && npm run type-check:ci)
-[ ] If developer workflow changed: run skill-overseer.md reactive checklist
-[ ] If an ADR was written: update skill-architect.md §ADR log
+[ ] If developer workflow changed: run .agents/skills/overseer/SKILL.md reactive checklist
+[ ] If an ADR was written: update .agents/skills/architect/SKILL.md §ADR log
 ```
 
 ---
@@ -158,7 +176,7 @@ Write an ADR in `docs/ADR.md` **before implementing** when the plan includes any
 - A cross-package contract (new shared type, new plugin registration field)
 - A new external dependency whose API will be wrapped by an interface
 
-Process: load `skill-architect.md` and follow its §ADR process section.
+Process: load `.agents/skills/architect/SKILL.md` and follow its §ADR process section.
 
 If unsure whether a change is architectural: err on the side of writing the ADR. It is cheaper to write a short ADR than to undo an undocumented interface decision.
 
@@ -192,7 +210,7 @@ The `<scope>` is the package name (without `@vivantel/`) or `docs`.
 
 ```
 [ ] Confirm docs/internal/next_plan.md shows all steps [x] or [-]
-[ ] If any skill file content is now stale: run skill-overseer.md reactive checklist
-[ ] If an ADR was written: confirm skill-architect.md §ADR log is updated
-[ ] If a new skill was added: confirm INDEX.md §Skills and skill-overseer.md §Current State are updated
+[ ] If any skill file content is now stale: run .agents/skills/overseer/SKILL.md reactive checklist
+[ ] If an ADR was written: confirm .agents/skills/architect/SKILL.md §ADR log is updated
+[ ] If a new skill was added: confirm docs/ai/INDEX.md §Skills and .agents/skills/overseer/SKILL.md §Current State are updated
 ```

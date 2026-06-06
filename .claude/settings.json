@@ -6,8 +6,28 @@
         "hooks": [
           {
             "type": "command",
-            "command": "cd /home/ubuntu/data/projects/vivantel/rag_core && npm run fix && git add -u && npm run lint && npm run type-check:ci",
+            "command": "cd /home/ubuntu/projects/vivantel/virage && npm run fix && git add -u && npm run lint && npm run type-check:ci",
             "statusMessage": "Running lint:fix + format + lint + type-check before commit..."
+          }
+        ]
+      },
+      {
+        "matcher": "Edit(.agents/skills/*)",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo 'SKILL STANDARD: Load .agents/skills/skill-guru/SKILL.md before modifying skill files to ensure Agent Skills v1.0 compliance.'",
+            "statusMessage": "Reminding to check skill-guru standard..."
+          }
+        ]
+      },
+      {
+        "matcher": "Write(.agents/skills/*)",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo 'SKILL STANDARD: Load .agents/skills/skill-guru/SKILL.md before creating skill files to ensure Agent Skills v1.0 compliance.'",
+            "statusMessage": "Reminding to check skill-guru standard..."
           }
         ]
       }

@@ -1,6 +1,24 @@
+---
+name: architect
+description: Make architecture decisions, write ADRs, design new interfaces, and understand existing system design.
+license: MIT
+metadata:
+  author: vivantel-team
+  version: "1.0.0"
+---
+
 # Skill: Architecture
 
 **Purpose:** Make architecture decisions, write ADRs, design new interfaces, and understand existing system design.
+
+---
+
+## When to use this skill
+
+- Making or reviewing an architecture decision
+- Writing a new ADR in `docs/ADR.md`
+- Designing a new provider interface or pipeline stage
+- Understanding the existing pipeline structure, module system, or plugin registry
 
 ---
 
@@ -10,7 +28,7 @@
 [ ] Read docs/ADR.md before making any new architecture decision
 [ ] Check if the trade-off was already evaluated in an existing ADR
 [ ] Read relevant source interfaces in packages/virage-core/src/interfaces/ before designing new ones
-[ ] Before committing: npm run fix && npm run lint && npm run type-check:ci (see skill-code-guardian.md)
+[ ] Before committing: npm run fix && npm run lint && npm run type-check:ci (see .agents/skills/code-guardian/SKILL.md)
 ```
 
 ---

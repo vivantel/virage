@@ -6,17 +6,18 @@ Load this index before any task. Pick a skill, load it, then execute.
 
 ## Skills
 
-| I want to…                                        | Load                             |
-| ------------------------------------------------- | -------------------------------- |
-| Plan, sequence, and track implementation work     | `docs/ai/skill-planner.md`       |
-| Maintain root README.md                           | `docs/ai/skill-readme.md`        |
-| Add / update / develop / test a package           | `docs/ai/skill-package.md`       |
-| Modify CI/CD or release config                    | `docs/ai/skill-cicd.md`          |
-| Keep docs/ai/ skills in sync with codebase        | `docs/ai/skill-overseer.md`      |
-| Make or review an architecture decision           | `docs/ai/skill-architect.md`     |
-| Set up, run, or debug tests and eval              | `docs/ai/skill-qa.md`            |
-| Enforce code quality, fix lint/format/type errors | `docs/ai/skill-code-guardian.md` |
-| Analyze telemetry or diagnose the pipeline        | `docs/ai/skill-analyst.md`       |
+| I want to…                                        | Load                                          |
+| ------------------------------------------------- | --------------------------------------------- |
+| Plan, sequence, and track implementation work     | `.agents/skills/planner/SKILL.md`             |
+| Maintain root README.md                           | `.agents/skills/readme/SKILL.md`              |
+| Add / update / develop / test a package           | `.agents/skills/package/SKILL.md`             |
+| Modify CI/CD or release config                    | `.agents/skills/cicd/SKILL.md`                |
+| Keep skill files in sync with codebase            | `.agents/skills/overseer/SKILL.md`            |
+| Make or review an architecture decision           | `.agents/skills/architect/SKILL.md`           |
+| Set up, run, or debug tests and eval              | `.agents/skills/qa/SKILL.md`                  |
+| Enforce code quality, fix lint/format/type errors | `.agents/skills/code-guardian/SKILL.md`       |
+| Analyze telemetry or diagnose the pipeline        | `.agents/skills/analyst/SKILL.md`             |
+| Add, update, or review AI skill files             | `.agents/skills/skill-guru/SKILL.md`          |
 
 ---
 
@@ -39,7 +40,7 @@ npm run build:with-dashboard -w @vivantel/virage-cli  # CLI build including dash
 - **Pre-commit**: `.claude/settings.json` hook auto-runs `npm run fix && npm run lint && npm run type-check:ci` before every commit — do not skip
 - **Module imports**: all internal imports use `.js` extensions (NodeNext requirement), e.g. `from "./foo.js"` even though file is `.ts`
 - **Commit messages**: Conventional Commits (`feat:`, `fix:`, `chore:`, `feat!:` for breaking) — drives release-please versioning
-- **Docs updates**: after any change affecting developer workflow, update the relevant skill file in the same commit (run `skill-overseer.md` checklist)
+- **Docs updates**: after any change affecting developer workflow, update the relevant skill file in the same commit (run `.agents/skills/overseer/SKILL.md` checklist)
 - **Architecture decisions**: record in `docs/ADR.md` before implementing; see `skill-architect.md`
 
 ---

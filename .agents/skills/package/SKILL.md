@@ -1,15 +1,33 @@
+---
+name: package
+description: Add, update, develop, sync, and test packages in the Virage monorepo.
+license: MIT
+metadata:
+  author: vivantel-team
+  version: "1.0.0"
+---
+
 # Skill: Package Lifecycle
 
 **Purpose:** Add, update, develop, sync, and test packages in the monorepo.
 
 ---
 
+## When to use this skill
+
+- Adding a new package to the monorepo
+- Updating dependencies or publishing config in an existing package
+- Building, type-checking, or running tests for a specific package
+- Syncing shared tsconfig/eslint config across packages
+
+---
+
 ## Context checklist
 
 ```
-[ ] Read INDEX.md cross-cutting rules (imports, commit style, pre-commit hook)
+[ ] Read docs/ai/INDEX.md cross-cutting rules (imports, commit style, pre-commit hook)
 [ ] Identify which operation: Add / Update / Develop / Sync / Test
-[ ] Before committing: npm run fix && npm run lint && npm run type-check:ci (see skill-code-guardian.md)
+[ ] Before committing: npm run fix && npm run lint && npm run type-check:ci (see .agents/skills/code-guardian/SKILL.md)
 ```
 
 ---
@@ -22,7 +40,7 @@ What are you doing?
 ├── Dep or version change    → §Update
 ├── Writing + building code  → §Develop
 ├── Syncing shared config    → §Sync
-└── Running tests only       → §Test (or load skill-qa.md)
+└── Running tests only       → §Test (or load .agents/skills/qa/SKILL.md)
 ```
 
 ---
@@ -46,7 +64,7 @@ What are you doing?
 | virage-code-chunk-chunker    | yes          | AST-aware code chunker using code-chunk/tree-sitter (TS, JS, Python, Rust, Go, Java) |
 | virage-store-test            | no (private) | File-backed mock VectorStore for acceptance testing                       |
 
-> **Keep this table current.** After adding or removing a package, update this snapshot, then run `skill-overseer.md`.
+> **Keep this table current.** After adding or removing a package, update this snapshot, then run `.agents/skills/overseer/SKILL.md`.
 
 ---
 
@@ -75,18 +93,18 @@ Required scripts: `build`, `type-check`, `lint`, `lint:fix`, `format`, `format:c
 2. Create `packages/<name>/package.json` — all required fields above; set `"type": "module"`
 3. Copy `tsconfig.json` from `packages/virage-store-lancedb/tsconfig.json` (NodeNext pattern, `rootDir: "./src"`, `outDir: "./dist"`)
 4. Create `src/index.ts` (exports) and `README.md` (badges, description, install, usage)
-5. Wire release-please (see `skill-cicd.md` §Adding a new publishable package)
+5. Wire release-please (see `.agents/skills/cicd/SKILL.md` §Adding a new publishable package)
 6. Wire CI workflows: add path filter to `.github/workflows/ci.yaml` `filters:` block; add output + `packages+=` line to `.github/workflows/release.yaml`
 6a. Add `-w packages/<name>` to the `type-check:ci` script in root `package.json`
 7. Update §Current State table above
-8. Update `skill-cicd.md` §Current State published packages list
+8. Update `.agents/skills/cicd/SKILL.md` §Current State published packages list
 9. `npm install` from repo root — links workspace and updates `package-lock.json`.  
    **STOP if this fails for any reason** (disk space, network, native build error). Do not write source files or proceed to later steps until `npm install` completes successfully and `package-lock.json` contains the new package name.  
    Stage `package-lock.json` alongside source files — a stale lock file breaks `npm ci` in CI.
 9a. Verify lock file updated: `grep -c "<package-name>" package-lock.json` must return > 0. If it returns 0, re-run `npm install`.
 10. `npm run type-check -w @vivantel/<name>` must pass
 11. `npm run build -w @vivantel/<name>` must pass
-12. Run `skill-overseer.md` reactive checklist
+12. Run `.agents/skills/overseer/SKILL.md` reactive checklist
 
 ---
 
@@ -94,7 +112,7 @@ Required scripts: `build`, `type-check`, `lint`, `lint:fix`, `format`, `format:c
 
 - **Dep bump**: update `package.json` → `npm install` → `npm run type-check -w @vivantel/<name>`
 - **Interface change**: grep all workspace packages for the changed import before committing
-- **CLI command changed**: update `INDEX.md` §Essential commands if the command is commonly used
+- **CLI command changed**: update `docs/ai/INDEX.md` §Essential commands if the command is commonly used
 - **Commit format**: `feat(<name>): ...` or `fix(<name>): ...` (drives release-please version bumps)
 
 ---
@@ -125,7 +143,7 @@ Items to keep consistent across all packages:
 
 ## §Test — Running tests
 
-See `skill-qa.md` for the full test strategy. Quick reference:
+See `.agents/skills/qa/SKILL.md` for the full test strategy. Quick reference:
 
 ```bash
 npm test -w @vivantel/virage-core                         # unit tests

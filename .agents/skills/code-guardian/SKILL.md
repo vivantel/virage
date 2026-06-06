@@ -1,3 +1,12 @@
+---
+name: code-guardian
+description: Enforce code quality and serve as the canonical reference for all active guardrails in this repo. Run before any commit or when lint/type errors appear.
+license: MIT
+metadata:
+  author: vivantel-team
+  version: "1.0.0"
+---
+
 # Skill: Code Guardian
 
 **Purpose:** Enforce code quality and serve as the canonical reference for all active guardrails in this repo. Run this skill whenever quality is in question or before any commit.
@@ -44,13 +53,13 @@ All commit messages must follow the Conventional Commits spec:
 
 ### 3. Docs-update obligation
 
-After any change affecting developer workflow (new command, new config option, new package, changed pipeline stage), update the relevant `docs/ai/skill-*.md` file in the **same commit**.
+After any change affecting developer workflow (new command, new config option, new package, changed pipeline stage), update the relevant skill file in `.agents/skills/` in the **same commit**.
 
-Run `skill-overseer.md` checklist to identify which files need updating.
+Run `.agents/skills/overseer/SKILL.md` checklist to identify which files need updating.
 
 ### 4. Architecture-decision obligation
 
-Before implementing any structural change (new abstraction, interface change, storage format change), write an ADR entry in `docs/ADR.md` and get alignment. See `skill-architect.md`.
+Before implementing any structural change (new abstraction, interface change, storage format change), write an ADR entry in `docs/ADR.md` and get alignment. See `.agents/skills/architect/SKILL.md`.
 
 ### 5. Pre-commit hook
 
