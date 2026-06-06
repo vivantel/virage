@@ -26,7 +26,7 @@
 
 **Currently published packages in the release matrix** (in sync with `.github/config/release-please.json`):
 
-`virage-core`, `virage-cli`, `virage-dashboard`, `virage-mcp`, `virage-strategies`, `virage-embedder-openai`, `virage-embedder-transformers`, `virage-embedder-fastembed`, `virage-store-postgres`, `virage-store-qdrant`, `virage-store-lancedb`, `virage-store-chromadb`
+`virage-core`, `virage-cli`, `virage-dashboard`, `virage-mcp`, `virage-strategies`, `virage-code-chunk-chunker`, `virage-embedder-openai`, `virage-embedder-transformers`, `virage-embedder-fastembed`, `virage-store-postgres`, `virage-store-qdrant`, `virage-store-lancedb`, `virage-store-chromadb`
 
 > **Keep both lists above current.** After adding or removing a package from CI, update this section, then run `skill-overseer.md`.
 

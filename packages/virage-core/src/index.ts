@@ -62,6 +62,7 @@ export type { TokenStrategyOptions } from "./strategies/chunk/token.js";
 
 // Helpers
 export { createChunker } from "./helpers/create-chunker.js";
+export { computeChunkQualityMetrics } from "./strategies/chunk/quality-metrics.js";
 
 // Embeddings I/O
 export {

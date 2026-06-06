@@ -29,6 +29,7 @@ jobs:
       virage-cli: ${{ steps.release.outputs['packages/virage-cli--release_created'] }}
       virage-dashboard: ${{ steps.release.outputs['packages/virage-dashboard--release_created'] }}
       virage-mcp: ${{ steps.release.outputs['packages/virage-mcp--release_created'] }}
+      virage-code-chunk-chunker: ${{ steps.release.outputs['packages/virage-code-chunk-chunker--release_created'] }}
     steps:
       - name: Run Release Please
         id: release
@@ -60,6 +61,7 @@ jobs:
           if [[ "${{ needs.release-please.outputs.virage-cli }}" == "true" ]]; then packages+=("virage-cli"); fi
           if [[ "${{ needs.release-please.outputs.virage-dashboard }}" == "true" ]]; then packages+=("virage-dashboard"); fi
           if [[ "${{ needs.release-please.outputs.virage-mcp }}" == "true" ]]; then packages+=("virage-mcp"); fi
+          if [[ "${{ needs.release-please.outputs.virage-code-chunk-chunker }}" == "true" ]]; then packages+=("virage-code-chunk-chunker"); fi
           if [[ ${#packages[@]} -gt 0 ]]; then
             echo "packages=$(printf '%s\n' "${packages[@]}" | jq -R . | jq -sc .)" >> $GITHUB_OUTPUT
           else

@@ -1,0 +1,63 @@
+{
+  "name": "@vivantel/virage-code-chunk-chunker",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "AST-aware code chunking strategy for @vivantel/virage-core, powered by code-chunk",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/vivantel/virage",
+    "directory": "packages/virage-code-chunk-chunker"
+  },
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "sideEffects": false,
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "tsc",
+    "type-check": "tsc --noEmit",
+    "test": "vitest run",
+    "prepublishOnly": "npm run build",
+    "lint": "eslint src/",
+    "lint:fix": "eslint src/ --fix",
+    "format": "prettier --write \"src/**/*.ts\"",
+    "format:check": "prettier --check \"src/**/*.ts\"",
+    "fix": "npm run lint:fix && npm run format"
+  },
+  "keywords": [
+    "rag",
+    "chunking",
+    "code",
+    "ast",
+    "tree-sitter",
+    "embeddings"
+  ],
+  "author": "Vivantel",
+  "license": "MIT",
+  "dependencies": {
+    "code-chunk": "^0.1.14"
+  },
+  "peerDependencies": {
+    "@vivantel/virage-core": "*"
+  },
+  "devDependencies": {
+    "@vivantel/virage-core": "0.2.16",
+    "@types/node": "^25.9.1",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.8"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

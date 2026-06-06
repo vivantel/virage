@@ -101,6 +101,12 @@ jobs:
               - 'package.json'
               - 'package-lock.json'
               - '.github/workflows/ci.yaml'
+            virage-code-chunk-chunker:
+              - 'packages/virage-code-chunk-chunker/**'
+              - 'eslint.config.js'
+              - 'package.json'
+              - 'package-lock.json'
+              - '.github/workflows/ci.yaml'
 
   build-and-test:
     needs: changes

@@ -43,6 +43,7 @@ What are you doing?
 | virage-store-lancedb         | yes          | LanceDB embedded vector store (file-based)                                |
 | virage-store-chromadb        | yes          | ChromaDB vector store (local or hosted)                                   |
 | virage-mcp                   | yes          | MCP stdio server — search and inspect any virage index from AI assistants |
+| virage-code-chunk-chunker    | yes          | AST-aware code chunker using code-chunk/tree-sitter (TS, JS, Python, Rust, Go, Java) |
 | virage-store-test            | no (private) | File-backed mock VectorStore for acceptance testing                       |
 
 > **Keep this table current.** After adding or removing a package, update this snapshot, then run `skill-overseer.md`.
