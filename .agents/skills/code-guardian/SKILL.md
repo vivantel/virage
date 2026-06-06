@@ -65,6 +65,12 @@ Before implementing any structural change (new abstraction, interface change, st
 
 `.claude/settings.json` wires a `PreToolUse` hook on `git commit` that runs the full fix sequence automatically. Never bypass with `--no-verify` or `|| true`.
 
+**Hook trigger constraint:** The hook matcher fires on any Bash command that *contains* `git commit`. However, to guarantee it fires, always run `git add` in a **separate** Bash call before `git commit` — never chain them with `&&` in a single Bash call.
+
+**Required commit protocol:**
+1. Bash call 1 — stage files: `git add <specific files>`
+2. Bash call 2 — commit: `git commit -m "…"`
+
 ---
 
 ## Active fix sequence

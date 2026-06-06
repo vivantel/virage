@@ -135,6 +135,7 @@ After all steps reach `[x]` or `[-]`:
 [ ] Run: npm run type-check:ci
 [ ] Run: npm run lint
 [ ] Confirm pre-commit hook will pass (it auto-runs npm run fix && npm run lint && npm run type-check:ci)
+[ ] Stage files in a separate Bash call before git commit — never chain `git add && git commit` in one call or the pre-commit hook may not fire
 [ ] If developer workflow changed: run .agents/skills/overseer/SKILL.md reactive checklist
 [ ] If an ADR was written: update .agents/skills/architect/SKILL.md §ADR log
 ```
@@ -203,6 +204,8 @@ Each commit from the plan follows Conventional Commits (drives release-please ve
 | Breaking change | `feat!(<scope>):` or append `[ADR-NNN]` | `feat!(virage-core): replace VectorStore interface [ADR-006]` |
 
 The `<scope>` is the package name (without `@vivantel/`) or `docs`.
+
+**Commit protocol:** Always run `git add <files>` in a separate Bash call, then `git commit -m "…"` in a second Bash call. Never chain them with `&&` — the pre-commit hook must see a command that contains `git commit` to fire.
 
 ---
 
