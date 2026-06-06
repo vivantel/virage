@@ -11,5 +11,5 @@
   "packages/virage-cli": "0.1.17",
   "packages/virage-dashboard": "0.1.7",
   "packages/virage-mcp": "0.1.9",
-  "packages/virage-code-chunk-chunker": "0.1.1"
+  "packages/virage-code-chunk-chunker": "0.1.2"
 }

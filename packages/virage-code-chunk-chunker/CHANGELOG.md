@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.2](https://github.com/vivantel/virage/compare/virage-code-chunk-chunker@v0.1.1...virage-code-chunk-chunker@v0.1.2) (2026-06-06)
+
+
+### Bug Fixes
+
+* **virage-code-chunk-chunker:** Run tests in prepublishOnly, fix devops skill, harden release workflow ([78d9902](https://github.com/vivantel/virage/commit/78d990254257e026dbe093a12e5761e44b050edd))
+
 ## [0.1.1](https://github.com/vivantel/virage/compare/virage-code-chunk-chunker@v0.1.0...virage-code-chunk-chunker@v0.1.1) (2026-06-06)
 
 
