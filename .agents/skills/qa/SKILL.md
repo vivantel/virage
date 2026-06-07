@@ -68,7 +68,7 @@ metadata:
 virage eval-generate
 ```
 
-Reads chunks from `.virage/embeddings.db`, generates query–ground-truth pairs. Output: `.virage/eval-dataset.json` (override with `--output`).
+Reads chunks from `.virage/virage.db`, generates query–ground-truth pairs. Output: `.virage/eval-dataset.json` (override with `--output`).
 
 ### 2. Run an experiment
 
@@ -77,7 +77,7 @@ virage experiment run --name <name>
 ```
 
 Runs the RAG pipeline against the eval dataset and persists results.  
-Result path: `.rag-experiments/<name>_<iso-timestamp>.json`  
+Results saved to the `experiment_runs` table in `.virage/virage.db`.  
 Metrics collected: MRR, P@5, R@10, HitRate@5.
 
 ### 3. Compare experiments
@@ -101,7 +101,7 @@ virage experiment list
 **Chunk quality** (`packages/virage-core/src/strategies/chunk/quality-metrics.ts`):
 
 ```bash
-virage chunks report   # reads embeddings.db, prints cohesion metrics
+virage chunks report   # reads virage.db, prints cohesion metrics
 ```
 
 - `ChunkQualityMetrics` interface: `src/interfaces/quality.ts`

@@ -68,7 +68,7 @@ export interface EmbeddingsMeta {
   updatedAt: number;
 }
 
-/** The legacy JSON on-disk format (v2+) used for migration. Current storage is SQLite via EmbeddingsDb. */
+/** The legacy JSON on-disk format (v2+) used for migration. Current storage is SQLite via VirageDb. */
 export interface EmbeddingsFileFormat {
   _meta: EmbeddingsMeta;
   chunks: EmbeddedChunk[];

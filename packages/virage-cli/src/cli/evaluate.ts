@@ -4,6 +4,8 @@ import {
   EvalRunner,
   ExperimentStore,
   makeRunId,
+  VirageDb,
+  defaultVirageDb,
 } from "@vivantel/virage-core";
 import { createProgressBar } from "../progress/progress-bar.js";
 import type { EvalResult, ExperimentRun } from "@vivantel/virage-core";
@@ -66,17 +68,22 @@ export async function runEvaluate(opts: EvaluateOptions): Promise<void> {
   }
 
   // Save to experiment store
-  const store = new ExperimentStore();
-  const run: ExperimentRun = {
-    id: makeRunId("eval"),
-    name: "eval",
-    timestamp: new Date().toISOString(),
-    config: { configFile: opts.config, dataset: opts.dataset },
-    evalResult,
-    perQueryRrScores,
-  };
-  const savedPath = await store.save(run);
-  console.log(`\n💾 Results saved to: ${savedPath}`);
+  const db = new VirageDb(defaultVirageDb());
+  try {
+    const store = new ExperimentStore(db);
+    const run: ExperimentRun = {
+      id: makeRunId("eval"),
+      name: "eval",
+      timestamp: new Date().toISOString(),
+      config: { configFile: opts.config, dataset: opts.dataset },
+      evalResult,
+      perQueryRrScores,
+    };
+    const runId = await store.save(run);
+    console.log(`\n💾 Results saved to virage.db (id: ${runId})`);
+  } finally {
+    db.close();
+  }
 
   // CI quality gate
   if (opts.thresholdMrr !== undefined) {

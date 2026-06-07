@@ -62,13 +62,13 @@ claude mcp add virage -- npx @vivantel/virage-mcp --config ./virage.config.json
 import { createMcpServer } from "@vivantel/virage-mcp";
 import {
   loadConfig,
-  EmbeddingsDb,
-  defaultEmbeddingsDb,
+  VirageDb,
+  defaultVirageDb,
 } from "@vivantel/virage-core";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 
 const cfg = await loadConfig("./virage.config.json");
-const db = new EmbeddingsDb(defaultEmbeddingsDb());
+const db = new VirageDb(defaultVirageDb());
 await cfg.vectorStore.initialize();
 
 const server = createMcpServer({
@@ -82,7 +82,7 @@ await server.connect(new StdioServerTransport());
 ## Requirements
 
 - Node.js ≥ 18
-- A configured Virage project with `virage.config.json` and a populated `.virage/embeddings.db`
+- A configured Virage project with `virage.config.json` and a populated `.virage/virage.db`
 
 ## License
 

@@ -4,7 +4,7 @@ import { join } from "path";
 import { tmpdir } from "os";
 import { randomBytes } from "crypto";
 import { EmbedderProcessor } from "./embedder.js";
-import { EmbeddingsDb } from "./embeddings-db.js";
+import { VirageDb } from "./virage-db.js";
 import type { EmbeddingProvider, EmbeddingsMeta } from "../interfaces/index.js";
 
 function tmpPath(): string {
@@ -34,13 +34,13 @@ function makeProvider(
 describe("EmbedderProcessor", () => {
   let dir: string;
   let chunksFile: string;
-  let db: EmbeddingsDb;
+  let db: VirageDb;
 
   beforeEach(async () => {
     dir = tmpPath();
     await mkdir(dir, { recursive: true });
     chunksFile = join(dir, "chunks.json");
-    db = new EmbeddingsDb(join(dir, "embeddings.db"));
+    db = new VirageDb(join(dir, "virage.db"));
   });
 
   it("uses provider embedBatch for every sub-batch, including the last smaller one", async () => {
@@ -346,9 +346,9 @@ describe("EmbedderProcessor", () => {
     const chunkA = makeChunk("a");
     const chunkB = makeChunk("b");
 
-    // Create a legacy-format embeddings.json next to the db path
-    const dbPath = join(dir, "embeddings.db");
-    const jsonPath = join(dir, "embeddings.json");
+    // Create a legacy-format virage.json next to the db path
+    const dbPath = join(dir, "virage.db");
+    const jsonPath = join(dir, "virage.json");
     const oldMeta: EmbeddingsMeta = {
       schemaVersion: 1,
       providerName: "openai",
@@ -365,7 +365,7 @@ describe("EmbedderProcessor", () => {
       }),
     );
 
-    const freshDb = new EmbeddingsDb(dbPath);
+    const freshDb = new VirageDb(dbPath);
     // Migration should have loaded the existing chunk from JSON
     expect(freshDb.getAll()).toHaveLength(1);
     const meta = freshDb.getMeta() as EmbeddingsMeta;

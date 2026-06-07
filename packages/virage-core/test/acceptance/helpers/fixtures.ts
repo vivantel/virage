@@ -1,18 +1,24 @@
 import { writeFileSync, mkdirSync } from "fs";
 import { join, dirname } from "path";
 import Database from "better-sqlite3";
+import { VirageDb } from "../../../src/core/virage-db.js";
 
 function ensureDir(filePath: string): void {
   mkdirSync(dirname(filePath), { recursive: true });
 }
 
-/** Write a minimal virage embeddings SQLite DB with `count` embedded chunks. */
-export function writeEmbeddingsDb(dir: string, count = 10, dim = 384): void {
-  const path = join(dir, "rag-test", "embeddings.db");
+/** Path where the CLI looks for virage.db when run with cwd=dir (no VIRAGE_DIR override). */
+function virageDbPath(dir: string): string {
+  return join(dir, ".virage", "virage.db");
+}
+
+/** Write a minimal virage SQLite DB with `count` embedded chunks. */
+export function writeVirageDb(dir: string, count = 10, dim = 384): void {
+  const path = virageDbPath(dir);
   ensureDir(path);
-  const db = new Database(path);
-  db.pragma("journal_mode = WAL");
-  db.exec(`
+  const raw = new Database(path);
+  raw.pragma("journal_mode = WAL");
+  raw.exec(`
     CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
     CREATE TABLE IF NOT EXISTS chunks (
       content_hash TEXT PRIMARY KEY,
@@ -26,7 +32,7 @@ export function writeEmbeddingsDb(dir: string, count = 10, dim = 384): void {
     ) STRICT;
     CREATE INDEX IF NOT EXISTS idx_source_file ON chunks(source_file);
   `);
-  const insert = db.prepare(
+  const insert = raw.prepare(
     "INSERT INTO chunks (content_hash, source_file, commit_hash, content, metadata_json, embedding, embedded_at, uploaded) VALUES (?, ?, ?, ?, ?, ?, ?, 1)",
   );
   const embedding = Buffer.from(
@@ -47,65 +53,75 @@ export function writeEmbeddingsDb(dir: string, count = 10, dim = 384): void {
       now,
     );
   }
-  db.close();
+  raw.close();
 }
 
-/** Write a minimal telemetry.json that the `report` command can parse. */
-export function writeTelemetry(dir: string): void {
-  const record = {
-    runAt: new Date().toISOString(),
-    durationMs: 4200,
-    stages: {
-      gitTracking: {
-        durationMs: 120,
-        filesScanned: 35,
-        toProcess: 35,
-        toDelete: 0,
+/** Write a pipeline run record into virage.db for the `report` command. */
+export function writePipelineRunToDb(dir: string): void {
+  const dbPath = virageDbPath(dir);
+  ensureDir(dbPath);
+  const db = new VirageDb(dbPath);
+  try {
+    db.savePipelineRun({
+      runAt: new Date().toISOString(),
+      durationMs: 4200,
+      stages: {
+        gitTracking: {
+          durationMs: 120,
+          filesScanned: 35,
+          toProcess: 35,
+          toDelete: 0,
+        },
+        chunking: {
+          durationMs: 80,
+          filesProcessed: 35,
+          chunksGenerated: 225,
+          errors: 0,
+        },
+        embedding: {
+          durationMs: 118000,
+          chunksEmbedded: 225,
+          chunksSkipped: 0,
+          rateLimitEvents: 0,
+          latencySamples: [],
+        },
+        upload: { durationMs: 200, uploaded: 225, deleted: 0 },
       },
-      chunking: {
-        durationMs: 80,
-        filesProcessed: 35,
-        chunksGenerated: 225,
-        errors: 0,
-      },
-      embedding: {
-        durationMs: 118000,
-        chunksEmbedded: 225,
-        chunksSkipped: 0,
-        rateLimitEvents: 0,
-        apiLatenciesMs: [],
-      },
-      upload: { durationMs: 200, uploaded: 225, deleted: 0 },
-    },
-  };
-  const path = join(dir, "rag-test", "telemetry.json");
-  ensureDir(path);
-  writeFileSync(path, JSON.stringify(record, null, 2));
+    });
+  } finally {
+    db.close();
+  }
 }
 
-/** Write a fake experiment run and return its id. */
+/** Write a fake experiment run into virage.db and return its id. */
 export function writeExperimentRun(
   dir: string,
   name: string,
   mrr = 0.75,
 ): string {
+  const dbPath = virageDbPath(dir);
+  ensureDir(dbPath);
+  const db = new VirageDb(dbPath);
   const id = `${name}-${Date.now()}`;
-  const run = {
-    id,
-    name,
-    createdAt: new Date().toISOString(),
-    metrics: {
-      mrr,
-      precisionAt5: 0.8,
-      precisionAt10: 0.7,
-      recallAt10: 0.65,
-      hitRateAt5: 0.9,
-    },
-    perQueryRR: Array.from({ length: 5 }, () => Math.random()),
-  };
-  const path = join(dir, ".claude", "experiments", `${id}.json`);
-  ensureDir(path);
-  writeFileSync(path, JSON.stringify(run, null, 2));
+  try {
+    db.saveExperimentRun({
+      id,
+      name,
+      timestamp: new Date().toISOString(),
+      config: { configFile: "./virage.config.json" },
+      evalResult: {
+        mrr,
+        precisionAt5: 0.8,
+        precisionAt10: 0.7,
+        recallAt10: 0.65,
+        hitRateAt5: 0.9,
+        queriesEvaluated: 5,
+      },
+      perQueryRrScores: Array.from({ length: 5 }, (_, i) => (i + 1) * 0.1),
+    });
+  } finally {
+    db.close();
+  }
   return id;
 }
 
@@ -132,4 +148,16 @@ export function writeConfig(
     },
   };
   writeFileSync(join(dir, "virage.config.json"), JSON.stringify(cfg, null, 2));
+}
+
+// ---------------------------------------------------------------------------
+// Backward-compatible aliases
+// ---------------------------------------------------------------------------
+
+/** @deprecated Use writeVirageDb instead. */
+export const writeEmbeddingsDb = writeVirageDb;
+
+/** @deprecated Use writePipelineRunToDb instead. */
+export function writeTelemetry(dir: string): void {
+  writePipelineRunToDb(dir);
 }

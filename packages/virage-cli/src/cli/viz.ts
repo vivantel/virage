@@ -1,6 +1,6 @@
 import { writeFile } from "fs/promises";
 import { extname } from "path";
-import { EmbeddingsDb } from "@vivantel/virage-core";
+import { VirageDb } from "@vivantel/virage-core";
 
 export interface VizEmbeddingsOptions {
   dbPath: string;
@@ -71,7 +71,7 @@ export async function runVizEmbeddings(
 ): Promise<void> {
   console.log(`📂 Reading embeddings from "${opts.dbPath}"...`);
 
-  const db = new EmbeddingsDb(opts.dbPath);
+  const db = new VirageDb(opts.dbPath);
   const chunks = db.getAll();
   db.close();
 

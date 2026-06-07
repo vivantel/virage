@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { Orchestrator, RAGPipelineConfig } from "./orchestrator.js";
-import { defaultEmbeddingsDb } from "./virage-defaults.js";
+import { defaultVirageDb } from "./virage-defaults.js";
 import {
   FileChunker,
   EmbeddingProvider,
@@ -80,7 +80,7 @@ describe("Orchestrator", () => {
     };
     const orchestrator = new Orchestrator(config);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    expect((orchestrator as any).embeddingsFile).toBe(defaultEmbeddingsDb());
+    expect((orchestrator as any).embeddingsFile).toBe(defaultVirageDb());
   });
 
   it("should use VIRAGE_DIR env var as default path prefix", () => {
@@ -93,7 +93,7 @@ describe("Orchestrator", () => {
     const orchestrator = new Orchestrator(config);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     expect((orchestrator as any).embeddingsFile).toBe(
-      "/custom/dir/embeddings.db",
+      "/custom/dir/virage.db",
     );
     vi.unstubAllEnvs();
   });

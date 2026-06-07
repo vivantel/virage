@@ -34,12 +34,12 @@ export { loadRegistry } from "./plugin-registry.js";
 export type { PluginRegistry } from "./plugin-registry.js";
 
 // Storage
-export { EmbeddingsDb } from "./core/embeddings-db.js";
+export { VirageDb } from "./core/virage-db.js";
 
 // Defaults and constants
 export {
   getVirageDir,
-  defaultEmbeddingsDb,
+  defaultVirageDb,
   IGNORED_DIRS,
 } from "./core/virage-defaults.js";
 
@@ -73,6 +73,24 @@ export type { EmbeddingsReadResult } from "./core/embeddings-io.js";
 
 // Config loader
 export { loadConfig, autoDetectConfig } from "./config-loader.js";
+
+// Telemetry
+export type {
+  TelemetryConfig,
+  SessionMetadata,
+  FeedbackPayload,
+  SessionSummaryPayload,
+} from "./telemetry/index.js";
+export {
+  DEFAULT_TELEMETRY_CONFIG,
+  MISSING_CATEGORY_VALUES,
+  TelemetrySession,
+  TelemetryFlusher,
+  TelemetryManager,
+  resultCountBucket,
+  normalizeMissingCategory,
+} from "./telemetry/index.js";
+export type { PipelineRunData } from "./core/telemetry.js";
 
 // Logger
 export { NullLogger } from "./logger/null-logger.js";

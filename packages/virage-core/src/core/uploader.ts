@@ -7,7 +7,7 @@ import type { Logger } from "../interfaces/logger.js";
 import { NullLogger } from "../logger/null-logger.js";
 import { createHash } from "crypto";
 import { withRetry, RetryOptions } from "./utils.js";
-import { EmbeddingsDb } from "./embeddings-db.js";
+import { VirageDb } from "./virage-db.js";
 
 function contentHash(chunk: EmbeddedChunk): string {
   return (
@@ -55,7 +55,7 @@ export class Uploader {
   }
 
   async getItemsToUpload(
-    db: EmbeddingsDb,
+    db: VirageDb,
     force: boolean = false,
   ): Promise<{
     toUpload: EmbeddedChunk[];
@@ -126,7 +126,7 @@ export class Uploader {
    * On force mode or vector-store change, deletes all tracked source files.
    */
   async prepareUpdate(
-    db: EmbeddingsDb,
+    db: VirageDb,
     toDelete: string[],
     toProcess: string[],
     force: boolean = false,
@@ -171,7 +171,7 @@ export class Uploader {
    * Upload a batch of embedded chunks to the vector store, then mark them
    * uploaded and clear the embedding BLOB to reclaim storage.
    */
-  async upsertBatch(db: EmbeddingsDb, chunks: EmbeddedChunk[]): Promise<void> {
+  async upsertBatch(db: VirageDb, chunks: EmbeddedChunk[]): Promise<void> {
     if (chunks.length === 0) return;
     const documents = chunks.map((e) => this.chunkToDocument(e));
     await withRetry(
@@ -190,7 +190,7 @@ export class Uploader {
   }
 
   async uploadPending(
-    db: EmbeddingsDb,
+    db: VirageDb,
     onProgress?: (done: number, total: number) => void,
   ): Promise<{ uploaded: number; deleted: number }> {
     const pending = db.getPending();
@@ -220,7 +220,7 @@ export class Uploader {
   }
 
   async sync(
-    db: EmbeddingsDb,
+    db: VirageDb,
     force: boolean = false,
     onProgress?: (done: number, total: number) => void,
   ): Promise<{

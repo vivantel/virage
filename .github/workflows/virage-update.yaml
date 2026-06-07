@@ -34,7 +34,7 @@ jobs:
         with:
           path: |
             .virage/lancedb
-            .virage/embeddings.db
+            .virage/virage.db
             .virage/model-cache
           key: virage-${{ github.ref_name }}-${{ github.sha }}
           restore-keys: |
@@ -50,6 +50,6 @@ jobs:
         with:
           path: |
             .virage/lancedb
-            .virage/embeddings.db
+            .virage/virage.db
             .virage/model-cache
           key: virage-${{ github.ref_name }}-${{ github.sha }}

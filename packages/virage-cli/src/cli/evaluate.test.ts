@@ -11,6 +11,8 @@ vi.mock("@vivantel/virage-core", () => ({
   EvalRunner: vi.fn(),
   ExperimentStore: vi.fn(),
   makeRunId: vi.fn().mockReturnValue("eval_2026-06-02T00-00-00"),
+  VirageDb: vi.fn(),
+  defaultVirageDb: vi.fn().mockReturnValue("/tmp/virage.db"),
 }));
 
 // ---------------------------------------------------------------------------
@@ -22,6 +24,7 @@ import {
   loadEvalDataset,
   EvalRunner,
   ExperimentStore,
+  VirageDb,
 } from "@vivantel/virage-core";
 import { runEvaluate } from "./evaluate.js";
 
@@ -90,6 +93,10 @@ describe("runEvaluate", () => {
     mockSave = vi
       .fn()
       .mockResolvedValue("/tmp/.rag-experiments/eval_2026.json");
+
+    vi.mocked(VirageDb).mockImplementation(function (this: unknown) {
+      Object.assign(this as object, { close: vi.fn() });
+    } as unknown as typeof VirageDb);
 
     vi.mocked(ExperimentStore).mockImplementation(function (this: unknown) {
       Object.assign(this as object, {

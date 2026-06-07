@@ -6,7 +6,8 @@ import {
   loadConfig,
   Orchestrator,
   RagError,
-  defaultEmbeddingsDb,
+  VirageDb,
+  defaultVirageDb,
   getVirageDir,
 } from "@vivantel/virage-core";
 import type { Logger } from "@vivantel/virage-core";
@@ -28,6 +29,14 @@ import { runChunksReport } from "../cli/chunks-report.js";
 import { runVizEmbeddings } from "../cli/viz.js";
 import { runDashboard } from "../cli/dashboard.js";
 import { runCheck } from "../cli/check.js";
+import {
+  runTelemetryStatus,
+  runTelemetryOn,
+  runTelemetryOff,
+  runTelemetryInit,
+  runTelemetryPreview,
+  runTelemetryFlush,
+} from "../cli/telemetry.js";
 
 config({ quiet: true });
 
@@ -101,7 +110,6 @@ async function runOnce(options: {
   force: boolean;
   noUpload: boolean;
   dryRun: boolean;
-  embeddingsOut?: string;
   logger: Logger;
   verbosity: number;
 }): Promise<void> {
@@ -121,7 +129,6 @@ async function runOnce(options: {
         force: options.force || cfg.options?.force,
         skipUpload: options.noUpload || cfg.options?.skipUpload,
         dryRun: options.dryRun || cfg.options?.dryRun,
-        embeddingsFile: options.embeddingsOut || cfg.options?.embeddingsFile,
         logger: pipelineLogger,
         onChunkProgress: (done, total) => {
           bars.chunk.setTotal(total);
@@ -164,7 +171,6 @@ program
   .option("-f, --force", "Force full rebuild", false)
   .option("--no-upload", "Skip upload to vector store")
   .option("--dry-run", "Show what would change without uploading", false)
-  .option("--embeddings-out <path>", "Output path for embeddings.db")
   .option("--watch", "Re-run pipeline on file changes", false)
   .action(
     async (cmdOpts: {
@@ -172,7 +178,6 @@ program
       force: boolean;
       upload: boolean; // commander inverts --no-upload → upload = false
       dryRun: boolean;
-      embeddingsOut?: string;
       watch: boolean;
     }) => {
       const verbose = program.opts<{ verbose: number }>().verbose;
@@ -183,7 +188,6 @@ program
         force: cmdOpts.force,
         noUpload: !cmdOpts.upload,
         dryRun: cmdOpts.dryRun,
-        embeddingsOut: cmdOpts.embeddingsOut,
         logger,
         verbosity: verbose,
       };
@@ -310,15 +314,10 @@ program
 
 program
   .command("report")
-  .description("Show observability report from telemetry files")
-  .option(
-    "--dir <path>",
-    "Directory containing telemetry.json files",
-    getVirageDir(),
-  )
-  .action(async (opts: { dir: string }) => {
+  .description("Show observability report from pipeline runs")
+  .action(async () => {
     try {
-      await runReport(opts.dir);
+      await runReport();
     } catch (error) {
       handleError(error);
     }
@@ -327,7 +326,6 @@ program
 program
   .command("eval-generate")
   .description("Generate an eval dataset from existing chunks")
-  .option("--embeddings <path>", "Embeddings DB path", defaultEmbeddingsDb())
   .option(
     "--output <path>",
     "Output dataset path",
@@ -342,15 +340,13 @@ program
   )
   .action(
     async (opts: {
-      embeddings: string;
       output: string;
       includeNegatives: boolean;
       paraphraseRatio: number;
     }) => {
       try {
-        const { EmbeddingsDb, generateEvalDataset } =
-          await import("@vivantel/virage-core");
-        const db = new EmbeddingsDb(opts.embeddings);
+        const { generateEvalDataset } = await import("@vivantel/virage-core");
+        const db = new VirageDb(defaultVirageDb());
         const chunks = db.getAllChunks();
         db.close();
         await generateEvalDataset(
@@ -371,18 +367,16 @@ const viz = program.command("viz").description("Visualization tools");
 viz
   .command("embeddings")
   .description("Generate a 2D visualization of the embedding space")
-  .option("--embeddings <path>", "Embeddings DB path", defaultEmbeddingsDb())
   .option("--output <path>", "Output HTML file", "umap.html")
   .option("--projection <type>", "Projection type: umap or tsne", "umap")
   .action(
     async (opts: {
-      embeddings: string;
       output: string;
       projection: string;
     }) => {
       try {
         await runVizEmbeddings({
-          dbPath: opts.embeddings,
+          dbPath: defaultVirageDb(),
           output: opts.output,
           projection: opts.projection as "umap" | "tsne",
         });
@@ -396,10 +390,9 @@ const chunks = program.command("chunks").description("Chunk analysis tools");
 chunks
   .command("report")
   .description("Show chunk cohesion report")
-  .option("--embeddings <path>", "Embeddings DB path", defaultEmbeddingsDb())
-  .action(async (opts: { embeddings: string }) => {
+  .action(async () => {
     try {
-      await runChunksReport(opts.embeddings);
+      await runChunksReport(defaultVirageDb());
     } catch (error) {
       handleError(error);
     }
@@ -409,12 +402,11 @@ program
   .command("dashboard")
   .description("Start a local RAG monitoring dashboard")
   .option("--port <n>", "Port to serve on", (v) => parseInt(v, 10), 3000)
-  .option("--embeddings <path>", "Embeddings DB path", defaultEmbeddingsDb())
-  .action(async (opts: { port: number; embeddings: string }) => {
+  .action(async (opts: { port: number }) => {
     try {
       await runDashboard({
         port: opts.port,
-        dbPath: opts.embeddings,
+        dbPath: defaultVirageDb(),
       });
     } catch (error) {
       handleError(error);
@@ -527,6 +519,89 @@ experiment
         baseline: opts.baseline,
         candidate: opts.candidate,
       });
+    } catch (error) {
+      handleError(error);
+    }
+  });
+
+const telemetry = program
+  .command("telemetry")
+  .description("Manage telemetry collection settings and data");
+
+telemetry
+  .command("status")
+  .description("Show telemetry status, buffer size, and endpoint health")
+  .action(async () => {
+    try {
+      await runTelemetryStatus();
+    } catch (error) {
+      handleError(error);
+    }
+  });
+
+telemetry
+  .command("on")
+  .description("Enable telemetry collection")
+  .action(async () => {
+    try {
+      await runTelemetryOn();
+    } catch (error) {
+      handleError(error);
+    }
+  });
+
+telemetry
+  .command("off")
+  .description("Disable telemetry collection and clear local buffer")
+  .option(
+    "--tiers <name>",
+    "Disable only a specific tier (e.g. explicit_feedback)",
+  )
+  .action(async (opts: { tiers?: string }) => {
+    try {
+      await runTelemetryOff({ tiers: opts.tiers });
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).name === "ExitPromptError") {
+        console.log("\nCancelled.");
+        process.exit(0);
+      }
+      handleError(error);
+    }
+  });
+
+telemetry
+  .command("init")
+  .description("Interactive telemetry configuration wizard")
+  .action(async () => {
+    try {
+      await runTelemetryInit();
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).name === "ExitPromptError") {
+        console.log("\nCancelled.");
+        process.exit(0);
+      }
+      handleError(error);
+    }
+  });
+
+telemetry
+  .command("preview")
+  .description("Preview the telemetry payload that would be sent (no transmission)")
+  .action(async () => {
+    try {
+      await runTelemetryPreview();
+    } catch (error) {
+      handleError(error);
+    }
+  });
+
+telemetry
+  .command("flush")
+  .description("Flush buffered telemetry to the configured endpoint")
+  .option("--dry-run", "Preview payload without transmitting", false)
+  .action(async (opts: { dryRun: boolean }) => {
+    try {
+      await runTelemetryFlush({ dryRun: opts.dryRun });
     } catch (error) {
       handleError(error);
     }

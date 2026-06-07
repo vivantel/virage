@@ -1,12 +1,12 @@
 import express, { type Request, type Response } from "express";
 import { WebSocketServer, type WebSocket } from "ws";
-import { readFile, writeFile, mkdir, unlink } from "fs/promises";
+import { readFile, writeFile, mkdir } from "fs/promises";
 import { existsSync } from "fs";
 import { join, resolve, basename } from "path";
 import { homedir } from "os";
 import { fileURLToPath } from "url";
 import {
-  EmbeddingsDb,
+  VirageDb,
   loadConfig,
   Orchestrator,
   ExperimentStore,
@@ -27,7 +27,7 @@ export interface DashboardOptions {
 export interface ProjectEntry {
   label: string;
   rootPath: string;
-  embeddingsDb: string;
+  virageDb: string;
   lastUsed: number;
 }
 
@@ -53,14 +53,13 @@ const HAS_UI = existsSync(join(UI_DIR, "index.html"));
 
 function projectFromRoot(
   rootPath: string,
-  overrides?: { embeddingsDb?: string },
+  overrides?: { virageDb?: string },
 ): ProjectEntry {
   const abs = resolve(rootPath);
   return {
     label: basename(abs),
     rootPath: abs,
-    embeddingsDb:
-      overrides?.embeddingsDb ?? join(abs, ".virage", "embeddings.db"),
+    virageDb: overrides?.virageDb ?? join(abs, ".virage", "virage.db"),
     lastUsed: Date.now(),
   };
 }
@@ -135,7 +134,7 @@ async function getStatus(dbPath: string) {
   let totalChunks = 0;
   let totalEmbeddings = 0;
   try {
-    const db = new EmbeddingsDb(dbPath);
+    const db = new VirageDb(dbPath);
     totalChunks = db.getAllChunks().length;
     totalEmbeddings = db.getAll().length;
     db.close();
@@ -148,7 +147,7 @@ async function getStatus(dbPath: string) {
 
 async function getChunksHistogram(dbPath: string) {
   try {
-    const db = new EmbeddingsDb(dbPath);
+    const db = new VirageDb(dbPath);
     const chunks = db.getAllChunks();
     db.close();
     const sizes = chunks.map((c) => c.content?.length ?? 0);
@@ -171,7 +170,7 @@ async function getChunksHistogram(dbPath: string) {
 
 async function getAnomalies(dbPath: string) {
   try {
-    const db = new EmbeddingsDb(dbPath);
+    const db = new VirageDb(dbPath);
     const chunks = db.getAll();
     db.close();
     if (chunks.length === 0) return { anomalies: [] };
@@ -243,7 +242,7 @@ async function handleWsOperation(ws: WebSocket, msg: Record<string, unknown>) {
       await orchestrator.run();
       safeSend(ws, { type: "done" });
     } else if (op === "eval-generate") {
-      const db = new EmbeddingsDb(active.embeddingsDb);
+      const db = new VirageDb(active.virageDb);
       const chunks = db.getAllChunks();
       db.close();
       safeSend(ws, {
@@ -316,19 +315,22 @@ async function handleWsOperation(ws: WebSocket, msg: Record<string, unknown>) {
             total,
           }),
       );
-      const store = new ExperimentStore(
-        join(active.rootPath, ".rag-experiments"),
-      );
-      const run: ExperimentRun = {
-        id: makeRunId(name),
-        name,
-        timestamp: new Date().toISOString(),
-        config: { configFile: configPath, dataset: datasetPath },
-        evalResult,
-        perQueryRrScores,
-      };
-      await store.save(run);
-      safeSend(ws, { type: "done", result: run });
+      const expDb = new VirageDb(active.virageDb);
+      try {
+        const store = new ExperimentStore(expDb);
+        const run: ExperimentRun = {
+          id: makeRunId(name),
+          name,
+          timestamp: new Date().toISOString(),
+          config: { configFile: configPath, dataset: datasetPath },
+          evalResult,
+          perQueryRrScores,
+        };
+        await store.save(run);
+        safeSend(ws, { type: "done", result: run });
+      } finally {
+        expDb.close();
+      }
     } else {
       safeSend(ws, { type: "error", message: `Unknown operation: ${op}` });
     }
@@ -351,7 +353,7 @@ export async function runDashboard(opts: DashboardOptions): Promise<void> {
 
   const startupRoot = resolve(opts.dbPath, "..", "..");
   const startupProject = projectFromRoot(startupRoot, {
-    embeddingsDb: resolve(opts.dbPath),
+    virageDb: resolve(opts.dbPath),
   });
 
   const loaded = await loadRecentProjects();
@@ -374,17 +376,17 @@ export async function runDashboard(opts: DashboardOptions): Promise<void> {
 
   app.get("/api/status", async (_req: Request, res: Response) => {
     const active = activeProject();
-    res.json(await getStatus(active?.embeddingsDb ?? opts.dbPath));
+    res.json(await getStatus(active?.virageDb ?? opts.dbPath));
   });
 
   app.get("/api/chunks", async (_req: Request, res: Response) => {
     const active = activeProject();
-    res.json(await getChunksHistogram(active?.embeddingsDb ?? opts.dbPath));
+    res.json(await getChunksHistogram(active?.virageDb ?? opts.dbPath));
   });
 
   app.get("/api/embeddings/anomalies", async (_req: Request, res: Response) => {
     const active = activeProject();
-    res.json(await getAnomalies(active?.embeddingsDb ?? opts.dbPath));
+    res.json(await getAnomalies(active?.virageDb ?? opts.dbPath));
   });
 
   app.get("/api/projects", (_req: Request, res: Response) => {
@@ -398,7 +400,7 @@ export async function runDashboard(opts: DashboardOptions): Promise<void> {
       return;
     }
     const entry = projectFromRoot(body.rootPath.trim());
-    if (!existsSync(entry.embeddingsDb)) {
+    if (!existsSync(entry.virageDb)) {
       res.status(422).json({
         error: `No .virage data found in ${entry.rootPath}`,
       });
@@ -448,7 +450,7 @@ export async function runDashboard(opts: DashboardOptions): Promise<void> {
       return;
     }
     try {
-      const db = new EmbeddingsDb(active.embeddingsDb);
+      const db = new VirageDb(active.virageDb);
       let chunks = db.getAllChunks();
       db.close();
       const sf = req.query["sourceFile"];
@@ -473,7 +475,7 @@ export async function runDashboard(opts: DashboardOptions): Promise<void> {
       return;
     }
     try {
-      const db = new EmbeddingsDb(active.embeddingsDb);
+      const db = new VirageDb(active.virageDb);
       db.deleteBySourceFile(body.sourceFile.trim());
       db.close();
       res.json({ ok: true });
@@ -489,7 +491,7 @@ export async function runDashboard(opts: DashboardOptions): Promise<void> {
       return;
     }
     try {
-      const db = new EmbeddingsDb(active.embeddingsDb);
+      const db = new VirageDb(active.virageDb);
       db.clearAll();
       db.close();
       res.json({ ok: true });
@@ -565,14 +567,15 @@ export async function runDashboard(opts: DashboardOptions): Promise<void> {
       res.status(503).json({ error: "No active project" });
       return;
     }
+    const db = new VirageDb(active.virageDb);
     try {
-      const store = new ExperimentStore(
-        join(active.rootPath, ".rag-experiments"),
-      );
+      const store = new ExperimentStore(db);
       const runs = await store.list();
       res.json({ runs });
     } catch (err) {
       res.status(500).json({ error: (err as Error).message });
+    } finally {
+      db.close();
     }
   });
 
@@ -586,14 +589,15 @@ export async function runDashboard(opts: DashboardOptions): Promise<void> {
       res.status(503).json({ error: "No active project" });
       return;
     }
+    const db = new VirageDb(active.virageDb);
     try {
-      const store = new ExperimentStore(
-        join(active.rootPath, ".rag-experiments"),
-      );
+      const store = new ExperimentStore(db);
       const run = await store.load(req.params["id"] as string);
       res.json(run);
     } catch (err) {
       res.status(404).json({ error: (err as Error).message });
+    } finally {
+      db.close();
     }
   });
 
@@ -607,16 +611,15 @@ export async function runDashboard(opts: DashboardOptions): Promise<void> {
       res.status(503).json({ error: "No active project" });
       return;
     }
+    const db = new VirageDb(active.virageDb);
     try {
-      const filePath = join(
-        active.rootPath,
-        ".rag-experiments",
-        `${req.params["id"] as string}.json`,
-      );
-      await unlink(filePath);
+      const store = new ExperimentStore(db);
+      await store.delete(req.params["id"] as string);
       res.json({ ok: true });
     } catch (err) {
       res.status(500).json({ error: (err as Error).message });
+    } finally {
+      db.close();
     }
   });
 
@@ -636,10 +639,9 @@ export async function runDashboard(opts: DashboardOptions): Promise<void> {
       res.status(503).json({ error: "No active project" });
       return;
     }
+    const db = new VirageDb(active.virageDb);
     try {
-      const store = new ExperimentStore(
-        join(active.rootPath, ".rag-experiments"),
-      );
+      const store = new ExperimentStore(db);
       const [bRun, cRun] = await Promise.all([
         store.load(body.baseline),
         store.load(body.candidate),
@@ -657,6 +659,8 @@ export async function runDashboard(opts: DashboardOptions): Promise<void> {
       res.json(result);
     } catch (err) {
       res.status(500).json({ error: (err as Error).message });
+    } finally {
+      db.close();
     }
   });
 

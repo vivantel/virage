@@ -1,14 +1,13 @@
-import { writeFile, mkdir } from "fs/promises";
-import { dirname } from "path";
 import type { Logger } from "../interfaces/logger.js";
 import { NullLogger } from "../logger/null-logger.js";
+import type { VirageDb } from "./virage-db.js";
 
 interface StageStats {
   durationMs: number;
   [key: string]: unknown;
 }
 
-interface TelemetryData {
+export interface PipelineRunData {
   runAt: string;
   durationMs: number;
   stages: {
@@ -39,7 +38,7 @@ interface TelemetryData {
 
 export class TelemetryCollector {
   private startedAt = 0;
-  private data: TelemetryData = {
+  private data: PipelineRunData = {
     runAt: new Date().toISOString(),
     durationMs: 0,
     stages: {},
@@ -90,7 +89,7 @@ export class TelemetryCollector {
     this.data.durationMs = Date.now() - this.startedAt;
   }
 
-  getData(): TelemetryData {
+  getData(): PipelineRunData {
     return this.data;
   }
 
@@ -107,10 +106,9 @@ export class TelemetryCollector {
     }
   }
 
-  async save(outputPath: string, logger?: Logger): Promise<void> {
+  async save(db: VirageDb, logger?: Logger): Promise<void> {
     const log = (logger ?? new NullLogger()).withTag("telemetry");
-    await mkdir(dirname(outputPath), { recursive: true });
-    await writeFile(outputPath, JSON.stringify(this.data, null, 2));
-    log.info(`📈 Telemetry saved to ${outputPath}`);
+    db.savePipelineRun(this.data);
+    log.info("📈 Pipeline telemetry saved to virage.db");
   }
 }

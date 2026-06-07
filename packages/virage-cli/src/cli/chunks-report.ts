@@ -1,4 +1,4 @@
-import { EmbeddingsDb } from "@vivantel/virage-core";
+import { VirageDb } from "@vivantel/virage-core";
 
 interface ChunkEntry {
   content: string;
@@ -25,7 +25,7 @@ function computeCohesion(chunks: ChunkEntry[]): {
 }
 
 export async function runChunksReport(dbPath: string): Promise<void> {
-  const db = new EmbeddingsDb(dbPath);
+  const db = new VirageDb(dbPath);
   const chunks = db.getAllChunks();
   db.close();
 

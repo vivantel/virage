@@ -3,8 +3,11 @@ import { watch } from "fs";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import {
   loadConfig,
-  EmbeddingsDb,
-  defaultEmbeddingsDb,
+  VirageDb,
+  defaultVirageDb,
+  TelemetryManager,
+  TelemetryFlusher,
+  DEFAULT_TELEMETRY_CONFIG,
 } from "@vivantel/virage-core";
 import { createMcpServer } from "./server.js";
 
@@ -18,13 +21,33 @@ if (configIdx === -1 || !process.argv[configIdx + 1]) {
 const configPath = process.argv[configIdx + 1];
 
 const cfg = await loadConfig(configPath);
+const telemetryConfig = cfg.telemetry ?? DEFAULT_TELEMETRY_CONFIG;
 
-const dbPath = defaultEmbeddingsDb();
-const db = new EmbeddingsDb(dbPath);
+const dbPath = defaultVirageDb();
+const db = new VirageDb(dbPath);
 await cfg.vectorStore.initialize();
 
-const ctx = { db, embedder: cfg.embedder, vectorStore: cfg.vectorStore };
-const server = createMcpServer(ctx);
+// Telemetry
+const telemetryMgr = new TelemetryManager(db, telemetryConfig);
+telemetryMgr.printFirstRunDisclosure();
+const session = telemetryMgr.startSession({
+  embeddingModel: (cfg.embedder as { model?: string }).model,
+  chunkingStrategy: cfg.chunkers.map((c) => c.name).join(","),
+  storeType: cfg.vectorStore.name,
+  nodeVersion: process.version,
+  os: process.platform,
+});
+const flusher = new TelemetryFlusher(db, telemetryConfig);
+void flusher.retryPending();
+const stopPeriodicFlush = flusher.startPeriodicFlush(session.id);
+
+const ctx = {
+  db,
+  embedder: cfg.embedder,
+  vectorStore: cfg.vectorStore,
+  session,
+};
+const server = createMcpServer(ctx, telemetryConfig);
 const transport = new StdioServerTransport();
 await server.connect(transport);
 
@@ -56,6 +79,9 @@ if (
 }
 
 async function shutdown() {
+  stopPeriodicFlush();
+  session.end();
+  await flusher.flush(session.id);
   await cfg.vectorStore.close?.();
   db.close();
   process.exit(0);

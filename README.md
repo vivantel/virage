@@ -116,7 +116,7 @@ Options:
   --no-upload             Skip upload to vector store
   --dry-run               Show what would change without uploading
   --watch                 Re-run pipeline on file changes
-  --embeddings-out <path> Override embeddings.db output path
+  (Use VIRAGE_DIR env var to override the .virage/ directory path)
 ```
 
 ## Embedders

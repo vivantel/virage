@@ -2,7 +2,7 @@ import { GitTracker } from "./git-tracker.js";
 import { ChunkProcessor } from "./chunk-processor.js";
 import { EmbedderProcessor } from "./embedder.js";
 import { Uploader } from "./uploader.js";
-import { EmbeddingsDb } from "./embeddings-db.js";
+import { VirageDb } from "./virage-db.js";
 import { TelemetryCollector } from "./telemetry.js";
 import {
   FileChunker,
@@ -15,12 +15,14 @@ import {
 import type { Logger } from "../interfaces/logger.js";
 import { NullLogger } from "../logger/null-logger.js";
 import { RetryOptions } from "./utils.js";
-import { defaultEmbeddingsDb } from "./virage-defaults.js";
+import { defaultVirageDb } from "./virage-defaults.js";
+import type { TelemetryConfig } from "../telemetry/types.js";
 
 export interface RAGPipelineConfig {
   chunkers: FileChunker[];
   embedder: EmbeddingProvider;
   vectorStore: VectorStore;
+  telemetry?: TelemetryConfig;
   options?: {
     /** @deprecated No longer used; chunks.json has been removed. */
     chunksFile?: string;
@@ -71,7 +73,7 @@ export class Orchestrator {
   constructor(config: RAGPipelineConfig) {
     this.config = config;
     this.embeddingsFile =
-      config.options?.embeddingsFile ?? defaultEmbeddingsDb();
+      config.options?.embeddingsFile ?? defaultVirageDb();
   }
 
   async run(): Promise<void> {
@@ -80,7 +82,7 @@ export class Orchestrator {
     const telemetry = opts.telemetry ? new TelemetryCollector() : null;
     telemetry?.start();
 
-    const db = new EmbeddingsDb(this.embeddingsFile);
+    const db = new VirageDb(this.embeddingsFile);
 
     let uploadedCount = 0;
     let deletedCount = 0;
@@ -367,11 +369,7 @@ export class Orchestrator {
       if (telemetry) {
         telemetry.finish();
         telemetry.printSummary(opts.logger);
-        const telemetryFile = this.embeddingsFile.replace(
-          /[^/\\]+\.json$/,
-          "telemetry.json",
-        );
-        await telemetry.save(telemetryFile, opts.logger);
+        await telemetry.save(db, opts.logger);
       }
 
       if (opts.notifications?.webhookUrl) {

@@ -33,12 +33,9 @@ metadata:
 
 ## Current State — Artifact locations
 
-| Artifact           | Default path                         | Format        | Contents                                                      |
-| ------------------ | ------------------------------------ | ------------- | ------------------------------------------------------------- |
-| Embeddings DB      | `.virage/embeddings.db`              | SQLite STRICT | Chunk metadata, embedding BLOBs (Float32 LE), `uploaded` flag |
-| Telemetry          | `.virage/telemetry.json`             | JSON          | Per-stage pipeline performance metrics                        |
-| Eval datasets      | `.rag-experiments/`                  | JSON files    | Query + ground-truth pairs                                    |
-| Experiment results | `.rag-experiments/<name>_<iso>.json` | JSON          | Metrics: MRR, P@5, R@10, HitRate@5                            |
+| Artifact           | Default path          | Format        | Contents                                                      |
+| ------------------ | --------------------- | ------------- | ------------------------------------------------------------- |
+| Virage DB          | `.virage/virage.db`   | SQLite STRICT | Chunk metadata, embedding BLOBs, experiment runs, telemetry   |
 
 **Override paths**: set `VIRAGE_DIR` env var to change the `.virage/` root.
 
@@ -49,10 +46,10 @@ metadata:
 ## Diagnostic commands
 
 ```bash
-virage report [--dir <path>]    # telemetry summary from .virage/telemetry.json
+virage report                    # pipeline run summary from virage.db
 virage store stats               # vector index quality metrics (coverage, dimensionality, etc.)
 virage store perf                # query latency: p50 / p95 / p99
-virage chunks report             # chunk cohesion quality metrics from embeddings.db
+virage chunks report             # chunk cohesion quality metrics from virage.db
 virage viz embeddings            # 2D UMAP or t-SNE visualization of the embedding space
 ```
 
@@ -69,7 +66,7 @@ virage viz embeddings            # 2D UMAP or t-SNE visualization of the embeddi
 | Embedding    | Latency per batch, total latency, rate-limit events |
 | Upload       | Latency per batch, total latency, retry events      |
 
-Auto-saved to `.virage/telemetry.json` after each pipeline run. `virage report` reads and displays it.
+Saved to the `pipeline_runs` table in `.virage/virage.db` after each pipeline run. `virage report` reads and displays it.
 
 ---
 
@@ -97,7 +94,7 @@ virage index --no-upload  # chunk + embed but skip vector store upload
 
 ---
 
-## Embeddings DB inspection (direct SQLite)
+## Virage DB inspection (direct SQLite)
 
 The DB schema uses `STRICT` mode. Useful queries:
 
@@ -115,4 +112,4 @@ SELECT COUNT(*) FROM chunks WHERE embedding IS NOT NULL AND uploaded = 0;
 SELECT source_file, COUNT(*) AS chunks FROM chunks GROUP BY source_file;
 ```
 
-Run with: `sqlite3 .virage/embeddings.db '<query>'`
+Run with: `sqlite3 .virage/virage.db '<query>'`

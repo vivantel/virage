@@ -17,7 +17,7 @@ import {
   defaultIsRetryable,
   RetryOptions,
 } from "./utils.js";
-import { EmbeddingsDb } from "./embeddings-db.js";
+import { VirageDb } from "./virage-db.js";
 
 function chunkContentHash(chunk: Chunk): string {
   if (chunk.contentHash) return chunk.contentHash;
@@ -152,7 +152,7 @@ export class EmbedderProcessor {
   }
 
   async getChunksToEmbed(
-    db: EmbeddingsDb,
+    db: VirageDb,
     chunks: Chunk[],
     force: boolean = false,
   ): Promise<{
@@ -264,7 +264,7 @@ export class EmbedderProcessor {
   }
 
   async saveEmbeddings(
-    db: EmbeddingsDb,
+    db: VirageDb,
     newEmbeddings: EmbeddedChunk[],
     meta: EmbeddingsMeta,
   ): Promise<void> {
@@ -274,7 +274,7 @@ export class EmbedderProcessor {
   }
 
   async run(
-    db: EmbeddingsDb,
+    db: VirageDb,
     chunksFile: string,
     force: boolean = false,
     onIntermediateBatch?: () => Promise<void>,

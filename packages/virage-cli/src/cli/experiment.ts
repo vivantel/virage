@@ -5,6 +5,8 @@ import {
   ExperimentStore,
   makeRunId,
   bootstrapPairedTest,
+  VirageDb,
+  defaultVirageDb,
 } from "@vivantel/virage-core";
 import { createProgressBar } from "../progress/progress-bar.js";
 import type { ExperimentRun } from "@vivantel/virage-core";
@@ -49,23 +51,34 @@ export async function runExperimentRun(
   console.log(`  Recall@10: ${(evalResult.recallAt10 * 100).toFixed(1)}%`);
   console.log(`  HitRate@5: ${(evalResult.hitRateAt5 * 100).toFixed(1)}%`);
 
-  const store = new ExperimentStore();
-  const run: ExperimentRun = {
-    id: makeRunId(opts.name),
-    name: opts.name,
-    timestamp: new Date().toISOString(),
-    config: { configFile: opts.config, dataset: opts.dataset },
-    evalResult,
-    perQueryRrScores,
-  };
+  const db = new VirageDb(defaultVirageDb());
+  try {
+    const store = new ExperimentStore(db);
+    const run: ExperimentRun = {
+      id: makeRunId(opts.name),
+      name: opts.name,
+      timestamp: new Date().toISOString(),
+      config: { configFile: opts.config, dataset: opts.dataset },
+      evalResult,
+      perQueryRrScores,
+    };
 
-  const savedPath = await store.save(run);
-  console.log(`\n💾 Experiment "${run.id}" saved to: ${savedPath}`);
+    const runId = await store.save(run);
+    console.log(`\n💾 Experiment "${runId}" saved to virage.db`);
+  } finally {
+    db.close();
+  }
 }
 
 export async function runExperimentList(): Promise<void> {
-  const store = new ExperimentStore();
-  const runs = await store.list();
+  const db = new VirageDb(defaultVirageDb());
+  let runs;
+  try {
+    const store = new ExperimentStore(db);
+    runs = await store.list();
+  } finally {
+    db.close();
+  }
 
   if (runs.length === 0) {
     console.log(
@@ -100,11 +113,16 @@ export async function runExperimentList(): Promise<void> {
 export async function runExperimentCompare(
   opts: ExperimentCompareOptions,
 ): Promise<void> {
-  const store = new ExperimentStore();
-
-  console.log(`📂 Loading experiment runs...`);
-  const baseline = await store.load(opts.baseline);
-  const candidate = await store.load(opts.candidate);
+  const db = new VirageDb(defaultVirageDb());
+  let baseline, candidate;
+  try {
+    const store = new ExperimentStore(db);
+    console.log(`📂 Loading experiment runs...`);
+    baseline = await store.load(opts.baseline);
+    candidate = await store.load(opts.candidate);
+  } finally {
+    db.close();
+  }
 
   console.log(`\n📊 Comparing experiments`);
   console.log("─".repeat(50));

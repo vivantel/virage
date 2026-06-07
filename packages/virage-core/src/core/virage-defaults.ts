@@ -14,6 +14,6 @@ export function getVirageDir(): string {
   return process.env["VIRAGE_DIR"] ?? ".virage";
 }
 
-export function defaultEmbeddingsDb(): string {
-  return `${getVirageDir()}/embeddings.db`;
+export function defaultVirageDb(): string {
+  return `${getVirageDir()}/virage.db`;
 }

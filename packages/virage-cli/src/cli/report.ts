@@ -1,34 +1,5 @@
-import { readdir, readFile } from "fs/promises";
-import { join } from "path";
-
-interface EmbeddingStage {
-  chunksEmbedded: number;
-  chunksSkipped: number;
-  durationMs: number;
-  latencySamples?: number[];
-  rateLimitEvents?: number;
-}
-
-interface TelemetryRecord {
-  runAt: string;
-  durationMs: number;
-  stages: {
-    gitTracking?: {
-      durationMs: number;
-      filesScanned: number;
-      toProcess: number;
-      toDelete: number;
-    };
-    chunking?: {
-      durationMs: number;
-      filesProcessed: number;
-      chunksGenerated: number;
-      errors: number;
-    };
-    embedding?: EmbeddingStage;
-    upload?: { durationMs: number; uploaded: number; deleted: number };
-  };
-}
+import { VirageDb, defaultVirageDb } from "@vivantel/virage-core";
+import type { PipelineRunData } from "@vivantel/virage-core";
 
 function percentile(sorted: number[], p: number): number {
   if (sorted.length === 0) return 0;
@@ -41,35 +12,23 @@ function fmt(ms: number): string {
   return `${(ms / 1000).toFixed(2)}s`;
 }
 
-export async function runReport(dir: string): Promise<void> {
-  let files: string[];
+export async function runReport(dbPath: string = defaultVirageDb()): Promise<void> {
+  let db: VirageDb;
+  let records: PipelineRunData[];
   try {
-    files = (await readdir(dir)).filter((f) => f.endsWith(".json"));
+    db = new VirageDb(dbPath);
+    records = db.listPipelineRuns();
+    db.close();
   } catch {
     console.error(
-      `❌ Could not read telemetry directory "${dir}".\n` +
-        `   Run the pipeline first to generate telemetry files.`,
+      `❌ Could not read virage.db at "${dbPath}".\n` +
+        `   Run the pipeline first to generate telemetry.`,
     );
     process.exit(1);
   }
 
-  if (files.length === 0) {
-    console.log(`ℹ️  No telemetry files found in "${dir}".`);
-    return;
-  }
-
-  const records: TelemetryRecord[] = [];
-  for (const file of files) {
-    try {
-      const raw = await readFile(join(dir, file), "utf-8");
-      records.push(JSON.parse(raw) as TelemetryRecord);
-    } catch {
-      // Skip malformed files
-    }
-  }
-
   if (records.length === 0) {
-    console.log("ℹ️  No valid telemetry records found.");
+    console.log("ℹ️  No pipeline runs found in virage.db.");
     return;
   }
 

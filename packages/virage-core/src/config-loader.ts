@@ -3,6 +3,7 @@ import { existsSync } from "fs";
 import { resolve } from "path";
 import { RAGPipelineConfig } from "./core/orchestrator.js";
 import { ConfigError } from "./core/errors.js";
+import type { TelemetryConfig } from "./telemetry/types.js";
 import { expandEnvVars } from "./core/env-expand.js";
 import {
   resolveStrategy,
@@ -34,6 +35,7 @@ interface JsonRagConfig {
   embedder: JsonProviderConfig;
   vectorStore: JsonProviderConfig;
   options?: RAGPipelineConfig["options"];
+  telemetry?: TelemetryConfig;
 }
 
 // ─── JSON config loading ──────────────────────────────────────────────────────
@@ -182,6 +184,7 @@ async function loadJsonConfig(
     chunkers,
     embedder,
     vectorStore,
+    telemetry: jsonConfig.telemetry,
     options: jsonConfig.options,
   };
 }
