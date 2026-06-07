@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.2.23](https://github.com/vivantel/virage/compare/virage-store-lancedb@v0.2.22...virage-store-lancedb@v0.2.23) (2026-06-07)
+
+
+### Code Refactoring
+
+* **virage-cli:** Apply prettier formatting ([a74ffb2](https://github.com/vivantel/virage/commit/a74ffb26cebc0a6979dc1a0e0243381b741347fe))
+* **virage-core:** Apply prettier formatting ([97c697a](https://github.com/vivantel/virage/commit/97c697a9a46697e6bb6c94977f74b6b56de1ab28))
+* **virage-mcp:** Apply prettier formatting ([05428d5](https://github.com/vivantel/virage/commit/05428d56514a74e176e0d223aecdb459e60064ac))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * devDependencies
+    * @vivantel/virage-core bumped from 0.2.20 to 0.2.21
+  * peerDependencies
+    * @vivantel/virage-core bumped from * to 0.2.21
+
 ## [0.2.22](https://github.com/vivantel/virage/compare/virage-store-lancedb@v0.2.21...virage-store-lancedb@v0.2.22) (2026-06-07)
 
 
