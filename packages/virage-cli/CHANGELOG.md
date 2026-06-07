@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.1.19](https://github.com/vivantel/virage/compare/virage-cli@v0.1.18...virage-cli@v0.1.19) (2026-06-07)
+
+
+### Features
+
+* Rename EmbeddingsDb→VirageDb, consolidate artifacts, add MCP telemetry system ([defc6a0](https://github.com/vivantel/virage/commit/defc6a0271a97bf930dcf379ccef15f36fa0c25d))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @vivantel/virage-core bumped from 0.2.19 to 0.2.20
+
 ## [0.1.18](https://github.com/vivantel/virage/compare/virage-cli@v0.1.17...virage-cli@v0.1.18) (2026-06-06)
 
 

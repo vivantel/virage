@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.20](https://github.com/vivantel/virage/compare/virage-core@v0.2.19...virage-core@v0.2.20) (2026-06-07)
+
+
+### Features
+
+* Rename EmbeddingsDb→VirageDb, consolidate artifacts, add MCP telemetry system ([defc6a0](https://github.com/vivantel/virage/commit/defc6a0271a97bf930dcf379ccef15f36fa0c25d))
+
 ## [0.2.19](https://github.com/vivantel/virage/compare/virage-core@v0.2.18...virage-core@v0.2.19) (2026-06-06)
 
 
