@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.5](https://github.com/vivantel/virage/compare/virage-code-chunk-chunker@v0.1.4...virage-code-chunk-chunker@v0.1.5) (2026-06-07)
+
+
+### Bug Fixes
+
+* **virage-code-chunk-chunker:** Restore kebab-case strategy name 'code-chunk-ast' ([a4cbaba](https://github.com/vivantel/virage/commit/a4cbaba7357250cd5c42402bf8c64c3b2737432c))
+
 ## [0.1.4](https://github.com/vivantel/virage/compare/virage-code-chunk-chunker@v0.1.3...virage-code-chunk-chunker@v0.1.4) (2026-06-07)
 
 
