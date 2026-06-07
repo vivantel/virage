@@ -36,7 +36,7 @@ export function codeChunkStrategy(
     options as CodeChunkStrategyOptions & ChunkOptions;
 
   return {
-    name: "codeChunkAst",
+    name: "code-chunk-ast",
 
     async chunk(text: string, filePath?: string): Promise<Chunk[]> {
       if (!filePath) {
@@ -56,7 +56,7 @@ export function codeChunkStrategy(
       return results.map((c, i) => ({
         content: useContextualizedText ? c.contextualizedText : c.text,
         metadata: {
-          strategy: "codeChunkAst",
+          strategy: "code-chunk-ast",
           chunk_index: i,
           source_file: filePath,
           total_chunks: c.totalChunks,
@@ -71,7 +71,7 @@ export function codeChunkStrategy(
     extractMetadata(_text: string, filePath?: string): Record<string, unknown> {
       const language = filePath ? detectLanguage(filePath) : null;
       return {
-        strategy: "codeChunkAst",
+        strategy: "code-chunk-ast",
         language: language ?? "unknown",
         supported: language !== null,
       };
@@ -84,7 +84,7 @@ export function codeChunkStrategy(
 }
 
 export const ragPlugin = {
-  name: "codeChunkAst",
+  name: "code-chunk-ast",
   type: "chunker" as const,
   factory: () => codeChunkStrategy(),
 };
