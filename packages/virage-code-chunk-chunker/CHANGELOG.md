@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.1.4](https://github.com/vivantel/virage/compare/virage-code-chunk-chunker@v0.1.3...virage-code-chunk-chunker@v0.1.4) (2026-06-07)
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * devDependencies
+    * @vivantel/virage-core bumped from 0.2.19 to 0.2.20
+  * peerDependencies
+    * @vivantel/virage-core bumped from * to 0.2.20
+
 ## [0.1.3](https://github.com/vivantel/virage/compare/virage-code-chunk-chunker@v0.1.2...virage-code-chunk-chunker@v0.1.3) (2026-06-06)
 
 
