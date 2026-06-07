@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.1.8](https://github.com/vivantel/virage/compare/virage-dashboard@v0.1.7...virage-dashboard@v0.1.8) (2026-06-07)
+
+
+### Code Refactoring
+
+* **virage-cli:** Apply prettier formatting ([a74ffb2](https://github.com/vivantel/virage/commit/a74ffb26cebc0a6979dc1a0e0243381b741347fe))
+* **virage-core:** Apply prettier formatting ([97c697a](https://github.com/vivantel/virage/commit/97c697a9a46697e6bb6c94977f74b6b56de1ab28))
+* **virage-mcp:** Apply prettier formatting ([05428d5](https://github.com/vivantel/virage/commit/05428d56514a74e176e0d223aecdb459e60064ac))
+
 ## [0.1.7](https://github.com/vivantel/virage/compare/virage-dashboard@v0.1.6...virage-dashboard@v0.1.7) (2026-06-05)
 
 ### Bug Fixes
