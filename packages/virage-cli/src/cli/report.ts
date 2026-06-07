@@ -12,7 +12,9 @@ function fmt(ms: number): string {
   return `${(ms / 1000).toFixed(2)}s`;
 }
 
-export async function runReport(dbPath: string = defaultVirageDb()): Promise<void> {
+export async function runReport(
+  dbPath: string = defaultVirageDb(),
+): Promise<void> {
   let db: VirageDb;
   let records: PipelineRunData[];
   try {

@@ -1,5 +1,9 @@
 import { describe, it, expect, vi } from "vitest";
-import { handleRagFeedback, type McpContext, type RagFeedbackArgs } from "./tools.js";
+import {
+  handleRagFeedback,
+  type McpContext,
+  type RagFeedbackArgs,
+} from "./tools.js";
 import type { TelemetrySession } from "@vivantel/virage-core";
 import { normalizeMissingCategory } from "@vivantel/virage-core";
 
@@ -28,9 +32,7 @@ function makeCtx(overrides?: Partial<McpContext>): McpContext {
 describe("handleRagFeedback", () => {
   it("does nothing when session is absent", () => {
     const ctx = makeCtx();
-    expect(() =>
-      handleRagFeedback({ was_useful: true }, ctx),
-    ).not.toThrow();
+    expect(() => handleRagFeedback({ was_useful: true }, ctx)).not.toThrow();
   });
 
   it("does nothing when no search_id is available", () => {
@@ -55,7 +57,10 @@ describe("handleRagFeedback", () => {
     expect(session.recordFeedback).toHaveBeenCalledOnce();
     const [searchId, payload] = (
       session.recordFeedback as ReturnType<typeof vi.fn>
-    ).mock.calls[0] as [string, { wasUseful: boolean; contextRelevance: number; missingCategory: string }];
+    ).mock.calls[0] as [
+      string,
+      { wasUseful: boolean; contextRelevance: number; missingCategory: string },
+    ];
     expect(searchId).toBe("explicit-id");
     expect(payload.wasUseful).toBe(true);
     expect(payload.contextRelevance).toBe(0.9);
@@ -66,9 +71,8 @@ describe("handleRagFeedback", () => {
     const session = makeMockSession();
     const ctx = makeCtx({ session, lastSearchId: "last-search" });
     handleRagFeedback({ was_useful: false }, ctx);
-    const [searchId] = (
-      session.recordFeedback as ReturnType<typeof vi.fn>
-    ).mock.calls[0] as [string];
+    const [searchId] = (session.recordFeedback as ReturnType<typeof vi.fn>).mock
+      .calls[0] as [string];
     expect(searchId).toBe("last-search");
   });
 
@@ -82,9 +86,8 @@ describe("handleRagFeedback", () => {
       },
       ctx,
     );
-    const [, payload] = (
-      session.recordFeedback as ReturnType<typeof vi.fn>
-    ).mock.calls[0] as [string, { missingCategory: string }];
+    const [, payload] = (session.recordFeedback as ReturnType<typeof vi.fn>)
+      .mock.calls[0] as [string, { missingCategory: string }];
     expect(payload.missingCategory).toBe("other");
   });
 
@@ -101,9 +104,11 @@ describe("handleRagFeedback", () => {
       },
       ctx,
     );
-    const [, payload] = (
-      session.recordFeedback as ReturnType<typeof vi.fn>
-    ).mock.calls[0] as [string, { contextCompleteness: number; noiseRatio: number }];
+    const [, payload] = (session.recordFeedback as ReturnType<typeof vi.fn>)
+      .mock.calls[0] as [
+      string,
+      { contextCompleteness: number; noiseRatio: number },
+    ];
     expect(payload.contextCompleteness).toBe(0.7);
     expect(payload.noiseRatio).toBe(0.1);
   });

@@ -72,8 +72,7 @@ export class Orchestrator {
 
   constructor(config: RAGPipelineConfig) {
     this.config = config;
-    this.embeddingsFile =
-      config.options?.embeddingsFile ?? defaultVirageDb();
+    this.embeddingsFile = config.options?.embeddingsFile ?? defaultVirageDb();
   }
 
   async run(): Promise<void> {

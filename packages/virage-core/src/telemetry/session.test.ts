@@ -36,12 +36,10 @@ afterEach(() => {
 
 describe("TelemetrySession — basic recording", () => {
   it("inserts a session row on construction", () => {
-    const session = new TelemetrySession(
-      db,
-      makeConfig(),
-      "sess-1",
-      { nodeVersion: "v20.0.0", os: "linux" },
-    );
+    const session = new TelemetrySession(db, makeConfig(), "sess-1", {
+      nodeVersion: "v20.0.0",
+      os: "linux",
+    });
     const row = db.getTelemetrySession("sess-1");
     expect(row).not.toBeNull();
     expect(row?.id).toBe("sess-1");
@@ -50,12 +48,10 @@ describe("TelemetrySession — basic recording", () => {
   });
 
   it("does not insert a session row when disabled", () => {
-    new TelemetrySession(
-      db,
-      makeConfig({ enabled: false }),
-      "sess-disabled",
-      { nodeVersion: "v20.0.0", os: "linux" },
-    );
+    new TelemetrySession(db, makeConfig({ enabled: false }), "sess-disabled", {
+      nodeVersion: "v20.0.0",
+      os: "linux",
+    });
     const row = db.getTelemetrySession("sess-disabled");
     expect(row).toBeNull();
   });
@@ -155,7 +151,15 @@ describe("TelemetrySession — feedback sampling", () => {
   it("shouldSampleFeedback returns false when disabled", () => {
     const session = new TelemetrySession(
       db,
-      makeConfig({ tiers: { ...DEFAULT_TELEMETRY_CONFIG.tiers, explicit_feedback: { ...DEFAULT_TELEMETRY_CONFIG.tiers.explicit_feedback, enabled: false } } }),
+      makeConfig({
+        tiers: {
+          ...DEFAULT_TELEMETRY_CONFIG.tiers,
+          explicit_feedback: {
+            ...DEFAULT_TELEMETRY_CONFIG.tiers.explicit_feedback,
+            enabled: false,
+          },
+        },
+      }),
       "sess-f1",
       { nodeVersion: "v20.0.0", os: "linux" },
     );

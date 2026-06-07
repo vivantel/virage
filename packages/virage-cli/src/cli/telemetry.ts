@@ -71,7 +71,9 @@ export async function runTelemetryStatus(): Promise<void> {
         signal: controller.signal,
       });
       clearTimeout(timer);
-      console.log(`  Endpoint    : ${res.ok ? "✅ reachable" : "⚠️  returned " + String(res.status)}`);
+      console.log(
+        `  Endpoint    : ${res.ok ? "✅ reachable" : "⚠️  returned " + String(res.status)}`,
+      );
     } catch {
       console.log("  Endpoint    : ⚠️  unreachable (5s timeout)");
     }
@@ -86,9 +88,7 @@ export async function runTelemetryStatus(): Promise<void> {
       const bufferBytes = db.getTelemetryBufferSizeBytes();
       const unflushed = db.getUnflushedSessions().length;
       db.close();
-      console.log(
-        `  Buffer size : ~${(bufferBytes / 1024).toFixed(1)} KB`,
-      );
+      console.log(`  Buffer size : ~${(bufferBytes / 1024).toFixed(1)} KB`);
       console.log(`  Unflushed   : ${unflushed} session(s)`);
     } catch {
       console.log("  Buffer size : (could not open DB)");
@@ -107,9 +107,7 @@ export async function runTelemetryOn(): Promise<void> {
   console.log("✅ Telemetry enabled. Run 'virage telemetry status' to verify.");
 }
 
-export async function runTelemetryOff(opts: {
-  tiers?: string;
-}): Promise<void> {
+export async function runTelemetryOff(opts: { tiers?: string }): Promise<void> {
   const cfg = await readConfig();
   const existing = (cfg["telemetry"] as Record<string, unknown>) ?? {};
 
@@ -257,7 +255,9 @@ export async function runTelemetryFlush(opts: {
   const tel = getTelemetryConfig(cfg);
 
   if (!tel.endpoint) {
-    console.log("ℹ️  No endpoint configured. Use 'virage telemetry init' to set one.");
+    console.log(
+      "ℹ️  No endpoint configured. Use 'virage telemetry init' to set one.",
+    );
     return;
   }
 

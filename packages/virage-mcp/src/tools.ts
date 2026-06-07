@@ -42,7 +42,8 @@ export async function handleSearch(
   ctx.session?.recordSearch(searchId, results.length, embedding);
 
   ctx.lastSearchId = searchId;
-  ctx.feedbackArmed = ctx.session?.shouldSampleFeedback(results.length) ?? false;
+  ctx.feedbackArmed =
+    ctx.session?.shouldSampleFeedback(results.length) ?? false;
 
   return results.map((r) => ({
     id: r.id,

@@ -129,9 +129,9 @@ describe("TelemetryFlusher.buildSessionSummaryPayload", () => {
     const payload = flusher.buildSessionSummaryPayload("sess-e")!;
     expect(payload.feedback.count).toBe(2);
     expect(payload.feedback.avg_context_relevance).toBeCloseTo(0.6, 5);
-    expect(payload.feedback.missing_category_distribution[
-      "missing_error_handling"
-    ]).toBe(2);
+    expect(
+      payload.feedback.missing_category_distribution["missing_error_handling"],
+    ).toBe(2);
   });
 
   it("returns null average fields when no data", () => {
@@ -209,7 +209,10 @@ describe("TelemetryFlusher.flush", () => {
   });
 
   it("returns false gracefully on network error", async () => {
-    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("Network error")));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockRejectedValue(new Error("Network error")),
+    );
 
     const config: TelemetryConfig = {
       ...DEFAULT_TELEMETRY_CONFIG,

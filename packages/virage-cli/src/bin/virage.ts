@@ -369,22 +369,17 @@ viz
   .description("Generate a 2D visualization of the embedding space")
   .option("--output <path>", "Output HTML file", "umap.html")
   .option("--projection <type>", "Projection type: umap or tsne", "umap")
-  .action(
-    async (opts: {
-      output: string;
-      projection: string;
-    }) => {
-      try {
-        await runVizEmbeddings({
-          dbPath: defaultVirageDb(),
-          output: opts.output,
-          projection: opts.projection as "umap" | "tsne",
-        });
-      } catch (error) {
-        handleError(error);
-      }
-    },
-  );
+  .action(async (opts: { output: string; projection: string }) => {
+    try {
+      await runVizEmbeddings({
+        dbPath: defaultVirageDb(),
+        output: opts.output,
+        projection: opts.projection as "umap" | "tsne",
+      });
+    } catch (error) {
+      handleError(error);
+    }
+  });
 
 const chunks = program.command("chunks").description("Chunk analysis tools");
 chunks
@@ -586,7 +581,9 @@ telemetry
 
 telemetry
   .command("preview")
-  .description("Preview the telemetry payload that would be sent (no transmission)")
+  .description(
+    "Preview the telemetry payload that would be sent (no transmission)",
+  )
   .action(async () => {
     try {
       await runTelemetryPreview();

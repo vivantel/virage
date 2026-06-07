@@ -118,11 +118,7 @@ export class TelemetrySession {
     });
   }
 
-  recordError(
-    errorType: string,
-    retryCount: number,
-    recovered: boolean,
-  ): void {
+  recordError(errorType: string, retryCount: number, recovered: boolean): void {
     if (!this.config.enabled || !this.config.tiers.implicit) return;
     this.db.insertTelemetryError({
       session_id: this.id,

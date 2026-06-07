@@ -67,9 +67,7 @@ export class TelemetryFlusher {
     private readonly config: TelemetryConfig,
   ) {}
 
-  buildSessionSummaryPayload(
-    sessionId: string,
-  ): SessionSummaryPayload | null {
+  buildSessionSummaryPayload(sessionId: string): SessionSummaryPayload | null {
     const session = this.db.getTelemetrySession(sessionId);
     if (!session) return null;
 
@@ -77,8 +75,7 @@ export class TelemetryFlusher {
       this.db.getSearchesForSession(sessionId);
     const latencies: TelemetryLatencyRow[] =
       this.db.getLatencyForSession(sessionId);
-    const errors: TelemetryErrorRow[] =
-      this.db.getErrorsForSession(sessionId);
+    const errors: TelemetryErrorRow[] = this.db.getErrorsForSession(sessionId);
     const feedbacks: TelemetryFeedbackRow[] =
       this.db.getFeedbackForSession(sessionId);
     const cacheStats: TelemetryCacheStatsRow[] =
@@ -225,8 +222,7 @@ export class TelemetryFlusher {
 
   async retryPending(): Promise<void> {
     if (!this.config.enabled || !this.config.endpoint) return;
-    const maxAgeMs =
-      this.config.privacy.max_retry_hours * 60 * 60 * 1000;
+    const maxAgeMs = this.config.privacy.max_retry_hours * 60 * 60 * 1000;
     const cutoff = new Date(Date.now() - maxAgeMs).toISOString();
     const unflushed = this.db
       .getUnflushedSessions()

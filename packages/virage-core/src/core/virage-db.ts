@@ -1,5 +1,11 @@
 import { createHash } from "crypto";
-import { existsSync, mkdirSync, readFileSync, renameSync, readdirSync } from "fs";
+import {
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  renameSync,
+  readdirSync,
+} from "fs";
 import { dirname, join } from "path";
 import { rename } from "fs/promises";
 import Database from "better-sqlite3";
@@ -686,9 +692,9 @@ export class VirageDb {
   migrateExperimentsFromDir(dir: string): void {
     if (!existsSync(dir)) return;
     const count = (
-      this.db
-        .prepare("SELECT COUNT(*) as cnt FROM experiment_runs")
-        .get() as { cnt: number }
+      this.db.prepare("SELECT COUNT(*) as cnt FROM experiment_runs").get() as {
+        cnt: number;
+      }
     ).cnt;
     if (count > 0) return;
 
@@ -850,29 +856,19 @@ export class VirageDb {
 
   markTelemetryFlushed(sessionId: string): void {
     this.db
-      .prepare(
-        "UPDATE telemetry_sessions SET flushed = 1 WHERE id = ?",
-      )
+      .prepare("UPDATE telemetry_sessions SET flushed = 1 WHERE id = ?")
       .run(sessionId);
     this.db
-      .prepare(
-        "UPDATE telemetry_searches SET flushed = 1 WHERE session_id = ?",
-      )
+      .prepare("UPDATE telemetry_searches SET flushed = 1 WHERE session_id = ?")
       .run(sessionId);
     this.db
-      .prepare(
-        "UPDATE telemetry_latency SET flushed = 1 WHERE session_id = ?",
-      )
+      .prepare("UPDATE telemetry_latency SET flushed = 1 WHERE session_id = ?")
       .run(sessionId);
     this.db
-      .prepare(
-        "UPDATE telemetry_errors SET flushed = 1 WHERE session_id = ?",
-      )
+      .prepare("UPDATE telemetry_errors SET flushed = 1 WHERE session_id = ?")
       .run(sessionId);
     this.db
-      .prepare(
-        "UPDATE telemetry_feedback SET flushed = 1 WHERE session_id = ?",
-      )
+      .prepare("UPDATE telemetry_feedback SET flushed = 1 WHERE session_id = ?")
       .run(sessionId);
     this.db
       .prepare(
@@ -1037,7 +1033,9 @@ export class VirageDb {
     let totalBytes = 0;
     for (const table of tables) {
       const row = this.db
-        .prepare(`SELECT SUM(LENGTH(CAST(rowid AS TEXT)) + 50) as sz FROM ${table}`)
+        .prepare(
+          `SELECT SUM(LENGTH(CAST(rowid AS TEXT)) + 50) as sz FROM ${table}`,
+        )
         .get() as { sz: number | null };
       totalBytes += row.sz ?? 0;
     }

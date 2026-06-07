@@ -16,8 +16,16 @@ export const EXT_GROUPS: ExtGroup[] = [
     strategyFn: "markdownHeadersStrategy",
     name: "markdown",
   },
-  { exts: [".ts", ".tsx"], strategyFn: "codeChunkStrategy", name: "typescript" },
-  { exts: [".js", ".jsx"], strategyFn: "codeChunkStrategy", name: "javascript" },
+  {
+    exts: [".ts", ".tsx"],
+    strategyFn: "codeChunkStrategy",
+    name: "typescript",
+  },
+  {
+    exts: [".js", ".jsx"],
+    strategyFn: "codeChunkStrategy",
+    name: "javascript",
+  },
   { exts: [".py"], strategyFn: "codeChunkStrategy", name: "python" },
   { exts: [".go"], strategyFn: "codeChunkStrategy", name: "go" },
   { exts: [".cs"], strategyFn: "tokenStrategy", name: "csharp" },

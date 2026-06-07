@@ -92,9 +92,7 @@ describe("Orchestrator", () => {
     };
     const orchestrator = new Orchestrator(config);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    expect((orchestrator as any).embeddingsFile).toBe(
-      "/custom/dir/virage.db",
-    );
+    expect((orchestrator as any).embeddingsFile).toBe("/custom/dir/virage.db");
     vi.unstubAllEnvs();
   });
 });
