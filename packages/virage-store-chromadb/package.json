@@ -1,6 +1,6 @@
 {
   "name": "@vivantel/virage-store-chromadb",
-  "version": "0.2.22",
+  "version": "0.2.23",
   "description": "ChromaDB vector store for @vivantel/rag-core (local or hosted)",
   "type": "module",
   "main": "dist/index.js",
