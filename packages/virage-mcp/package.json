@@ -1,6 +1,6 @@
 {
   "name": "@vivantel/virage-mcp",
-  "version": "0.1.12",
+  "version": "0.1.13",
   "type": "module",
   "description": "MCP stdio server for Virage RAG — search and inspect your index from AI assistants",
   "author": "Vivantel",

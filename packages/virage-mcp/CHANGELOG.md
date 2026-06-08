@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.13](https://github.com/vivantel/virage/compare/virage-mcp@v0.1.12...virage-mcp@v0.1.13) (2026-06-08)
+
+
+### Features
+
+* **virage-mcp:** Add inspect script for mcp-inspector ([6a956ff](https://github.com/vivantel/virage/commit/6a956fffd75c616fd7bd7cfc49f6306931c663d0))
+
 ## [0.1.12](https://github.com/vivantel/virage/compare/virage-mcp@v0.1.11...virage-mcp@v0.1.12) (2026-06-07)
 
 
