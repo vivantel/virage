@@ -47,7 +47,8 @@
     "lint:fix": "eslint src/ --fix",
     "format": "prettier --write \"src/**/*.ts\"",
     "format:check": "prettier --check \"src/**/*.ts\"",
-    "fix": "npm run lint:fix && npm run format"
+    "fix": "npm run lint:fix && npm run format",
+    "inspect": "npx @modelcontextprotocol/inspector node dist/cli.js --config ../../virage.config.json"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.12.0",
