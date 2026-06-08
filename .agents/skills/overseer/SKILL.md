@@ -33,6 +33,7 @@ Trigger on any of these events:
 
 | Skill file                                | Covers                                                                            | Key snapshot to verify                          |
 | ----------------------------------------- | --------------------------------------------------------------------------------- | ----------------------------------------------- |
+| `.agents/skills/spec-cop/SKILL.md`        | Spec coherence: track capabilities (NOW.md) + intents (NEXT.md), detect contradictions, escalate to human | CONTRADICTIONS.md format, §Escalation protocol |
 | `.agents/skills/planner/SKILL.md`         | Implementation planning: phases, alternatives format, ADR gate, progress tracking | Plan structure, §Presenting alternatives format |
 | `docs/ai/INDEX.md`                        | Decision table, commands, cross-cutting rules, memory slugs                       | Decision table rows, command list               |
 | `.agents/skills/readme/SKILL.md`          | Root README section map                                                           | Section triggers table                          |

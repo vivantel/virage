@@ -1,0 +1,32 @@
+# Virage — Planned Intents (NEXT)
+
+**Last updated:** YYYY-MM-DD
+
+## Committed (Target: QX YYYY)
+
+| Intent | Owner | Confidence | ADR | Notes |
+|--------|-------|------------|-----|-------|
+| | | HIGH/MEDIUM | ADR-XXX | |
+
+## Under Consideration (no commitment)
+
+| Intent | Owner | Confidence | Notes |
+|--------|-------|------------|-------|
+| | | LOW | |
+
+## Rejected (decided not to build)
+
+| Intent | Reason | ADR |
+|--------|--------|-----|
+| | | ADR-XXX or — |
+
+## Dependencies
+
+- Intent A requires ADR-XXX (architecture decision)
+- Intent B blocked on Intent C completion
+
+## Notes
+
+- Add confidence: HIGH = committed, MEDIUM = likely, LOW = exploratory
+- Link ADRs when technical decision is required
+- Update this file during weekly sync
