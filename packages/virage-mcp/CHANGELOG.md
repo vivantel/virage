@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.15](https://github.com/vivantel/virage/compare/virage-mcp@v0.1.14...virage-mcp@v0.1.15) (2026-06-08)
+
+
+### Bug Fixes
+
+* **virage-mcp:** Kill stale inspector ports before starting inspect ([174189b](https://github.com/vivantel/virage/commit/174189bbc546e93041954b2e471d9e4e1b6ea486))
+
 ## [0.1.14](https://github.com/vivantel/virage/compare/virage-mcp@v0.1.13...virage-mcp@v0.1.14) (2026-06-08)
 
 
