@@ -55,8 +55,8 @@
     "directory": "packages/virage-store-lancedb"
   },
   "dependencies": {
-    "@lancedb/lancedb": "^0.18.0",
-    "apache-arrow": "^18.0.0"
+    "@lancedb/lancedb": "^0.30.0",
+    "apache-arrow": "^21.1.0"
   },
   "peerDependencies": {
     "@vivantel/virage-core": "*"

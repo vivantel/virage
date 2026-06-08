@@ -44,7 +44,7 @@
     "directory": "packages/virage-embedder-openai"
   },
   "dependencies": {
-    "openai": "^6.41.0"
+    "openai": "^6.42.0"
   },
   "peerDependencies": {
     "@vivantel/virage-core": "*"
