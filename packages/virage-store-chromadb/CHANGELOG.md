@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.23](https://github.com/vivantel/virage/compare/virage-store-chromadb@v0.2.22...virage-store-chromadb@v0.2.23) (2026-06-08)
+
+
+### Bug Fixes
+
+* Correct IncludeEnum casing for chromadb v3 compatibility ([39db626](https://github.com/vivantel/virage/commit/39db626e21edfe2e8ef410e69e6cdec3a57654ba))
+
 ## [0.2.22](https://github.com/vivantel/virage/compare/virage-store-chromadb@v0.2.21...virage-store-chromadb@v0.2.22) (2026-06-07)
 
 
