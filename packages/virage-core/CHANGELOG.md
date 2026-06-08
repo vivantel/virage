@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.22](https://github.com/vivantel/virage/compare/virage-core@v0.2.21...virage-core@v0.2.22) (2026-06-08)
+
+
+### Bug Fixes
+
+* Replace rm -rf with rimraf for cross-platform builds, revert lsof inspect hack ([17109b3](https://github.com/vivantel/virage/commit/17109b3fe31803b4e22868e968c8a37072c34504))
+
 ## [0.2.21](https://github.com/vivantel/virage/compare/virage-core@v0.2.20...virage-core@v0.2.21) (2026-06-07)
 
 

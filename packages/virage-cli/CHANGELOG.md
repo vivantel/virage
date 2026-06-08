@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.1.21](https://github.com/vivantel/virage/compare/virage-cli@v0.1.20...virage-cli@v0.1.21) (2026-06-08)
+
+
+### Bug Fixes
+
+* Replace rm -rf with rimraf for cross-platform builds, revert lsof inspect hack ([17109b3](https://github.com/vivantel/virage/commit/17109b3fe31803b4e22868e968c8a37072c34504))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @vivantel/virage-core bumped from 0.2.21 to 0.2.22
+
 ## [0.1.20](https://github.com/vivantel/virage/compare/virage-cli@v0.1.19...virage-cli@v0.1.20) (2026-06-07)
 
 
