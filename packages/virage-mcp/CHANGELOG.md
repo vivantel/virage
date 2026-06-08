@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.14](https://github.com/vivantel/virage/compare/virage-mcp@v0.1.13...virage-mcp@v0.1.14) (2026-06-08)
+
+
+### Bug Fixes
+
+* **virage-mcp:** Add -- separator to inspect script to pass args to server ([b8173a6](https://github.com/vivantel/virage/commit/b8173a6148a83975aaa9c995affcc5789c58c97a))
+
 ## [0.1.13](https://github.com/vivantel/virage/compare/virage-mcp@v0.1.12...virage-mcp@v0.1.13) (2026-06-08)
 
 
