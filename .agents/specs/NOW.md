@@ -1,0 +1,65 @@
+# Virage — Current Capabilities (NOW)
+
+**Last updated:** 2026-06-08
+**Version:** see package.json
+
+## Core Pipeline
+
+- ✅ Git-based change detection (commit hash + `-dirty` flag)
+- ✅ 4-stage linear pipeline: GitTracker → ChunkProcessor → EmbedderProcessor → Uploader
+- ✅ Incremental chunking (content hash cache)
+- ✅ Batch embedding (configurable `batchSize`, `rateLimitMs`)
+
+## Chunking Strategies
+
+| Strategy | Supported | Notes |
+|----------|-----------|-------|
+| markdownHeaders | ✅ | Splits at ## headings |
+| codeChunkAst | ✅ | TS, JS, Python, Go, Java |
+| token | ✅ | maxTokens + overlap |
+| semantic | ✅ | Sentence/paragraph boundaries |
+| wholeFile | ✅ | One chunk per file |
+
+## Embedders
+
+| Provider | Local | API Key Required |
+|----------|-------|------------------|
+| OpenAI-compatible | ❌ | Yes |
+| FastEmbed | ✅ | No |
+| Transformers.js | ✅ | No |
+
+## Vector Stores
+
+| Store | Local | Production-ready |
+|-------|-------|------------------|
+| LanceDB | ✅ | ✅ |
+| PostgreSQL + pgvector | ❌ | ✅ |
+| Qdrant | ❌ | ✅ |
+| ChromaDB | ❌ | ✅ |
+
+## CLI Commands
+
+| Command | Status | Notes |
+|---------|--------|-------|
+| `virage init` | ✅ | Interactive config generation |
+| `virage index` | ✅ | Supports `--watch`, `--force`, `--dry-run` |
+| `virage dashboard` | ✅ | Web monitoring UI |
+| `virage validate` | ✅ | Config validation |
+| `virage evaluate` | ✅ | Retrieval quality evaluation |
+| `virage experiment` | ✅ | A/B testing for strategies |
+| `virage report` | ✅ | Observability report |
+| `virage chunks` | ✅ | Chunk analysis |
+| `virage viz` | ✅ | Visualization |
+| `virage benchmark` | ✅ | Performance benchmarking |
+| `virage store` | ✅ | Vector store diagnostics |
+
+## MCP Integration
+
+- MCP stdio server (`@vivantel/virage-mcp`)
+- Read-only tools: `search_chunks`, `browse_chunks`, `get_stats`
+
+## Observability
+
+- Telemetry files in `.virage/telemetry/`
+- Dashboard: anomalies, chunk distribution, pipeline status
+- Quality metrics: precision@k, recall@k, MRR
