@@ -54,7 +54,7 @@
     "directory": "packages/virage-store-chromadb"
   },
   "dependencies": {
-    "chromadb": "^1.10.0"
+    "chromadb": "^3.4.3"
   },
   "peerDependencies": {
     "@vivantel/virage-core": "*"
