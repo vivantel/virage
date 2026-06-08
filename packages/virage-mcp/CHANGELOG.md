@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.1.16](https://github.com/vivantel/virage/compare/virage-mcp@v0.1.15...virage-mcp@v0.1.16) (2026-06-08)
+
+
+### Bug Fixes
+
+* Replace rm -rf with rimraf for cross-platform builds, revert lsof inspect hack ([17109b3](https://github.com/vivantel/virage/commit/17109b3fe31803b4e22868e968c8a37072c34504))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @vivantel/virage-core bumped from 0.2.21 to 0.2.22
+  * devDependencies
+    * @vivantel/virage-core bumped from 0.2.21 to 0.2.22
+  * peerDependencies
+    * @vivantel/virage-core bumped from * to 0.2.22
+
 ## [0.1.15](https://github.com/vivantel/virage/compare/virage-mcp@v0.1.14...virage-mcp@v0.1.15) (2026-06-08)
 
 
