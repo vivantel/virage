@@ -27,7 +27,7 @@
     "access": "public"
   },
   "scripts": {
-    "build": "rm -rf dist && tsc && cp -r ../virage-dashboard/dist dist/dashboard-ui 2>/dev/null || true && echo \"✅ Build completed successfully\"",
+    "build": "rimraf dist && tsc && cp -r ../virage-dashboard/dist dist/dashboard-ui 2>/dev/null || true && echo \"✅ Build completed successfully\"",
     "build:with-dashboard": "npm run build -w @vivantel/virage-dashboard && npm run build",
     "type-check": "tsc --noEmit",
     "lint": "eslint src/",
@@ -69,6 +69,7 @@
     "@types/ws": "^8.18.1",
     "eslint": "^10.4.1",
     "prettier": "^3.8.3",
+    "rimraf": "^6.0.1",
     "tsx": "^4.22.4",
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.60.1",

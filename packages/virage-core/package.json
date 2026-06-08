@@ -26,7 +26,7 @@
     "access": "public"
   },
   "scripts": {
-    "build": "rm -rf dist && tsc && echo \"✅ Build completed successfully\"",
+    "build": "rimraf dist && tsc && echo \"✅ Build completed successfully\"",
     "dev": "tsx watch src/index.ts",
     "type-check": "tsc --noEmit",
     "lint": "eslint src/",
@@ -64,6 +64,7 @@
     "@types/node": "^25.9.2",
     "eslint": "^10.4.1",
     "prettier": "^3.8.3",
+    "rimraf": "^6.0.1",
     "tsx": "^4.22.4",
     "typedoc": "^0.28.19",
     "typedoc-plugin-markdown": "^4.12.0",

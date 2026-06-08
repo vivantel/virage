@@ -39,7 +39,7 @@
     "node": ">=18.0.0"
   },
   "scripts": {
-    "build": "rm -rf dist && tsc",
+    "build": "rimraf dist && tsc",
     "type-check": "tsc --noEmit",
     "test": "vitest run",
     "prepublishOnly": "npm run build",
@@ -48,7 +48,7 @@
     "format": "prettier --write \"src/**/*.ts\"",
     "format:check": "prettier --check \"src/**/*.ts\"",
     "fix": "npm run lint:fix && npm run format",
-    "inspect": "lsof -ti:6277,6274 2>/dev/null | xargs kill -9 2>/dev/null; npx @modelcontextprotocol/inspector -- node dist/cli.js --config ../../virage.config.json"
+    "inspect": "npx @modelcontextprotocol/inspector -- node dist/cli.js --config ../../virage.config.json"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.12.0",
@@ -61,6 +61,7 @@
   "devDependencies": {
     "@vivantel/virage-core": "0.2.21",
     "@types/node": "^25.9.2",
+    "rimraf": "^6.0.1",
     "typescript": "^6.0.3",
     "vitest": "^4.1.8"
   }
