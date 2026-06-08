@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.9](https://github.com/vivantel/virage/compare/virage-dashboard@v0.1.8...virage-dashboard@v0.1.9) (2026-06-08)
+
+
+### Bug Fixes
+
+* Add vite-env.d.ts to virage-dashboard for CSS import types ([0e1c07c](https://github.com/vivantel/virage/commit/0e1c07c530a3a0457702fe38ee3a6bd3c8b62d22))
+
 ## [0.1.8](https://github.com/vivantel/virage/compare/virage-dashboard@v0.1.7...virage-dashboard@v0.1.8) (2026-06-07)
 
 
