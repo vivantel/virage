@@ -104,7 +104,7 @@ export class ChromaVectorStore implements VectorStore {
 
     while (true) {
       const result = await this.collection.get({
-        include: [IncludeEnum.Metadatas],
+        include: [IncludeEnum.metadatas],
         limit: SCROLL_PAGE_SIZE,
         offset,
       });
@@ -145,9 +145,9 @@ export class ChromaVectorStore implements VectorStore {
       queryEmbeddings: [queryEmbedding],
       nResults: topK,
       include: [
-        IncludeEnum.Documents,
-        IncludeEnum.Metadatas,
-        IncludeEnum.Distances,
+        IncludeEnum.documents,
+        IncludeEnum.metadatas,
+        IncludeEnum.distances,
       ],
     });
 

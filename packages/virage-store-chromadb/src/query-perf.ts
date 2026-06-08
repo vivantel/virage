@@ -23,7 +23,7 @@ export async function getQueryPerfReport(
 
   try {
     const result = await collection.get({
-      include: [IncludeEnum.Embeddings],
+      include: [IncludeEnum.embeddings],
       limit: SAMPLE_COUNT,
     });
     if (result.embeddings && result.embeddings.length > 0) {
