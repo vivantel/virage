@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.1.22](https://github.com/vivantel/virage/compare/virage-cli@v0.1.21...virage-cli@v0.1.22) (2026-06-10)
+
+
+### Features
+
+* Add redistributable agent skills with Claude Code plugin ([70b5323](https://github.com/vivantel/virage/commit/70b5323b0f3de4476fc5218d61fd8b6054b06f01))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @vivantel/virage-agent-claude bumped from 0.1.0 to 0.1.1
+    * @vivantel/virage-skills bumped from 0.1.0 to 0.1.1
+
 ## [0.1.21](https://github.com/vivantel/virage/compare/virage-cli@v0.1.20...virage-cli@v0.1.21) (2026-06-08)
 
 
