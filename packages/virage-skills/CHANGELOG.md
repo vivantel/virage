@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.2](https://github.com/vivantel/virage/compare/virage-skills@v0.1.1...virage-skills@v0.1.2) (2026-06-10)
+
+
+### Features
+
+* **virage-skills:** Rename readme skill to doc_writer / Doc Writer ([4348ee9](https://github.com/vivantel/virage/commit/4348ee91a08efb4f9103c078c5b0602a7ed3afa5))
+
 ## [0.1.1](https://github.com/vivantel/virage/compare/virage-skills@v0.1.0...virage-skills@v0.1.1) (2026-06-10)
 
 
