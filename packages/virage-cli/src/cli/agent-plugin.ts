@@ -47,7 +47,12 @@ async function tryReadPlugin(
     const configurePath = resolve(depPkgDir, field.configure);
     if (!existsSync(configurePath)) return null;
 
-    return { name: field.name, label: field.label, packageName: depName, configurePath };
+    return {
+      name: field.name,
+      label: field.label,
+      packageName: depName,
+      configurePath,
+    };
   } catch {
     return null;
   }

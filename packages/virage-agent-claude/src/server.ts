@@ -20,7 +20,10 @@ async function listSkillNames(skillsRoot: string): Promise<string[]> {
   try {
     const entries = await readdir(skillsRoot, { withFileTypes: true });
     return entries
-      .filter((e) => e.isDirectory() && existsSync(join(skillsRoot, e.name, "SKILL.md")))
+      .filter(
+        (e) =>
+          e.isDirectory() && existsSync(join(skillsRoot, e.name, "SKILL.md")),
+      )
       .map((e) => e.name)
       .sort();
   } catch {
@@ -76,9 +79,7 @@ export function createAgentMcpServer(): McpServer {
         return { content: [{ type: "text", text: content }] };
       } catch {
         return {
-          content: [
-            { type: "text", text: `Skill '${name}' not found.` },
-          ],
+          content: [{ type: "text", text: `Skill '${name}' not found.` }],
         };
       }
     },

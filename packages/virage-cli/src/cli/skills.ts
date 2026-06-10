@@ -37,7 +37,9 @@ export function resolveSkillsPackagePath(): string | null {
 }
 
 function hashContent(content: string): string {
-  return "sha256:" + createHash("sha256").update(content, "utf-8").digest("hex");
+  return (
+    "sha256:" + createHash("sha256").update(content, "utf-8").digest("hex")
+  );
 }
 
 interface SkillFile {

@@ -38,7 +38,12 @@ interface ClaudeSettings {
 interface McpConfig {
   mcpServers?: Record<
     string,
-    { type: string; command: string; args?: string[]; env?: Record<string, string> }
+    {
+      type: string;
+      command: string;
+      args?: string[];
+      env?: Record<string, string>;
+    }
   >;
   [key: string]: unknown;
 }
