@@ -1,13 +1,13 @@
 ---
-name: readme
-description: Update README.md to reflect codebase changes. User-facing only — no internal details.
+name: doc_writer
+description: "Doc Writer — update README.md to reflect codebase changes. User-facing only — no internal details."
 license: MIT
 metadata:
   author: vivantel-team
   version: "1.0.0"
 ---
 
-# Skill: Maintain Root README.md
+# Skill: Doc Writer
 
 **Purpose:** Update `README.md` to reflect codebase changes. User-facing only — no internal details.
 

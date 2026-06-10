@@ -36,7 +36,7 @@ Trigger on any of these events:
 | `.agents/skills/spec-cop/SKILL.md`        | Spec coherence: track capabilities (NOW.md) + intents (NEXT.md), detect contradictions, escalate to human | CONTRADICTIONS.md format, §Escalation protocol |
 | `.agents/skills/planner/SKILL.md`         | Implementation planning: phases, alternatives format, ADR gate, progress tracking | Plan structure, §Presenting alternatives format |
 | `docs/ai/INDEX.md`                        | Decision table, commands, cross-cutting rules, memory slugs                       | Decision table rows, command list               |
-| `.agents/skills/readme/SKILL.md`          | Root README section map                                                           | Section triggers table                          |
+| `.agents/skills/doc_writer/SKILL.md`      | Root README section map                                                           | Section triggers table                          |
 | `.agents/skills/package/SKILL.md`         | Package lifecycle (add/update/develop/sync/test)                                  | Package inventory table, §Add steps             |
 | `.agents/skills/devops/SKILL.md`            | Workflows + release config                                                        | Workflow map, published packages list           |
 | `.agents/skills/overseer/SKILL.md`        | This file — skill sync                                                            | Skill inventory table (this table)              |

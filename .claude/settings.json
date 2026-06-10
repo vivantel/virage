@@ -58,7 +58,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "echo 'DOCS: If this edit adds/removes/renames a user-visible feature (strategy, CLI flag, package, config field), load .agents/skills/readme/SKILL.md and update README.md.'",
+            "command": "echo 'DOCS: If this edit adds/removes/renames a user-visible feature (strategy, CLI flag, package, config field), load .agents/skills/doc_writer/SKILL.md and update README.md.'",
             "statusMessage": "Checking if README needs updating..."
           }
         ]

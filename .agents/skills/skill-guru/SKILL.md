@@ -120,7 +120,7 @@ Include these when the data is available:
 | `.agents/skills/package/` | `package` | Package lifecycle: add, update, build, sync, test |
 | `.agents/skills/planner/` | `planner` | Implementation planning, sequencing, ADR gate, plan tracking |
 | `.agents/skills/qa/` | `qa` | Unit/acceptance/type-check tests, eval experiments, quality metrics |
-| `.agents/skills/readme/` | `readme` | Root README.md maintenance, section map |
+| `.agents/skills/doc_writer/` | `doc_writer` | Doc Writer — user-facing documentation (README.md) |
 | `.agents/skills/skill-guru/` | `skill-guru` | This file — Agent Skills v1.0 standard and skill organization rules |
 
 ---
