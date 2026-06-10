@@ -10,6 +10,8 @@ import {
   type ExtGroup,
   detectFileExtensions,
 } from "./file-detect.js";
+import { resolveSkillsPackagePath, syncSkills } from "./skills.js";
+import { discoverAgentPlugins, runAgentPlugin } from "./agent-plugin.js";
 
 // ─── Back-navigation support ──────────────────────────────────────────────────
 
@@ -460,6 +462,68 @@ export async function runInit(): Promise<void> {
       console.log(
         `\nRun manually:\n  ${localCmd.cmd} ${localCmd.args.join(" ")}`,
       );
+    }
+  }
+
+  // ── Skills installation ──
+  const skillsPkgPath = resolveSkillsPackagePath();
+  if (skillsPkgPath !== null) {
+    const installSkills = await select({
+      message: "Install Virage AI agent skills?",
+      choices: [
+        {
+          name: "Yes — install/update to .agents/skills/virage/",
+          value: true,
+        },
+        { name: "No, skip", value: false },
+      ],
+    });
+    if (installSkills) {
+      try {
+        const result = await syncSkills(skillsPkgPath, cwd);
+        if (result.created.length > 0)
+          console.log(`\nSkills installed: ${result.created.length} new`);
+        if (result.updated.length > 0)
+          console.log(`Skills updated: ${result.updated.length}`);
+        if (result.deleted.length > 0)
+          console.log(`Skills removed: ${result.deleted.length}`);
+        if (
+          result.created.length === 0 &&
+          result.updated.length === 0 &&
+          result.deleted.length === 0
+        )
+          console.log("\nSkills already up to date.");
+      } catch (err) {
+        console.log(
+          `\nSkills install failed: ${err instanceof Error ? err.message : String(err)}`,
+        );
+        console.log("You can retry by running virage init again.");
+      }
+    }
+  }
+
+  // ── Agent plugin configuration ──
+  const agentPlugins = await discoverAgentPlugins(cwd);
+  if (agentPlugins.length > 0) {
+    const selectedPlugins = await checkbox({
+      message: "Configure AI agent integration?",
+      choices: agentPlugins.map((p) => ({
+        name: p.label,
+        value: p,
+        checked: true,
+      })),
+    });
+    for (const plugin of selectedPlugins) {
+      try {
+        const result = await runAgentPlugin(plugin, cwd);
+        console.log(
+          `\n${plugin.label}: ${result.hooksWritten ? "hooks written" : "hooks already present"}; ${result.mcpRegistered ? "MCP server registered" : "MCP server already registered"}`,
+        );
+      } catch (err) {
+        console.log(
+          `\n${plugin.label} configuration failed: ${err instanceof Error ? err.message : String(err)}`,
+        );
+      }
     }
   }
 

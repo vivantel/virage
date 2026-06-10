@@ -1,0 +1,41 @@
+{
+  "name": "@vivantel/virage-skills",
+  "version": "0.1.0",
+  "description": "Redistributable AI agent skills for the Virage RAG pipeline",
+  "type": "module",
+  "files": [
+    "skills/**",
+    "agent-config/**",
+    "README.md"
+  ],
+  "exports": {
+    "./package.json": "./package.json"
+  },
+  "scripts": {
+    "type-check": "echo 'No TypeScript sources — skipping type-check'",
+    "lint": "echo 'No TypeScript sources — skipping lint'",
+    "format:check": "echo 'No TypeScript sources — skipping format check'",
+    "test": "echo 'No tests — skipping'",
+    "build": "echo 'No build needed — data-only package'"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/vivantel/virage",
+    "directory": "packages/virage-skills"
+  },
+  "keywords": [
+    "rag",
+    "agent",
+    "skills",
+    "claude",
+    "virage"
+  ],
+  "author": "Vivantel",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

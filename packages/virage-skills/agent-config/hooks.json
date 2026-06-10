@@ -1,0 +1,28 @@
+{
+  "version": "1.0",
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Edit(.agents/skills/virage/*)",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo 'SKILL STANDARD: Load .agents/skills/virage/skill-guru/SKILL.md before modifying skill files to ensure Agent Skills v1.0 compliance.'",
+            "statusMessage": "Checking skill-guru standard..."
+          }
+        ]
+      },
+      {
+        "matcher": "Write(.agents/skills/virage/*)",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo 'SKILL STANDARD: Load .agents/skills/virage/skill-guru/SKILL.md before creating skill files to ensure Agent Skills v1.0 compliance.'",
+            "statusMessage": "Checking skill-guru standard..."
+          }
+        ]
+      }
+    ],
+    "PostToolUse": []
+  }
+}

@@ -86,6 +86,24 @@
       "draft": false,
       "prerelease": false
     },
+    "packages/virage-skills": {
+      "package-name": "@vivantel/virage-skills",
+      "changelog-path": "CHANGELOG.md",
+      "release-type": "node",
+      "bump-minor-pre-major": true,
+      "bump-patch-for-minor-pre-major": true,
+      "draft": false,
+      "prerelease": false
+    },
+    "packages/virage-agent-claude": {
+      "package-name": "@vivantel/virage-agent-claude",
+      "changelog-path": "CHANGELOG.md",
+      "release-type": "node",
+      "bump-minor-pre-major": true,
+      "bump-patch-for-minor-pre-major": true,
+      "draft": false,
+      "prerelease": false
+    },
     "packages/virage-cli": {
       "package-name": "@vivantel/virage-cli",
       "changelog-path": "CHANGELOG.md",

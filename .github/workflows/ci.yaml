@@ -83,6 +83,18 @@ jobs:
               - 'package.json'
               - 'package-lock.json'
               - '.github/workflows/ci.yaml'
+            virage-skills:
+              - 'packages/virage-skills/**'
+              - 'eslint.config.js'
+              - 'package.json'
+              - 'package-lock.json'
+              - '.github/workflows/ci.yaml'
+            virage-agent-claude:
+              - 'packages/virage-agent-claude/**'
+              - 'eslint.config.js'
+              - 'package.json'
+              - 'package-lock.json'
+              - '.github/workflows/ci.yaml'
             virage-cli:
               - 'packages/virage-cli/**'
               - 'eslint.config.js'

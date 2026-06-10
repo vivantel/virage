@@ -26,6 +26,8 @@ jobs:
       virage-store-qdrant: ${{ steps.release.outputs['packages/virage-store-qdrant--release_created'] }}
       virage-store-lancedb: ${{ steps.release.outputs['packages/virage-store-lancedb--release_created'] }}
       virage-store-chromadb: ${{ steps.release.outputs['packages/virage-store-chromadb--release_created'] }}
+      virage-skills: ${{ steps.release.outputs['packages/virage-skills--release_created'] }}
+      virage-agent-claude: ${{ steps.release.outputs['packages/virage-agent-claude--release_created'] }}
       virage-cli: ${{ steps.release.outputs['packages/virage-cli--release_created'] }}
       virage-dashboard: ${{ steps.release.outputs['packages/virage-dashboard--release_created'] }}
       virage-mcp: ${{ steps.release.outputs['packages/virage-mcp--release_created'] }}
@@ -58,6 +60,8 @@ jobs:
           if [[ "${{ needs.release-please.outputs.virage-store-qdrant }}" == "true" ]]; then packages+=("virage-store-qdrant"); fi
           if [[ "${{ needs.release-please.outputs.virage-store-lancedb }}" == "true" ]]; then packages+=("virage-store-lancedb"); fi
           if [[ "${{ needs.release-please.outputs.virage-store-chromadb }}" == "true" ]]; then packages+=("virage-store-chromadb"); fi
+          if [[ "${{ needs.release-please.outputs.virage-skills }}" == "true" ]]; then packages+=("virage-skills"); fi
+          if [[ "${{ needs.release-please.outputs.virage-agent-claude }}" == "true" ]]; then packages+=("virage-agent-claude"); fi
           if [[ "${{ needs.release-please.outputs.virage-cli }}" == "true" ]]; then packages+=("virage-cli"); fi
           if [[ "${{ needs.release-please.outputs.virage-dashboard }}" == "true" ]]; then packages+=("virage-dashboard"); fi
           if [[ "${{ needs.release-please.outputs.virage-mcp }}" == "true" ]]; then packages+=("virage-mcp"); fi

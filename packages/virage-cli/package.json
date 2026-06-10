@@ -51,7 +51,9 @@
   "license": "MIT",
   "dependencies": {
     "@inquirer/prompts": "^8.5.2",
+    "@vivantel/virage-agent-claude": "0.1.0",
     "@vivantel/virage-core": "0.2.22",
+    "@vivantel/virage-skills": "0.1.0",
     "chokidar": "^5.0.0",
     "cli-progress": "^3.12.0",
     "commander": "^15.0.0",
