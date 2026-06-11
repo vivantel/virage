@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.24](https://github.com/vivantel/virage/compare/virage-cli@v0.1.23...virage-cli@v0.1.24) (2026-06-11)
+
+
+### Features
+
+* **virage-cli:** Rework init wizard step order and add coding agents step ([4706208](https://github.com/vivantel/virage/commit/470620822316aacabc865912083e70fdb0297812))
+
 ## [0.1.23](https://github.com/vivantel/virage/compare/virage-cli@v0.1.22...virage-cli@v0.1.23) (2026-06-10)
 
 

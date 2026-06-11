@@ -9,7 +9,7 @@
   "packages/virage-store-lancedb": "0.2.24",
   "packages/virage-store-chromadb": "0.2.24",
   "packages/virage-agent-claude": "0.1.2",
-  "packages/virage-cli": "0.1.23",
+  "packages/virage-cli": "0.1.24",
   "packages/virage-skills": "0.1.2",
   "packages/virage-dashboard": "0.1.9",
   "packages/virage-mcp": "0.1.16",
