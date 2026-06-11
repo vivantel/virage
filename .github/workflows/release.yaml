@@ -32,6 +32,10 @@ jobs:
       virage-dashboard: ${{ steps.release.outputs['packages/virage-dashboard--release_created'] }}
       virage-mcp: ${{ steps.release.outputs['packages/virage-mcp--release_created'] }}
       virage-code-chunk-chunker: ${{ steps.release.outputs['packages/virage-code-chunk-chunker--release_created'] }}
+      virage-agent-core: ${{ steps.release.outputs['packages/virage-agent-core--release_created'] }}
+      virage-agent-copilot: ${{ steps.release.outputs['packages/virage-agent-copilot--release_created'] }}
+      virage-agent-codex: ${{ steps.release.outputs['packages/virage-agent-codex--release_created'] }}
+      virage-agent-antigravity: ${{ steps.release.outputs['packages/virage-agent-antigravity--release_created'] }}
     steps:
       - name: Run Release Please
         id: release
@@ -66,6 +70,10 @@ jobs:
           if [[ "${{ needs.release-please.outputs.virage-dashboard }}" == "true" ]]; then packages+=("virage-dashboard"); fi
           if [[ "${{ needs.release-please.outputs.virage-mcp }}" == "true" ]]; then packages+=("virage-mcp"); fi
           if [[ "${{ needs.release-please.outputs.virage-code-chunk-chunker }}" == "true" ]]; then packages+=("virage-code-chunk-chunker"); fi
+          if [[ "${{ needs.release-please.outputs.virage-agent-core }}" == "true" ]]; then packages+=("virage-agent-core"); fi
+          if [[ "${{ needs.release-please.outputs.virage-agent-copilot }}" == "true" ]]; then packages+=("virage-agent-copilot"); fi
+          if [[ "${{ needs.release-please.outputs.virage-agent-codex }}" == "true" ]]; then packages+=("virage-agent-codex"); fi
+          if [[ "${{ needs.release-please.outputs.virage-agent-antigravity }}" == "true" ]]; then packages+=("virage-agent-antigravity"); fi
           if [[ ${#packages[@]} -gt 0 ]]; then
             echo "packages=$(printf '%s\n' "${packages[@]}" | jq -R . | jq -sc .)" >> $GITHUB_OUTPUT
           else
@@ -101,6 +109,10 @@ jobs:
       - name: Build virage-core (dependency)
         if: ${{ matrix.package != 'virage-core' && matrix.package != 'virage-dashboard' }}
         run: npm run build --workspace packages/virage-core
+
+      - name: Build virage-agent-core (dependency for agent plugins)
+        if: ${{ contains('virage-agent-claude virage-agent-copilot virage-agent-codex virage-agent-antigravity', matrix.package) }}
+        run: npm run build --workspace packages/virage-agent-core
 
       - name: Build virage-dashboard (dependency)
         if: ${{ matrix.package == 'virage-cli' }}

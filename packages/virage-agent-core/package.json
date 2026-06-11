@@ -1,7 +1,7 @@
 {
-  "name": "@vivantel/virage-agent-claude",
-  "version": "0.2.0",
-  "description": "Claude Code agent plugin for Virage — installs skills and configures Claude Code hooks and MCP server",
+  "name": "@vivantel/virage-agent-core",
+  "version": "0.1.0",
+  "description": "Shared base types and abstract class for Virage agent plugins — universal hook event model for Claude Code, GitHub Copilot, OpenAI Codex, and Google Antigravity",
   "type": "module",
   "main": "dist/index.js",
   "exports": {
@@ -11,33 +11,27 @@
     },
     "./package.json": "./package.json"
   },
-  "bin": {
-    "virage-agent-claude": "./dist/cli.js"
-  },
   "files": [
     "dist",
     "README.md"
   ],
-  "virage-agent": {
-    "name": "claude-code",
-    "label": "Claude Code",
-    "configure": "./dist/plugin.js"
-  },
+  "sideEffects": false,
   "publishConfig": {
     "access": "public"
   },
   "repository": {
     "type": "git",
     "url": "https://github.com/vivantel/virage",
-    "directory": "packages/virage-agent-claude"
+    "directory": "packages/virage-agent-core"
   },
   "keywords": [
     "rag",
-    "mcp",
-    "model-context-protocol",
-    "claude",
     "agent",
-    "skills",
+    "hooks",
+    "claude",
+    "copilot",
+    "codex",
+    "antigravity",
     "virage"
   ],
   "author": "Vivantel",
@@ -55,12 +49,6 @@
     "format": "prettier --write \"src/**/*.ts\"",
     "format:check": "prettier --check \"src/**/*.ts\"",
     "fix": "npm run lint:fix && npm run format"
-  },
-  "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.12.0",
-    "@vivantel/virage-agent-core": "*",
-    "@vivantel/virage-skills": "0.1.2",
-    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@types/node": "^25.9.2",

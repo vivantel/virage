@@ -11,7 +11,7 @@ export interface AgentPluginMeta {
 
 export interface AgentConfigResult {
   hooksWritten: boolean;
-  mcpRegistered: boolean;
+  mcpRegistered?: boolean;
 }
 
 interface AgentPluginField {

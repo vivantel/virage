@@ -641,3 +641,38 @@ The LanceDB "Schema Error" root cause was also fixed independently: `LanceDBVect
 - **+** Orchestrator is now testable without any CLI dep mocking.
 - **−** Users who install `@vivantel/virage-core` for the `virage` binary must now also install `@vivantel/virage-cli`. Documentation update required.
 - **−** Build order must ensure virage-core is built before virage-cli (npm workspaces handles this via the declared dependency).
+
+---
+
+## ADR-025: Universal agent hook base package (`virage-agent-core`)
+
+**Date:** 2026-06-11  
+**Status:** Accepted
+
+### Context
+
+`virage-agent-claude` was a standalone package with no shared contract for agent hook configuration. Adding support for additional coding agents (GitHub Copilot, OpenAI Codex, Google Antigravity) would require duplicating type definitions and boilerplate in each package, with no guarantee of consistency.
+
+The YAML-based Universal Agent Hook Event Model defines 33 normalized event names and vendor-specific mappings for all 4 supported agents. This schema needed a canonical TypeScript representation.
+
+The `virage-cli` init wizard Step 2 hardcoded `{ name: "Claude", value: "claude" }`, preventing dynamic discovery of newly installed agent plugins.
+
+### Decision
+
+1. **`@vivantel/virage-agent-core`** — new shared package with:
+   - `NormalizedEventName` union type (33 events)
+   - `VendorConfig` interface and four constants (`CLAUDE_VENDOR_CONFIG`, `COPILOT_VENDOR_CONFIG`, `CODEX_VENDOR_CONFIG`, `ANTIGRAVITY_VENDOR_CONFIG`) encoding the full event→vendor name mapping
+   - `BaseAgentPlugin` abstract class with `supportsEvent()`, `getVendorEventName()`, `getPrimaryEventName()`, and abstract `configure()` method
+   - Common I/O types: `AgentHookInput`, `AgentHookOutput`, `PreToolUseInput/Output`, `AgentStopInput/Output`, etc.
+
+2. **All four agent packages extend `BaseAgentPlugin`**: `virage-agent-claude` (refactored to 0.2.0), plus three new packages `virage-agent-copilot`, `virage-agent-codex`, `virage-agent-antigravity`. Each implements `configure(targetDir)` to write vendor-specific hook config files by translating `virage-skills/agent-config/hooks.json`.
+
+3. **virage-cli init wizard** Step 2 calls `discoverAgentPlugins()` before the loop and builds choices dynamically from installed plugins, falling back to a hardcoded Claude Code entry if none are found. The agent filter was updated to match on `p.name` (exact) instead of `p.label.toLowerCase().includes(a)` (substring).
+
+### Consequences
+
+- **+** New agent vendors can be added as separate npm packages without touching `virage-cli`.
+- **+** Consistent TypeScript types across all agent integrations.
+- **+** Init wizard automatically shows newly installed agent plugins.
+- **−** `virage-agent-claude` version bumped to 0.2.0; existing users must update.
+- **−** `virage-agent-core` is a new required peer for all agent packages.

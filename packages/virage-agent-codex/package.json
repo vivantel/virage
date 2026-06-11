@@ -1,7 +1,7 @@
 {
-  "name": "@vivantel/virage-agent-claude",
-  "version": "0.2.0",
-  "description": "Claude Code agent plugin for Virage — installs skills and configures Claude Code hooks and MCP server",
+  "name": "@vivantel/virage-agent-codex",
+  "version": "0.1.0",
+  "description": "OpenAI Codex agent plugin for Virage — configures Codex hooks from virage-skills",
   "type": "module",
   "main": "dist/index.js",
   "exports": {
@@ -11,16 +11,14 @@
     },
     "./package.json": "./package.json"
   },
-  "bin": {
-    "virage-agent-claude": "./dist/cli.js"
-  },
   "files": [
     "dist",
     "README.md"
   ],
+  "sideEffects": false,
   "virage-agent": {
-    "name": "claude-code",
-    "label": "Claude Code",
+    "name": "codex",
+    "label": "OpenAI Codex",
     "configure": "./dist/plugin.js"
   },
   "publishConfig": {
@@ -29,15 +27,14 @@
   "repository": {
     "type": "git",
     "url": "https://github.com/vivantel/virage",
-    "directory": "packages/virage-agent-claude"
+    "directory": "packages/virage-agent-codex"
   },
   "keywords": [
     "rag",
-    "mcp",
-    "model-context-protocol",
-    "claude",
     "agent",
-    "skills",
+    "hooks",
+    "codex",
+    "openai",
     "virage"
   ],
   "author": "Vivantel",
@@ -57,10 +54,8 @@
     "fix": "npm run lint:fix && npm run format"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.12.0",
     "@vivantel/virage-agent-core": "*",
-    "@vivantel/virage-skills": "0.1.2",
-    "zod": "^4.4.3"
+    "@vivantel/virage-skills": "0.1.2"
   },
   "devDependencies": {
     "@types/node": "^25.9.2",

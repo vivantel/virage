@@ -21,6 +21,21 @@ Load this index before any task. Pick a skill, load it, then execute.
 
 ---
 
+## Agent integrations
+
+Four coding agent plugins are supported. Each installs via `virage init` and writes vendor-specific hook config files from `@vivantel/virage-skills`:
+
+| Agent | Package | Config file written |
+| ----- | ------- | ------------------- |
+| Claude Code | `@vivantel/virage-agent-claude` | `.claude/settings.json` + `.mcp.json` |
+| GitHub Copilot | `@vivantel/virage-agent-copilot` | `.github/copilot/hooks.json` |
+| OpenAI Codex | `@vivantel/virage-agent-codex` | `.codex/hooks.json` |
+| Google Antigravity | `@vivantel/virage-agent-antigravity` | `.antigravity/hooks.json` |
+
+Shared base: `@vivantel/virage-agent-core` — TypeScript types, `BaseAgentPlugin` abstract class, `VendorConfig` constants for all 4 vendors.
+
+---
+
 ## Essential commands
 
 ```bash

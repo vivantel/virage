@@ -119,6 +119,30 @@ jobs:
               - 'package.json'
               - 'package-lock.json'
               - '.github/workflows/ci.yaml'
+            virage-agent-core:
+              - 'packages/virage-agent-core/**'
+              - 'eslint.config.js'
+              - 'package.json'
+              - 'package-lock.json'
+              - '.github/workflows/ci.yaml'
+            virage-agent-copilot:
+              - 'packages/virage-agent-copilot/**'
+              - 'eslint.config.js'
+              - 'package.json'
+              - 'package-lock.json'
+              - '.github/workflows/ci.yaml'
+            virage-agent-codex:
+              - 'packages/virage-agent-codex/**'
+              - 'eslint.config.js'
+              - 'package.json'
+              - 'package-lock.json'
+              - '.github/workflows/ci.yaml'
+            virage-agent-antigravity:
+              - 'packages/virage-agent-antigravity/**'
+              - 'eslint.config.js'
+              - 'package.json'
+              - 'package-lock.json'
+              - '.github/workflows/ci.yaml'
 
   build-and-test:
     needs: changes
@@ -154,6 +178,10 @@ jobs:
       - name: Build virage-core (required by dependents)
         if: matrix.package != 'virage-core'
         run: npm run build --workspace packages/virage-core
+
+      - name: Build virage-agent-core (required by agent plugin packages)
+        if: contains(fromJSON('["virage-agent-claude", "virage-agent-copilot", "virage-agent-codex", "virage-agent-antigravity"]'), matrix.package)
+        run: npm run build --workspace packages/virage-agent-core
 
       - name: Type check
         run: npm run type-check --workspace packages/${{ matrix.package }}

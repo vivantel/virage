@@ -244,6 +244,7 @@ export async function runInit(): Promise<void> {
   const detectedGroups = await detectFileExtensions(cwd);
 
   const registry = await loadRegistry(cwd);
+  const discoveredAgentPlugins = await discoverAgentPlugins(cwd);
 
   const state: Partial<WizardState> = {};
   let step = 0;
@@ -324,10 +325,19 @@ export async function runInit(): Promise<void> {
 
       // ── Step 2: coding agents ──
       case 2: {
+        const pluginChoices =
+          discoveredAgentPlugins.length > 0
+            ? discoveredAgentPlugins.map((p) => ({
+                name: p.label,
+                value: p.name,
+                checked: p.name === "claude-code",
+              }))
+            : [{ name: "Claude Code", value: "claude-code", checked: true }];
+
         const agentChoices = await checkbox({
           message: "Select coding agents to integrate:",
           choices: [
-            { name: "Claude", value: "claude", checked: true },
+            ...pluginChoices,
             { name: "Submit", value: "__submit__", checked: true },
             { name: "← Back", value: "__back__", checked: false },
           ],
@@ -503,9 +513,9 @@ export async function runInit(): Promise<void> {
   }
 
   // ── Agent plugin configuration ──
-  const agentPlugins = (await discoverAgentPlugins(cwd)).filter((p) =>
+  const agentPlugins = discoveredAgentPlugins.filter((p) =>
     finalState.agents.length > 0
-      ? finalState.agents.some((a) => p.label.toLowerCase().includes(a))
+      ? finalState.agents.includes(p.name)
       : false,
   );
   if (agentPlugins.length > 0) {
@@ -520,9 +530,14 @@ export async function runInit(): Promise<void> {
     for (const plugin of selectedPlugins) {
       try {
         const result = await runAgentPlugin(plugin, cwd);
-        console.log(
-          `\n${plugin.label}: ${result.hooksWritten ? "hooks written" : "hooks already present"}; ${result.mcpRegistered ? "MCP server registered" : "MCP server already registered"}`,
-        );
+        const hookMsg = result.hooksWritten ? "hooks written" : "hooks already present";
+        const mcpMsg =
+          result.mcpRegistered === true
+            ? "; MCP server registered"
+            : result.mcpRegistered === false
+              ? "; MCP server already registered"
+              : "";
+        console.log(`\n${plugin.label}: ${hookMsg}${mcpMsg}`);
       } catch (err) {
         console.log(
           `\n${plugin.label} configuration failed: ${err instanceof Error ? err.message : String(err)}`,

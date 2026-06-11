@@ -10,7 +10,7 @@
     "build:all": "npm run build --workspaces --if-present",
     "test": "npm test --workspaces --if-present",
     "type-check": "npm run type-check --workspaces --if-present",
-    "type-check:ci": "npm run type-check -w packages/virage-core -w packages/virage-cli -w packages/virage-strategies -w packages/virage-store-postgres -w packages/virage-store-qdrant -w packages/virage-store-chromadb -w packages/virage-embedder-fastembed -w packages/virage-code-chunk-chunker",
+    "type-check:ci": "npm run type-check -w packages/virage-core -w packages/virage-cli -w packages/virage-strategies -w packages/virage-store-postgres -w packages/virage-store-qdrant -w packages/virage-store-chromadb -w packages/virage-embedder-fastembed -w packages/virage-code-chunk-chunker -w packages/virage-agent-core -w packages/virage-agent-copilot -w packages/virage-agent-codex -w packages/virage-agent-antigravity",
     "lint": "eslint packages/virage-core/src/ packages/*/src/",
     "lint:fix": "eslint packages/virage-core/src/ packages/*/src/ --fix",
     "format": "prettier --write \"packages/*/src/**/*.{ts,tsx}\"",
