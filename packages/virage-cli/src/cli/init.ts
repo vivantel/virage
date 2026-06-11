@@ -33,10 +33,11 @@ function isBack(value: unknown): value is typeof BACK_VALUE {
 // ─── Wizard state ─────────────────────────────────────────────────────────────
 
 interface WizardState {
+  outputPath: string;
   groups: ExtGroup[];
+  agents: string[];
   embedder: string;
   vectorStore: string;
-  outputPath: string;
 }
 
 // ─── Package helpers ──────────────────────────────────────────────────────────
@@ -238,21 +239,6 @@ async function writeEnvVars(
 export async function runInit(): Promise<void> {
   console.log("\nVirage Config Generator\n");
 
-  const defaultConfigPath = "./virage.config.json";
-  if (existsSync(defaultConfigPath)) {
-    const overwrite = await select({
-      message: `Config file ${defaultConfigPath} already exists. Overwrite?`,
-      choices: [
-        { name: "Yes (backup & overwrite)", value: true },
-        { name: "No, cancel", value: false },
-      ],
-    });
-    if (!overwrite) {
-      console.log("\nCancelled.");
-      return;
-    }
-  }
-
   const cwd = process.cwd();
   console.log("Scanning project for file types...");
   const detectedGroups = await detectFileExtensions(cwd);
@@ -262,10 +248,35 @@ export async function runInit(): Promise<void> {
   const state: Partial<WizardState> = {};
   let step = 0;
 
-  while (step < 4) {
+  while (step < 5) {
     switch (step) {
-      // ── Step 0: chunker selection ──
+      // ── Step 0: output path ──
       case 0: {
+        const outputPath = await input({
+          message: "Output path for the config file?",
+          default: "./virage.config.json",
+        });
+        const resolved = outputPath.trim() || "./virage.config.json";
+        if (existsSync(resolved)) {
+          const overwrite = await select({
+            message: `${resolved} already exists. Overwrite?`,
+            choices: [
+              { name: "Yes (backup & overwrite)", value: true },
+              { name: "No, cancel", value: false },
+            ],
+          });
+          if (!overwrite) {
+            console.log("\nCancelled.");
+            return;
+          }
+        }
+        state.outputPath = resolved;
+        step++;
+        break;
+      }
+
+      // ── Step 1: file types ──
+      case 1: {
         if (detectedGroups.length > 0) {
           const confirmed = await checkbox({
             message: "Detected file types — select which to index:",
@@ -275,12 +286,13 @@ export async function runInit(): Promise<void> {
                 value: g.name,
                 checked: true,
               })),
-              { name: "← Back (cancel init)", value: "__back__" },
+              { name: "Submit", value: "__submit__", checked: true },
+              { name: "← Back", value: "__back__", checked: false },
             ],
           });
           if (confirmed.includes("__back__")) {
-            console.log("\nCancelled.");
-            return;
+            step--;
+            break;
           }
           state.groups = detectedGroups.filter((g) =>
             confirmed.includes(g.name),
@@ -296,12 +308,13 @@ export async function runInit(): Promise<void> {
                 name: `${g.name} (${g.strategyFn})`,
                 value: g.name,
               })),
-              { name: "← Back (cancel init)", value: "__back__" },
+              { name: "Submit", value: "__submit__", checked: true },
+              { name: "← Back", value: "__back__", checked: false },
             ],
           });
           if (chosen.includes("__back__")) {
-            console.log("\nCancelled.");
-            return;
+            step--;
+            break;
           }
           state.groups = EXT_GROUPS.filter((g) => chosen.includes(g.name));
         }
@@ -309,8 +322,29 @@ export async function runInit(): Promise<void> {
         break;
       }
 
-      // ── Step 1: embedder selection ──
-      case 1: {
+      // ── Step 2: coding agents ──
+      case 2: {
+        const agentChoices = await checkbox({
+          message: "Select coding agents to integrate:",
+          choices: [
+            { name: "Claude", value: "claude", checked: true },
+            { name: "Submit", value: "__submit__", checked: true },
+            { name: "← Back", value: "__back__", checked: false },
+          ],
+        });
+        if (agentChoices.includes("__back__")) {
+          step--;
+          break;
+        }
+        state.agents = agentChoices.filter(
+          (a) => a !== "__submit__" && a !== "__back__",
+        );
+        step++;
+        break;
+      }
+
+      // ── Step 3: embedder selection ──
+      case 3: {
         const choice = await select({
           message: "Which embedding provider?",
           choices: withBack(
@@ -326,8 +360,8 @@ export async function runInit(): Promise<void> {
         break;
       }
 
-      // ── Step 2: vector store selection ──
-      case 2: {
+      // ── Step 4: vector store selection ──
+      case 4: {
         const choice = await select({
           message: "Which vector store?",
           choices: withBack(
@@ -342,44 +376,10 @@ export async function runInit(): Promise<void> {
         step++;
         break;
       }
-
-      // ── Step 3: output path ──
-      case 3: {
-        const defaultOutput = "./virage.config.json";
-        const outputPath = await input({
-          message: "Output path for the config file? (leave blank to go back)",
-          default: defaultOutput,
-        });
-        if (outputPath.trim() === "") {
-          step--;
-          break;
-        }
-        state.outputPath = outputPath.trim();
-        step++;
-        break;
-      }
     }
   }
 
   const finalState = state as WizardState;
-
-  // ── Overwrite safety net for custom output path ──
-  if (
-    finalState.outputPath !== defaultConfigPath &&
-    existsSync(finalState.outputPath)
-  ) {
-    const overwrite = await select({
-      message: `${finalState.outputPath} already exists. What would you like to do?`,
-      choices: [
-        { name: "Yes (backup & overwrite)", value: true },
-        { name: "No, cancel (keep existing file)", value: false },
-      ],
-    });
-    if (!overwrite) {
-      console.log("\nCancelled.");
-      return;
-    }
-  }
 
   // ── Write config ──
   await rotateConfigBackups(finalState.outputPath);
@@ -503,7 +503,11 @@ export async function runInit(): Promise<void> {
   }
 
   // ── Agent plugin configuration ──
-  const agentPlugins = await discoverAgentPlugins(cwd);
+  const agentPlugins = (await discoverAgentPlugins(cwd)).filter((p) =>
+    finalState.agents.length > 0
+      ? finalState.agents.some((a) => p.label.toLowerCase().includes(a))
+      : false,
+  );
   if (agentPlugins.length > 0) {
     const selectedPlugins = await checkbox({
       message: "Configure AI agent integration?",
