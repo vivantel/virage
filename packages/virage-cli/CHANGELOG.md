@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.1.25](https://github.com/vivantel/virage/compare/virage-cli@v0.1.24...virage-cli@v0.1.25) (2026-06-11)
+
+
+### Features
+
+* **agents:** Add multi-agent hook plugin architecture with 4 vendor integrations ([f739031](https://github.com/vivantel/virage/commit/f7390319b8e5ad54cd1cb669ccd743c48c485725))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @vivantel/virage-agent-claude bumped from 0.1.2 to 0.2.1
+
 ## [0.1.24](https://github.com/vivantel/virage/compare/virage-cli@v0.1.23...virage-cli@v0.1.24) (2026-06-11)
 
 

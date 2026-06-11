@@ -1,6 +1,6 @@
 {
   "name": "@vivantel/virage-agent-codex",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "OpenAI Codex agent plugin for Virage — configures Codex hooks from virage-skills",
   "type": "module",
   "main": "dist/index.js",
@@ -54,7 +54,7 @@
     "fix": "npm run lint:fix && npm run format"
   },
   "dependencies": {
-    "@vivantel/virage-agent-core": "*",
+    "@vivantel/virage-agent-core": "0.1.1",
     "@vivantel/virage-skills": "0.1.2"
   },
   "devDependencies": {
