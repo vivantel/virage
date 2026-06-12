@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.1.4](https://github.com/vivantel/virage/compare/virage-skills@v0.1.3...virage-skills@v0.1.4) (2026-06-12)
+
+
+### Features
+
+* **virage-agent:** Static file copier model for agent plugins (ADR-026) ([52dbd26](https://github.com/vivantel/virage/commit/52dbd26bda5b450011b0a82095f43f2c87e849a2))
+* **virage-cli:** Add virage update command and confirmation step to init ([52dbd26](https://github.com/vivantel/virage/commit/52dbd26bda5b450011b0a82095f43f2c87e849a2))
+* **virage-core:** Add agents field to config schema ([52dbd26](https://github.com/vivantel/virage/commit/52dbd26bda5b450011b0a82095f43f2c87e849a2))
+
+
+### Documentation
+
+* Update skill files, READMEs, INDEX.md, ROADMAP.md for ADR-026 batch ([52dbd26](https://github.com/vivantel/virage/commit/52dbd26bda5b450011b0a82095f43f2c87e849a2))
+
 ## [0.1.3](https://github.com/vivantel/virage/compare/virage-skills@v0.1.2...virage-skills@v0.1.3) (2026-06-12)
 
 

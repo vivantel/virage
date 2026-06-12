@@ -1,6 +1,6 @@
 {
   "name": "@vivantel/virage-agent-core",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Shared base types and abstract class for Virage agent plugins — universal hook event model for Claude Code, GitHub Copilot, OpenAI Codex, and Google Antigravity",
   "type": "module",
   "main": "dist/index.js",
