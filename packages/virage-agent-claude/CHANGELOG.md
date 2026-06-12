@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.6](https://github.com/vivantel/virage/compare/virage-agent-claude@v0.2.5...virage-agent-claude@v0.2.6) (2026-06-12)
+
+
+### Bug Fixes
+
+* **virage-agent:** Fix plugin validation warnings — version, author, frontmatter ([cda9592](https://github.com/vivantel/virage/commit/cda95921ba1b494c56a684f2d4f5b84f6cecc43b))
+
 ## [0.2.5](https://github.com/vivantel/virage/compare/virage-agent-claude@v0.2.4...virage-agent-claude@v0.2.5) (2026-06-12)
 
 
