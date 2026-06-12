@@ -36,10 +36,7 @@ function withBack<T>(
 
 // ─── Confirmation summary ─────────────────────────────────────────────────────
 
-function formatSummary(
-  state: WizardState,
-  registry: PluginRegistry,
-): string {
+function formatSummary(state: WizardState, registry: PluginRegistry): string {
   const embedderLabel =
     registry.embedders.find((e) => e.key === state.embedder)?.label ??
     state.embedder;
@@ -294,7 +291,10 @@ export async function runInit(): Promise<void> {
             { name: "← Back", value: "back" },
           ],
         });
-        if (nav1 === "back") { step--; break; }
+        if (nav1 === "back") {
+          step--;
+          break;
+        }
         step++;
         break;
       }
@@ -323,7 +323,10 @@ export async function runInit(): Promise<void> {
             { name: "← Back", value: "back" },
           ],
         });
-        if (nav2 === "back") { step--; break; }
+        if (nav2 === "back") {
+          step--;
+          break;
+        }
         step++;
         break;
       }

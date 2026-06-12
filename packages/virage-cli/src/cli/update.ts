@@ -4,10 +4,7 @@ import { existsSync } from "fs";
 import { join } from "path";
 import { execFile } from "child_process";
 import { promisify } from "util";
-import {
-  discoverAgentPlugins,
-  runAgentPlugin,
-} from "./agent-plugin.js";
+import { discoverAgentPlugins, runAgentPlugin } from "./agent-plugin.js";
 import { resolveSkillsPackagePath, syncSkills } from "./skills.js";
 import {
   detectPackageManager,
@@ -198,7 +195,9 @@ export async function runUpdate(): Promise<void> {
       for (const plugin of selected) {
         try {
           const result = await runAgentPlugin(plugin, cwd);
-          const msg = result.hooksWritten ? "config updated" : "already up to date";
+          const msg = result.hooksWritten
+            ? "config updated"
+            : "already up to date";
           const mcpMsg =
             result.mcpRegistered === true
               ? "; MCP server registered"
