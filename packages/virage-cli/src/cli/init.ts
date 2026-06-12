@@ -51,22 +51,48 @@ function formatSummary(state: WizardState, registry: PluginRegistry): string {
     state.agents.length > 0 ? state.agents.join(", ") : "(none)";
 
   const width = 52;
-  const line = (label: string, value: string): string => {
-    const content = `  ${label.padEnd(14)}${value}`;
-    const padded = content.padEnd(width - 2);
-    return `║${padded.slice(0, width - 2)}║`;
+  const labelWidth = 14;
+  const labelPad = 2; // leading spaces
+  const valueWidth = width - 2 - labelPad - labelWidth; // 34
+
+  const wrapValue = (value: string): string[] => {
+    const parts = value.split(", ");
+    const rows: string[] = [];
+    let current = "";
+    for (const part of parts) {
+      const next = current ? `${current}, ${part}` : part;
+      if (current && next.length > valueWidth) {
+        rows.push(current);
+        current = part;
+      } else {
+        current = next;
+      }
+    }
+    if (current) rows.push(current);
+    return rows.length ? rows : [""];
   };
+
+  const wrapLine = (label: string, value: string): string => {
+    const indent = " ".repeat(labelPad + labelWidth);
+    return wrapValue(value)
+      .map((v, i) => {
+        const prefix = i === 0 ? `  ${label.padEnd(labelWidth)}` : indent;
+        return `║${(prefix + v).padEnd(width - 2)}║`;
+      })
+      .join("\n");
+  };
+
   const bar = "═".repeat(width - 2);
 
   return [
     `╔${bar}╗`,
     `║${"  Configuration Summary".padEnd(width - 2)}║`,
     `╠${bar}╣`,
-    line("File types:", fileTypesLabel),
-    line("Agents:", agentsLabel),
-    line("Embedder:", embedderLabel),
-    line("Vector store:", storeLabel),
-    line("Output:", state.outputPath),
+    wrapLine("File types:", fileTypesLabel),
+    wrapLine("Agents:", agentsLabel),
+    wrapLine("Embedder:", embedderLabel),
+    wrapLine("Vector store:", storeLabel),
+    wrapLine("Output:", state.outputPath),
     `╚${bar}╝`,
   ].join("\n");
 }
@@ -284,17 +310,6 @@ export async function runInit(): Promise<void> {
           });
           state.groups = EXT_GROUPS.filter((g) => chosen.includes(g.name));
         }
-        const nav1 = await select({
-          message: "Ready to continue?",
-          choices: [
-            { name: "→ Continue", value: "continue" },
-            { name: "← Back", value: "back" },
-          ],
-        });
-        if (nav1 === "back") {
-          step--;
-          break;
-        }
         step++;
         break;
       }
@@ -315,18 +330,6 @@ export async function runInit(): Promise<void> {
           choices: pluginChoices,
         });
         state.agents = agentChoices;
-
-        const nav2 = await select({
-          message: "Ready to continue?",
-          choices: [
-            { name: "→ Continue", value: "continue" },
-            { name: "← Back", value: "back" },
-          ],
-        });
-        if (nav2 === "back") {
-          step--;
-          break;
-        }
         step++;
         break;
       }

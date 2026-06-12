@@ -27,7 +27,7 @@ Four coding agent plugins are supported. Each installs via `virage init` and cop
 
 | Agent | Package | Config directory written |
 | ----- | ------- | ------------------------ |
-| Claude Code | `@vivantel/virage-agent-claude` | `.claude/` (commands/, skills/) + `.mcp.json` |
+| Claude Code | `@vivantel/virage-agent-claude` | `.claude/skills/virage-agent/` (skills-dir plugin) + `.mcp.json` |
 | GitHub Copilot | `@vivantel/virage-agent-copilot` | `.github/copilot/` (hooks.json, instructions/) |
 | OpenAI Codex | `@vivantel/virage-agent-codex` | `.codex/` (hooks.json) |
 | Google Antigravity | `@vivantel/virage-agent-antigravity` | `.antigravity/` (hooks.json) |

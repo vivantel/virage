@@ -4,7 +4,7 @@ export const CLAUDE_VENDOR_CONFIG: VendorConfig = {
   vendor: "claude",
   packageName: "@vivantel/virage-agent-claude",
   pluginConfigDir: "plugin-config",
-  projectConfigDir: ".claude",
+  projectConfigDir: ".claude/skills/virage-agent",
   supportedEvents: [
     "session_start",
     "session_end",

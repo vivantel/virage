@@ -68,11 +68,18 @@ describe("ClaudeAgentPlugin — configure() file output", () => {
     expect(typeof result.hooksWritten).toBe("boolean");
   });
 
-  it("writes .claude/commands/virage-plan.md", async () => {
+  it("writes .claude/skills/virage-agent/commands/virage-plan.md", async () => {
     const dir = await makeTempDir();
     const plugin = new ClaudeAgentPlugin();
     await plugin.configure(dir);
-    const planPath = join(dir, ".claude", "commands", "virage-plan.md");
+    const planPath = join(
+      dir,
+      ".claude",
+      "skills",
+      "virage-agent",
+      "commands",
+      "virage-plan.md",
+    );
     const s = await stat(planPath);
     expect(s.isFile()).toBe(true);
     const content = await readFile(planPath, "utf-8");

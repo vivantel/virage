@@ -16,6 +16,7 @@
   },
   "files": [
     "dist",
+    "plugin-config",
     "README.md"
   ],
   "virage-agent": {
