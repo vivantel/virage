@@ -1,0 +1,19 @@
+{
+  "name": "vivantel",
+  "owner": {
+    "name": "Vivantel"
+  },
+  "description": "Vivantel tools — Virage AI coding context for Claude Code",
+  "plugins": [
+    {
+      "name": "virage-agent",
+      "displayName": "Virage Agent",
+      "description": "Project RAG context, /virage-plan skill, and MCP server for Virage",
+      "source": {
+        "source": "git-subdir",
+        "url": "https://github.com/vivantel/virage.git",
+        "path": "packages/virage-agent-claude/plugin-config"
+      }
+    }
+  ]
+}

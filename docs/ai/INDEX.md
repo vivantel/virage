@@ -27,12 +27,19 @@ Four coding agent plugins are supported. Each installs via `virage init` and cop
 
 | Agent | Package | Config directory written |
 | ----- | ------- | ------------------------ |
-| Claude Code | `@vivantel/virage-agent-claude` | `.claude/skills/virage-agent/` (skills-dir plugin) + `.mcp.json` |
+| Claude Code | `@vivantel/virage-agent-claude` | `.claude/skills/virage-agent/` (skills-dir plugin, includes MCP) — or install via `virage-agent@vivantel` marketplace |
 | GitHub Copilot | `@vivantel/virage-agent-copilot` | `.github/copilot/` (hooks.json, instructions/) |
 | OpenAI Codex | `@vivantel/virage-agent-codex` | `.codex/` (hooks.json) |
 | Google Antigravity | `@vivantel/virage-agent-antigravity` | `.antigravity/` (hooks.json) |
 
 Shared base: `@vivantel/virage-agent-core` — TypeScript types, concrete `BaseAgentPlugin` (static file-copier), `VendorConfig` constants for all 4 vendors. Architecture: ADR-026.
+
+**Claude Code marketplace install** (alternative to `virage init`):
+```bash
+claude plugin marketplace add vivantel/virage --scope project
+claude plugin install virage-agent@vivantel --scope project
+```
+The marketplace manifest is at `.claude-plugin/marketplace.json` in the repo root. The plugin source is `packages/virage-agent-claude/plugin-config` (sparse-cloned via `git-subdir`). The plugin is self-contained: it declares `commands/virage-plan.md` and an MCP server via `.mcp.json`.
 
 ---
 

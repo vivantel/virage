@@ -94,6 +94,25 @@ describe("ClaudeAgentPlugin — configure() file output", () => {
     expect(result2.hooksWritten).toBe(false);
   });
 
+  it("copies plugin-level .mcp.json into .claude/skills/virage-agent/", async () => {
+    const dir = await makeTempDir();
+    const plugin = new ClaudeAgentPlugin();
+    await plugin.configure(dir);
+    const pluginMcpPath = join(
+      dir,
+      ".claude",
+      "skills",
+      "virage-agent",
+      ".mcp.json",
+    );
+    const s = await stat(pluginMcpPath);
+    expect(s.isFile()).toBe(true);
+    const cfg = JSON.parse(await readFile(pluginMcpPath, "utf-8")) as {
+      mcpServers?: Record<string, unknown>;
+    };
+    expect(cfg.mcpServers).toHaveProperty("virage-agent");
+  });
+
   it("registers MCP server in .mcp.json", async () => {
     const dir = await makeTempDir();
     const plugin = new ClaudeAgentPlugin();
