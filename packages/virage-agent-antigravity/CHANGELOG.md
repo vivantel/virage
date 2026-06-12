@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.1.4](https://github.com/vivantel/virage/compare/virage-agent-antigravity@v0.1.3...virage-agent-antigravity@v0.1.4) (2026-06-12)
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @vivantel/virage-agent-core bumped from 0.1.2 to 0.1.3
+
 ## [0.1.3](https://github.com/vivantel/virage/compare/virage-agent-antigravity@v0.1.2...virage-agent-antigravity@v0.1.3) (2026-06-12)
 
 

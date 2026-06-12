@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.3](https://github.com/vivantel/virage/compare/virage-agent-core@v0.1.2...virage-agent-core@v0.1.3) (2026-06-12)
+
+
+### Bug Fixes
+
+* **virage-agent:** Install claude plugin as skills-dir plugin; fix init UX ([70f368c](https://github.com/vivantel/virage/commit/70f368c889ce15ebd4a26c81cf4fd67a22db094f))
+
 ## [0.1.2](https://github.com/vivantel/virage/compare/virage-agent-core@v0.1.1...virage-agent-core@v0.1.2) (2026-06-12)
 
 
