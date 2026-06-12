@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.5](https://github.com/vivantel/virage/compare/virage-agent-claude@v0.2.4...virage-agent-claude@v0.2.5) (2026-06-12)
+
+
+### Features
+
+* **virage-agent:** Add vivantel marketplace and self-contained plugin MCP ([0e476e7](https://github.com/vivantel/virage/commit/0e476e75ace0cff1b03de89bc1c55f9079d3cb56))
+
 ## [0.2.4](https://github.com/vivantel/virage/compare/virage-agent-claude@v0.2.3...virage-agent-claude@v0.2.4) (2026-06-12)
 
 
