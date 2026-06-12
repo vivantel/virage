@@ -1,6 +1,6 @@
 {
   "name": "@vivantel/virage-agent-claude",
-  "version": "0.2.3",
+  "version": "0.2.4",
   "description": "Claude Code agent plugin for Virage — installs skills and configures Claude Code hooks and MCP server",
   "type": "module",
   "main": "dist/index.js",
@@ -59,7 +59,7 @@
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.12.0",
-    "@vivantel/virage-agent-core": "0.1.2",
+    "@vivantel/virage-agent-core": "0.1.3",
     "@vivantel/virage-skills": "0.1.4",
     "zod": "^4.4.3"
   },
