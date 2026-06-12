@@ -1,6 +1,6 @@
 {
   "name": "@vivantel/virage-agent-copilot",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "GitHub Copilot agent plugin for Virage — configures GitHub Copilot hooks from virage-skills",
   "type": "module",
   "main": "dist/index.js",
@@ -54,8 +54,8 @@
     "fix": "npm run lint:fix && npm run format"
   },
   "dependencies": {
-    "@vivantel/virage-agent-core": "0.1.1",
-    "@vivantel/virage-skills": "0.1.3"
+    "@vivantel/virage-agent-core": "0.1.2",
+    "@vivantel/virage-skills": "0.1.4"
   },
   "devDependencies": {
     "@types/node": "^25.9.2",
