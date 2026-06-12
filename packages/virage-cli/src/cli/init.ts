@@ -514,9 +514,7 @@ export async function runInit(): Promise<void> {
 
   // ── Agent plugin configuration ──
   const agentPlugins = discoveredAgentPlugins.filter((p) =>
-    finalState.agents.length > 0
-      ? finalState.agents.includes(p.name)
-      : false,
+    finalState.agents.length > 0 ? finalState.agents.includes(p.name) : false,
   );
   if (agentPlugins.length > 0) {
     const selectedPlugins = await checkbox({
@@ -530,7 +528,9 @@ export async function runInit(): Promise<void> {
     for (const plugin of selectedPlugins) {
       try {
         const result = await runAgentPlugin(plugin, cwd);
-        const hookMsg = result.hooksWritten ? "hooks written" : "hooks already present";
+        const hookMsg = result.hooksWritten
+          ? "hooks written"
+          : "hooks already present";
         const mcpMsg =
           result.mcpRegistered === true
             ? "; MCP server registered"
