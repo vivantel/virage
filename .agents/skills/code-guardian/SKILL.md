@@ -133,17 +133,23 @@ Run these steps in order. Stop and resolve errors before proceeding to the next 
 # Step 1 — auto-fix lint and formatting issues
 npm run fix
 
-# Step 2 — re-stage fixed files so the commit includes corrections
+# Step 2 — verify formatting is clean per package (catches cases where fix didn't apply,
+#           e.g. after git rebase --continue or when only specific packages changed)
+npm run format:check --workspaces --if-present
+
+# Step 3 — re-stage fixed files so the commit includes corrections
 git add -u
 
-# Step 3 — verify no unfixable lint issues remain
+# Step 4 — verify no unfixable lint issues remain
 npm run lint
 
-# Step 4 — verify TypeScript across all included packages
+# Step 5 — verify TypeScript across all included packages
 npm run type-check:ci
 ```
 
-Report pass/fail for each step. If `npm run lint` or `npm run type-check:ci` fails, fix the reported errors before committing — do not suppress with `|| true` or `--no-verify`.
+Report pass/fail for each step. If any step fails, fix the reported errors before committing — do not suppress with `|| true` or `--no-verify`.
+
+If Step 2 reports a specific package failing, run `npm run format -w packages/<name>` to fix it, then re-run `git add -u` before continuing.
 
 ## Structural integrity checks (run after adding packages or bumping versions)
 
