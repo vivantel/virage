@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.3](https://github.com/vivantel/virage/compare/virage-skills@v0.1.2...virage-skills@v0.1.3) (2026-06-12)
+
+
+### Bug Fixes
+
+* Correct build order, version pin, and type-check scope for agent packages ([2a4d8c4](https://github.com/vivantel/virage/commit/2a4d8c456181443c53587ce6736a333c05e561bd))
+
 ## [0.1.2](https://github.com/vivantel/virage/compare/virage-skills@v0.1.1...virage-skills@v0.1.2) (2026-06-10)
 
 

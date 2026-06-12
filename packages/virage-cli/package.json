@@ -1,6 +1,6 @@
 {
   "name": "@vivantel/virage-cli",
-  "version": "0.1.25",
+  "version": "0.1.26",
   "type": "module",
   "description": "CLI for the Virage RAG pipeline — provides the virage command",
   "repository": {
@@ -51,9 +51,9 @@
   "license": "MIT",
   "dependencies": {
     "@inquirer/prompts": "^8.5.2",
-    "@vivantel/virage-agent-claude": "0.2.1",
+    "@vivantel/virage-agent-claude": "0.2.2",
     "@vivantel/virage-core": "0.2.22",
-    "@vivantel/virage-skills": "0.1.2",
+    "@vivantel/virage-skills": "0.1.3",
     "chokidar": "^5.0.0",
     "cli-progress": "^3.12.0",
     "commander": "^15.0.0",
