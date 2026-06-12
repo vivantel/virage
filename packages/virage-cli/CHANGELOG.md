@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.29](https://github.com/vivantel/virage/compare/virage-cli@v0.1.28...virage-cli@v0.1.29) (2026-06-12)
+
+
+### Bug Fixes
+
+* **virage-cli:** Format init.ts and update.ts to satisfy prettier ([4cd72e9](https://github.com/vivantel/virage/commit/4cd72e9010286e2dc7269347b10543ad9dec2e59))
+
 ## [0.1.28](https://github.com/vivantel/virage/compare/virage-cli@v0.1.27...virage-cli@v0.1.28) (2026-06-12)
 
 
