@@ -23,16 +23,16 @@ Load this index before any task. Pick a skill, load it, then execute.
 
 ## Agent integrations
 
-Four coding agent plugins are supported. Each installs via `virage init` and writes vendor-specific hook config files from `@vivantel/virage-skills`:
+Four coding agent plugins are supported. Each installs via `virage init` and copies hand-authored static files from the plugin's `plugin-config/` directory into the project. `BaseAgentPlugin.configure()` handles the recursive copy with content-comparison (idempotent). Run `virage update` to re-apply configs after upgrading plugin packages.
 
-| Agent | Package | Config file written |
-| ----- | ------- | ------------------- |
-| Claude Code | `@vivantel/virage-agent-claude` | `.claude/settings.json` + `.mcp.json` |
-| GitHub Copilot | `@vivantel/virage-agent-copilot` | `.github/copilot/hooks.json` |
-| OpenAI Codex | `@vivantel/virage-agent-codex` | `.codex/hooks.json` |
-| Google Antigravity | `@vivantel/virage-agent-antigravity` | `.antigravity/hooks.json` |
+| Agent | Package | Config directory written |
+| ----- | ------- | ------------------------ |
+| Claude Code | `@vivantel/virage-agent-claude` | `.claude/` (commands/, skills/) + `.mcp.json` |
+| GitHub Copilot | `@vivantel/virage-agent-copilot` | `.github/copilot/` (hooks.json, instructions/) |
+| OpenAI Codex | `@vivantel/virage-agent-codex` | `.codex/` (hooks.json) |
+| Google Antigravity | `@vivantel/virage-agent-antigravity` | `.antigravity/` (hooks.json) |
 
-Shared base: `@vivantel/virage-agent-core` — TypeScript types, `BaseAgentPlugin` abstract class, `VendorConfig` constants for all 4 vendors.
+Shared base: `@vivantel/virage-agent-core` — TypeScript types, concrete `BaseAgentPlugin` (static file-copier), `VendorConfig` constants for all 4 vendors. Architecture: ADR-026.
 
 ---
 
@@ -46,6 +46,8 @@ npm run lint                           # lint check only
 npm test -w @vivantel/<pkg>            # unit tests for one package
 npm run build -w @vivantel/<pkg>       # build one package
 npm run build:with-dashboard -w @vivantel/virage-cli  # CLI build including dashboard UI
+virage init                            # interactive wizard: config, agents, embedder, vector store
+virage update                          # update virage ecosystem packages + re-run plugin configure
 ```
 
 ---

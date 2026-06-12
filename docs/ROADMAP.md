@@ -9,6 +9,18 @@
 
 ---
 
+## Recently Released
+
+| Feature | Description |
+| ------- | ----------- |
+| **`virage init` wizard** | Interactive wizard: file types, agent plugins, embedder, vector store, confirmation step |
+| **`virage update` command** | Discover outdated virage ecosystem packages, install `@latest`, re-configure plugins, re-sync skills |
+| **Static-file copier plugins (ADR-026)** | Agent plugins ship hand-authored `plugin-config/` files; `BaseAgentPlugin.configure()` copies them idempotently |
+| **`/virage-plan` slash command** | Available in Claude Code (`.claude/commands/`) and Copilot (`.github/copilot/instructions/`) after `virage init` |
+| **`agents` in config schema** | `virage.config.json` stores selected agent plugin names from init |
+
+---
+
 ## Version 1.2.0 — Enhanced Developer Experience
 
 **Focus:** Making it easier to write custom chunkers and providers.
@@ -17,7 +29,7 @@
 
 | Feature                    | Description                            | Priority |
 | -------------------------- | -------------------------------------- | -------- |
-| **CLI `init` command**     | Generate `virage.config.json` config   | P0       |
+| **CLI `init` command**     | Generate `virage.config.json` config   | P0 ✅    |
 | **CLI `validate` command** | Validate config without running        | P0       |
 | **Better error messages**  | Human-readable errors with suggestions | P0       |
 | **Dry-run mode**           | `--dry-run` shows what would change    | P1       |

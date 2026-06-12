@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { mkdtemp, readFile, writeFile, mkdir } from "fs/promises";
+import { mkdtemp, readFile, stat } from "fs/promises";
 import { join } from "path";
 import { tmpdir } from "os";
 import { ClaudeAgentPlugin } from "./plugin.js";
@@ -60,12 +60,31 @@ describe("ClaudeAgentPlugin — vendor surface", () => {
 });
 
 describe("ClaudeAgentPlugin — configure() file output", () => {
-  it("returns hooksWritten: false when virage-skills is unavailable (no crash)", async () => {
+  it("configure() returns an AgentConfigResult (no crash)", async () => {
     const dir = await makeTempDir();
     const plugin = new ClaudeAgentPlugin();
     const result = await plugin.configure(dir);
     expect(result).toHaveProperty("hooksWritten");
     expect(typeof result.hooksWritten).toBe("boolean");
+  });
+
+  it("writes .claude/commands/virage-plan.md", async () => {
+    const dir = await makeTempDir();
+    const plugin = new ClaudeAgentPlugin();
+    await plugin.configure(dir);
+    const planPath = join(dir, ".claude", "commands", "virage-plan.md");
+    const s = await stat(planPath);
+    expect(s.isFile()).toBe(true);
+    const content = await readFile(planPath, "utf-8");
+    expect(content).toContain("virage");
+  });
+
+  it("second configure() does not rewrite unchanged commands (hooksWritten: false)", async () => {
+    const dir = await makeTempDir();
+    const plugin = new ClaudeAgentPlugin();
+    await plugin.configure(dir);
+    const result2 = await plugin.configure(dir);
+    expect(result2.hooksWritten).toBe(false);
   });
 
   it("registers MCP server in .mcp.json", async () => {
@@ -85,45 +104,5 @@ describe("ClaudeAgentPlugin — configure() file output", () => {
     await plugin.configure(dir);
     const result2 = await plugin.configure(dir);
     expect(result2.mcpRegistered).toBe(false);
-  });
-
-  it("merges hooks from a fixture without duplicating on second call", async () => {
-    const dir = await makeTempDir();
-    const skillsDir = join(dir, "fake-skills", "agent-config");
-    await mkdir(skillsDir, { recursive: true });
-    const fixture = {
-      version: "1.0",
-      hooks: {
-        PreToolUse: [
-          {
-            matcher: "Edit(test/*)",
-            hooks: [{ type: "command", command: "echo test" }],
-          },
-        ],
-        PostToolUse: [],
-      },
-    };
-    await writeFile(
-      join(skillsDir, "hooks.json"),
-      JSON.stringify(fixture),
-      "utf-8",
-    );
-
-    const claudeDir = join(dir, ".claude");
-    await mkdir(claudeDir, { recursive: true });
-    const settings = {
-      hooks: { PreToolUse: [], PostToolUse: [] },
-    };
-    await writeFile(
-      join(claudeDir, "settings.json"),
-      JSON.stringify(settings),
-      "utf-8",
-    );
-
-    const result = await (async () => {
-      const p = new ClaudeAgentPlugin();
-      return p.configure(dir);
-    })();
-    expect(result).toHaveProperty("hooksWritten");
   });
 });

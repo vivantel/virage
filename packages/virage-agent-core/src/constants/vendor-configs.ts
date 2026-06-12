@@ -2,6 +2,9 @@ import type { VendorConfig } from "../types/vendor.js";
 
 export const CLAUDE_VENDOR_CONFIG: VendorConfig = {
   vendor: "claude",
+  packageName: "@vivantel/virage-agent-claude",
+  pluginConfigDir: "plugin-config",
+  projectConfigDir: ".claude",
   supportedEvents: [
     "session_start",
     "session_end",
@@ -79,6 +82,9 @@ export const CLAUDE_VENDOR_CONFIG: VendorConfig = {
 
 export const COPILOT_VENDOR_CONFIG: VendorConfig = {
   vendor: "copilot",
+  packageName: "@vivantel/virage-agent-copilot",
+  pluginConfigDir: "plugin-config",
+  projectConfigDir: ".github/copilot",
   supportedEvents: [
     "session_start",
     "session_end",
@@ -117,6 +123,9 @@ export const COPILOT_VENDOR_CONFIG: VendorConfig = {
 
 export const CODEX_VENDOR_CONFIG: VendorConfig = {
   vendor: "codex",
+  packageName: "@vivantel/virage-agent-codex",
+  pluginConfigDir: "plugin-config",
+  projectConfigDir: ".codex",
   supportedEvents: [
     "session_start",
     "user_prompt_submit",
@@ -151,6 +160,9 @@ export const CODEX_VENDOR_CONFIG: VendorConfig = {
 
 export const ANTIGRAVITY_VENDOR_CONFIG: VendorConfig = {
   vendor: "antigravity",
+  packageName: "@vivantel/virage-agent-antigravity",
+  pluginConfigDir: "plugin-config",
+  projectConfigDir: ".antigravity",
   supportedEvents: [
     "pre_tool_use",
     "post_tool_use",

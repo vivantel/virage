@@ -4,9 +4,7 @@ Google Antigravity agent plugin for the [Virage RAG pipeline](https://github.com
 
 ## What it does
 
-`virage init` calls this plugin's `configure()` to write Antigravity hook configuration from `@vivantel/virage-skills` into `.antigravity/hooks.json`.
-
-Hooks are translated from the virage-skills format with `terminationBehavior: "continue"` added to each entry (Antigravity's recommended default). Existing entries are not duplicated on repeated calls.
+`virage init` calls this plugin's `configure()` to copy static files from `plugin-config/` into `.antigravity/` — including `hooks.json` in Antigravity's native format.
 
 ## Supported events (5)
 

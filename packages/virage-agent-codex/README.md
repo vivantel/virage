@@ -4,9 +4,7 @@ OpenAI Codex agent plugin for the [Virage RAG pipeline](https://github.com/vivan
 
 ## What it does
 
-`virage init` calls this plugin's `configure()` to write Codex hook configuration from `@vivantel/virage-skills` into `.codex/hooks.json`.
-
-Hooks are translated from the virage-skills format to Codex's command-only format (no matcher field, PascalCase event keys). Existing entries are not duplicated on repeated calls.
+`virage init` calls this plugin's `configure()` to copy static files from `plugin-config/` into `.codex/` — including `hooks.json` in Codex's native format.
 
 ## Supported events (10)
 

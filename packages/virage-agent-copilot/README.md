@@ -4,18 +4,21 @@ GitHub Copilot agent plugin for the [Virage RAG pipeline](https://github.com/viv
 
 ## What it does
 
-`virage init` calls this plugin's `configure()` to write Copilot hook configuration from `@vivantel/virage-skills` into `.github/copilot/hooks.json`.
+`virage init` calls this plugin's `configure()` to copy static files from `plugin-config/` into `.github/copilot/` — including `hooks.json` and the `/virage-plan` custom instruction.
 
-Hooks are translated from the virage-skills format (Claude-style matchers) to Copilot's flat event-keyed array format. Existing entries are not duplicated on repeated calls.
+## `/virage-plan` custom instruction
+
+After `virage init` (or `configure()`), the `virage-plan` instruction is available in Copilot. It loads the Virage planner skill and breaks down the given request into a structured implementation plan.
 
 ## Supported events (12)
 
 `session_start`, `session_end`, `user_prompt_submit`, `pre_tool_use`, `post_tool_use`, `post_tool_use_failure`, `permission_request`, `subagent_start`, `subagent_stop`, `agent_stop`, `error_occurred`, `pre_compact`
 
-## Config file written
+## Config files written
 
 ```
 <project>/.github/copilot/hooks.json
+<project>/.github/copilot/instructions/virage-plan.md
 ```
 
 ```json

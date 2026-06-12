@@ -63,6 +63,12 @@ What are you doing?
 | virage-mcp                   | yes          | MCP stdio server — search and inspect any virage index from AI assistants |
 | virage-code-chunk-chunker    | yes          | AST-aware code chunker using code-chunk/tree-sitter (TS, JS, Python, Rust, Go, Java) |
 | virage-store-test            | no (private) | File-backed mock VectorStore for acceptance testing                       |
+| virage-skills                | yes          | Distributable AI agent skill files (`plugin-config/` copied by virage init)           |
+| virage-agent-core            | yes          | Shared base: concrete `BaseAgentPlugin` (static file-copier), `VendorConfig` types    |
+| virage-agent-claude          | yes          | Claude Code plugin — copies `plugin-config/` → `.claude/` + registers MCP server     |
+| virage-agent-copilot         | yes          | GitHub Copilot plugin — copies `plugin-config/` → `.github/copilot/`                 |
+| virage-agent-codex           | yes          | OpenAI Codex plugin — copies `plugin-config/` → `.codex/`                            |
+| virage-agent-antigravity     | yes          | Google Antigravity plugin — copies `plugin-config/` → `.antigravity/`                |
 
 > **Keep this table current.** After adding or removing a package, update this snapshot, then run `.agents/skills/overseer/SKILL.md`.
 

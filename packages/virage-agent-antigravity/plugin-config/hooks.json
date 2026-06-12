@@ -1,0 +1,19 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "type": "command",
+        "command": "echo 'SKILL STANDARD: Load .agents/skills/virage/skill-guru/SKILL.md before modifying skill files to ensure Agent Skills v1.0 compliance.'",
+        "statusMessage": "Checking skill-guru standard...",
+        "terminationBehavior": "continue"
+      },
+      {
+        "type": "command",
+        "command": "echo 'SKILL STANDARD: Load .agents/skills/virage/skill-guru/SKILL.md before creating skill files to ensure Agent Skills v1.0 compliance.'",
+        "statusMessage": "Checking skill-guru standard...",
+        "terminationBehavior": "continue"
+      }
+    ],
+    "PostToolUse": []
+  }
+}

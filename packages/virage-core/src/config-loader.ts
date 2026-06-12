@@ -34,6 +34,7 @@ interface JsonRagConfig {
   chunkers: JsonChunkerConfig[];
   embedder: JsonProviderConfig;
   vectorStore: JsonProviderConfig;
+  agents?: string[];
   options?: RAGPipelineConfig["options"];
   telemetry?: TelemetryConfig;
 }

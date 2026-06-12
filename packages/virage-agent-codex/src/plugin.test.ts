@@ -97,7 +97,7 @@ describe("CodexAgentPlugin — configure() file output", () => {
     expect(parsed).not.toHaveProperty("version");
   });
 
-  it("does not duplicate hooks on second configure() call", async () => {
+  it("second configure() call does not grow hook arrays (idempotent)", async () => {
     const dir = await makeTempDir();
     const plugin = new CodexAgentPlugin();
     await plugin.configure(dir);

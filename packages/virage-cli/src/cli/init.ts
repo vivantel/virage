@@ -1,8 +1,6 @@
 import { checkbox, input, select } from "@inquirer/prompts";
 import { existsSync } from "fs";
 import { readFile, rename, writeFile } from "fs/promises";
-import { join } from "path";
-import { spawn } from "child_process";
 import { loadRegistry, getVirageDir } from "@vivantel/virage-core";
 import type { PluginRegistry } from "@vivantel/virage-core";
 import {
@@ -12,10 +10,20 @@ import {
 } from "./file-detect.js";
 import { resolveSkillsPackagePath, syncSkills } from "./skills.js";
 import { discoverAgentPlugins, runAgentPlugin } from "./agent-plugin.js";
+import {
+  detectPackageManager,
+  buildInstallCommand,
+  buildGlobalInstallCommand,
+  runInstall,
+} from "./pkg-manager.js";
 
 // ─── Back-navigation support ──────────────────────────────────────────────────
 
 const BACK_VALUE = "__back__";
+
+function isBack(value: unknown): value is typeof BACK_VALUE {
+  return value === BACK_VALUE;
+}
 
 function withBack<T>(
   choices: { name: string; value: T }[],
@@ -26,8 +34,44 @@ function withBack<T>(
   ];
 }
 
-function isBack(value: unknown): value is typeof BACK_VALUE {
-  return value === BACK_VALUE;
+// ─── Confirmation summary ─────────────────────────────────────────────────────
+
+function formatSummary(
+  state: WizardState,
+  registry: PluginRegistry,
+): string {
+  const embedderLabel =
+    registry.embedders.find((e) => e.key === state.embedder)?.label ??
+    state.embedder;
+  const storeLabel =
+    registry.stores.find((s) => s.key === state.vectorStore)?.label ??
+    state.vectorStore;
+  const fileTypesLabel =
+    state.groups.length > 0
+      ? state.groups.map((g) => g.name).join(", ")
+      : "(none)";
+  const agentsLabel =
+    state.agents.length > 0 ? state.agents.join(", ") : "(none)";
+
+  const width = 52;
+  const line = (label: string, value: string): string => {
+    const content = `  ${label.padEnd(14)}${value}`;
+    const padded = content.padEnd(width - 2);
+    return `║${padded.slice(0, width - 2)}║`;
+  };
+  const bar = "═".repeat(width - 2);
+
+  return [
+    `╔${bar}╗`,
+    `║${"  Configuration Summary".padEnd(width - 2)}║`,
+    `╠${bar}╣`,
+    line("File types:", fileTypesLabel),
+    line("Agents:", agentsLabel),
+    line("Embedder:", embedderLabel),
+    line("Vector store:", storeLabel),
+    line("Output:", state.outputPath),
+    `╚${bar}╝`,
+  ].join("\n");
 }
 
 // ─── Wizard state ─────────────────────────────────────────────────────────────
@@ -59,50 +103,8 @@ function getRequiredPackages(
   return Array.from(pkgs);
 }
 
-async function detectPackageManager(
-  projectRoot: string,
-): Promise<"npm" | "yarn" | "pnpm" | "bun"> {
-  if (existsSync(join(projectRoot, "bun.lockb"))) return "bun";
-  if (existsSync(join(projectRoot, "pnpm-lock.yaml"))) return "pnpm";
-  if (existsSync(join(projectRoot, "yarn.lock"))) return "yarn";
-  return "npm";
-}
-
-function buildInstallCommand(
-  pm: "npm" | "yarn" | "pnpm" | "bun",
-  packages: string[],
-): { cmd: string; args: string[] } {
-  switch (pm) {
-    case "yarn":
-      return { cmd: "yarn", args: ["add", ...packages] };
-    case "pnpm":
-      return { cmd: "pnpm", args: ["add", ...packages] };
-    case "bun":
-      return { cmd: "bun", args: ["add", ...packages] };
-    default:
-      return { cmd: "npm", args: ["install", ...packages] };
-  }
-}
-
-function buildGlobalInstallCommand(
-  pm: "npm" | "yarn" | "pnpm" | "bun",
-  packages: string[],
-): { cmd: string; args: string[] } {
-  switch (pm) {
-    case "yarn":
-      return { cmd: "yarn", args: ["global", "add", ...packages] };
-    case "pnpm":
-      return { cmd: "pnpm", args: ["add", "-g", ...packages] };
-    case "bun":
-      return { cmd: "bun", args: ["add", "-g", ...packages] };
-    default:
-      return { cmd: "npm", args: ["install", "-g", ...packages] };
-  }
-}
-
 async function rotateConfigBackups(configPath: string): Promise<void> {
   const bak = (n: number) => `${configPath}.bak.${n}`;
-  // Delete oldest backup if present
   try {
     await rename(bak(5), bak(5) + ".del");
     const { unlink } = await import("fs/promises");
@@ -110,7 +112,6 @@ async function rotateConfigBackups(configPath: string): Promise<void> {
   } catch {
     // No .bak.5 to remove
   }
-  // Shift .bak.4 → .bak.5, .bak.3 → .bak.4, ... .bak.1 → .bak.2
   for (let i = 4; i >= 1; i--) {
     try {
       await rename(bak(i), bak(i + 1));
@@ -118,25 +119,9 @@ async function rotateConfigBackups(configPath: string): Promise<void> {
       // No backup at this slot
     }
   }
-  // Rename current file to .bak.1
   if (existsSync(configPath)) {
     await rename(configPath, bak(1));
   }
-}
-
-function runInstall(cmd: string, args: string[]): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const proc = spawn(cmd, args, {
-      stdio: "inherit",
-      shell: process.platform === "win32",
-    });
-    proc.on("close", (code) =>
-      code === 0
-        ? resolve()
-        : reject(new Error(`Install failed with exit code ${code}`)),
-    );
-    proc.on("error", reject);
-  });
 }
 
 // ─── Config generation ────────────────────────────────────────────────────────
@@ -169,8 +154,6 @@ function generateJsonConfig(
   )!;
   const storeEntry = registry.stores.find((s) => s.key === state.vectorStore)!;
 
-  // For local file-based stores, resolve paths relative to the virage dir so
-  // the VIRAGE_DIR env var override is respected at config generation time.
   const resolvedStoreConfig =
     storeEntry.key === "lancedb"
       ? { ...storeEntry.defaultConfig, uri: `${getVirageDir()}/lancedb` }
@@ -180,6 +163,7 @@ function generateJsonConfig(
     $schema:
       "./node_modules/@vivantel/virage-core/schemas/virage.config.schema.json",
     chunkers,
+    agents: state.agents,
     embedder: {
       package: embedderEntry.package,
       config: embedderEntry.defaultConfig,
@@ -249,7 +233,7 @@ export async function runInit(): Promise<void> {
   const state: Partial<WizardState> = {};
   let step = 0;
 
-  while (step < 5) {
+  while (step < 6) {
     switch (step) {
       // ── Step 0: output path ──
       case 0: {
@@ -281,20 +265,12 @@ export async function runInit(): Promise<void> {
         if (detectedGroups.length > 0) {
           const confirmed = await checkbox({
             message: "Detected file types — select which to index:",
-            choices: [
-              ...detectedGroups.map((g) => ({
-                name: `${g.name} (${g.exts.join(", ")}) → ${g.strategyFn}`,
-                value: g.name,
-                checked: true,
-              })),
-              { name: "Submit", value: "__submit__", checked: true },
-              { name: "← Back", value: "__back__", checked: false },
-            ],
+            choices: detectedGroups.map((g) => ({
+              name: `${g.name} (${g.exts.join(", ")}) → ${g.strategyFn}`,
+              value: g.name,
+              checked: true,
+            })),
           });
-          if (confirmed.includes("__back__")) {
-            step--;
-            break;
-          }
           state.groups = detectedGroups.filter((g) =>
             confirmed.includes(g.name),
           );
@@ -304,21 +280,21 @@ export async function runInit(): Promise<void> {
           );
           const chosen = await checkbox({
             message: "Which chunking strategies do you need?",
-            choices: [
-              ...EXT_GROUPS.map((g) => ({
-                name: `${g.name} (${g.strategyFn})`,
-                value: g.name,
-              })),
-              { name: "Submit", value: "__submit__", checked: true },
-              { name: "← Back", value: "__back__", checked: false },
-            ],
+            choices: EXT_GROUPS.map((g) => ({
+              name: `${g.name} (${g.strategyFn})`,
+              value: g.name,
+            })),
           });
-          if (chosen.includes("__back__")) {
-            step--;
-            break;
-          }
           state.groups = EXT_GROUPS.filter((g) => chosen.includes(g.name));
         }
+        const nav1 = await select({
+          message: "Ready to continue?",
+          choices: [
+            { name: "→ Continue", value: "continue" },
+            { name: "← Back", value: "back" },
+          ],
+        });
+        if (nav1 === "back") { step--; break; }
         step++;
         break;
       }
@@ -336,19 +312,18 @@ export async function runInit(): Promise<void> {
 
         const agentChoices = await checkbox({
           message: "Select coding agents to integrate:",
+          choices: pluginChoices,
+        });
+        state.agents = agentChoices;
+
+        const nav2 = await select({
+          message: "Ready to continue?",
           choices: [
-            ...pluginChoices,
-            { name: "Submit", value: "__submit__", checked: true },
-            { name: "← Back", value: "__back__", checked: false },
+            { name: "→ Continue", value: "continue" },
+            { name: "← Back", value: "back" },
           ],
         });
-        if (agentChoices.includes("__back__")) {
-          step--;
-          break;
-        }
-        state.agents = agentChoices.filter(
-          (a) => a !== "__submit__" && a !== "__back__",
-        );
+        if (nav2 === "back") { step--; break; }
         step++;
         break;
       }
@@ -383,6 +358,24 @@ export async function runInit(): Promise<void> {
           break;
         }
         state.vectorStore = choice;
+        step++;
+        break;
+      }
+
+      // ── Step 5: confirmation ──
+      case 5: {
+        console.log("\n" + formatSummary(state as WizardState, registry));
+        const confirm = await select({
+          message: "Proceed with this configuration?",
+          choices: [
+            { name: "✓ Confirm", value: "confirm" },
+            { name: "← Back", value: "back" },
+          ],
+        });
+        if (confirm === "back") {
+          step--;
+          break;
+        }
         step++;
         break;
       }
@@ -529,8 +522,8 @@ export async function runInit(): Promise<void> {
       try {
         const result = await runAgentPlugin(plugin, cwd);
         const hookMsg = result.hooksWritten
-          ? "hooks written"
-          : "hooks already present";
+          ? "config written"
+          : "already up to date";
         const mcpMsg =
           result.mcpRegistered === true
             ? "; MCP server registered"

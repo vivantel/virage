@@ -1,12 +1,12 @@
 # @vivantel/virage-agent-core
 
-Shared base package for [Virage](https://github.com/vivantel/virage) agent plugins. Provides TypeScript types and the abstract `BaseAgentPlugin` class that all agent integrations extend.
+Shared base package for [Virage](https://github.com/vivantel/virage) agent plugins. Provides TypeScript types and the concrete `BaseAgentPlugin` class that all agent integrations extend.
 
 ## What it provides
 
 - **`NormalizedEventName`** — union type of all 33 vendor-agnostic hook event names
-- **`VendorConfig`** — interface + four constants encoding the full event→vendor name mapping for Claude Code, GitHub Copilot, OpenAI Codex, and Google Antigravity
-- **`BaseAgentPlugin`** — abstract class with `supportsEvent()`, `getVendorEventName()`, `getPrimaryEventName()`, and abstract `configure()` method
+- **`VendorConfig`** — interface + four constants encoding vendor event mappings, `packageName`, `pluginConfigDir`, and `projectConfigDir` for all 4 vendors
+- **`BaseAgentPlugin`** — concrete class with `supportsEvent()`, `getVendorEventName()`, `getPrimaryEventName()`, and a default `configure()` that recursively copies the plugin's `plugin-config/` directory to `projectConfigDir` (content-compared, idempotent). Subclasses override `configure()` only for vendor-specific extras (e.g. MCP registration).
 - **Common I/O types** — `AgentHookInput`, `AgentHookOutput`, `PreToolUseInput/Output`, `AgentStopInput/Output`, `UserPromptSubmitInput/Output`
 - **`AgentConfigResult`** — the return type of every plugin's `configure()` function
 
@@ -18,22 +18,27 @@ npm install @vivantel/virage-agent-core
 
 ## Usage
 
+For a plugin that only needs static files, no `configure()` override is required:
+
 ```typescript
 import {
   BaseAgentPlugin,
-  CLAUDE_VENDOR_CONFIG,
-  type AgentConfigResult,
+  type VendorConfig,
 } from "@vivantel/virage-agent-core";
+
+const MY_VENDOR_CONFIG: VendorConfig = {
+  vendor: "my-agent",
+  packageName: "@myorg/virage-agent-my-agent",
+  pluginConfigDir: "plugin-config",
+  projectConfigDir: ".my-agent",
+  // ...event mappings
+};
 
 export class MyAgentPlugin extends BaseAgentPlugin {
   readonly name = "my-agent";
   readonly label = "My Agent";
-  readonly vendorConfig = CLAUDE_VENDOR_CONFIG; // or your own VendorConfig
-
-  async configure(targetDir: string): Promise<AgentConfigResult> {
-    // write vendor-specific hook config files
-    return { hooksWritten: true };
-  }
+  readonly vendorConfig = MY_VENDOR_CONFIG;
+  // configure() inherited: copies plugin-config/ → .my-agent/ in target project
 }
 
 const plugin = new MyAgentPlugin();
@@ -52,7 +57,7 @@ plugin.getPrimaryEventName("agent_stop"); // → "Stop"
 
 ## Built-in agent packages
 
-- `@vivantel/virage-agent-claude` — Claude Code (`.claude/settings.json` + `.mcp.json`)
-- `@vivantel/virage-agent-copilot` — GitHub Copilot (`.github/copilot/hooks.json`)
+- `@vivantel/virage-agent-claude` — Claude Code (`.claude/` commands + skills, `.mcp.json`)
+- `@vivantel/virage-agent-copilot` — GitHub Copilot (`.github/copilot/` hooks + instructions)
 - `@vivantel/virage-agent-codex` — OpenAI Codex (`.codex/hooks.json`)
 - `@vivantel/virage-agent-antigravity` — Google Antigravity (`.antigravity/hooks.json`)

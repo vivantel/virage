@@ -82,6 +82,11 @@
         }
       }
     },
+    "agents": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Coding agent plugin names selected during init (e.g. [\"claude-code\", \"copilot\"])."
+    },
     "options": {
       "type": "object",
       "additionalProperties": false,

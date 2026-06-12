@@ -4,8 +4,12 @@ Claude Code agent plugin for the [Virage RAG pipeline](https://github.com/vivant
 
 ## What it does
 
-- **Init-time**: `virage init` calls this plugin's `configure()` to write Claude Code hooks and register the MCP server
+- **Init-time**: `virage init` calls this plugin's `configure()` to copy static files from `plugin-config/` into `.claude/` (commands, skills, etc.) and register the Virage MCP server in `.mcp.json`
 - **Runtime MCP server**: An MCP stdio server the agent can connect to in order to read skills on demand and self-configure new projects
+
+## `/virage-plan` slash command
+
+After `virage init` (or `configure()`), the `/virage-plan` command is available in Claude Code. It loads the Virage planner skill from `.agents/skills/virage/planner/SKILL.md` and breaks down the given request into a structured implementation plan.
 
 ## MCP tools
 
@@ -13,7 +17,7 @@ Claude Code agent plugin for the [Virage RAG pipeline](https://github.com/vivant
 |------|-------------|
 | `list_skills` | Returns all available Virage skill names |
 | `read_skill(name)` | Returns the SKILL.md content for the named skill |
-| `onboard(targetDir?)` | Writes Claude Code hooks and registers this MCP server in the project |
+| `onboard(targetDir?)` | Copies plugin-config/ files and registers this MCP server in the project |
 
 ## Usage
 

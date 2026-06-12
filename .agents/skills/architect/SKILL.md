@@ -53,11 +53,12 @@ metadata:
 
 | ADR     | Decision                                          |
 | ------- | ------------------------------------------------- |
-| ADR-001 | ESM-first with NodeNext module resolution         |
-| ADR-002 | Four-stage linear pipeline                        |
-| ADR-003 | Consumer-implemented provider interfaces          |
-| ADR-004 | Git commit hash for change detection              |
-| ADR-005 | Content hash for embedding-layer incremental skip |
+| ADR-001 | ESM-first with NodeNext module resolution                       |
+| ADR-002 | Four-stage linear pipeline                                      |
+| ADR-003 | Consumer-implemented provider interfaces                        |
+| ADR-004 | Git commit hash for change detection                            |
+| ADR-005 | Content hash for embedding-layer incremental skip               |
+| ADR-026 | Static-file copier model for agent plugins (plugin-config/ dir) |
 
 > **Keep this log current.** After writing a new ADR in `docs/ADR.md`, add a row here.
 

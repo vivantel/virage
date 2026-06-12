@@ -88,7 +88,7 @@ describe("CopilotAgentPlugin — configure() file output", () => {
     expect(Array.isArray(parsed.hooks.PostToolUse)).toBe(true);
   });
 
-  it("does not duplicate hooks on second configure() call", async () => {
+  it("second configure() call does not grow hook arrays (idempotent)", async () => {
     const dir = await makeTempDir();
     const plugin = new CopilotAgentPlugin();
     await plugin.configure(dir);

@@ -15,6 +15,7 @@ import { createLogger } from "../logger/index.js";
 import { createMultiProgressBars } from "../progress/progress-bar.js";
 import type { MultiProgressBars } from "../progress/progress-bar.js";
 import { runInit } from "../cli/init.js";
+import { runUpdate } from "../cli/update.js";
 import { runValidate } from "../cli/validate.js";
 import { runEvaluate } from "../cli/evaluate.js";
 import {
@@ -239,6 +240,23 @@ program
   .action(async () => {
     try {
       await runInit();
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).name === "ExitPromptError") {
+        console.log("\nCancelled.");
+        process.exit(0);
+      }
+      handleError(error);
+    }
+  });
+
+program
+  .command("update")
+  .description(
+    "Update virage ecosystem packages (embedders, chunkers, agent plugins)",
+  )
+  .action(async () => {
+    try {
+      await runUpdate();
     } catch (error) {
       if ((error as NodeJS.ErrnoException).name === "ExitPromptError") {
         console.log("\nCancelled.");

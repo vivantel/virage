@@ -99,7 +99,7 @@ describe("AntigravityAgentPlugin — configure() file output", () => {
     expect(Array.isArray(parsed.hooks.PostToolUse)).toBe(true);
   });
 
-  it("adds terminationBehavior: continue to each hook entry", async () => {
+  it("includes terminationBehavior: continue on each hook entry", async () => {
     const dir = await makeTempDir();
     const plugin = new AntigravityAgentPlugin();
     await plugin.configure(dir);
@@ -116,7 +116,7 @@ describe("AntigravityAgentPlugin — configure() file output", () => {
     }
   });
 
-  it("does not duplicate hooks on second configure() call", async () => {
+  it("second configure() call does not grow hook arrays (idempotent)", async () => {
     const dir = await makeTempDir();
     const plugin = new AntigravityAgentPlugin();
     await plugin.configure(dir);
