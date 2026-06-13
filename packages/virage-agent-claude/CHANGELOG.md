@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.7](https://github.com/vivantel/virage/compare/virage-agent-claude@v0.2.6...virage-agent-claude@v0.2.7) (2026-06-13)
+
+
+### Features
+
+* **virage-agent-claude:** Rename /virage-plan to /plan, fix cli.js executable bit ([93f3b05](https://github.com/vivantel/virage/commit/93f3b05c0960e8b9a2cac2257a31c6ddca63d254))
+
 ## [0.2.6](https://github.com/vivantel/virage/compare/virage-agent-claude@v0.2.5...virage-agent-claude@v0.2.6) (2026-06-12)
 
 
