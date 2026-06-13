@@ -39,7 +39,7 @@ Shared base: `@vivantel/virage-agent-core` — TypeScript types, concrete `BaseA
 claude plugin marketplace add vivantel/virage --scope project
 claude plugin install virage-agent@vivantel --scope project
 ```
-The marketplace manifest is at `.claude-plugin/marketplace.json` in the repo root. The plugin source is `packages/virage-agent-claude/plugin-config` (sparse-cloned via `git-subdir`). The plugin is self-contained: it declares `commands/virage-plan.md` and an MCP server via `.mcp.json`.
+The marketplace manifest is at `.claude-plugin/marketplace.json` in the repo root. The plugin source is `packages/virage-agent-claude/plugin-config` (sparse-cloned via `git-subdir`). The plugin is self-contained: it declares `commands/plan.md` and an MCP server via `.mcp.json`.
 
 ---
 

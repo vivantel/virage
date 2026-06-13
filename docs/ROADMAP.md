@@ -16,7 +16,7 @@
 | **`virage init` wizard** | Interactive wizard: file types, agent plugins, embedder, vector store, confirmation step |
 | **`virage update` command** | Discover outdated virage ecosystem packages, install `@latest`, re-configure plugins, re-sync skills |
 | **Static-file copier plugins (ADR-026)** | Agent plugins ship hand-authored `plugin-config/` files; `BaseAgentPlugin.configure()` copies them idempotently |
-| **`/virage-plan` slash command** | Available in Claude Code (`.claude/commands/`) and Copilot (`.github/copilot/instructions/`) after `virage init` |
+| **`/plan` slash command** | Available in Claude Code (`.claude/commands/`) and Copilot (`.github/copilot/instructions/`) after `virage init` |
 | **`agents` in config schema** | `virage.config.json` stores selected agent plugin names from init |
 
 ---

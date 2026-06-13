@@ -688,7 +688,7 @@ The `virage-cli` init wizard Step 2 hardcoded `{ name: "Claude", value: "claude"
 
 After ADR-025 introduced `BaseAgentPlugin`, each vendor plugin (`claude`, `copilot`, `codex`, `antigravity`) still contained imperative `configure()` logic to: (1) read the normalized `hooks.json` from `@vivantel/virage-skills`, (2) translate it to vendor-specific format, and (3) write/merge the result into vendor config files. The translation logic was duplicated across `config.ts` files in each plugin package.
 
-Additionally, the `/virage-plan` slash command was absent from all agent integrations. There was no standard way to add vendor-specific command files without extending the translation pipeline further.
+Additionally, the `/plan` slash command was absent from all agent integrations. There was no standard way to add vendor-specific command files without extending the translation pipeline further.
 
 ### Decision
 
@@ -698,7 +698,7 @@ Additionally, the `/virage-plan` slash command was absent from all agent integra
 
 3. **`VendorConfig` gains three fields:** `packageName` (npm package name, used to resolve plugin root), `pluginConfigDir` (subdir within the package, always `"plugin-config"`), and `projectConfigDir` (project-relative write target, e.g. `".claude"`, `".github/copilot"`, `".codex"`, `".antigravity"`).
 
-4. **`/virage-plan` slash command.** Claude plugin ships `plugin-config/commands/virage-plan.md` → written to `.claude/commands/virage-plan.md`, creating a `/virage-plan` slash command in Claude Code. Copilot ships `plugin-config/instructions/virage-plan.md` → `.github/copilot/instructions/virage-plan.md`. Both reference `.agents/skills/virage/planner/SKILL.md`.
+4. **`/plan` slash command.** Claude plugin ships `plugin-config/commands/plan.md` → written to `.claude/commands/plan.md`, creating a `/plan` slash command in Claude Code. Copilot ships `plugin-config/instructions/virage-plan.md` → `.github/copilot/instructions/virage-plan.md`. Both reference `.agents/skills/virage/planner/SKILL.md`.
 
 5. **Claude plugin retains one override.** `ClaudeAgentPlugin.configure()` calls `super.configure()` (for the static file copy) then calls `mergeMcpServer()` (writes `.mcp.json` with the virage-agent MCP entry). MCP registration is Claude-specific and cannot be expressed as a static file.
 
@@ -710,7 +710,7 @@ Additionally, the `/virage-plan` slash command was absent from all agent integra
 
 - **+** Vendor plugins are thin: ~15 lines of TypeScript each for copilot/codex/antigravity, no imperative hook translation.
 - **+** Static files are diff-friendly, auditable, and version-controlled alongside the plugin package.
-- **+** `/virage-plan` command available in Claude Code and Copilot after `virage init`.
+- **+** `/plan` command available in Claude Code after `virage init`; Copilot retains `virage-plan` instruction.
 - **+** `virage update` provides one-command ecosystem maintenance.
 - **−** Static hook files must be manually updated when `virage-skills/agent-config/hooks.json` changes.
 - **−** `VendorConfig` now embeds `packageName`, coupling the constant to the published package name; renaming a package requires updating the constant.

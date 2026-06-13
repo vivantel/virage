@@ -47,7 +47,7 @@
     "node": ">=18.0.0"
   },
   "scripts": {
-    "build": "rimraf dist && tsc",
+    "build": "rimraf dist && tsc && chmod +x dist/cli.js",
     "type-check": "tsc --noEmit",
     "test": "vitest run --passWithNoTests",
     "prepublishOnly": "npm run build && npm test",
