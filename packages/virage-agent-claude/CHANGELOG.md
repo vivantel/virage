@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.10](https://github.com/vivantel/virage/compare/virage-agent-claude@v0.2.9...virage-agent-claude@v0.2.10) (2026-06-14)
+
+
+### Features
+
+* **virage-agent-claude:** Add /usage command for session token usage breakdown ([49a95b6](https://github.com/vivantel/virage/commit/49a95b6cbd403c8f6e039586e739c4c839741c8a))
+
 ## [0.2.9](https://github.com/vivantel/virage/compare/virage-agent-claude@v0.2.8...virage-agent-claude@v0.2.9) (2026-06-14)
 
 
