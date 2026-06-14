@@ -179,9 +179,13 @@ jobs:
         if: matrix.package != 'virage-core'
         run: npm run build --workspace packages/virage-core
 
-      - name: Build virage-agent-core (required by agent plugin packages)
-        if: contains(fromJSON('["virage-agent-claude", "virage-agent-copilot", "virage-agent-codex", "virage-agent-antigravity"]'), matrix.package)
+      - name: Build virage-agent-core (required by agent plugin packages and virage-cli)
+        if: contains(fromJSON('["virage-cli", "virage-agent-claude", "virage-agent-copilot", "virage-agent-codex", "virage-agent-antigravity"]'), matrix.package)
         run: npm run build --workspace packages/virage-agent-core
+
+      - name: Build virage-agent-claude (required by virage-cli)
+        if: matrix.package == 'virage-cli'
+        run: npm run build --workspace packages/virage-agent-claude
 
       - name: Type check
         run: npm run type-check --workspace packages/${{ matrix.package }}

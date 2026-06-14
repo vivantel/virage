@@ -110,9 +110,13 @@ jobs:
         if: ${{ matrix.package != 'virage-core' && matrix.package != 'virage-dashboard' }}
         run: npm run build --workspace packages/virage-core
 
-      - name: Build virage-agent-core (dependency for agent plugins)
-        if: ${{ contains('virage-agent-claude virage-agent-copilot virage-agent-codex virage-agent-antigravity', matrix.package) }}
+      - name: Build virage-agent-core (dependency for agent plugins and virage-cli)
+        if: ${{ contains('virage-cli virage-agent-claude virage-agent-copilot virage-agent-codex virage-agent-antigravity', matrix.package) }}
         run: npm run build --workspace packages/virage-agent-core
+
+      - name: Build virage-agent-claude (dependency for virage-cli)
+        if: ${{ matrix.package == 'virage-cli' }}
+        run: npm run build --workspace packages/virage-agent-claude
 
       - name: Build virage-dashboard (dependency)
         if: ${{ matrix.package == 'virage-cli' }}
