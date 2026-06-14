@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.14](https://github.com/vivantel/virage/compare/virage-agent-claude@v0.2.13...virage-agent-claude@v0.2.14) (2026-06-14)
+
+
+### Bug Fixes
+
+* **virage-agent-claude:** Upsert MCP server config on update; strip newlines from table prompt ([a89b208](https://github.com/vivantel/virage/commit/a89b20898b1b713b031629b71b298918f7e33c0a))
+
 ## [0.2.13](https://github.com/vivantel/virage/compare/virage-agent-claude@v0.2.12...virage-agent-claude@v0.2.13) (2026-06-14)
 
 
