@@ -149,7 +149,10 @@ export async function buildSessionUsage(
     const win = aTs
       .filter(({ t }) => t >= ut && (!nxt || t < nxt))
       .map(({ e }) => e);
-    const txt = toText(ue.message?.content);
+    const txt = toText(ue.message?.content)
+      .replace(/[\n\r]+/g, " ")
+      .replace(/ {2,}/g, " ")
+      .trim();
     const lbl = txt.length > 52 ? txt.slice(0, 50) + ".." : txt;
     const u = { i: 0, cr: 0, cc: 0, o: 0 };
     for (const ae of win) {

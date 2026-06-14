@@ -52,15 +52,19 @@ export class ClaudeAgentPlugin extends BaseAgentPlugin {
 
     if (!config.mcpServers) config.mcpServers = {};
 
-    if (config.mcpServers["virage"]) {
-      return false;
-    }
-
-    config.mcpServers["virage"] = {
+    const desired = {
       type: "stdio",
       command: "npx",
-      args: ["-y", "@vivantel/virage-agent-claude"],
+      args: ["-y", "@vivantel/virage-agent-claude@latest"],
     };
+    const alreadyCurrent =
+      JSON.stringify(config.mcpServers["virage"]) === JSON.stringify(desired);
+    const hasStale = !!config.mcpServers["virage-agent"];
+
+    if (alreadyCurrent && !hasStale) return false;
+
+    config.mcpServers["virage"] = desired;
+    delete config.mcpServers["virage-agent"];
 
     await writeFile(mcpPath, JSON.stringify(config, null, 2) + "\n");
     return true;
