@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.9](https://github.com/vivantel/virage/compare/virage-agent-claude@v0.2.8...virage-agent-claude@v0.2.9) (2026-06-14)
+
+
+### Bug Fixes
+
+* **virage-agent-claude:** Prettier format fix in plugin.test.ts ([91e6d28](https://github.com/vivantel/virage/commit/91e6d28811d2b012f7a75b091000903bfc935d5c))
+
 ## [0.2.8](https://github.com/vivantel/virage/compare/virage-agent-claude@v0.2.7...virage-agent-claude@v0.2.8) (2026-06-14)
 
 
