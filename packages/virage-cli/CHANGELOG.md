@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.1.35](https://github.com/vivantel/virage/compare/virage-cli@v0.1.34...virage-cli@v0.1.35) (2026-06-14)
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @vivantel/virage-agent-claude bumped from 0.2.8 to 0.2.9
+
 ## [0.1.34](https://github.com/vivantel/virage/compare/virage-cli@v0.1.33...virage-cli@v0.1.34) (2026-06-14)
 
 
