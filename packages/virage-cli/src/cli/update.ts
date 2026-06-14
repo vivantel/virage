@@ -173,43 +173,27 @@ export async function runUpdate(): Promise<void> {
     }
   }
 
-  // Offer to re-run agent plugin configure()
+  // Always re-run agent plugin configure() to sync plugin-config files
   const agentPlugins = await discoverAgentPlugins(cwd);
   if (agentPlugins.length > 0) {
-    const reconfigure = await select({
-      message: "Re-run agent plugin configuration?",
-      choices: [
-        { name: "Yes — apply any updated plugin configs", value: true },
-        { name: "No, skip", value: false },
-      ],
-    });
-    if (reconfigure) {
-      const selected = await checkbox({
-        message: "Select plugins to reconfigure:",
-        choices: agentPlugins.map((p) => ({
-          name: p.label,
-          value: p,
-          checked: true,
-        })),
-      });
-      for (const plugin of selected) {
-        try {
-          const result = await runAgentPlugin(plugin, cwd);
-          const msg = result.hooksWritten
-            ? "config updated"
-            : "already up to date";
-          const mcpMsg =
-            result.mcpRegistered === true
-              ? "; MCP server registered"
-              : result.mcpRegistered === false
-                ? "; MCP server already registered"
-                : "";
-          console.log(`\n${plugin.label}: ${msg}${mcpMsg}`);
-        } catch (err) {
-          console.log(
-            `\n${plugin.label} failed: ${err instanceof Error ? err.message : String(err)}`,
-          );
-        }
+    console.log("\nSyncing agent plugin configs...");
+    for (const plugin of agentPlugins) {
+      try {
+        const result = await runAgentPlugin(plugin, cwd);
+        const msg = result.hooksWritten
+          ? "config updated"
+          : "already up to date";
+        const mcpMsg =
+          result.mcpRegistered === true
+            ? "; MCP server registered"
+            : result.mcpRegistered === false
+              ? "; MCP server already registered"
+              : "";
+        console.log(`  ${plugin.label}: ${msg}${mcpMsg}`);
+      } catch (err) {
+        console.log(
+          `  ${plugin.label} failed: ${err instanceof Error ? err.message : String(err)}`,
+        );
       }
     }
   }
