@@ -86,6 +86,24 @@ describe("ClaudeAgentPlugin — configure() file output", () => {
     expect(content).toContain("virage");
   });
 
+  it("writes .claude/skills/virage/commands/usage.md", async () => {
+    const dir = await makeTempDir();
+    const plugin = new ClaudeAgentPlugin();
+    await plugin.configure(dir);
+    const usagePath = join(
+      dir,
+      ".claude",
+      "skills",
+      "virage",
+      "commands",
+      "usage.md",
+    );
+    const s = await stat(usagePath);
+    expect(s.isFile()).toBe(true);
+    const content = await readFile(usagePath, "utf-8");
+    expect(content).toContain("session_usage");
+  });
+
   it("second configure() does not rewrite unchanged commands (hooksWritten: false)", async () => {
     const dir = await makeTempDir();
     const plugin = new ClaudeAgentPlugin();
