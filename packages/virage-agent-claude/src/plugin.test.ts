@@ -98,13 +98,7 @@ describe("ClaudeAgentPlugin — configure() file output", () => {
     const dir = await makeTempDir();
     const plugin = new ClaudeAgentPlugin();
     await plugin.configure(dir);
-    const pluginMcpPath = join(
-      dir,
-      ".claude",
-      "skills",
-      "virage",
-      ".mcp.json",
-    );
+    const pluginMcpPath = join(dir, ".claude", "skills", "virage", ".mcp.json");
     const s = await stat(pluginMcpPath);
     expect(s.isFile()).toBe(true);
     const cfg = JSON.parse(await readFile(pluginMcpPath, "utf-8")) as {
