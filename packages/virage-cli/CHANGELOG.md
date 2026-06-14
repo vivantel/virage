@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.1.38](https://github.com/vivantel/virage/compare/virage-cli@v0.1.37...virage-cli@v0.1.38) (2026-06-14)
+
+
+### Bug Fixes
+
+* **virage-agent-claude:** Fix session_usage table formatting; add virage usage CLI ([0a5419e](https://github.com/vivantel/virage/commit/0a5419e5afcad864c840985cc40c532eb26ee317))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @vivantel/virage-agent-claude bumped from 0.2.11 to 0.2.12
+
 ## [0.1.37](https://github.com/vivantel/virage/compare/virage-cli@v0.1.36...virage-cli@v0.1.37) (2026-06-14)
 
 
