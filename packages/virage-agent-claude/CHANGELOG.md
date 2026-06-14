@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.11](https://github.com/vivantel/virage/compare/virage-agent-claude@v0.2.10...virage-agent-claude@v0.2.11) (2026-06-14)
+
+
+### Bug Fixes
+
+* **virage-agent-claude:** Fix /usage command — wrong MCP tool name and missing auto-configure ([c9eed9d](https://github.com/vivantel/virage/commit/c9eed9d8d8cfc5a0bbfc1dbabc6780b67125e680))
+
 ## [0.2.10](https://github.com/vivantel/virage/compare/virage-agent-claude@v0.2.9...virage-agent-claude@v0.2.10) (2026-06-14)
 
 
