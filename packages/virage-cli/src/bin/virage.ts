@@ -16,6 +16,7 @@ import { createMultiProgressBars } from "../progress/progress-bar.js";
 import type { MultiProgressBars } from "../progress/progress-bar.js";
 import { runInit } from "../cli/init.js";
 import { runUpdate } from "../cli/update.js";
+import { runUsage } from "../cli/usage.js";
 import { runValidate } from "../cli/validate.js";
 import { runEvaluate } from "../cli/evaluate.js";
 import {
@@ -262,6 +263,17 @@ program
         console.log("\nCancelled.");
         process.exit(0);
       }
+      handleError(error);
+    }
+  });
+
+program
+  .command("usage")
+  .description("Show per-prompt token usage for the current Claude Code session")
+  .action(async () => {
+    try {
+      await runUsage();
+    } catch (error) {
       handleError(error);
     }
   });
