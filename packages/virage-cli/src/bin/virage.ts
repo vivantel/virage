@@ -269,7 +269,9 @@ program
 
 program
   .command("usage")
-  .description("Show per-prompt token usage for the current Claude Code session")
+  .description(
+    "Show per-prompt token usage for the current Claude Code session",
+  )
   .action(async () => {
     try {
       await runUsage();
