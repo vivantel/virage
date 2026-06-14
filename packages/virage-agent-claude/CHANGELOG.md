@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.13](https://github.com/vivantel/virage/compare/virage-agent-claude@v0.2.12...virage-agent-claude@v0.2.13) (2026-06-14)
+
+
+### Bug Fixes
+
+* **virage-agent-claude:** Add session_usage to MCP tools table in README ([08cbc6d](https://github.com/vivantel/virage/commit/08cbc6d71e197ace7d397ee53a66b3d2fd2b7f7a))
+
 ## [0.2.12](https://github.com/vivantel/virage/compare/virage-agent-claude@v0.2.11...virage-agent-claude@v0.2.12) (2026-06-14)
 
 
