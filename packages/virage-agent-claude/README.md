@@ -23,6 +23,7 @@ After `virage init` (or `configure()`), two commands are available in Claude Cod
 | `list_skills` | Returns all available Virage skill names |
 | `read_skill(name)` | Returns the SKILL.md content for the named skill |
 | `onboard(targetDir?)` | Copies plugin-config/ files and registers this MCP server in the project |
+| `session_usage` | Returns a per-prompt token usage table for the current session |
 
 ## Usage
 
