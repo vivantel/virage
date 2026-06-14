@@ -29,5 +29,8 @@
   "engines": {
     "node": ">=18.0.0"
   },
-  "version": "0.1.0"
+  "version": "0.1.0",
+  "dependencies": {
+    "@vivantel/virage-agent-claude": "^0.2.6"
+  }
 }

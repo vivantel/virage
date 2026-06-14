@@ -32,7 +32,7 @@ async function listSkillNames(skillsRoot: string): Promise<string[]> {
 }
 
 export function createAgentMcpServer(): McpServer {
-  const server = new McpServer({ name: "virage-agent", version: "0.1.0" });
+  const server = new McpServer({ name: "virage", version: "0.1.0" });
 
   server.tool(
     "list_skills",

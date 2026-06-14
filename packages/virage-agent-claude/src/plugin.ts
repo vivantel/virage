@@ -52,11 +52,11 @@ export class ClaudeAgentPlugin extends BaseAgentPlugin {
 
     if (!config.mcpServers) config.mcpServers = {};
 
-    if (config.mcpServers["virage-agent"]) {
+    if (config.mcpServers["virage"]) {
       return false;
     }
 
-    config.mcpServers["virage-agent"] = {
+    config.mcpServers["virage"] = {
       type: "stdio",
       command: "npx",
       args: ["-y", "@vivantel/virage-agent-claude"],
