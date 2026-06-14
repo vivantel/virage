@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.1.5](https://github.com/vivantel/virage/compare/virage-agent-codex@v0.1.4...virage-agent-codex@v0.1.5) (2026-06-14)
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @vivantel/virage-agent-core bumped from 0.1.3 to 0.1.4
+
 ## [0.1.4](https://github.com/vivantel/virage/compare/virage-agent-codex@v0.1.3...virage-agent-codex@v0.1.4) (2026-06-12)
 
 

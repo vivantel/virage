@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.4](https://github.com/vivantel/virage/compare/virage-agent-core@v0.1.3...virage-agent-core@v0.1.4) (2026-06-14)
+
+
+### Features
+
+* **virage-agent:** Rename plugin identifier virage-agent → virage, fix virage-cli chmod ([426e4b5](https://github.com/vivantel/virage/commit/426e4b5f41e50f6f41405265658d5ee2fce2b13a))
+
 ## [0.1.3](https://github.com/vivantel/virage/compare/virage-agent-core@v0.1.2...virage-agent-core@v0.1.3) (2026-06-12)
 
 

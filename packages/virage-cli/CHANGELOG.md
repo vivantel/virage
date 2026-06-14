@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.1.34](https://github.com/vivantel/virage/compare/virage-cli@v0.1.33...virage-cli@v0.1.34) (2026-06-14)
+
+
+### Features
+
+* **virage-agent:** Rename plugin identifier virage-agent → virage, fix virage-cli chmod ([426e4b5](https://github.com/vivantel/virage/commit/426e4b5f41e50f6f41405265658d5ee2fce2b13a))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @vivantel/virage-agent-claude bumped from 0.2.7 to 0.2.8
+
 ## [0.1.33](https://github.com/vivantel/virage/compare/virage-cli@v0.1.32...virage-cli@v0.1.33) (2026-06-13)
 
 
