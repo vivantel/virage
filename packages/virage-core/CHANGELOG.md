@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.25](https://github.com/vivantel/virage/compare/virage-core@v0.2.24...virage-core@v0.2.25) (2026-06-15)
+
+
+### Features
+
+* **virage-core,virage-cli,virage-agent-claude:** Branch-aware RAG, search command & index slash command ([6888bef](https://github.com/vivantel/virage/commit/6888befb52373500627437a9fcc636048c0b5719))
+
+
+### Bug Fixes
+
+* **virage-core:** Deduplicate upload batch by contentHash to prevent LanceDB merge-insert conflict ([d546293](https://github.com/vivantel/virage/commit/d546293c000514cd722cad99ce3d909d0bcf0f1d))
+
 ## [0.2.24](https://github.com/vivantel/virage/compare/virage-core@v0.2.23...virage-core@v0.2.24) (2026-06-15)
 
 

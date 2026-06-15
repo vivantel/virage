@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.1.43](https://github.com/vivantel/virage/compare/virage-cli@v0.1.42...virage-cli@v0.1.43) (2026-06-15)
+
+
+### Features
+
+* **virage-core,virage-cli,virage-agent-claude:** Branch-aware RAG, search command & index slash command ([6888bef](https://github.com/vivantel/virage/commit/6888befb52373500627437a9fcc636048c0b5719))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @vivantel/virage-agent-claude bumped from 0.2.16 to 0.2.17
+    * @vivantel/virage-core bumped from 0.2.24 to 0.2.25
+
 ## [0.1.42](https://github.com/vivantel/virage/compare/virage-cli@v0.1.41...virage-cli@v0.1.42) (2026-06-15)
 
 
