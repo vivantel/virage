@@ -1,6 +1,6 @@
 {
   "name": "@vivantel/virage-core",
-  "version": "0.2.24",
+  "version": "0.2.25",
   "type": "module",
   "description": "Core RAG pipeline tools - universal chunking, embedding, vector store interfaces",
   "repository": {
