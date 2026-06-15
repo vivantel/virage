@@ -100,6 +100,17 @@ virage index --dry-run # show what would change without uploading
 virage index --no-upload  # chunk + embed but skip vector store upload
 ```
 
+## Semantic search (branch-aware)
+
+```bash
+virage query "<text>"                  # top-5 results, all branches
+virage query "<text>" --top-k 10       # top-10 results
+virage query "<text>" --branch main    # filter to chunks indexed on 'main'
+virage query "<text>" --json           # machine-readable output
+```
+
+Chunks indexed after 2026-06-15 carry `branch` in their metadata. For older indexes, run `virage index --force` to re-tag all chunks with the current branch.
+
 ---
 
 ## Virage DB inspection (direct SQLite)

@@ -41,6 +41,30 @@ claude plugin install virage-agent@vivantel --scope project
 ```
 The marketplace manifest is at `.claude-plugin/marketplace.json` in the repo root. The plugin source is `packages/virage-agent-claude/plugin-config` (sparse-cloned via `git-subdir`). The plugin is self-contained: it declares `commands/plan.md` and an MCP server via `.mcp.json`.
 
+**Claude Code slash commands** installed by the plugin (`plugin-config/commands/`):
+
+| Command | What it does |
+| ------- | ------------ |
+| `/plan` | Load and follow the Virage planner skill |
+| `/review` | Load and follow the Virage review skill |
+| `/rag <query>` | Semantic search via `mcp__virage__search` (requires `virage index` first) |
+| `/index [flags]` | Run `virage index` via Bash (supports `--force`, `--dry-run`, `--watch`, etc.) |
+| `/doc` | Load and follow the Virage doc_writer skill |
+| `/arch` | Load and follow the Virage architect skill |
+| `/usage` | Show per-prompt token usage for the current session |
+
+**MCP tools** exposed by the `virage` MCP server (registered in `.mcp.json`):
+
+| Tool | Purpose |
+| ---- | ------- |
+| `mcp__virage__list_skills` | List all skills with structured metadata (single round-trip routing) |
+| `mcp__virage__read_skill_summary` | Read ≤20-line skill summary before committing to full load |
+| `mcp__virage__read_skill` | Read full `SKILL.md` content |
+| `mcp__virage__suggest_skill` | Keyword-match a task description to the best-fit skill |
+| `mcp__virage__search` | Semantic search over the indexed knowledge base (spawns `virage query --json`) |
+| `mcp__virage__onboard` | Self-configure Claude Code hooks and MCP registration |
+| `mcp__virage__session_usage` | Parse session log for per-prompt token breakdown |
+
 ---
 
 ## Essential commands
@@ -55,6 +79,8 @@ npm run build -w @vivantel/<pkg>       # build one package
 npm run build:with-dashboard -w @vivantel/virage-cli  # CLI build including dashboard UI
 virage init                            # interactive wizard: config, agents, embedder, vector store
 virage update                          # update virage ecosystem packages + re-run plugin configure
+virage query "<text>"                  # semantic search over the indexed knowledge base (--json, --top-k, --branch)
+virage install-hooks                   # install post-merge & post-checkout git hooks for auto-indexing
 ```
 
 ---

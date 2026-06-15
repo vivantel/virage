@@ -763,3 +763,78 @@ Separately, the new `suggest_skill` tool (added in this release) needs `when_to_
 - **+** `estimated_tokens` gives Claude a cost signal before loading a skill.
 - **−** Consumers that parsed the raw `string[]` return value must be updated to read `skills[]` or `names[]`.
 - **−** Frontmatter maintenance burden: authors must keep `estimated_tokens` roughly accurate as skills grow.
+
+---
+
+## ADR-028: Branch-aware RAG via metadata tagging, per-file dirty detection, and search command
+
+**Date:** 2026-06-15
+**Status:** Accepted
+
+### Context
+
+The RAG pipeline stored all chunks in a single `.virage/virage.db` + vector store with no branch awareness. Switching branches could surface stale results from files that differed between branches. Additionally, the `GitTracker` used a global dirty flag — if any file in the working tree was uncommitted, every tracked file was appended `-dirty` and re-indexed on the next run, causing unnecessary re-embedding of files that were actually clean.
+
+The existing `mcp__virage__search` reference in `plugin-config/commands/rag.md` pointed to an MCP tool that did not exist, making the `/rag` slash command non-functional.
+
+Finally, after a `git pull` or branch checkout there was no mechanism to automatically bring the index up to date.
+
+### Decision
+
+1. **Single DB with branch metadata tagging (no per-branch DBs).** At `virage index` time, `GitTracker.getCurrentBranch()` detects the current branch (via `git rev-parse --abbrev-ref HEAD`). The orchestrator injects `{ branch: "<name>" }` into each chunk's `metadata` field before inserting into SQLite. At query time, an optional `filter: { branch }` narrows results via post-filter on the parsed `metadata_json`. Separate DBs per branch were rejected because they would require re-embedding all content for every branch, defeating the delta-indexing design.
+
+2. **Per-file dirty detection.** `hasUncommittedChanges()` (global `boolean`) is replaced by `getDirtyFiles()` which calls `git.status()` once and returns a `Set<string>` of modified paths. Only files present in that set receive the `-dirty` commit-hash suffix; clean files on the same working tree continue to use their true commit hash. This eliminates the cascade where a single dirty file caused full re-indexing.
+
+3. **`filter?: Record<string, unknown>` added to `SearchOptions`.** The LanceDB store fetches `topK × 4` results and applies the filter as an in-process metadata match (no schema migration required for existing indexes). The `collection` interface parameter was left as-is but is now semantically superseded by `filter.branch`.
+
+4. **`virage query <text>` CLI command** (in `virage-cli`). Loads `virage.config.json`, embeds the query text, calls `vectorStore.search()`, and outputs human-readable or `--json` results. Accepts `--top-k` and `--branch` flags.
+
+5. **`search` MCP tool** added to `virage-agent-claude`. Rather than loading the embedder and vector store directly in the MCP server process (which runs from npx cache and cannot resolve project-local plugin packages via ESM `import()`), the tool spawns `virage query --json` as a subprocess using the project-local `node_modules/.bin/virage` binary (falls back to PATH). This correctly inherits the project's Node.js module resolution context. The `/rag` slash command is now functional.
+
+6. **`virage install-hooks` command** (in `virage-cli`). Writes idempotent `post-merge` and `post-checkout` shell scripts to `.git/hooks/`, each calling `npx virage index`. This ensures the index stays current after `git pull` and branch switches. `--uninstall` removes only the Virage-added content (identified by a marker comment), preserving any pre-existing hook logic.
+
+7. **`/index` slash command** (`plugin-config/commands/index.md`). Added to the Claude Code agent plugin. Instructs Claude to run `virage index $ARGUMENTS` via the Bash tool, covering `--force`, `--dry-run`, `--no-upload`, and `--watch` use cases.
+
+### Consequences
+
+- **+** Branch-scoped search without re-embedding shared content; `virage query --branch feature-x` narrows results to that branch's indexed files.
+- **+** Per-file dirty detection eliminates spurious full re-indexes from a single uncommitted file.
+- **+** `/rag` command is now functional end-to-end.
+- **+** `/index` command lets agents trigger indexing without leaving the chat interface.
+- **+** `virage install-hooks` automates post-pull re-indexing with no manual setup.
+- **−** Post-filter approach for `branch` means the effective result count may be < topK when many chunks lack the branch tag (e.g. indexes built before this change). Run `virage index --force` to re-tag all chunks.
+- **−** `virage query` subprocess adds ~1–2 s cold-start latency to the first MCP search call (embedder initialization); subsequent calls within the same session pay similar startup cost since the subprocess is not persistent.
+- **−** `virage install-hooks` installs to `.git/hooks/` which is not committed to the repo. Each contributor must run it manually.
+
+---
+
+## ADR-029: No switch to Claude Code native subagents for Virage skills
+
+**Date:** 2026-06-15
+**Status:** Accepted
+
+### Context
+
+Virage skills are delivered as static `.md` files (with YAML frontmatter) that are copied into vendor-specific config directories by `BaseAgentPlugin.configure()`. For Claude Code, skills are also discoverable via 6 MCP tools (`list_skills`, `read_skill`, `suggest_skill`, etc.). The question arose whether to replace or augment this model with Claude Code's native `Agent` tool (subagent dispatch) for deterministic skills like `code-guardian` or `qa`, to gain isolated context windows, parallel execution, and typed return values.
+
+### Decision
+
+**Do not switch to Claude Code native subagents.** Keep the static `.md` skill model for all four supported agents.
+
+Reasons:
+
+1. **Vendor parity (ADR-026).** Copilot, Codex, and Antigravity have no equivalent of Claude Code's `Agent` tool. Adding Claude-only subagent dispatch paths creates a permanently diverging codebase: three of four vendors would receive a degraded experience, and any skill that uses subagent dispatch becomes Claude Code-only.
+
+2. **Human-in-loop continuity.** Skills like `planner` and `architect` require iterative back-and-forth with the user (plan approval, ADR review). Subagents start cold, return opaque results, and break the single-thread conversational flow that makes these skills effective.
+
+3. **The MCP layer is the right abstraction boundary.** ADR-027's `suggest_skill` + `list_skills` already give single-round-trip routing. The `search` MCP tool (ADR-028) extends this with data retrieval. Adding a `run_skill` MCP tool that spawns a subagent internally would couple the MCP server to the Claude API, break vendor parity at the MCP level, and add billing complexity.
+
+4. **Revisit condition.** If Copilot agent mode, Codex, or Antigravity gain a vendor-neutral subagent dispatch API at the same abstraction level, reassess. Until then, improve the existing model: richer skill frontmatter, better hook triggering, and more MCP data tools.
+
+### Consequences
+
+- **+** All four agent vendors continue to receive the same skill content.
+- **+** No new dependencies on the Claude API within the Virage packages.
+- **+** Skills remain auditable static files, not opaque agent invocations.
+- **−** Deterministic skills (`code-guardian`, `qa`) execute inline in the parent session, adding their tool calls to the main context window rather than isolating them.
+- **−** No parallel skill execution without vendor-specific workarounds.
