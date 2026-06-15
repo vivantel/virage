@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.1.18](https://github.com/vivantel/virage/compare/virage-mcp@v0.1.17...virage-mcp@v0.1.18) (2026-06-15)
+
+
+### Features
+
+* **virage-agent-claude:** Token efficiency, skill routing & recency search (v1.2.1) ([b91395b](https://github.com/vivantel/virage/commit/b91395bc51e8777151c37a5694d0f53c76cbcc44))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @vivantel/virage-core bumped from 0.2.23 to 0.2.24
+  * devDependencies
+    * @vivantel/virage-core bumped from 0.2.23 to 0.2.24
+  * peerDependencies
+    * @vivantel/virage-core bumped from * to 0.2.24
+
 ## [0.1.17](https://github.com/vivantel/virage/compare/virage-mcp@v0.1.16...virage-mcp@v0.1.17) (2026-06-12)
 
 

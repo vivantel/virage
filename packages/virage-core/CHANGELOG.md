@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.24](https://github.com/vivantel/virage/compare/virage-core@v0.2.23...virage-core@v0.2.24) (2026-06-15)
+
+
+### Features
+
+* **virage-agent-claude:** Token efficiency, skill routing & recency search (v1.2.1) ([b91395b](https://github.com/vivantel/virage/commit/b91395bc51e8777151c37a5694d0f53c76cbcc44))
+
 ## [0.2.23](https://github.com/vivantel/virage/compare/virage-core@v0.2.22...virage-core@v0.2.23) (2026-06-12)
 
 
