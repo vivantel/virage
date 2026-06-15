@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.16](https://github.com/vivantel/virage/compare/virage-agent-claude@v0.2.15...virage-agent-claude@v0.2.16) (2026-06-15)
+
+
+### Bug Fixes
+
+* **virage-agent-claude:** Make mergeHooks() idempotent — strip-then-inject on every configure() ([3eebbf9](https://github.com/vivantel/virage/commit/3eebbf9d157e0454f8fcc756c1da4f777525ca82))
+
 ## [0.2.15](https://github.com/vivantel/virage/compare/virage-agent-claude@v0.2.14...virage-agent-claude@v0.2.15) (2026-06-15)
 
 
