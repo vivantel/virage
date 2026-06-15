@@ -204,16 +204,21 @@ export class LanceDBVectorStore implements VectorStore {
     queryEmbedding: number[],
     topK: number,
     _collection?: string,
-    _options?: SearchOptions,
+    options?: SearchOptions,
   ): Promise<VectorSearchResult[]> {
-    this.logger?.debug(`Search: topK=${topK}`);
+    const filter = options?.filter;
+    // Fetch extra rows when a post-filter is applied so we can still return topK after filtering.
+    const fetchLimit = filter ? topK * 4 : topK;
+    this.logger?.debug(
+      `Search: topK=${topK} fetchLimit=${fetchLimit} filter=${JSON.stringify(filter ?? null)}`,
+    );
     let rows: unknown[];
     try {
       rows = await this.table
         .vectorSearch(queryEmbedding)
         .column("embedding")
         .distanceType("cosine")
-        .limit(topK)
+        .limit(fetchLimit)
         .toArray();
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
@@ -230,31 +235,40 @@ export class LanceDBVectorStore implements VectorStore {
       throw err;
     }
 
-    return (rows as Record<string, unknown>[]).map((row) => {
+    const results: VectorSearchResult[] = (
+      rows as Record<string, unknown>[]
+    ).map((row) => {
       const distance = typeof row._distance === "number" ? row._distance : 1;
+      const metadata = (() => {
+        try {
+          const parsed: unknown =
+            typeof row.metadata_json === "string"
+              ? JSON.parse(row.metadata_json)
+              : {};
+          return parsed && typeof parsed === "object" && !Array.isArray(parsed)
+            ? (parsed as Record<string, unknown>)
+            : {};
+        } catch {
+          return {};
+        }
+      })();
       return {
         id: typeof row.id === "string" ? row.id : "",
         content: typeof row.content === "string" ? row.content : "",
-        metadata: (() => {
-          try {
-            const parsed: unknown =
-              typeof row.metadata_json === "string"
-                ? JSON.parse(row.metadata_json)
-                : {};
-            return parsed &&
-              typeof parsed === "object" &&
-              !Array.isArray(parsed)
-              ? (parsed as Record<string, unknown>)
-              : {};
-          } catch {
-            return {};
-          }
-        })(),
+        metadata,
         similarity: 1 - distance,
         sourceFile:
           typeof row.source_file === "string" ? row.source_file : undefined,
       };
     });
+
+    if (!filter) return results;
+
+    return results
+      .filter((r) =>
+        Object.entries(filter).every(([k, v]) => r.metadata[k] === v),
+      )
+      .slice(0, topK);
   }
 
   async readMeta(): Promise<VectorStoreMeta | null> {

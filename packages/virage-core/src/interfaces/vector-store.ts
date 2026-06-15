@@ -54,6 +54,8 @@ export interface SearchOptions {
   alpha?: number;
   /** Weight applied to recency score (0–1). Defaults to 0.15. Only applied when ingestedAt is available. */
   beta?: number;
+  /** Metadata key-value pairs to filter results (e.g. `{ branch: "main" }`). Applied as post-filter. */
+  filter?: Record<string, unknown>;
 }
 
 export interface VectorStore {

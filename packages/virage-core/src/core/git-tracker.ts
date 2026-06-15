@@ -12,7 +12,7 @@ export class GitTracker {
   private chunkers: FileChunker[];
   private allPatterns: string[];
   private currentHeadCache: string | null = null;
-  private uncommittedCache: boolean | null = null;
+  private dirtyFilesCache: Set<string> | null = null;
   private logger: Logger;
 
   constructor(chunkers: FileChunker[], logger?: Logger) {
@@ -29,17 +29,28 @@ export class GitTracker {
     return this.currentHeadCache;
   }
 
-  private async hasUncommittedChanges(): Promise<boolean> {
-    if (this.uncommittedCache === null) {
+  /** Returns the set of files with uncommitted changes (modified, staged, or untracked). */
+  private async getDirtyFiles(): Promise<Set<string>> {
+    if (this.dirtyFilesCache === null) {
       const status = await this.git.status();
-      this.uncommittedCache = status.files.length > 0;
-      if (this.uncommittedCache) {
+      this.dirtyFilesCache = new Set(status.files.map((f) => f.path));
+      if (this.dirtyFilesCache.size > 0) {
         this.logger.debug(
-          "Working tree has uncommitted changes — appending -dirty",
+          `Working tree has ${this.dirtyFilesCache.size} uncommitted file(s) — appending -dirty per file`,
         );
       }
     }
-    return this.uncommittedCache;
+    return this.dirtyFilesCache;
+  }
+
+  /** Returns the current git branch name, or "HEAD" when detached. */
+  async getCurrentBranch(): Promise<string> {
+    try {
+      const branch = await this.git.revparse(["--abbrev-ref", "HEAD"]);
+      return branch.trim() || "HEAD";
+    } catch {
+      return "HEAD";
+    }
   }
 
   private getChunkerForFile(filePath: string): FileChunker | null {
@@ -106,7 +117,7 @@ export class GitTracker {
   > {
     const allFiles = await this.getAllTrackedFiles();
     const commitMap = await this.getCommitHashes(allFiles);
-    const hasDirty = await this.hasUncommittedChanges();
+    const dirtyFiles = await this.getDirtyFiles();
     const currentHead = await this.getCurrentHead();
 
     const state = new Map<
@@ -116,7 +127,7 @@ export class GitTracker {
 
     for (const file of allFiles) {
       let commitHash = commitMap.get(file) || currentHead;
-      if (hasDirty) {
+      if (dirtyFiles.has(file)) {
         commitHash = `${commitHash}-dirty`;
       }
 

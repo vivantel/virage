@@ -4,8 +4,12 @@ import { createRequire } from "module";
 import { readFile, readdir } from "fs/promises";
 import { existsSync } from "fs";
 import { join, dirname } from "path";
+import { execFile } from "child_process";
+import { promisify } from "util";
 import { configure } from "./plugin.js";
 import { buildSessionUsage } from "./session-usage.js";
+
+const execFileAsync = promisify(execFile);
 
 function resolveSkillsPackagePath(): string | null {
   try {
@@ -304,6 +308,58 @@ export function createAgentMcpServer(): McpServer {
           },
         ],
       };
+    },
+  );
+
+  server.tool(
+    "search",
+    [
+      "Semantic search over the project knowledge base indexed by Virage.",
+      "Embeds the query and returns the top-k most similar chunks with source file and similarity score.",
+      "Requires the project to have been indexed via `virage index`.",
+      "Response shape: JSON array of { content, sourceFile, similarity, metadata }.",
+      "Pass branch to scope results to a specific git branch (defaults to all branches).",
+    ].join(" "),
+    {
+      query: z.string().describe("Search query text"),
+      top_k: z
+        .number()
+        .int()
+        .min(1)
+        .max(20)
+        .optional()
+        .default(5)
+        .describe("Number of results"),
+      branch: z
+        .string()
+        .optional()
+        .describe("Filter to a specific git branch (e.g. 'main')"),
+    },
+    async ({ query, top_k, branch }) => {
+      const cwd = process.cwd();
+      const localBin = join(cwd, "node_modules", ".bin", "virage");
+      const virageBin = existsSync(localBin) ? localBin : "virage";
+
+      const args = ["query", query, "--json", "--top-k", String(top_k)];
+      if (branch) args.push("--branch", branch);
+
+      try {
+        const { stdout } = await execFileAsync(virageBin, args, {
+          cwd,
+          timeout: 30_000,
+        });
+        return { content: [{ type: "text", text: stdout.trim() }] };
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Search failed: ${msg}\n\nEnsure the project is indexed: run \`virage index\` first.`,
+            },
+          ],
+        };
+      }
     },
   );
 

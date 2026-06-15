@@ -31,6 +31,8 @@ import { runChunksReport } from "../cli/chunks-report.js";
 import { runVizEmbeddings } from "../cli/viz.js";
 import { runDashboard } from "../cli/dashboard.js";
 import { runCheck } from "../cli/check.js";
+import { runQuery } from "../cli/query-cmd.js";
+import { runInstallHooks } from "../cli/install-hooks.js";
 import {
   runTelemetryStatus,
   runTelemetryOn,
@@ -631,6 +633,55 @@ telemetry
   .action(async (opts: { dryRun: boolean }) => {
     try {
       await runTelemetryFlush({ dryRun: opts.dryRun });
+    } catch (error) {
+      handleError(error);
+    }
+  });
+
+program
+  .command("query")
+  .description("Semantic search over the indexed knowledge base")
+  .argument("<text>", "Search query text")
+  .option("-c, --config <path>", "Path to config file", "./virage.config.json")
+  .option(
+    "-k, --top-k <number>",
+    "Number of results to return",
+    (v) => parseInt(v, 10),
+    5,
+  )
+  .option("--branch <name>", "Filter results to a specific git branch")
+  .option("--json", "Output results as JSON", false)
+  .action(
+    async (
+      queryText: string,
+      cmdOpts: { config: string; topK: number; branch?: string; json: boolean },
+    ) => {
+      try {
+        await runQuery(queryText, {
+          config: cmdOpts.config,
+          topK: cmdOpts.topK,
+          branch: cmdOpts.branch,
+          json: cmdOpts.json,
+        });
+      } catch (error) {
+        handleError(error);
+      }
+    },
+  );
+
+program
+  .command("install-hooks")
+  .description(
+    "Install git lifecycle hooks (post-merge, post-checkout) to auto-index on pull/branch switch",
+  )
+  .option("--uninstall", "Remove Virage-added hooks", false)
+  .option("--git-dir <path>", "Path to .git directory (defaults to ./.git)")
+  .action(async (cmdOpts: { uninstall: boolean; gitDir?: string }) => {
+    try {
+      await runInstallHooks({
+        uninstall: cmdOpts.uninstall,
+        gitDir: cmdOpts.gitDir,
+      });
     } catch (error) {
       handleError(error);
     }

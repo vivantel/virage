@@ -118,7 +118,10 @@ export class Orchestrator {
       logger.info("📂 Scanning for changes...");
       const t1 = Date.now();
       const gitTracker = new GitTracker(this.config.chunkers, opts.logger);
-      const currentState = await gitTracker.getCurrentState();
+      const [currentState, currentBranch] = await Promise.all([
+        gitTracker.getCurrentState(),
+        gitTracker.getCurrentBranch(),
+      ]);
 
       const previousState = effectiveForce
         ? new Map<string, string>()
@@ -290,6 +293,9 @@ export class Orchestrator {
           continue;
         }
 
+        for (const chunk of newChunks) {
+          chunk.metadata = { ...chunk.metadata, branch: currentBranch };
+        }
         db.replaceChunks(file, newChunks);
         pendingEmbed.push(...newChunks);
         embedTotal += newChunks.length;
