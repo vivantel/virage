@@ -151,23 +151,22 @@ export class ClaudeAgentPlugin extends BaseAgentPlugin {
 
     if (!settings.hooks) settings.hooks = {};
 
-    let changed = false;
-    for (const [event, matchers] of Object.entries(VIRAGE_HOOKS)) {
-      if (!settings.hooks[event]) settings.hooks[event] = [];
-      const existing = settings.hooks[event];
+    const before = JSON.stringify(settings.hooks);
 
-      for (const matcher of matchers) {
-        const alreadyPresent = existing.some((m) =>
-          m.hooks.some((h) => h.command.includes(VIRAGE_HOOK_MARKER)),
-        );
-        if (!alreadyPresent) {
-          existing.push(matcher);
-          changed = true;
-        }
-      }
+    // Strip all Virage-managed entries from every event (handles removals and updates)
+    for (const event of Object.keys(settings.hooks)) {
+      settings.hooks[event] = settings.hooks[event].filter(
+        (m) => !m.hooks.some((h) => h.command.includes(VIRAGE_HOOK_MARKER)),
+      );
     }
 
-    if (changed) {
+    // Re-inject current VIRAGE_HOOKS
+    for (const [event, matchers] of Object.entries(VIRAGE_HOOKS)) {
+      if (!settings.hooks[event]) settings.hooks[event] = [];
+      settings.hooks[event].push(...matchers);
+    }
+
+    if (JSON.stringify(settings.hooks) !== before) {
       await writeFile(settingsPath, JSON.stringify(settings, null, 2) + "\n");
     }
   }

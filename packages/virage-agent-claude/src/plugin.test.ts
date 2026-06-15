@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { mkdtemp, readFile, stat } from "fs/promises";
+import { mkdtemp, readFile, stat, writeFile, mkdir } from "fs/promises";
 import { join } from "path";
 import { tmpdir } from "os";
 import { ClaudeAgentPlugin } from "./plugin.js";
@@ -142,5 +142,113 @@ describe("ClaudeAgentPlugin — configure() file output", () => {
     await plugin.configure(dir);
     const result2 = await plugin.configure(dir);
     expect(result2.mcpRegistered).toBe(false);
+  });
+});
+
+describe("ClaudeAgentPlugin — mergeHooks() idempotency", () => {
+  it("writes [Virage] hooks on first configure()", async () => {
+    const dir = await makeTempDir();
+    const plugin = new ClaudeAgentPlugin();
+    await plugin.configure(dir);
+    const raw = await readFile(join(dir, ".claude", "settings.json"), "utf-8");
+    expect(raw).toContain("[Virage]");
+  });
+
+  it("second configure() produces identical settings.json (truly idempotent)", async () => {
+    const dir = await makeTempDir();
+    const plugin = new ClaudeAgentPlugin();
+    await plugin.configure(dir);
+    const after1 = await readFile(
+      join(dir, ".claude", "settings.json"),
+      "utf-8",
+    );
+    await plugin.configure(dir);
+    const after2 = await readFile(
+      join(dir, ".claude", "settings.json"),
+      "utf-8",
+    );
+    expect(after2).toBe(after1);
+  });
+
+  it("replaces stale [Virage] hook command on re-configure", async () => {
+    const dir = await makeTempDir();
+    await mkdir(join(dir, ".claude"), { recursive: true });
+    const stale = {
+      hooks: {
+        UserPromptSubmit: [
+          {
+            hooks: [
+              { type: "command", command: "echo '[Virage] old stale hook'" },
+            ],
+          },
+        ],
+      },
+    };
+    await writeFile(
+      join(dir, ".claude", "settings.json"),
+      JSON.stringify(stale, null, 2),
+    );
+
+    const plugin = new ClaudeAgentPlugin();
+    await plugin.configure(dir);
+
+    const raw = await readFile(join(dir, ".claude", "settings.json"), "utf-8");
+    expect(raw).not.toContain("old stale hook");
+    expect(raw).toContain("[Virage]");
+  });
+
+  it("removes a [Virage] hook for an event no longer in VIRAGE_HOOKS", async () => {
+    const dir = await makeTempDir();
+    await mkdir(join(dir, ".claude"), { recursive: true });
+    const withExtra = {
+      hooks: {
+        Stop: [
+          {
+            hooks: [
+              {
+                type: "command",
+                command: "echo '[Virage] removed event hook'",
+              },
+            ],
+          },
+        ],
+      },
+    };
+    await writeFile(
+      join(dir, ".claude", "settings.json"),
+      JSON.stringify(withExtra, null, 2),
+    );
+
+    const plugin = new ClaudeAgentPlugin();
+    await plugin.configure(dir);
+
+    const raw = await readFile(join(dir, ".claude", "settings.json"), "utf-8");
+    expect(raw).not.toContain("removed event hook");
+  });
+
+  it("preserves non-Virage hooks alongside Virage hooks", async () => {
+    const dir = await makeTempDir();
+    await mkdir(join(dir, ".claude"), { recursive: true });
+    const existing = {
+      hooks: {
+        PreToolUse: [
+          {
+            matcher: "Bash(*git commit*)",
+            hooks: [{ type: "command", command: "npm run lint" }],
+          },
+        ],
+      },
+    };
+    await writeFile(
+      join(dir, ".claude", "settings.json"),
+      JSON.stringify(existing, null, 2),
+    );
+
+    const plugin = new ClaudeAgentPlugin();
+    await plugin.configure(dir);
+
+    const raw = await readFile(join(dir, ".claude", "settings.json"), "utf-8");
+    expect(raw).toContain("npm run lint");
+    expect(raw).toContain("[Virage]");
   });
 });
