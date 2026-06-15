@@ -2,13 +2,19 @@ import {
   loadConfig,
   loadEvalDataset,
   EvalRunner,
+  EcosystemEvaluator,
+  printEcosystemEvalResult,
   ExperimentStore,
   makeRunId,
   VirageDb,
   defaultVirageDb,
 } from "@vivantel/virage-core";
 import { createProgressBar } from "../progress/progress-bar.js";
-import type { EvalResult, ExperimentRun } from "@vivantel/virage-core";
+import type {
+  EvalResult,
+  ExperimentRun,
+  EcosystemEvalDataset,
+} from "@vivantel/virage-core";
 
 export interface EvaluateOptions {
   config: string;
@@ -16,6 +22,7 @@ export interface EvaluateOptions {
   withLlmJudge: boolean;
   thresholdMrr?: number;
   ci: boolean;
+  suite?: "retrieval" | "ecosystem";
 }
 
 function formatPercent(n: number): string {
@@ -35,6 +42,9 @@ function printEvalResult(result: EvalResult): void {
 }
 
 export async function runEvaluate(opts: EvaluateOptions): Promise<void> {
+  if (opts.suite === "ecosystem") {
+    return runEcosystemEval(opts);
+  }
   console.log("📂 Loading config...");
   const cfg = await loadConfig(opts.config);
 
@@ -95,6 +105,55 @@ export async function runEvaluate(opts: EvaluateOptions): Promise<void> {
     } else {
       console.error(
         `\n❌ Quality gate FAILED: MRR ${evalResult.mrr.toFixed(4)} < ${opts.thresholdMrr}`,
+      );
+      if (opts.ci) process.exit(1);
+    }
+  }
+}
+
+async function runEcosystemEval(opts: EvaluateOptions): Promise<void> {
+  console.log("📂 Loading config for ecosystem eval...");
+  const cfg = await loadConfig(opts.config);
+
+  console.log(`📋 Loading ecosystem eval dataset from "${opts.dataset}"...`);
+  const rawDataset = JSON.parse(
+    await import("fs/promises").then((fs) =>
+      fs.readFile(opts.dataset, "utf-8"),
+    ),
+  ) as EcosystemEvalDataset;
+  console.log(`   Retrieval queries : ${rawDataset.retrieval.queries.length}`);
+  console.log(`   Skill routing     : ${rawDataset.skillRouting.length}`);
+  if (rawDataset.ragas) {
+    console.log(`   RAGAS queries     : ${rawDataset.ragas.queries.length}`);
+  }
+
+  await cfg.vectorStore.initialize();
+
+  const evaluator = new EcosystemEvaluator(
+    cfg.vectorStore,
+    cfg.embedder,
+    [],
+    undefined,
+    10,
+  );
+
+  console.log("\n🔍 Running ecosystem evaluation...");
+  const result = await evaluator.run(rawDataset, {
+    config: opts.config,
+    dataset: opts.dataset,
+  });
+
+  printEcosystemEvalResult(result);
+
+  if (opts.thresholdMrr !== undefined) {
+    const passed = result.retrieval.mrr >= opts.thresholdMrr;
+    if (passed) {
+      console.log(
+        `\n✅ MRR gate passed: ${result.retrieval.mrr.toFixed(4)} ≥ ${opts.thresholdMrr}`,
+      );
+    } else {
+      console.error(
+        `\n❌ MRR gate FAILED: ${result.retrieval.mrr.toFixed(4)} < ${opts.thresholdMrr}`,
       );
       if (opts.ci) process.exit(1);
     }

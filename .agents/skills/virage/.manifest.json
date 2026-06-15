@@ -1,0 +1,71 @@
+{
+  "installedFrom": "@vivantel/virage-skills",
+  "packageVersion": "0.1.4",
+  "updatedAt": "2026-06-14T08:50:15.869Z",
+  "skills": {
+    "analyst/SKILL.md": {
+      "contentHash": "sha256:e66d01659516b93fe14596b676cc85a6a3dc571ff22d83343b0212487b3625ee",
+      "installedAt": "2026-06-12T19:54:23.699Z"
+    },
+    "architect/SKILL.md": {
+      "contentHash": "sha256:78700df44fd106de12611412a2df08ab62ab37f2aa44962736ea49c97dcc40d9",
+      "installedAt": "2026-06-12T19:54:23.699Z"
+    },
+    "code-guardian/SKILL.md": {
+      "contentHash": "sha256:289870f4c64f89c9297d5d42931b55edff6839f41387fa9c3ef08048139650f9",
+      "installedAt": "2026-06-12T19:54:23.699Z"
+    },
+    "devops/SKILL.md": {
+      "contentHash": "sha256:81eb47f0277d35bd17082908dfbdfabc662fe787808230b2691aead50c024f87",
+      "installedAt": "2026-06-12T19:54:23.699Z"
+    },
+    "doc_writer/SKILL.md": {
+      "contentHash": "sha256:ca8908761b36c2bef00b3c7b88364e63d997f5fbe4845b06f053c6c9092b8b90",
+      "installedAt": "2026-06-12T19:54:23.699Z"
+    },
+    "onboarding/SKILL.md": {
+      "contentHash": "sha256:e80589b1a24d17877ca343141623152075ce509e95fa86a097ee33f762dd6157",
+      "installedAt": "2026-06-12T19:54:23.699Z"
+    },
+    "overseer/SKILL.md": {
+      "contentHash": "sha256:338e1b4c615f7c43e19f87980e1cbd731f1c1bcd7fc96d22b836c03651f6bb22",
+      "installedAt": "2026-06-12T19:54:23.699Z"
+    },
+    "package/SKILL.md": {
+      "contentHash": "sha256:bd9d561f233c46e2dd835a976232226e2139192d944b9c25fd469fa72c19d5fa",
+      "installedAt": "2026-06-12T19:54:23.699Z"
+    },
+    "planner/SKILL.md": {
+      "contentHash": "sha256:e4e7435f3012f456346eb8864a7aa5564007a7825c55cc50149720acf101fc3c",
+      "installedAt": "2026-06-12T19:54:23.699Z"
+    },
+    "qa/SKILL.md": {
+      "contentHash": "sha256:355d453c3b60ac44926b8819cd91f20e126783ae1e177c2dc4a386d1862e59ca",
+      "installedAt": "2026-06-12T19:54:23.699Z"
+    },
+    "skill-guru/SKILL.md": {
+      "contentHash": "sha256:2692e4d5d044638fa293cb9d021042a31bec2112aef64217bda5c693d02d7562",
+      "installedAt": "2026-06-12T19:54:23.699Z"
+    },
+    "spec-cop/SKILL.md": {
+      "contentHash": "sha256:0ec4eda800f446d6f9aa904c52c3435bd00934bc3498db74c63a88bca5e21f20",
+      "installedAt": "2026-06-12T19:54:23.699Z"
+    },
+    "spec-cop/references/examples.md": {
+      "contentHash": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "installedAt": "2026-06-12T19:54:23.699Z"
+    },
+    "spec-cop/references/templates/NEXT.md.template": {
+      "contentHash": "sha256:c1dcd53ceac95c12451c4afb9247353c5ab86930766ac6e508e6fa9c17187215",
+      "installedAt": "2026-06-12T19:54:23.699Z"
+    },
+    "spec-cop/references/templates/NOW.md.template": {
+      "contentHash": "sha256:2134c8c4721f022923fa325e4a43b027e71dc5ce69849d6efa3e1c39cd33ac6f",
+      "installedAt": "2026-06-12T19:54:23.699Z"
+    },
+    "spec-cop/references/templates/SPEC.md.template": {
+      "contentHash": "sha256:085c48e64357609dd63db4ba202230b37cb3177e2013adc93922ca796d291320",
+      "installedAt": "2026-06-12T19:54:23.699Z"
+    }
+  }
+}

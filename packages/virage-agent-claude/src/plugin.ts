@@ -20,6 +20,71 @@ interface McpConfig {
   [key: string]: unknown;
 }
 
+interface HookEntry {
+  type: string;
+  command: string;
+  statusMessage?: string;
+}
+
+interface HookMatcher {
+  matcher?: string;
+  hooks: HookEntry[];
+}
+
+interface ClaudeSettings {
+  hooks?: Record<string, HookMatcher[]>;
+  [key: string]: unknown;
+}
+
+const VIRAGE_HOOK_MARKER = "[Virage]";
+
+const VIRAGE_HOOKS: Record<string, HookMatcher[]> = {
+  UserPromptSubmit: [
+    {
+      hooks: [
+        {
+          type: "command",
+          command: [
+            "prompt=$(cat);",
+            `if echo "$prompt" | grep -qiE '\\b(plan|break.?down|roadmap|sequence|implement.?steps)\\b'; then`,
+            `  echo '${VIRAGE_HOOK_MARKER} Task matches planner skill (~1932 tokens). Call read_skill_summary("planner") to check fit, or read_skill("planner") for the full workflow.';`,
+            `elif echo "$prompt" | grep -qiE '\\b(ADR|architect|interface.?design|system.?design|refactor.?scope)\\b'; then`,
+            `  echo '${VIRAGE_HOOK_MARKER} Task matches architect skill (~1854 tokens). Call read_skill_summary("architect") to check fit.';`,
+            `elif echo "$prompt" | grep -qiE '\\b(docs?|README|CHANGELOG|document|write.?up)\\b'; then`,
+            `  echo '${VIRAGE_HOOK_MARKER} Task matches doc_writer skill (~807 tokens). Call read_skill_summary("doc_writer") to check fit.';`,
+            `elif echo "$prompt" | grep -qiE '\\b(review|security|vulnerabilit|audit)\\b'; then`,
+            `  echo '${VIRAGE_HOOK_MARKER} Task matches code-guardian skill (~2012 tokens). Call read_skill_summary("code-guardian") to check fit.';`,
+            `fi`,
+          ].join(" "),
+          statusMessage: "Checking for skill suggestions...",
+        },
+      ],
+    },
+  ],
+  PreToolUse: [
+    {
+      matcher: "Bash(grep -r*)",
+      hooks: [
+        {
+          type: "command",
+          command: `echo '${VIRAGE_HOOK_MARKER} Filesystem search detected. Consider mcp__virage__search for semantic search over indexed content — more targeted and token-efficient for codebase questions.'`,
+          statusMessage: "Suggesting Virage RAG for search...",
+        },
+      ],
+    },
+    {
+      matcher: "Bash(find . *)",
+      hooks: [
+        {
+          type: "command",
+          command: `echo '${VIRAGE_HOOK_MARKER} Broad find detected. Consider mcp__virage__search or mcp__virage__list_source_files for indexed content discovery.'`,
+          statusMessage: "Suggesting Virage RAG for file discovery...",
+        },
+      ],
+    },
+  ],
+};
+
 export class ClaudeAgentPlugin extends BaseAgentPlugin {
   readonly name = "claude-code";
   readonly label = "Claude Code";
@@ -30,6 +95,7 @@ export class ClaudeAgentPlugin extends BaseAgentPlugin {
   ): Promise<AgentConfigResult> {
     const base = await super.configure(targetDir);
     const mcpRegistered = await this.mergeMcpServer(targetDir);
+    await this.mergeHooks(targetDir);
     return { ...base, mcpRegistered };
   }
 
@@ -68,6 +134,42 @@ export class ClaudeAgentPlugin extends BaseAgentPlugin {
 
     await writeFile(mcpPath, JSON.stringify(config, null, 2) + "\n");
     return true;
+  }
+
+  private async mergeHooks(targetDir: string): Promise<void> {
+    const settingsPath = join(targetDir, ".claude", "settings.json");
+
+    let settings: ClaudeSettings = {};
+    if (existsSync(settingsPath)) {
+      try {
+        const raw = await readFile(settingsPath, "utf-8");
+        settings = JSON.parse(raw) as ClaudeSettings;
+      } catch {
+        return;
+      }
+    }
+
+    if (!settings.hooks) settings.hooks = {};
+
+    let changed = false;
+    for (const [event, matchers] of Object.entries(VIRAGE_HOOKS)) {
+      if (!settings.hooks[event]) settings.hooks[event] = [];
+      const existing = settings.hooks[event];
+
+      for (const matcher of matchers) {
+        const alreadyPresent = existing.some((m) =>
+          m.hooks.some((h) => h.command.includes(VIRAGE_HOOK_MARKER)),
+        );
+        if (!alreadyPresent) {
+          existing.push(matcher);
+          changed = true;
+        }
+      }
+    }
+
+    if (changed) {
+      await writeFile(settingsPath, JSON.stringify(settings, null, 2) + "\n");
+    }
   }
 }
 

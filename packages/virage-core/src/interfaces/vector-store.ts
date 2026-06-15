@@ -44,6 +44,16 @@ export interface VectorSearchResult {
   metadata: Record<string, unknown>;
   similarity: number;
   sourceFile?: string;
+  /** UTC timestamp when this chunk was indexed — used for recency-weighted scoring. */
+  ingestedAt?: Date;
+}
+
+/** Options controlling composite similarity + recency scoring. */
+export interface SearchOptions {
+  /** Weight applied to vector similarity (0–1). Defaults to 0.85. */
+  alpha?: number;
+  /** Weight applied to recency score (0–1). Defaults to 0.15. Only applied when ingestedAt is available. */
+  beta?: number;
 }
 
 export interface VectorStore {
@@ -67,6 +77,7 @@ export interface VectorStore {
     queryEmbedding: number[],
     topK: number,
     collection?: string,
+    options?: SearchOptions,
   ): Promise<VectorSearchResult[]>;
 
   /** Batch delete by document IDs (more efficient than per-file delete when IDs are known) */

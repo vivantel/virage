@@ -2,6 +2,7 @@ import type {
   VectorDocument,
   VectorSearchResult,
   VectorStore,
+  SearchOptions,
   IndexStats,
   QueryPerfReport,
   Logger,
@@ -90,6 +91,8 @@ export class FileVectorStore implements VectorStore {
   async search(
     _queryEmbedding: number[],
     topK: number,
+    _collection?: string,
+    _options?: SearchOptions,
   ): Promise<VectorSearchResult[]> {
     return this.data.slice(0, topK).map((d) => ({
       id: d.id,

@@ -1,6 +1,7 @@
 import type {
   VectorStore,
   VectorSearchResult,
+  SearchOptions,
   IndexStats,
   QueryPerfReport,
   Logger,
@@ -93,8 +94,13 @@ export class PostgresVectorStore implements VectorStore {
           embedding vector(${this.dimensions}),
           metadata JSONB,
           source_file TEXT NOT NULL,
-          commit_hash TEXT NOT NULL
+          commit_hash TEXT NOT NULL,
+          ingested_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
         )
+      `);
+      await client.query(`
+        ALTER TABLE ${this.table}
+        ADD COLUMN IF NOT EXISTS ingested_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
       `);
       await client.query(this.buildIndexSQL());
       this.logger?.debug(
@@ -185,8 +191,12 @@ export class PostgresVectorStore implements VectorStore {
   async search(
     embedding: number[],
     topK: number,
+    _collection?: string,
+    options?: SearchOptions,
   ): Promise<VectorSearchResult[]> {
-    this.logger?.debug(`Search: topK=${topK}`);
+    const alpha = options?.alpha ?? 0.85;
+    const beta = options?.beta ?? 0.15;
+    this.logger?.debug(`Search: topK=${topK}, alpha=${alpha}, beta=${beta}`);
     const client = await this.pool.connect();
     try {
       await pgvector.registerTypes(client);
@@ -196,21 +206,36 @@ export class PostgresVectorStore implements VectorStore {
         metadata: Record<string, unknown>;
         source_file: string;
         similarity: number;
+        ingested_at: Date | null;
       }>(
         `SELECT id, content, metadata, source_file,
-                1 - (embedding <=> $1) AS similarity
+                1 - (embedding <=> $1) AS similarity,
+                ingested_at
          FROM ${this.table}
          ORDER BY embedding <=> $1
          LIMIT $2`,
-        [pgvector.toSql(embedding), topK],
+        [pgvector.toSql(embedding), topK * 2],
       );
-      return rows.map((r) => ({
-        id: String(r.id),
-        content: r.content,
-        metadata: r.metadata,
-        sourceFile: r.source_file,
-        similarity: r.similarity,
-      }));
+      const now = Date.now();
+      const results = rows.map((r) => {
+        const ingestedAt = r.ingested_at ?? null;
+        const recencyScore = ingestedAt
+          ? Math.exp(-(now - ingestedAt.getTime()) / (1000 * 60 * 60 * 24 * 30))
+          : 0;
+        return {
+          id: String(r.id),
+          content: r.content,
+          metadata: r.metadata,
+          sourceFile: r.source_file,
+          similarity: r.similarity,
+          ingestedAt: ingestedAt ?? undefined,
+          _composite: r.similarity * alpha + recencyScore * beta,
+        };
+      });
+      return results
+        .sort((a, b) => b._composite - a._composite)
+        .slice(0, topK)
+        .map(({ _composite: _, ...rest }) => rest);
     } finally {
       client.release();
     }

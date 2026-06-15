@@ -3,6 +3,7 @@ import type {
   VectorSearchResult,
   VectorStore,
   VectorStoreMeta,
+  SearchOptions,
   IndexStats,
   QueryPerfReport,
   Logger,
@@ -202,6 +203,8 @@ export class LanceDBVectorStore implements VectorStore {
   async search(
     queryEmbedding: number[],
     topK: number,
+    _collection?: string,
+    _options?: SearchOptions,
   ): Promise<VectorSearchResult[]> {
     this.logger?.debug(`Search: topK=${topK}`);
     let rows: unknown[];

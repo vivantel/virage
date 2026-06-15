@@ -1,0 +1,20 @@
+{
+  "mcpServers": {
+    "virage-agent": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@vivantel/virage-agent-claude"
+      ]
+    },
+    "virage": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@vivantel/virage-agent-claude"
+      ]
+    }
+  }
+}

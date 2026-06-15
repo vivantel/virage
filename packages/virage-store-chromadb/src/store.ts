@@ -2,6 +2,7 @@ import type {
   VectorDocument,
   VectorSearchResult,
   VectorStore,
+  SearchOptions,
   IndexStats,
   QueryPerfReport,
   Logger,
@@ -139,6 +140,8 @@ export class ChromaVectorStore implements VectorStore {
   async search(
     queryEmbedding: number[],
     topK: number,
+    _collection?: string,
+    _options?: SearchOptions,
   ): Promise<VectorSearchResult[]> {
     this.logger?.debug(`Search: topK=${topK}`);
     const result = await this.collection.query({

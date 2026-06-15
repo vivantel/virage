@@ -50,6 +50,34 @@
 
 ---
 
+## Version 1.2.1 — Token Efficiency, Generation Quality & Automatic Skill Routing
+
+**Focus:** Reduce token overhead in skill loading, improve RAG result quality, and eliminate manual skill-selection friction for common developer workflows.
+
+### Features
+
+| Feature | Description | Priority |
+| ------- | ----------- | -------- |
+| **Structured skill frontmatter (ADR-027)** | `list_skills` returns `SkillMeta[]` with `when_to_use`, `estimated_tokens`, `output_format` | P0 |
+| **Skill summary layer** | `read_skill_summary` tool + `SKILL.summary.md` files for all 12 skills | P0 |
+| **`suggest_skill` MCP tool** | Keyword-based skill routing — returns best-match skill(s) for a task | P0 |
+| **Slash command aliases** | `/arch`, `/doc`, `/review`, `/rag` installed by `virage init` | P0 |
+| **Intent detection hook** | `UserPromptSubmit` hook auto-suggests matching skill (≤150 token overhead) | P1 |
+| **FS interception hook** | `PreToolUse` hook on Bash suggests `virage search` for `grep -r` / `find .` patterns | P1 |
+| **Recency-weighted search** | Composite score = `similarity × α + recency × β`; configurable weights | P0 |
+| **Ecosystem eval suite** | `virage evaluate --suite ecosystem` — RAGAS + precision@5/recall@5/MRR + skill-routing accuracy | P1 |
+
+### Breaking Changes
+
+- `list_skills` response shape changes from `string[]` to `{ schema_version: 2, names: string[], skills: SkillMeta[] }` — backward compat via `names[]` field (ADR-027)
+- `VectorStore.search()` gains optional `options?: SearchOptions` parameter — fully additive, no implementation breakage
+
+### Estimated Delivery
+
+- 2 weeks
+
+---
+
 ## Version 1.3.0 — Production Hardening
 
 **Focus:** Reliability, retries, and production readiness.

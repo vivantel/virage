@@ -18,7 +18,13 @@ export interface McpContext {
 }
 
 export async function handleSearch(
-  args: { query: string; top_k?: number; collection?: string },
+  args: {
+    query: string;
+    top_k?: number;
+    collection?: string;
+    alpha?: number;
+    beta?: number;
+  },
   ctx: McpContext,
 ) {
   const searchId = randomUUID();
@@ -32,6 +38,7 @@ export async function handleSearch(
     embedding,
     args.top_k ?? 5,
     args.collection,
+    { alpha: args.alpha, beta: args.beta },
   );
   const searchMs = Date.now() - t1;
   const totalMs = Date.now() - t0;

@@ -19,7 +19,13 @@ export function createMcpServer(
 
   server.tool(
     "search",
-    "Semantic vector search over the indexed documents. Returns top matching chunks with similarity scores.",
+    [
+      "Semantic vector search over the indexed documents.",
+      "Returns top matching chunks with similarity scores.",
+      "Supports recency-weighted scoring via alpha (similarity weight) and beta (recency weight).",
+      "When alpha + beta = 1, composite_score = similarity × alpha + recency × beta.",
+      "Default: alpha=0.85, beta=0.15 (similarity-dominant). Set beta=0 for pure similarity ranking.",
+    ].join(" "),
     {
       query: z.string().describe("Search query text"),
       top_k: z
@@ -33,6 +39,20 @@ export function createMcpServer(
         .string()
         .optional()
         .describe("Optional collection name to search within"),
+      alpha: z
+        .number()
+        .min(0)
+        .max(1)
+        .optional()
+        .describe("Similarity weight for composite scoring (default: 0.85)"),
+      beta: z
+        .number()
+        .min(0)
+        .max(1)
+        .optional()
+        .describe(
+          "Recency weight for composite scoring (default: 0.15). Only effective on stores that track ingested_at.",
+        ),
     },
     async (args) => {
       const results = await handleSearch(args, ctx);

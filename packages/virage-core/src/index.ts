@@ -112,3 +112,16 @@ export {
 export { bootstrapPairedTest } from "./eval/statistics.js";
 export type { StatTestResult } from "./eval/statistics.js";
 export { loadEvalDataset, saveEvalDataset } from "./eval/dataset-io.js";
+export {
+  EcosystemEvaluator,
+  printEcosystemEvalResult,
+} from "./eval/ecosystem-eval.js";
+export type {
+  EcosystemEvalDataset,
+  EcosystemEvalResult,
+} from "./eval/ecosystem-eval.js";
+export { SkillRoutingEvaluator } from "./eval/skill-routing-eval.js";
+export type {
+  SkillRoutingQuery,
+  SkillRoutingEvalResult,
+} from "./eval/skill-routing-eval.js";
