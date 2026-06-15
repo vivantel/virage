@@ -54,6 +54,22 @@ export class Uploader {
     };
   }
 
+  /**
+   * Deduplicates chunks by content hash before upsert. Multiple source files can
+   * produce chunks with identical content (and therefore the same id), which causes
+   * LanceDB's mergeInsert to reject the batch. We keep only the first occurrence per
+   * id but still mark ALL hashes as uploaded so SQLite doesn't re-queue the dupes.
+   */
+  private deduplicateByContentHash(chunks: EmbeddedChunk[]): EmbeddedChunk[] {
+    const seen = new Set<string>();
+    return chunks.filter((c) => {
+      const h = contentHash(c);
+      if (seen.has(h)) return false;
+      seen.add(h);
+      return true;
+    });
+  }
+
   async getItemsToUpload(
     db: VirageDb,
     force: boolean = false,
@@ -173,7 +189,13 @@ export class Uploader {
    */
   async upsertBatch(db: VirageDb, chunks: EmbeddedChunk[]): Promise<void> {
     if (chunks.length === 0) return;
-    const documents = chunks.map((e) => this.chunkToDocument(e));
+    const unique = this.deduplicateByContentHash(chunks);
+    if (unique.length < chunks.length) {
+      this.logger.debug(
+        `  Deduped ${chunks.length - unique.length} chunk(s) with shared content hash`,
+      );
+    }
+    const documents = unique.map((e) => this.chunkToDocument(e));
     await withRetry(
       () => this.vectorStore.upsert(documents),
       {
@@ -182,6 +204,7 @@ export class Uploader {
       },
       this.logger,
     );
+    // Mark ALL hashes (including the deduped ones) so they don't re-queue.
     const hashes = chunks.map((e) => contentHash(e));
     db.markUploaded(hashes);
     for (const hash of hashes) {
@@ -202,7 +225,8 @@ export class Uploader {
     let uploaded = 0;
     for (let i = 0; i < pending.length; i += batchSize) {
       const batch = pending.slice(i, i + batchSize);
-      const documents = batch.map((e) => this.chunkToDocument(e));
+      const unique = this.deduplicateByContentHash(batch);
+      const documents = unique.map((e) => this.chunkToDocument(e));
       await withRetry(
         () => this.vectorStore.upsert(documents),
         {
@@ -259,7 +283,8 @@ export class Uploader {
       let uploaded = 0;
       for (let i = 0; i < toUpload.length; i += batchSize) {
         const batch = toUpload.slice(i, i + batchSize);
-        const documents = batch.map((e) => this.chunkToDocument(e));
+        const unique = this.deduplicateByContentHash(batch);
+        const documents = unique.map((e) => this.chunkToDocument(e));
         await withRetry(
           () => this.vectorStore.upsert(documents),
           {
