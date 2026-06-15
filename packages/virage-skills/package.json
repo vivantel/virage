@@ -1,6 +1,6 @@
 {
   "name": "@vivantel/virage-skills",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "Redistributable AI agent skills for the Virage RAG pipeline",
   "type": "module",
   "files": [

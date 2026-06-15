@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.5](https://github.com/vivantel/virage/compare/virage-skills@v0.1.4...virage-skills@v0.1.5) (2026-06-15)
+
+
+### Features
+
+* **virage-agent-claude:** Token efficiency, skill routing & recency search (v1.2.1) ([b91395b](https://github.com/vivantel/virage/commit/b91395bc51e8777151c37a5694d0f53c76cbcc44))
+
 ## [0.1.4](https://github.com/vivantel/virage/compare/virage-skills@v0.1.3...virage-skills@v0.1.4) (2026-06-12)
 
 

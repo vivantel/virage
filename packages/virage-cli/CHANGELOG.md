@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.1.41](https://github.com/vivantel/virage/compare/virage-cli@v0.1.40...virage-cli@v0.1.41) (2026-06-15)
+
+
+### Features
+
+* **virage-agent-claude:** Token efficiency, skill routing & recency search (v1.2.1) ([b91395b](https://github.com/vivantel/virage/commit/b91395bc51e8777151c37a5694d0f53c76cbcc44))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @vivantel/virage-agent-claude bumped from 0.2.14 to 0.2.15
+    * @vivantel/virage-core bumped from 0.2.23 to 0.2.24
+    * @vivantel/virage-skills bumped from 0.1.4 to 0.1.5
+
 ## [0.1.40](https://github.com/vivantel/virage/compare/virage-cli@v0.1.39...virage-cli@v0.1.40) (2026-06-14)
 
 

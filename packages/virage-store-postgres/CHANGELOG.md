@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.2.25](https://github.com/vivantel/virage/compare/virage-store-postgres@v0.2.24...virage-store-postgres@v0.2.25) (2026-06-15)
+
+
+### Features
+
+* **virage-agent-claude:** Token efficiency, skill routing & recency search (v1.2.1) ([b91395b](https://github.com/vivantel/virage/commit/b91395bc51e8777151c37a5694d0f53c76cbcc44))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * devDependencies
+    * @vivantel/virage-core bumped from 0.2.23 to 0.2.24
+  * peerDependencies
+    * @vivantel/virage-core bumped from * to 0.2.24
+
 ## [0.2.24](https://github.com/vivantel/virage/compare/virage-store-postgres@v0.2.23...virage-store-postgres@v0.2.24) (2026-06-12)
 
 
