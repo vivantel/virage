@@ -54,6 +54,8 @@ const VIRAGE_HOOKS: Record<string, HookMatcher[]> = {
             `  echo '${VIRAGE_HOOK_MARKER} Task matches doc_writer skill (~807 tokens). Call read_skill_summary("doc_writer") to check fit.';`,
             `elif echo "$prompt" | grep -qiE '\\b(review|security|vulnerabilit|audit)\\b'; then`,
             `  echo '${VIRAGE_HOOK_MARKER} Task matches code-guardian skill (~2012 tokens). Call read_skill_summary("code-guardian") to check fit.';`,
+            `elif echo "$prompt" | grep -qE '\\?\\s*$'; then`,
+            `  echo '${VIRAGE_HOOK_MARKER} Question detected. Consider /rag <keywords> to search the knowledge base before answering from training data.';`,
             `fi`,
           ].join(" "),
           statusMessage: "Checking for skill suggestions...",
@@ -64,6 +66,16 @@ const VIRAGE_HOOKS: Record<string, HookMatcher[]> = {
   PreToolUse: [
     {
       matcher: "Bash(grep -r*)",
+      hooks: [
+        {
+          type: "command",
+          command: `echo '${VIRAGE_HOOK_MARKER} Filesystem search detected. Consider mcp__virage__search for semantic search over indexed content — more targeted and token-efficient for codebase questions.'`,
+          statusMessage: "Suggesting Virage RAG for search...",
+        },
+      ],
+    },
+    {
+      matcher: "Bash(grep -E*)",
       hooks: [
         {
           type: "command",

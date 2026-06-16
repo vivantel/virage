@@ -60,6 +60,26 @@
             "statusMessage": "Suggesting Virage RAG for search..."
           }
         ]
+      },
+      {
+        "matcher": "Bash(grep -E*)",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo '[Virage] Filesystem search detected. Consider mcp__virage__search for semantic search over indexed content — more targeted and token-efficient for codebase questions.'",
+            "statusMessage": "Suggesting Virage RAG for search..."
+          }
+        ]
+      },
+      {
+        "matcher": "Bash(find . *)",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo '[Virage] Broad find detected. Consider mcp__virage__search or mcp__virage__list_source_files for indexed content discovery.'",
+            "statusMessage": "Suggesting Virage RAG for file discovery..."
+          }
+        ]
       }
     ],
     "PostToolUse": [
@@ -79,7 +99,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "prompt=$(cat); if echo \"$prompt\" | grep -qiE '\\b(plan|break.?down|roadmap|sequence|implement.?steps)\\b'; then   echo '[Virage] Task matches planner skill (~1932 tokens). Call read_skill_summary(\"planner\") to check fit, or read_skill(\"planner\") for the full workflow.'; elif echo \"$prompt\" | grep -qiE '\\b(ADR|architect|interface.?design|system.?design|refactor.?scope)\\b'; then   echo '[Virage] Task matches architect skill (~1854 tokens). Call read_skill_summary(\"architect\") to check fit.'; elif echo \"$prompt\" | grep -qiE '\\b(docs?|README|CHANGELOG|document|write.?up)\\b'; then   echo '[Virage] Task matches doc_writer skill (~807 tokens). Call read_skill_summary(\"doc_writer\") to check fit.'; elif echo \"$prompt\" | grep -qiE '\\b(review|security|vulnerabilit|audit)\\b'; then   echo '[Virage] Task matches code-guardian skill (~2012 tokens). Call read_skill_summary(\"code-guardian\") to check fit.'; fi",
+            "command": "prompt=$(cat); if echo \"$prompt\" | grep -qiE '\\b(plan|break.?down|roadmap|sequence|implement.?steps)\\b'; then   echo '[Virage] Task matches planner skill (~1932 tokens). Call read_skill_summary(\"planner\") to check fit, or read_skill(\"planner\") for the full workflow.'; elif echo \"$prompt\" | grep -qiE '\\b(ADR|architect|interface.?design|system.?design|refactor.?scope)\\b'; then   echo '[Virage] Task matches architect skill (~1854 tokens). Call read_skill_summary(\"architect\") to check fit.'; elif echo \"$prompt\" | grep -qiE '\\b(docs?|README|CHANGELOG|document|write.?up)\\b'; then   echo '[Virage] Task matches doc_writer skill (~807 tokens). Call read_skill_summary(\"doc_writer\") to check fit.'; elif echo \"$prompt\" | grep -qiE '\\b(review|security|vulnerabilit|audit)\\b'; then   echo '[Virage] Task matches code-guardian skill (~2012 tokens). Call read_skill_summary(\"code-guardian\") to check fit.'; elif echo \"$prompt\" | grep -qE '\\?\\s*$'; then   echo '[Virage] Question detected. Consider /rag <keywords> to search the knowledge base before answering from training data.'; fi",
             "statusMessage": "Checking for skill suggestions..."
           }
         ]

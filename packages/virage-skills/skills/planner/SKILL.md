@@ -8,7 +8,7 @@ when_to_use:
   - "Tracking and driving execution of an in-flight implementation plan"
   - "Surfacing design decisions that need user input before proceeding"
 prerequisites: []
-estimated_tokens: 1932
+estimated_tokens: 2100
 output_format: "Plan written to docs/internal/next_plan.md with checkbox-tracked steps"
 metadata:
   author: vivantel-team
@@ -33,12 +33,14 @@ metadata:
 ## Context checklist
 
 ```
-[ ] Read docs/ai/INDEX.md — cross-cutting rules (imports, commit style, pre-commit hook, ADR gate)
+[ ] mcp__virage__search("<task keywords> cross-cutting rules commit ADR", top_k=3) — loads relevant INDEX.md sections and ADRs without reading the full files
+[ ] mcp__virage__search("ADR <topic>", top_k=3) — scan result titles; if an ADR hit is ambiguous, Read that specific ADR entry only
 [ ] Read the relevant skill file for the work type (.agents/skills/package/SKILL.md, .agents/skills/architect/SKILL.md, etc.)
-[ ] Read docs/ADR.md — check whether any proposed design touches an already-decided trade-off
 [ ] Read docs/internal/next_plan.md — check for an existing in-flight plan before creating a new one
 [ ] Understand the full request before writing a single step
 ```
+
+> **Fallback:** if `mcp__virage__search` returns 0 results (index not populated), fall back to `Read docs/ai/INDEX.md` and `Read docs/ADR.md` directly.
 
 ---
 

@@ -1,4 +1,4 @@
-import { readFile } from "fs/promises";
+import { readFile, readdir, stat } from "fs/promises";
 import { join } from "path";
 
 interface AsstEntry {
@@ -82,12 +82,36 @@ export async function buildSessionUsage(
   configDir: string,
   pwd: string,
 ): Promise<string> {
-  if (!sessionId || !configDir || !pwd) {
-    return "Error: Missing CLAUDE_CODE_SESSION_ID, CLAUDE_CONFIG_DIR, or PWD";
+  if (!configDir || !pwd) {
+    return "Error: Missing CLAUDE_CONFIG_DIR or PWD";
   }
 
   const slug = pwd.replace(/\//g, "-");
-  const logPath = join(configDir, "projects", slug, `${sessionId}.jsonl`);
+  const logDir = join(configDir, "projects", slug);
+
+  let resolvedId = sessionId;
+
+  if (!resolvedId) {
+    try {
+      const files = (await readdir(logDir)).filter((f) => f.endsWith(".jsonl"));
+      const mtimes = await Promise.all(
+        files.map(async (f) => ({
+          id: f.slice(0, -6),
+          mtime: (await stat(join(logDir, f))).mtimeMs,
+        })),
+      );
+      mtimes.sort((a, b) => b.mtime - a.mtime);
+      if (mtimes[0]) resolvedId = mtimes[0].id;
+    } catch {
+      // logDir unreadable — fall through to error below
+    }
+  }
+
+  if (!resolvedId) {
+    return "Error: could not determine current session ID (set CLAUDE_CODE_SESSION_ID or pass sessionId)";
+  }
+
+  const logPath = join(logDir, `${resolvedId}.jsonl`);
 
   let raw: string;
   try {
@@ -125,7 +149,7 @@ export async function buildSessionUsage(
   const aTs = asst.map((e) => ({ t: new Date(e.timestamp), e }));
 
   const lines: string[] = [];
-  lines.push(`Session: ${sessionId}`);
+  lines.push(`Session: ${resolvedId}`);
   lines.push(`Log:     ${logPath}`);
   lines.push("");
   lines.push(

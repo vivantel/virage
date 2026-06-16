@@ -8,7 +8,7 @@ when_to_use:
   - "Planning a refactor that changes module boundaries"
   - "Evaluating architectural trade-offs before implementation"
 prerequisites: []
-estimated_tokens: 1854
+estimated_tokens: 2040
 output_format: "ADR appended to docs/ADR.md, or architectural analysis with decision and consequences"
 metadata:
   author: vivantel-team
@@ -33,11 +33,13 @@ metadata:
 ## Context checklist
 
 ```
-[ ] Read docs/ADR.md before making any new architecture decision
-[ ] Check if the trade-off was already evaluated in an existing ADR
-[ ] Read relevant source interfaces in packages/virage-core/src/interfaces/ before designing new ones
+[ ] mcp__virage__search("ADR <decision topic>", top_k=3) — loads only the relevant ADRs instead of the full docs/ADR.md file (~12,700 tokens)
+[ ] If an ADR hit is ambiguous, Read that specific section of docs/ADR.md only
+[ ] mcp__virage__search("<InterfaceName> interface signature", top_k=5) — loads relevant interface definitions instead of reading all files in packages/virage-core/src/interfaces/
 [ ] Before committing: npm run fix && npm run lint && npm run type-check:ci (see .agents/skills/code-guardian/SKILL.md)
 ```
+
+> **Fallback:** if `mcp__virage__search` returns 0 results (index not populated), fall back to `Read docs/ADR.md` and `Read packages/virage-core/src/interfaces/index.ts` directly.
 
 ---
 
