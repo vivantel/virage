@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.19](https://github.com/vivantel/virage/compare/virage-agent-claude@v0.2.18...virage-agent-claude@v0.2.19) (2026-06-16)
+
+
+### Bug Fixes
+
+* **virage-agent-claude:** Add [Virage] marker to statusMessage for idempotent hook management ([457c7a8](https://github.com/vivantel/virage/commit/457c7a85a238932890147c5519af0fa6bfa90333))
+
 ## [0.2.18](https://github.com/vivantel/virage/compare/virage-agent-claude@v0.2.17...virage-agent-claude@v0.2.18) (2026-06-16)
 
 
