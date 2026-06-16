@@ -56,7 +56,7 @@ const VIRAGE_HOOKS: Record<string, HookMatcher[]> = {
             `  npx virage read-skill-summary code-guardian 2>/dev/null || true;`,
             `fi`,
           ].join(" "),
-          statusMessage: "Loading skill summary...",
+          statusMessage: "[Virage] Loading skill summary...",
         },
       ],
     },
@@ -134,7 +134,12 @@ export class ClaudeAgentPlugin extends BaseAgentPlugin {
     // Strip all Virage-managed entries from every event (handles removals and updates)
     for (const event of Object.keys(settings.hooks)) {
       settings.hooks[event] = settings.hooks[event].filter(
-        (m) => !m.hooks.some((h) => h.command.includes(VIRAGE_HOOK_MARKER)),
+        (m) =>
+          !m.hooks.some(
+            (h) =>
+              h.command.includes(VIRAGE_HOOK_MARKER) ||
+              h.statusMessage?.includes(VIRAGE_HOOK_MARKER),
+          ),
       );
     }
 
