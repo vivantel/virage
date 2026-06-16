@@ -17,6 +17,7 @@ import type { MultiProgressBars } from "../progress/progress-bar.js";
 import { runInit } from "../cli/init.js";
 import { runUpdate } from "../cli/update.js";
 import { runUsage } from "../cli/usage.js";
+import { runReadSkillSummary } from "../cli/read-skill-summary.js";
 import { runValidate } from "../cli/validate.js";
 import { runEvaluate } from "../cli/evaluate.js";
 import {
@@ -277,6 +278,18 @@ program
   .action(async () => {
     try {
       await runUsage();
+    } catch (error) {
+      handleError(error);
+    }
+  });
+
+program
+  .command("read-skill-summary")
+  .description("Print the summary for a named Virage skill")
+  .argument("<name>", "Skill name (e.g. planner, architect, doc_writer)")
+  .action(async (name: string) => {
+    try {
+      await runReadSkillSummary(name);
     } catch (error) {
       handleError(error);
     }

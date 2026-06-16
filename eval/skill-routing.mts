@@ -45,14 +45,6 @@ const TEST_CASES: TestCase[] = [
   { prompt: "review the auth middleware for security issues", expectedKeyword: "code-guardian", description: "code-guardian: 'review security'" },
   { prompt: "audit the dependencies for vulnerabilities", expectedKeyword: "code-guardian", description: "code-guardian: 'audit vulnerabilities'" },
 
-  // RAG question branch (trailing ?)
-  { prompt: "how does the chunking pipeline work?", expectedKeyword: "rag", description: "rag: question (English)" },
-  { prompt: "where is the EmbeddingProvider interface defined?", expectedKeyword: "rag", description: "rag: question (English)" },
-  { prompt: "comment ça marche?", expectedKeyword: "rag", description: "rag: question (French)" },
-  { prompt: "wie funktioniert das?", expectedKeyword: "rag", description: "rag: question (German)" },
-  { prompt: "¿cómo funciona el chunker?", expectedKeyword: "rag", description: "rag: question (Spanish)" },
-  { prompt: "что такое EvalDataset?", expectedKeyword: "rag", description: "rag: question (Russian)" },
-
   // True negatives (should produce no hook output)
   { prompt: "fix the type error in session-usage.ts", expectedKeyword: null, description: "no match: 'fix'" },
   { prompt: "commit this", expectedKeyword: null, description: "no match: 'commit'" },
@@ -94,11 +86,10 @@ function cleanupHookFile(): void {
 }
 
 function classifyOutput(output: string): string | null {
-  if (output.includes("planner")) return "planner";
-  if (output.includes("architect")) return "architect";
-  if (output.includes("doc_writer")) return "doc_writer";
-  if (output.includes("code-guardian")) return "code-guardian";
-  if (output.includes("/rag") || output.includes("Question detected")) return "rag";
+  if (output.includes("Skill: Planner")) return "planner";
+  if (output.includes("Skill: Architect")) return "architect";
+  if (output.includes("Skill: Doc Writer")) return "doc_writer";
+  if (output.includes("Skill: Code Guardian")) return "code-guardian";
   return null;
 }
 

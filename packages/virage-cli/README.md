@@ -27,6 +27,7 @@ npx @vivantel/virage-cli <command>
 | `virage init` | Generate a `virage.config.json` template and configure agent plugins |
 | `virage update` | Update virage ecosystem packages and re-sync agent plugin config files |
 | `virage usage` | Print per-prompt token usage for the current Claude Code session (zero inference tokens) |
+| `virage read-skill-summary <name>` | Print the summary for a named Virage skill (used by agent hooks for proactive context injection) |
 
 ### Evaluation
 

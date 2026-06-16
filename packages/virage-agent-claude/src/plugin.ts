@@ -47,50 +47,16 @@ const VIRAGE_HOOKS: Record<string, HookMatcher[]> = {
           command: [
             "prompt=$(cat);",
             `if echo "$prompt" | grep -qiE '\\b(plan|break.?down|roadmap|sequence|implement.?steps)\\b'; then`,
-            `  echo '${VIRAGE_HOOK_MARKER} Task matches planner skill (~1932 tokens). Call read_skill_summary("planner") to check fit, or read_skill("planner") for the full workflow.';`,
+            `  npx virage read-skill-summary planner 2>/dev/null || true;`,
             `elif echo "$prompt" | grep -qiE '\\b(ADR|architect|interface.?design|system.?design|refactor.?scope)\\b'; then`,
-            `  echo '${VIRAGE_HOOK_MARKER} Task matches architect skill (~1854 tokens). Call read_skill_summary("architect") to check fit.';`,
+            `  npx virage read-skill-summary architect 2>/dev/null || true;`,
             `elif echo "$prompt" | grep -qiE '\\b(docs?|README|CHANGELOG|document|write.?up)\\b'; then`,
-            `  echo '${VIRAGE_HOOK_MARKER} Task matches doc_writer skill (~807 tokens). Call read_skill_summary("doc_writer") to check fit.';`,
+            `  npx virage read-skill-summary doc_writer 2>/dev/null || true;`,
             `elif echo "$prompt" | grep -qiE '\\b(review|security|vulnerabilit|audit)\\b'; then`,
-            `  echo '${VIRAGE_HOOK_MARKER} Task matches code-guardian skill (~2012 tokens). Call read_skill_summary("code-guardian") to check fit.';`,
-            `elif echo "$prompt" | grep -qE '\\?\\s*$'; then`,
-            `  echo '${VIRAGE_HOOK_MARKER} Question detected. Consider /rag <keywords> to search the knowledge base before answering from training data.';`,
+            `  npx virage read-skill-summary code-guardian 2>/dev/null || true;`,
             `fi`,
           ].join(" "),
-          statusMessage: "Checking for skill suggestions...",
-        },
-      ],
-    },
-  ],
-  PreToolUse: [
-    {
-      matcher: "Bash(grep -r*)",
-      hooks: [
-        {
-          type: "command",
-          command: `echo '${VIRAGE_HOOK_MARKER} Filesystem search detected. Consider mcp__virage__search for semantic search over indexed content — more targeted and token-efficient for codebase questions.'`,
-          statusMessage: "Suggesting Virage RAG for search...",
-        },
-      ],
-    },
-    {
-      matcher: "Bash(grep -E*)",
-      hooks: [
-        {
-          type: "command",
-          command: `echo '${VIRAGE_HOOK_MARKER} Filesystem search detected. Consider mcp__virage__search for semantic search over indexed content — more targeted and token-efficient for codebase questions.'`,
-          statusMessage: "Suggesting Virage RAG for search...",
-        },
-      ],
-    },
-    {
-      matcher: "Bash(find . *)",
-      hooks: [
-        {
-          type: "command",
-          command: `echo '${VIRAGE_HOOK_MARKER} Broad find detected. Consider mcp__virage__search or mcp__virage__list_source_files for indexed content discovery.'`,
-          statusMessage: "Suggesting Virage RAG for file discovery...",
+          statusMessage: "Loading skill summary...",
         },
       ],
     },
