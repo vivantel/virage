@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.1.7](https://github.com/vivantel/virage/compare/virage-agent-copilot@v0.1.6...virage-agent-copilot@v0.1.7) (2026-06-16)
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @vivantel/virage-skills bumped from 0.1.5 to 0.1.6
+
 ## [0.1.6](https://github.com/vivantel/virage/compare/virage-agent-copilot@v0.1.5...virage-agent-copilot@v0.1.6) (2026-06-15)
 
 
