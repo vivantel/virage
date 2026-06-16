@@ -51,9 +51,9 @@
   },
   "devDependencies": {
     "@vivantel/virage-core": "0.2.25",
-    "@types/node": "^25.9.2",
+    "@types/node": "^25.9.3",
     "typescript": "^6.0.3",
-    "vitest": "^4.1.8"
+    "vitest": "^4.1.9"
   },
   "engines": {
     "node": ">=18.0.0"
