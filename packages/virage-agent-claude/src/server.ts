@@ -404,10 +404,17 @@ export function createAgentMcpServer(): McpServer {
   server.tool(
     "session_usage",
     "Parse the current Claude Code session log and return a per-prompt token usage breakdown.",
-    {},
-    async () => {
+    {
+      sessionId: z
+        .string()
+        .optional()
+        .describe(
+          "Claude Code session ID. If omitted, the most recently modified session log is used.",
+        ),
+    },
+    async ({ sessionId }) => {
       const text = await buildSessionUsage(
-        process.env["CLAUDE_CODE_SESSION_ID"] ?? "",
+        sessionId ?? process.env["CLAUDE_CODE_SESSION_ID"] ?? "",
         process.env["CLAUDE_CONFIG_DIR"] ?? "",
         process.env["PWD"] ?? "",
       );
