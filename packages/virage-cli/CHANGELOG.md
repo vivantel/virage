@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.1.44](https://github.com/vivantel/virage/compare/virage-cli@v0.1.43...virage-cli@v0.1.44) (2026-06-16)
+
+
+### Features
+
+* **virage-agent-claude,virage-cli:** Proactive skill hooks, remove advice-giving ([19ad02d](https://github.com/vivantel/virage/commit/19ad02d3e076d48e17228865cbe5ad8269ce20ff))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @vivantel/virage-agent-claude bumped from 0.2.17 to 0.2.18
+    * @vivantel/virage-skills bumped from 0.1.5 to 0.1.6
+
 ## [0.1.43](https://github.com/vivantel/virage/compare/virage-cli@v0.1.42...virage-cli@v0.1.43) (2026-06-15)
 
 
