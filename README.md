@@ -2,7 +2,7 @@
 
 Monorepo for the **Virage** ecosystem — a Git-aware RAG pipeline that turns your codebase and docs into a searchable vector store. Pick your embedder and vector store, run one command, and keep the index in sync as code changes.
 
-[![CI](https://github.com/vivantel/virage/actions/workflows/ci-virage-core.yaml/badge.svg)](https://github.com/vivantel/virage/actions/workflows/ci-virage-core.yaml)
+[![CI](https://github.com/vivantel/virage/actions/workflows/ci.yaml/badge.svg)](https://github.com/vivantel/virage/actions/workflows/ci.yaml)
 [![RAG Pipeline](https://github.com/vivantel/virage/actions/workflows/virage-update.yaml/badge.svg)](https://github.com/vivantel/virage/actions/workflows/virage-update.yaml)
 [![Release](https://github.com/vivantel/virage/actions/workflows/release.yaml/badge.svg)](https://github.com/vivantel/virage/actions/workflows/release.yaml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
