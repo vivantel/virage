@@ -88,6 +88,7 @@ virage install-hooks                   # install post-merge & post-checkout git 
 ## Cross-cutting rules
 
 - **Pre-commit**: `.claude/settings.json` hook auto-runs `npm run fix && npm run lint && npm run type-check:ci` before every commit — do not skip
+- **package-lock.json**: any change to a `package.json` (new dep, version bump, new package added) **must** be followed by `npm install` from the repo root before committing; stage the updated `package-lock.json` in the same commit — a stale lock file breaks `npm ci` in CI
 - **Module imports**: all internal imports use `.js` extensions (NodeNext requirement), e.g. `from "./foo.js"` even though file is `.ts`
 - **Commit messages**: Conventional Commits (`feat:`, `fix:`, `chore:`, `feat!:` for breaking) — drives release-please versioning
 - **Docs updates**: after any change affecting developer workflow, update the relevant skill file in the same commit (run `.agents/skills/overseer/SKILL.md` checklist)
