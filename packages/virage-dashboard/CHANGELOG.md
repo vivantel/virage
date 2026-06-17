@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.14](https://github.com/vivantel/virage/compare/virage-dashboard@v0.1.13...virage-dashboard@v0.1.14) (2026-06-17)
+
+
+### Documentation
+
+* Update READMEs for eval command consolidation and CLI aliases ([7f88390](https://github.com/vivantel/virage/commit/7f88390934066e28b448086855a58ff1c70e66b4))
+
 ## [0.1.13](https://github.com/vivantel/virage/compare/virage-dashboard@v0.1.12...virage-dashboard@v0.1.13) (2026-06-17)
 
 
