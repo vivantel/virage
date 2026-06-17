@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.2.29](https://github.com/vivantel/virage/compare/virage-store-lancedb@v0.2.28...virage-store-lancedb@v0.2.29) (2026-06-17)
+
+
+### Features
+
+* Hybrid search, re-ranking layer, and query analytics ([4a64c64](https://github.com/vivantel/virage/commit/4a64c64fce7c68a75656a4e306997d87dcd6253d))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * devDependencies
+    * @vivantel/virage-core bumped from 0.2.26 to 0.2.27
+  * peerDependencies
+    * @vivantel/virage-core bumped from * to 0.2.27
+
 ## [0.2.28](https://github.com/vivantel/virage/compare/virage-store-lancedb@v0.2.27...virage-store-lancedb@v0.2.28) (2026-06-17)
 
 

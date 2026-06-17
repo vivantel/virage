@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.1.47](https://github.com/vivantel/virage/compare/virage-cli@v0.1.46...virage-cli@v0.1.47) (2026-06-17)
+
+
+### Features
+
+* Hybrid search, re-ranking layer, and query analytics ([4a64c64](https://github.com/vivantel/virage/commit/4a64c64fce7c68a75656a4e306997d87dcd6253d))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @vivantel/virage-core bumped from 0.2.26 to 0.2.27
+
 ## [0.1.46](https://github.com/vivantel/virage/compare/virage-cli@v0.1.45...virage-cli@v0.1.46) (2026-06-17)
 
 

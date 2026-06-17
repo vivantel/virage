@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.11](https://github.com/vivantel/virage/compare/virage-dashboard@v0.1.10...virage-dashboard@v0.1.11) (2026-06-17)
+
+
+### Features
+
+* Hybrid search, re-ranking layer, and query analytics ([4a64c64](https://github.com/vivantel/virage/commit/4a64c64fce7c68a75656a4e306997d87dcd6253d))
+
 ## [0.1.10](https://github.com/vivantel/virage/compare/virage-dashboard@v0.1.9...virage-dashboard@v0.1.10) (2026-06-17)
 
 
