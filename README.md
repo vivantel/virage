@@ -85,6 +85,8 @@ All configuration lives in `virage.config.json`. The `$schema` field enables IDE
 
 ## CLI commands
 
+All commands have short aliases. Run `virage --help` to see the full list.
+
 ```
 virage [options] [command]
 
@@ -93,18 +95,21 @@ Options:
   -h, --help      Display help
 
 Commands:
-  index           Run the indexing pipeline (default)
-  init            Generate virage.config.json interactively
-  validate        Validate config without running the pipeline
-  dashboard       Start the local monitoring dashboard
-  evaluate        Evaluate retrieval quality against an eval dataset
-  eval-generate   Generate an eval dataset from existing chunks
-  report          Show observability report from telemetry files
-  chunks          Chunk analysis tools
-  viz             Visualization tools
-  benchmark       Performance benchmarking tools
-  store           Vector store diagnostics
-  experiment      Experiment tracking and statistical comparison
+  index     (i)     Run the indexing pipeline
+  init              Generate virage.config.json interactively
+  update    (up)    Update virage ecosystem packages and resync agent configs
+  check     (c)     Validate embedder config matches the stored index
+  validate  (val)   Validate config without running the pipeline
+  dashboard (d)     Start the local monitoring dashboard
+  query     (q)     Semantic search over the indexed knowledge base
+  eval      (e)     Evaluation tools (run / generate / save / list / compare)
+  report    (r)     Show observability report from pipeline runs
+  chunks            Chunk analysis tools
+  viz               Visualization tools
+  benchmark         Performance benchmarking tools
+  store             Vector store diagnostics
+  telemetry         Manage telemetry settings and data
+  install-hooks (hooks)  Install git hooks for auto-indexing
 ```
 
 `virage index` flags:
@@ -117,6 +122,16 @@ Options:
   --dry-run               Show what would change without uploading
   --watch                 Re-run pipeline on file changes
   (Use VIRAGE_DIR env var to override the .virage/ directory path)
+```
+
+`virage eval` subcommands:
+
+```
+virage eval run              One-shot retrieval quality check (precision, MRR, hit rate)
+virage eval generate (gen)   Generate an eval dataset from existing indexed chunks
+virage eval save --name <n>  Run evaluation and save results for later comparison
+virage eval list             List saved evaluation runs
+virage eval compare          Bootstrap significance test between two saved runs
 ```
 
 ## Embedders
@@ -181,10 +196,11 @@ The server exposes tools for semantic search, chunk browsing, and index statisti
 
 ## Dashboard
 
-Launch the web monitoring UI to inspect chunk distribution, embedding anomalies, and pipeline status:
+Launch the web monitoring UI to inspect chunk distribution, embedding anomalies, pipeline status, search, and experiments:
 
 ```bash
-npx virage dashboard
+npx virage dashboard        # start on port 3000
+npx virage dashboard --port 8080 --verbose  # custom port + request logging
 ```
 
 ## Use cases
