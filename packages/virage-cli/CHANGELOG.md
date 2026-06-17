@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.53](https://github.com/vivantel/virage/compare/virage-cli@v0.1.52...virage-cli@v0.1.53) (2026-06-17)
+
+
+### Features
+
+* Init defaults, reranker releases, Honeycomb telemetry proxy ([b3f1347](https://github.com/vivantel/virage/commit/b3f134740c5e7621f54dd14ed081e55fb3dbc9f6))
+
 ## [0.1.52](https://github.com/vivantel/virage/compare/virage-cli@v0.1.51...virage-cli@v0.1.52) (2026-06-17)
 
 
