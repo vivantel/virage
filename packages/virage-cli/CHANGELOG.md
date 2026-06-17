@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.51](https://github.com/vivantel/virage/compare/virage-cli@v0.1.50...virage-cli@v0.1.51) (2026-06-17)
+
+
+### Features
+
+* **cli:** Consolidate eval commands, add aliases, fix update + dashboard ([23ef66a](https://github.com/vivantel/virage/commit/23ef66aaa77a000f86732bd796cb4a5c941362f1))
+
 ## [0.1.50](https://github.com/vivantel/virage/compare/virage-cli@v0.1.49...virage-cli@v0.1.50) (2026-06-17)
 
 
