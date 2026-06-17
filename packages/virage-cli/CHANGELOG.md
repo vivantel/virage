@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.49](https://github.com/vivantel/virage/compare/virage-cli@v0.1.48...virage-cli@v0.1.49) (2026-06-17)
+
+
+### Bug Fixes
+
+* Add virage-reranker-cross-encoder as devDep to virage-cli for type resolution ([0b62b85](https://github.com/vivantel/virage/commit/0b62b85b21f85cbcfcd0cb769131acf9370c95c0))
+
 ## [0.1.48](https://github.com/vivantel/virage/compare/virage-cli@v0.1.47...virage-cli@v0.1.48) (2026-06-17)
 
 
