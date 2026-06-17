@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.50](https://github.com/vivantel/virage/compare/virage-cli@v0.1.49...virage-cli@v0.1.50) (2026-06-17)
+
+
+### Bug Fixes
+
+* Use indirect dynamic import for optional reranker package ([c71cb4d](https://github.com/vivantel/virage/commit/c71cb4d7bc7f794017c073c87766cb3424996c40))
+
 ## [0.1.49](https://github.com/vivantel/virage/compare/virage-cli@v0.1.48...virage-cli@v0.1.49) (2026-06-17)
 
 
