@@ -1,5 +1,5 @@
 terraform {
-  required_version = ">= 1.5"
+  required_version = ">= 1.10"
 
   required_providers {
     cloudflare = {
@@ -9,11 +9,10 @@ terraform {
   }
 
   backend "s3" {
-    bucket         = "vivantel-terraform-state"
-    key            = "virage/telemetry-proxy/terraform.tfstate"
-    region         = "us-east-1"
-    encrypt        = true
-    dynamodb_table = "vivantel-terraform-locks"
+    key          = "virage/telemetry-proxy/terraform.tfstate"
+    encrypt      = true
+    use_lockfile = true
+    # bucket and region supplied via -backend-config at init time
   }
 }
 

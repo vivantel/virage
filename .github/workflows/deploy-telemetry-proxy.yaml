@@ -38,10 +38,13 @@ jobs:
 
       - uses: hashicorp/setup-terraform@v3
         with:
-          terraform_version: "~1.5"
+          terraform_version: "~1.10"
 
       - name: Terraform init
-        run: terraform init
+        run: |
+          terraform init \
+            -backend-config="bucket=${{ vars.TF_STATE_S3_BUCKET }}" \
+            -backend-config="region=${{ vars.TF_STATE_S3_REGION }}"
         working-directory: infra/terraform/telemetry-proxy
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.TF_STATE_AWS_ACCESS_KEY_ID }}
