@@ -1,6 +1,6 @@
 {
   "name": "@vivantel/virage-reranker-llm",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "LLM-based re-ranker for Virage using the Anthropic API",
   "type": "module",
   "main": "dist/index.js",
