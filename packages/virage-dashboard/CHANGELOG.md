@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.12](https://github.com/vivantel/virage/compare/virage-dashboard@v0.1.11...virage-dashboard@v0.1.12) (2026-06-17)
+
+
+### Bug Fixes
+
+* Apply prettier and eslint formatting to new files ([87d882e](https://github.com/vivantel/virage/commit/87d882ec7661dcfcf7e570b067cbd6bc28d661e3))
+
 ## [0.1.11](https://github.com/vivantel/virage/compare/virage-dashboard@v0.1.10...virage-dashboard@v0.1.11) (2026-06-17)
 
 

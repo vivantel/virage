@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.1.22](https://github.com/vivantel/virage/compare/virage-mcp@v0.1.21...virage-mcp@v0.1.22) (2026-06-17)
+
+
+### Bug Fixes
+
+* Apply prettier and eslint formatting to new files ([87d882e](https://github.com/vivantel/virage/commit/87d882ec7661dcfcf7e570b067cbd6bc28d661e3))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @vivantel/virage-core bumped from 0.2.27 to 0.2.28
+  * devDependencies
+    * @vivantel/virage-core bumped from 0.2.27 to 0.2.28
+  * peerDependencies
+    * @vivantel/virage-core bumped from * to 0.2.28
+
 ## [0.1.21](https://github.com/vivantel/virage/compare/virage-mcp@v0.1.20...virage-mcp@v0.1.21) (2026-06-17)
 
 

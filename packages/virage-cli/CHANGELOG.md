@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.1.48](https://github.com/vivantel/virage/compare/virage-cli@v0.1.47...virage-cli@v0.1.48) (2026-06-17)
+
+
+### Bug Fixes
+
+* Apply prettier and eslint formatting to new files ([87d882e](https://github.com/vivantel/virage/commit/87d882ec7661dcfcf7e570b067cbd6bc28d661e3))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @vivantel/virage-core bumped from 0.2.27 to 0.2.28
+
 ## [0.1.47](https://github.com/vivantel/virage/compare/virage-cli@v0.1.46...virage-cli@v0.1.47) (2026-06-17)
 
 
