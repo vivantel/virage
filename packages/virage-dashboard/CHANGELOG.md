@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.10](https://github.com/vivantel/virage/compare/virage-dashboard@v0.1.9...virage-dashboard@v0.1.10) (2026-06-17)
+
+
+### Bug Fixes
+
+* Retrigger release pipeline ([bd6b99c](https://github.com/vivantel/virage/commit/bd6b99c1332397e92259a37097f44a556cdc1b7e))
+
 ## [0.1.9](https://github.com/vivantel/virage/compare/virage-dashboard@v0.1.8...virage-dashboard@v0.1.9) (2026-06-08)
 
 

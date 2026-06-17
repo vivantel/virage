@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.1.20](https://github.com/vivantel/virage/compare/virage-mcp@v0.1.19...virage-mcp@v0.1.20) (2026-06-17)
+
+
+### Bug Fixes
+
+* Retrigger release pipeline ([bd6b99c](https://github.com/vivantel/virage/commit/bd6b99c1332397e92259a37097f44a556cdc1b7e))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @vivantel/virage-core bumped from 0.2.25 to 0.2.26
+  * devDependencies
+    * @vivantel/virage-core bumped from 0.2.25 to 0.2.26
+  * peerDependencies
+    * @vivantel/virage-core bumped from * to 0.2.26
+
 ## [0.1.19](https://github.com/vivantel/virage/compare/virage-mcp@v0.1.18...virage-mcp@v0.1.19) (2026-06-15)
 
 

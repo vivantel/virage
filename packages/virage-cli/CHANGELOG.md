@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.1.46](https://github.com/vivantel/virage/compare/virage-cli@v0.1.45...virage-cli@v0.1.46) (2026-06-17)
+
+
+### Bug Fixes
+
+* Retrigger release pipeline ([bd6b99c](https://github.com/vivantel/virage/commit/bd6b99c1332397e92259a37097f44a556cdc1b7e))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @vivantel/virage-agent-claude bumped from 0.2.19 to 0.2.20
+    * @vivantel/virage-core bumped from 0.2.25 to 0.2.26
+    * @vivantel/virage-skills bumped from 0.1.6 to 0.1.7
+
 ## [0.1.45](https://github.com/vivantel/virage/compare/virage-cli@v0.1.44...virage-cli@v0.1.45) (2026-06-16)
 
 
