@@ -664,10 +664,29 @@ program
   )
   .option("--branch <name>", "Filter results to a specific git branch")
   .option("--json", "Output results as JSON", false)
+  .option("--hybrid", "Enable BM25 + vector hybrid search (overrides config)", false)
+  .option(
+    "--hybrid-alpha <number>",
+    "Hybrid blend: 0 = pure BM25, 1 = pure vector (default: 0.6)",
+    (v) => parseFloat(v),
+  )
+  .option(
+    "--rerank",
+    "Re-rank results with a cross-encoder (requires @vivantel/virage-reranker-cross-encoder)",
+    false,
+  )
   .action(
     async (
       queryText: string,
-      cmdOpts: { config: string; topK: number; branch?: string; json: boolean },
+      cmdOpts: {
+        config: string;
+        topK: number;
+        branch?: string;
+        json: boolean;
+        hybrid: boolean;
+        hybridAlpha?: number;
+        rerank: boolean;
+      },
     ) => {
       try {
         await runQuery(queryText, {
@@ -675,6 +694,9 @@ program
           topK: cmdOpts.topK,
           branch: cmdOpts.branch,
           json: cmdOpts.json,
+          hybrid: cmdOpts.hybrid || undefined,
+          hybridAlpha: cmdOpts.hybridAlpha,
+          rerank: cmdOpts.rerank || undefined,
         });
       } catch (error) {
         handleError(error);

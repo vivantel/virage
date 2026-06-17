@@ -56,6 +56,12 @@ export interface SearchOptions {
   beta?: number;
   /** Metadata key-value pairs to filter results (e.g. `{ branch: "main" }`). Applied as post-filter. */
   filter?: Record<string, unknown>;
+  /** Enable BM25 + vector hybrid search with Reciprocal Rank Fusion. Requires queryText. Default: false. */
+  hybrid?: boolean;
+  /** Blend weight for hybrid search: 0 = pure BM25, 1 = pure vector. Default: 0.6. */
+  hybridAlpha?: number;
+  /** Original query text, required for the BM25 side of hybrid search. */
+  queryText?: string;
 }
 
 export interface VectorStore {

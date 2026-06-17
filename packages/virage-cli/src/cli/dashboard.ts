@@ -1,3 +1,4 @@
+import { createHash, randomUUID } from "crypto";
 import express, { type Request, type Response } from "express";
 import { WebSocketServer, type WebSocket } from "ws";
 import { readFile, writeFile, mkdir } from "fs/promises";
@@ -549,8 +550,44 @@ export async function runDashboard(opts: DashboardOptions): Promise<void> {
     try {
       const cfg = await getCachedConfig(configPath);
       const topK = typeof body.topK === "number" ? body.topK : 5;
-      const embedding = await cfg.embedder.embed(body.query.trim());
-      const results = await cfg.vectorStore.search(embedding, topK);
+      const queryText = body.query.trim();
+      const useHybrid = cfg.search?.hybrid ?? false;
+      const embedding = await cfg.embedder.embed(queryText);
+      let results = await cfg.vectorStore.search(embedding, topK, undefined, {
+        ...(useHybrid
+          ? {
+              hybrid: true,
+              hybridAlpha: cfg.search?.hybridAlpha,
+              queryText,
+            }
+          : {}),
+      });
+      const reranked = cfg.search?.reranker != null;
+      if (cfg.search?.reranker) {
+        results = await cfg.search.reranker.rerank(queryText, results, topK);
+      }
+
+      // Log to analytics table (best-effort)
+      try {
+        const db = new VirageDb(active.virageDb);
+        db.insertSearchQuery({
+          id: randomUUID(),
+          occurred_at: new Date().toISOString(),
+          query_text: queryText,
+          query_hash: createHash("sha256")
+            .update(queryText.toLowerCase())
+            .digest("hex"),
+          result_count: results.length,
+          top_similarity: results[0]?.similarity ?? null,
+          was_empty: results.length === 0 ? 1 : 0,
+          hybrid_used: useHybrid ? 1 : 0,
+          reranked: reranked ? 1 : 0,
+        });
+        db.close();
+      } catch {
+        // Analytics failure must not break search
+      }
+
       res.json({ results });
     } catch (err) {
       res.status(500).json({ error: (err as Error).message });
@@ -657,6 +694,108 @@ export async function runDashboard(opts: DashboardOptions): Promise<void> {
         cRun.perQueryRrScores,
       );
       res.json(result);
+    } catch (err) {
+      res.status(500).json({ error: (err as Error).message });
+    } finally {
+      db.close();
+    }
+  });
+
+  // ─── Query analytics routes ──────────────────────────────────────────────────
+
+  app.get("/api/analytics/queries", (req: Request, res: Response) => {
+    const active = activeProject();
+    if (!active) {
+      res.status(503).json({ error: "No active project" });
+      return;
+    }
+    const limit = typeof req.query.limit === "string"
+      ? Math.min(parseInt(req.query.limit, 10) || 50, 200)
+      : 50;
+    const db = new VirageDb(active.virageDb);
+    try {
+      const queries = db.getRecentSearchQueries(limit);
+      res.json({ queries });
+    } catch (err) {
+      res.status(500).json({ error: (err as Error).message });
+    } finally {
+      db.close();
+    }
+  });
+
+  app.get("/api/analytics/top-terms", (req: Request, res: Response) => {
+    const active = activeProject();
+    if (!active) {
+      res.status(503).json({ error: "No active project" });
+      return;
+    }
+    const limit = typeof req.query.limit === "string"
+      ? Math.min(parseInt(req.query.limit, 10) || 20, 100)
+      : 20;
+    const db = new VirageDb(active.virageDb);
+    try {
+      const terms = db.getTopSearchTerms(limit);
+      res.json({ terms });
+    } catch (err) {
+      res.status(500).json({ error: (err as Error).message });
+    } finally {
+      db.close();
+    }
+  });
+
+  app.get("/api/analytics/zero-results", (req: Request, res: Response) => {
+    const active = activeProject();
+    if (!active) {
+      res.status(503).json({ error: "No active project" });
+      return;
+    }
+    const threshold = typeof req.query.threshold === "string"
+      ? parseFloat(req.query.threshold) || 0.5
+      : 0.5;
+    const limit = typeof req.query.limit === "string"
+      ? Math.min(parseInt(req.query.limit, 10) || 50, 200)
+      : 50;
+    const db = new VirageDb(active.virageDb);
+    try {
+      const queries = db.getZeroResultQueries(threshold, limit);
+      res.json({ queries });
+    } catch (err) {
+      res.status(500).json({ error: (err as Error).message });
+    } finally {
+      db.close();
+    }
+  });
+
+  app.get("/api/analytics/stats", (_req: Request, res: Response) => {
+    const active = activeProject();
+    if (!active) {
+      res.status(503).json({ error: "No active project" });
+      return;
+    }
+    const db = new VirageDb(active.virageDb);
+    try {
+      const stats = db.getSearchStats();
+      res.json(stats);
+    } catch (err) {
+      res.status(500).json({ error: (err as Error).message });
+    } finally {
+      db.close();
+    }
+  });
+
+  app.get("/api/analytics/queries-per-hour", (req: Request, res: Response) => {
+    const active = activeProject();
+    if (!active) {
+      res.status(503).json({ error: "No active project" });
+      return;
+    }
+    const hours = typeof req.query.hours === "string"
+      ? Math.min(parseInt(req.query.hours, 10) || 24, 168)
+      : 24;
+    const db = new VirageDb(active.virageDb);
+    try {
+      const buckets = db.getQueriesPerHour(hours);
+      res.json({ buckets });
     } catch (err) {
       res.status(500).json({ error: (err as Error).message });
     } finally {

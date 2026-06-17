@@ -7,7 +7,9 @@ import type {
   QueryPerfReport,
   Logger,
 } from "@vivantel/virage-core";
+import { rrfMerge } from "@vivantel/virage-core";
 import { ChromaClient, IncludeEnum, type Collection } from "chromadb";
+import MiniSearch from "minisearch";
 import { getIndexStats } from "./stats.js";
 import { getQueryPerfReport } from "./query-perf.js";
 
@@ -33,6 +35,8 @@ export class ChromaVectorStore implements VectorStore {
   private client!: ChromaClient;
   private collection!: Collection;
   private logger: Logger | null = null;
+  private miniSearch: MiniSearch | null = null;
+  private miniSearchStale = true;
 
   constructor(options: ChromaVectorStoreOptions) {
     this.path = options.path ?? "http://localhost:8000";
@@ -66,6 +70,7 @@ export class ChromaVectorStore implements VectorStore {
   }
 
   async upsert(documents: VectorDocument[]): Promise<void> {
+    this.miniSearchStale = true;
     this.logger?.verbose(
       `Upserting ${documents.length} docs into "${this.collectionName}"`,
     );
@@ -91,6 +96,7 @@ export class ChromaVectorStore implements VectorStore {
 
   async deleteBySourceFile(sourceFiles: string[]): Promise<void> {
     if (sourceFiles.length === 0) return;
+    this.miniSearchStale = true;
     this.logger?.verbose(
       `Deleting docs for ${sourceFiles.length} source file(s)`,
     );
@@ -137,28 +143,48 @@ export class ChromaVectorStore implements VectorStore {
     return getQueryPerfReport(this.collection, this.dimensions, timeframeHours);
   }
 
-  async search(
+  private async buildMiniSearchIfStale(): Promise<void> {
+    if (!this.miniSearchStale) return;
+    const ms = new MiniSearch<{ id: string; content: string }>({
+      fields: ["content"],
+      storeFields: ["id", "content"],
+    });
+    let offset = 0;
+    while (true) {
+      const result = await this.collection.get({
+        include: [IncludeEnum.documents],
+        limit: SCROLL_PAGE_SIZE,
+        offset,
+      });
+      const docs = result.ids.map((id, i) => ({
+        id,
+        content: result.documents[i] ?? "",
+      }));
+      if (docs.length > 0) ms.addAll(docs);
+      if (result.ids.length < SCROLL_PAGE_SIZE) break;
+      offset += SCROLL_PAGE_SIZE;
+    }
+    this.miniSearch = ms;
+    this.miniSearchStale = false;
+  }
+
+  private async vectorSearchInternal(
     queryEmbedding: number[],
-    topK: number,
-    _collection?: string,
-    _options?: SearchOptions,
+    nResults: number,
   ): Promise<VectorSearchResult[]> {
-    this.logger?.debug(`Search: topK=${topK}`);
     const result = await this.collection.query({
       queryEmbeddings: [queryEmbedding],
-      nResults: topK,
+      nResults,
       include: [
         IncludeEnum.documents,
         IncludeEnum.metadatas,
         IncludeEnum.distances,
       ],
     });
-
     const ids = result.ids[0] ?? [];
     const documents = result.documents[0] ?? [];
     const metadatas = result.metadatas[0] ?? [];
     const distances = result.distances?.[0] ?? [];
-
     return ids.map((id, i) => ({
       id,
       content: documents[i] ?? "",
@@ -174,5 +200,45 @@ export class ChromaVectorStore implements VectorStore {
       })(),
       similarity: 1 - (distances[i] ?? 1),
     }));
+  }
+
+  async search(
+    queryEmbedding: number[],
+    topK: number,
+    _collection?: string,
+    options?: SearchOptions,
+  ): Promise<VectorSearchResult[]> {
+    const useHybrid = options?.hybrid === true && options.queryText;
+    this.logger?.debug(`Search: topK=${topK} hybrid=${useHybrid ?? false}`);
+
+    if (useHybrid) {
+      await this.buildMiniSearchIfStale();
+      const [vectorResults, miniRaw] = await Promise.all([
+        this.vectorSearchInternal(queryEmbedding, topK * 2),
+        Promise.resolve(
+          this.miniSearch!.search(options!.queryText!, {
+            prefix: true,
+            fuzzy: 0.2,
+          }),
+        ),
+      ]);
+      const maxScore = miniRaw[0]?.score ?? 1;
+      const bm25Results: VectorSearchResult[] = miniRaw
+        .slice(0, topK * 2)
+        .map((r) => ({
+          id: r.id as string,
+          content: r.content as string,
+          metadata: {},
+          similarity: r.score / maxScore,
+        }));
+      return rrfMerge(
+        vectorResults,
+        bm25Results,
+        topK,
+        options?.hybridAlpha ?? 0.6,
+      );
+    }
+
+    return this.vectorSearchInternal(queryEmbedding, topK);
   }
 }

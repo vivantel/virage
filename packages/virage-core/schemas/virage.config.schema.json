@@ -87,6 +87,40 @@
       "items": { "type": "string" },
       "description": "Coding agent plugin names selected during init (e.g. [\"claude-code\", \"copilot\"])."
     },
+    "search": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Optional retrieval configuration: hybrid search and re-ranking.",
+      "properties": {
+        "hybrid": {
+          "type": "boolean",
+          "description": "Enable BM25 + vector hybrid search with Reciprocal Rank Fusion. Default: false."
+        },
+        "hybridAlpha": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Blend weight for hybrid search: 0 = pure BM25, 1 = pure vector. Default: 0.6."
+        },
+        "reranker": {
+          "type": "object",
+          "required": ["package"],
+          "additionalProperties": false,
+          "description": "Optional post-retrieval re-ranker plugin.",
+          "properties": {
+            "package": {
+              "type": "string",
+              "description": "npm package that exports createReranker(config). E.g. '@vivantel/virage-reranker-cross-encoder'"
+            },
+            "config": {
+              "type": "object",
+              "additionalProperties": true,
+              "description": "Config passed to createReranker(). Supports ${ENV_VAR} expansion."
+            }
+          }
+        }
+      }
+    },
     "options": {
       "type": "object",
       "additionalProperties": false,

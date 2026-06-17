@@ -1,0 +1,55 @@
+{
+  "name": "@vivantel/virage-reranker-llm",
+  "version": "0.1.0",
+  "description": "LLM-based re-ranker for Virage using the Anthropic API",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "sideEffects": false,
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "tsc",
+    "type-check": "tsc --noEmit",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "rag",
+    "reranker",
+    "llm",
+    "anthropic",
+    "claude"
+  ],
+  "author": "Vivantel",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/vivantel/virage",
+    "directory": "packages/virage-reranker-llm"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.55.0"
+  },
+  "peerDependencies": {
+    "@vivantel/virage-core": "*"
+  },
+  "devDependencies": {
+    "@vivantel/virage-core": "0.2.26",
+    "@types/node": "^25.9.3",
+    "typescript": "^6.0.3"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

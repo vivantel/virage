@@ -4,6 +4,7 @@ import { ChunkBrowser } from "./components/ChunkBrowser";
 import { SearchPage } from "./components/SearchPage";
 import { PipelinePage } from "./components/PipelinePage";
 import { ExperimentsPage } from "./components/ExperimentsPage";
+import { AnalyticsPage } from "./components/AnalyticsPage";
 import { WebSocketProvider } from "./context/WebSocketContext";
 
 export function App() {
@@ -20,6 +21,7 @@ export function App() {
             <NavLink to="/search">Search</NavLink>
             <NavLink to="/pipeline">Pipeline</NavLink>
             <NavLink to="/experiments">Experiments</NavLink>
+            <NavLink to="/analytics">Analytics</NavLink>
           </nav>
           <main className="main-content">
             <Routes>
@@ -28,6 +30,7 @@ export function App() {
               <Route path="/search" element={<SearchPage />} />
               <Route path="/pipeline" element={<PipelinePage />} />
               <Route path="/experiments" element={<ExperimentsPage />} />
+              <Route path="/analytics" element={<AnalyticsPage />} />
             </Routes>
           </main>
         </div>

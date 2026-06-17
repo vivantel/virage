@@ -53,6 +53,20 @@ export function createMcpServer(
         .describe(
           "Recency weight for composite scoring (default: 0.15). Only effective on stores that track ingested_at.",
         ),
+      hybrid: z
+        .boolean()
+        .optional()
+        .describe(
+          "Enable BM25 + vector hybrid search with Reciprocal Rank Fusion. Overrides config default.",
+        ),
+      hybrid_alpha: z
+        .number()
+        .min(0)
+        .max(1)
+        .optional()
+        .describe(
+          "Hybrid blend weight: 0 = pure BM25, 1 = pure vector (default: 0.6).",
+        ),
     },
     async (args) => {
       const results = await handleSearch(args, ctx);

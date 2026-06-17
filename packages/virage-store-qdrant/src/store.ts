@@ -7,6 +7,7 @@ import type {
   QueryPerfReport,
   Logger,
 } from "@vivantel/virage-core";
+import { rrfMerge } from "@vivantel/virage-core";
 import { QdrantClient } from "@qdrant/js-client-rest";
 import { getIndexStats } from "./stats.js";
 import { getQueryPerfReport } from "./query-perf.js";
@@ -159,33 +160,74 @@ export class QdrantVectorStore implements VectorStore {
     return state;
   }
 
+  private payloadToResult(r: {
+    id: string | number;
+    score: number;
+    payload?: Record<string, unknown> | null;
+  }): VectorSearchResult {
+    const payload = r.payload as Record<string, unknown> | null | undefined;
+    return {
+      id: String(r.id),
+      content: typeof payload?.content === "string" ? payload.content : "",
+      metadata:
+        payload?.metadata &&
+        typeof payload.metadata === "object" &&
+        !Array.isArray(payload.metadata)
+          ? (payload.metadata as Record<string, unknown>)
+          : {},
+      similarity: r.score,
+    };
+  }
+
   async search(
     queryEmbedding: number[],
     topK: number,
     _collection?: string,
-    _options?: SearchOptions,
+    options?: SearchOptions,
   ): Promise<VectorSearchResult[]> {
-    this.logger?.debug(`Search: topK=${topK}`);
+    const useHybrid = options?.hybrid === true && options.queryText;
+    this.logger?.debug(`Search: topK=${topK} hybrid=${useHybrid ?? false}`);
+
+    if (useHybrid) {
+      const fetchLimit = topK * 2;
+      const queryText = options!.queryText!;
+
+      const [vectorResults, textResults] = await Promise.all([
+        this.client.search(this.collection, {
+          vector: queryEmbedding,
+          limit: fetchLimit,
+          with_payload: true,
+        }),
+        this.client.scroll(this.collection, {
+          filter: {
+            must: [{ key: "content", match: { text: queryText } }],
+          },
+          with_payload: true,
+          with_vector: false,
+          limit: fetchLimit,
+        }),
+      ]);
+
+      const vectorMapped = vectorResults.map((r) => this.payloadToResult(r));
+      const textMapped = textResults.points.map((p, i) =>
+        this.payloadToResult({ id: p.id, score: 1 / (i + 1), payload: p.payload as Record<string, unknown> | null }),
+      );
+
+      return rrfMerge(
+        vectorMapped,
+        textMapped,
+        topK,
+        options?.hybridAlpha ?? 0.6,
+      );
+    }
+
     const results = await this.client.search(this.collection, {
       vector: queryEmbedding,
       limit: topK,
       with_payload: true,
     });
 
-    return results.map((r) => {
-      const payload = r.payload as Record<string, unknown> | null | undefined;
-      return {
-        id: String(r.id),
-        content: typeof payload?.content === "string" ? payload.content : "",
-        metadata:
-          payload?.metadata &&
-          typeof payload.metadata === "object" &&
-          !Array.isArray(payload.metadata)
-            ? (payload.metadata as Record<string, unknown>)
-            : {},
-        similarity: r.score,
-      };
-    });
+    return results.map((r) => this.payloadToResult(r));
   }
 
   async getIndexStats(): Promise<IndexStats> {

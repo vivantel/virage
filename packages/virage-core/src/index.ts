@@ -26,6 +26,7 @@ export {
   withRetry,
   withConcurrency,
 } from "./core/utils.js";
+export { rrfMerge } from "./core/rrf.js";
 export type { RetryOptions } from "./core/utils.js";
 
 // Plugin ecosystem
@@ -35,6 +36,7 @@ export type { PluginRegistry } from "./plugin-registry.js";
 
 // Storage
 export { VirageDb } from "./core/virage-db.js";
+export type { SearchQueryRow } from "./core/virage-db.js";
 
 // Defaults and constants
 export {

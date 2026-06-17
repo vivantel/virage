@@ -50,6 +50,13 @@ function formatSummary(state: WizardState, registry: PluginRegistry): string {
   const agentsLabel =
     state.agents.length > 0 ? state.agents.join(", ") : "(none)";
 
+  const rerankerLabel =
+    state.reranker === "cross-encoder"
+      ? "Cross-encoder (local)"
+      : state.reranker === "llm"
+        ? "LLM (Anthropic)"
+        : "(none)";
+
   const width = 52;
   const labelWidth = 14;
   const labelPad = 2; // leading spaces
@@ -92,6 +99,7 @@ function formatSummary(state: WizardState, registry: PluginRegistry): string {
     wrapLine("Agents:", agentsLabel),
     wrapLine("Embedder:", embedderLabel),
     wrapLine("Vector store:", storeLabel),
+    wrapLine("Re-ranker:", rerankerLabel),
     wrapLine("Output:", state.outputPath),
     `╚${bar}╝`,
   ].join("\n");
@@ -105,9 +113,15 @@ interface WizardState {
   agents: string[];
   embedder: string;
   vectorStore: string;
+  reranker?: "cross-encoder" | "llm";
 }
 
 // ─── Package helpers ──────────────────────────────────────────────────────────
+
+const RERANKER_PACKAGES: Record<string, string> = {
+  "cross-encoder": "@vivantel/virage-reranker-cross-encoder",
+  llm: "@vivantel/virage-reranker-llm",
+};
 
 function getRequiredPackages(
   state: WizardState,
@@ -123,6 +137,8 @@ function getRequiredPackages(
   if (storeEntry && storeEntry.key !== "custom") pkgs.add(storeEntry.package);
   if (state.groups.some((g) => g.strategyFn === "codeChunkStrategy"))
     pkgs.add("@vivantel/virage-code-chunk-chunker");
+  if (state.reranker && RERANKER_PACKAGES[state.reranker])
+    pkgs.add(RERANKER_PACKAGES[state.reranker]);
   return Array.from(pkgs);
 }
 
@@ -182,7 +198,20 @@ function generateJsonConfig(
       ? { ...storeEntry.defaultConfig, uri: `${getVirageDir()}/lancedb` }
       : storeEntry.defaultConfig;
 
-  const config = {
+  const rerankerConfig =
+    state.reranker === "cross-encoder"
+      ? {
+          package: "@vivantel/virage-reranker-cross-encoder",
+          config: { model: "Xenova/ms-marco-MiniLM-L-6-v2", topK: 5 },
+        }
+      : state.reranker === "llm"
+        ? {
+            package: "@vivantel/virage-reranker-llm",
+            config: { model: "claude-haiku-4-5", topK: 5 },
+          }
+        : undefined;
+
+  const config: Record<string, unknown> = {
     $schema:
       "./node_modules/@vivantel/virage-core/schemas/virage.config.schema.json",
     chunkers,
@@ -196,6 +225,10 @@ function generateJsonConfig(
       config: resolvedStoreConfig,
     },
   };
+
+  if (rerankerConfig) {
+    config.search = { reranker: rerankerConfig };
+  }
 
   return JSON.stringify(config, null, 2) + "\n";
 }
@@ -256,7 +289,7 @@ export async function runInit(): Promise<void> {
   const state: Partial<WizardState> = {};
   let step = 0;
 
-  while (step < 6) {
+  while (step < 7) {
     switch (step) {
       // ── Step 0: output path ──
       case 0: {
@@ -368,8 +401,36 @@ export async function runInit(): Promise<void> {
         break;
       }
 
-      // ── Step 5: confirmation ──
+      // ── Step 5: re-ranker (optional) ──
       case 5: {
+        const choice = await select({
+          message: "Add a re-ranker? (optional — improves result precision)",
+          choices: withBack([
+            { name: "No re-ranker (skip)", value: "none" },
+            {
+              name: "Cross-encoder — local ONNX, no API key required",
+              value: "cross-encoder",
+            },
+            {
+              name: "LLM re-ranker — uses Anthropic API (claude-haiku-4-5)",
+              value: "llm",
+            },
+          ]),
+        });
+        if (isBack(choice)) {
+          step--;
+          break;
+        }
+        state.reranker =
+          choice === "none"
+            ? undefined
+            : (choice as "cross-encoder" | "llm");
+        step++;
+        break;
+      }
+
+      // ── Step 6: confirmation ──
+      case 6: {
         console.log("\n" + formatSummary(state as WizardState, registry));
         const confirm = await select({
           message: "Proceed with this configuration?",

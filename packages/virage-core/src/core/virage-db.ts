@@ -176,6 +176,34 @@ CREATE TABLE IF NOT EXISTS telemetry_cache_stats (
 ) STRICT;
 `;
 
+const SEARCH_QUERIES_DDL = `
+CREATE TABLE IF NOT EXISTS search_queries (
+  id TEXT PRIMARY KEY,
+  occurred_at TEXT NOT NULL,
+  query_text TEXT NOT NULL,
+  query_hash TEXT NOT NULL,
+  result_count INTEGER NOT NULL,
+  top_similarity REAL,
+  was_empty INTEGER NOT NULL DEFAULT 0,
+  hybrid_used INTEGER NOT NULL DEFAULT 0,
+  reranked INTEGER NOT NULL DEFAULT 0
+) STRICT;
+CREATE INDEX IF NOT EXISTS idx_sq_occurred ON search_queries(occurred_at);
+CREATE INDEX IF NOT EXISTS idx_sq_hash ON search_queries(query_hash);
+`;
+
+export interface SearchQueryRow {
+  id: string;
+  occurred_at: string;
+  query_text: string;
+  query_hash: string;
+  result_count: number;
+  top_similarity: number | null;
+  was_empty: number;
+  hybrid_used: number;
+  reranked: number;
+}
+
 export class VirageDb {
   private db: Database.Database;
 
@@ -206,6 +234,7 @@ export class VirageDb {
     this.db.exec(EVAL_DATASETS_DDL);
     this.db.exec(PIPELINE_RUNS_DDL);
     this.db.exec(TELEMETRY_DDL);
+    this.db.exec(SEARCH_QUERIES_DDL);
 
     const jsonPath = dbPath.replace(/\.db$/, ".json");
     if (this.isEmpty() && existsSync(jsonPath)) {
@@ -1085,5 +1114,128 @@ export class VirageDb {
     for (const table of tables) {
       this.db.prepare(`DELETE FROM ${table}`).run();
     }
+  }
+
+  // ── Query analytics ────────────────────────────────────────────────────────
+
+  insertSearchQuery(row: SearchQueryRow): void {
+    this.db
+      .prepare(
+        `INSERT OR REPLACE INTO search_queries
+           (id, occurred_at, query_text, query_hash, result_count,
+            top_similarity, was_empty, hybrid_used, reranked)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      )
+      .run(
+        row.id,
+        row.occurred_at,
+        row.query_text,
+        row.query_hash,
+        row.result_count,
+        row.top_similarity ?? null,
+        row.was_empty,
+        row.hybrid_used,
+        row.reranked,
+      );
+  }
+
+  getRecentSearchQueries(limit = 50): SearchQueryRow[] {
+    return this.db
+      .prepare(
+        "SELECT * FROM search_queries ORDER BY occurred_at DESC LIMIT ?",
+      )
+      .all(limit) as SearchQueryRow[];
+  }
+
+  getTopSearchTerms(limit = 20): { query_text: string; count: number }[] {
+    return this.db
+      .prepare(
+        `SELECT query_text, COUNT(*) as count
+         FROM search_queries
+         GROUP BY query_hash
+         ORDER BY count DESC
+         LIMIT ?`,
+      )
+      .all(limit) as { query_text: string; count: number }[];
+  }
+
+  getZeroResultQueries(
+    threshold = 0.5,
+    limit = 50,
+  ): SearchQueryRow[] {
+    return this.db
+      .prepare(
+        `SELECT * FROM search_queries
+         WHERE was_empty = 1 OR (top_similarity IS NOT NULL AND top_similarity < ?)
+         ORDER BY occurred_at DESC
+         LIMIT ?`,
+      )
+      .all(threshold, limit) as SearchQueryRow[];
+  }
+
+  getSearchStats(): {
+    queriesLastHour: number;
+    queriesLast24h: number;
+    avgTopSimilarity: number;
+    zeroResultRate: number;
+  } {
+    const now = new Date().toISOString();
+    const hourAgo = new Date(Date.now() - 3_600_000).toISOString();
+    const dayAgo = new Date(Date.now() - 86_400_000).toISOString();
+
+    const lastHour = (
+      this.db
+        .prepare(
+          "SELECT COUNT(*) as cnt FROM search_queries WHERE occurred_at >= ?",
+        )
+        .get(hourAgo) as { cnt: number }
+    ).cnt;
+
+    const last24h = (
+      this.db
+        .prepare(
+          "SELECT COUNT(*) as cnt FROM search_queries WHERE occurred_at >= ?",
+        )
+        .get(dayAgo) as { cnt: number }
+    ).cnt;
+
+    const avgRow = this.db
+      .prepare(
+        "SELECT AVG(top_similarity) as avg FROM search_queries WHERE top_similarity IS NOT NULL",
+      )
+      .get() as { avg: number | null };
+
+    const totalRow = this.db
+      .prepare("SELECT COUNT(*) as cnt FROM search_queries")
+      .get() as { cnt: number };
+
+    const emptyRow = this.db
+      .prepare("SELECT COUNT(*) as cnt FROM search_queries WHERE was_empty = 1")
+      .get() as { cnt: number };
+
+    // suppress unused variable warning — now is used for context only
+    void now;
+
+    return {
+      queriesLastHour: lastHour,
+      queriesLast24h: last24h,
+      avgTopSimilarity: avgRow.avg ?? 0,
+      zeroResultRate:
+        totalRow.cnt > 0 ? emptyRow.cnt / totalRow.cnt : 0,
+    };
+  }
+
+  getQueriesPerHour(hours = 24): { hour: string; count: number }[] {
+    const since = new Date(Date.now() - hours * 3_600_000).toISOString();
+    return this.db
+      .prepare(
+        `SELECT strftime('%Y-%m-%dT%H:00:00Z', occurred_at) as hour,
+                COUNT(*) as count
+         FROM search_queries
+         WHERE occurred_at >= ?
+         GROUP BY hour
+         ORDER BY hour ASC`,
+      )
+      .all(since) as { hour: string; count: number }[];
   }
 }

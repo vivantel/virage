@@ -46,6 +46,10 @@ const ctx = {
   embedder: cfg.embedder,
   vectorStore: cfg.vectorStore,
   session,
+  reranker: cfg.search?.reranker,
+  searchConfig: cfg.search
+    ? { hybrid: cfg.search.hybrid, hybridAlpha: cfg.search.hybridAlpha }
+    : undefined,
 };
 const server = createMcpServer(ctx, telemetryConfig);
 const transport = new StdioServerTransport();

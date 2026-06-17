@@ -4,11 +4,9 @@
 
 ---
 
-## What ships today — honest assessment
+## Current capabilities
 
-Virage has a genuinely strong foundation. Before adding features, it's worth being precise about where the real value is:
-
-**Solid strengths**
+**Strengths**
 
 | Capability | Why it matters |
 |---|---|
@@ -21,45 +19,20 @@ Virage has a genuinely strong foundation. Before adding features, it's worth bei
 | **Evaluation infrastructure** | `virage evaluate`, experiment tracking with bootstrap significance testing, RAGAS metrics — this is more mature than most comparable tools. |
 | **Skills system** | Summary-then-full loading pattern keeps token overhead under 150 tokens until the agent commits to a skill. |
 
-**Real weaknesses (not complaints — gaps with known fixes)**
+**Current gaps**
 
 | Gap | Impact | Why it's not just a nice-to-have |
 |---|---|---|
-| **No hybrid search** | High | Pure vector search misses exact-match queries ("what does `parseConfig` do?"). Pure BM25 misses paraphrased queries. Reciprocal Rank Fusion of both typically improves MRR by 10–25% without model changes. |
-| **No re-ranking** | High | Top-K from ANN is noisy. A cross-encoder pass over the top-20 candidates to return the top-5 reduces false positives significantly, especially for long chunks with uneven quality. |
 | **No cross-file graph** | High (for code RAG) | The code chunker knows scope within a file, but doesn't know that `OrderService.ts` calls `PaymentService.ts`. A query about "how is payment processed" needs cross-file context to return the right chunks. |
-| **No query analytics** | Medium | Without knowing what searches are being run and which return useful results, tuning is guesswork. |
 | **No semantic deduplication** | Medium | If you have similar docs copied across packages, you waste embedding budget and dilute retrieval — both copies compete for the same slot. |
 | **No cost estimation** | Medium | Users running against OpenAI's embedding API have no upfront signal about how much a full re-index will cost. Surprises here erode trust. |
-| **Dashboard is too thin** | Medium | Chunk histogram + anomaly flags is a starting point. A dashboard that doesn't show what's actually being retrieved is of limited use in practice. |
 | **No freshness weighting** | Low–Medium | All chunks are equal regardless of whether the file was touched yesterday or two years ago. For actively developed codebases, recently changed code is often more relevant to a query about current behavior. |
-
----
-
-## Shipped (no longer roadmap items)
-
-These appear in earlier roadmap drafts but are already in the codebase:
-
-- `virage init` interactive wizard
-- `virage update` command
-- Agent plugins for Claude Code, GitHub Copilot, OpenAI Codex, Google Antigravity
-- `/plan`, `/review`, `/rag`, `/doc`, `/arch`, `/usage`, `/index` slash commands
-- `virage-strategies` package (markdownHeaders, token, semantic, wholeFile)
-- `virage-code-chunk-chunker` (AST-aware, TS/JS/Py/Go/Java/Rust)
-- Evaluation suite (eval-generate, evaluate, RAGAS, experiment compare)
-- Telemetry (opt-in, buffered, preview/flush)
-- Dashboard (chunk histogram, anomalies, live stats)
-- `virage query` CLI command with `--json`/`--top-k`/`--branch`
-- `mcp__virage__suggest_skill`, `mcp__virage__read_skill_summary`, `mcp__virage__session_usage`
-- Structured skill frontmatter (`when_to_use`, `estimated_tokens`, `output_format`)
-- Recency-weighted search (`similarity × α + recency × β`)
-- `virage install-hooks` for post-merge/post-checkout auto-indexing
 
 ---
 
 ## Near-term (next 2–4 weeks)
 
-### 1. Hybrid search — BM25 + vector fusion
+### ~~1. Hybrid search — BM25 + vector fusion~~ ✓ Shipped
 
 **The single highest-impact retrieval improvement available without changing embedders.**
 
@@ -78,12 +51,12 @@ How it works: index each chunk's text in a BM25 index (per-store adapter) in add
 `hybridAlpha` controls the blend: 0 = pure BM25, 1 = pure vector, 0.6 is a typical starting point. Expose as `options.search.hybridAlpha` with a default of `0.6`.
 
 **Implementation notes:**
-- LanceDB supports full-text search natively; adapter is minimal.
-- Postgres adapter uses `tsvector` + `tsquery` which already exists in pgvector setups.
-- Qdrant has sparse-vector support that maps cleanly to BM25.
-- ChromaDB: implement BM25 as a side-index in the adapter (or skip for now — it's the weakest store anyway).
+- LanceDB: native FTS index on the `content` column.
+- PostgreSQL: `tsvector` generated column + GIN index + `plainto_tsquery`.
+- Qdrant: payload text match filter via `client.scroll()` + in-process RRF.
+- ChromaDB: in-memory MiniSearch side-index, invalidated after any write.
 
-**Evaluation:** add `hybrid_search` experiment group to `virage evaluate`. Expect MRR improvement of 10–25% on mixed exact/semantic query sets.
+**Evaluation target:** add `hybrid_search` experiment group to `virage evaluate`. Expected MRR improvement of 10–25% on mixed exact/semantic query sets.
 
 ---
 
@@ -130,7 +103,7 @@ Add `--format json` for CI integration (fail the build if estimated cost exceeds
 
 ## Medium-term (4–10 weeks)
 
-### 4. Re-ranking layer
+### ~~4. Re-ranking layer~~ ✓ Shipped
 
 After ANN retrieval returns top-20 candidates, a re-ranker scores each (query, chunk) pair more precisely and returns the final top-K. Two modes:
 
@@ -147,7 +120,7 @@ After ANN retrieval returns top-20 candidates, a re-ranker scores each (query, c
 }
 ```
 
-Ships as a new package. ONNX model, runs locally, no API key. Adds ~50–150ms latency. Justified when precision of top-5 matters more than speed.
+Ships as `@vivantel/virage-reranker-cross-encoder`. ONNX model, runs locally, no API key. Adds ~50–150ms latency. Justified when precision of top-5 matters more than speed.
 
 **Mode B — LLM judge (cloud)**
 
@@ -162,7 +135,7 @@ Ships as a new package. ONNX model, runs locally, no API key. Adds ~50–150ms l
 }
 ```
 
-Uses the existing `LLMJudge` interface (already in `interfaces/quality.ts`). More expensive but higher quality for complex queries. Appropriate for low-query-volume, high-stakes contexts.
+Ships as `@vivantel/virage-reranker-llm`. More expensive but higher quality for complex queries. Appropriate for low-query-volume, high-stakes contexts.
 
 **CLI flag:** `virage query --rerank` to try re-ranking against the current index without config changes.
 
@@ -209,21 +182,20 @@ Agent use case:
 
 ---
 
-### 7. Query analytics in the dashboard
+### ~~7. Query analytics in the dashboard~~ ✓ Shipped
 
-The dashboard currently shows index structure. It should also show retrieval behavior.
+The dashboard shows both index structure and retrieval behavior.
 
-**New panel: Search Activity**
+**Search Activity panel**
 
 | Metric | How tracked |
 |---|---|
-| Queries per hour | Logged to `virage.db` on each MCP search call |
-| Top 20 most-searched terms | TF-IDF on logged queries |
+| Queries per hour | Logged to `virage.db` on each MCP and dashboard search call |
+| Top 20 most-searched terms | Grouped and counted from logged queries |
 | Avg similarity score of top result | Per-query, from search results |
 | Zero-result queries | Queries where top score < 0.5 threshold |
-| Click-through rate | Agent signals which chunk it actually used (new `mcp__virage__feedback` tool) |
 
-The zero-result queries panel is particularly actionable: if users repeatedly search for something and get poor results, that's a signal to add more content, change chunking strategy, or switch embedder models for that file type.
+The zero-result queries view is particularly actionable: repeated searches with poor results are a signal to add more content, adjust chunking strategy, or switch embedder models for that file type.
 
 ---
 
@@ -368,7 +340,7 @@ Every significant retrieval change should be validated against the existing eval
 
 | Metric | Target | Notes |
 |---|---|---|
-| MRR@10 | ≥ 0.72 (currently ~0.65) | Hybrid search (item 1) is expected to move this the most |
+| MRR@10 | ≥ 0.72 (currently ~0.65) | Hybrid search is expected to move this the most |
 | Precision@5 | ≥ 0.70 | |
 | Hit rate@5 | ≥ 0.85 | |
 | Search latency p95 | ≤ 50ms | Without re-ranking; ≤ 250ms with cross-encoder |

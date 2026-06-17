@@ -112,6 +112,35 @@ async function del<T>(path: string, body?: unknown): Promise<T> {
   return res.json() as Promise<T>;
 }
 
+export interface SearchQueryRecord {
+  id: string;
+  occurred_at: string;
+  query_text: string;
+  query_hash: string;
+  result_count: number;
+  top_similarity: number | null;
+  was_empty: number;
+  hybrid_used: number;
+  reranked: number;
+}
+
+export interface SearchStats {
+  queriesLastHour: number;
+  queriesLast24h: number;
+  avgTopSimilarity: number;
+  zeroResultRate: number;
+}
+
+export interface TopTerm {
+  query_text: string;
+  count: number;
+}
+
+export interface QueriesPerHour {
+  hour: string;
+  count: number;
+}
+
 export const api = {
   // Existing
   status: () => get<StatusData>("/api/status"),
@@ -149,4 +178,25 @@ export const api = {
     del<{ ok: boolean }>(`/api/experiments/${id}`),
   compareExperiments: (baseline: string, candidate: string) =>
     post<StatTestResult>("/api/experiments/compare", { baseline, candidate }),
+
+  // Analytics
+  analytics: {
+    queries: (limit?: number) =>
+      get<{ queries: SearchQueryRecord[] }>(
+        `/api/analytics/queries${limit ? `?limit=${limit}` : ""}`,
+      ),
+    topTerms: (limit?: number) =>
+      get<{ terms: TopTerm[] }>(
+        `/api/analytics/top-terms${limit ? `?limit=${limit}` : ""}`,
+      ),
+    zeroResults: (threshold?: number) =>
+      get<{ queries: SearchQueryRecord[] }>(
+        `/api/analytics/zero-results${threshold != null ? `?threshold=${threshold}` : ""}`,
+      ),
+    stats: () => get<SearchStats>("/api/analytics/stats"),
+    perHour: (hours?: number) =>
+      get<{ buckets: QueriesPerHour[] }>(
+        `/api/analytics/queries-per-hour${hours ? `?hours=${hours}` : ""}`,
+      ),
+  },
 };

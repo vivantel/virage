@@ -1,10 +1,11 @@
-import { randomUUID } from "crypto";
+import { randomUUID, createHash } from "crypto";
 import type {
   VirageDb,
   EmbeddingProvider,
   VectorStore,
   TelemetrySession,
   FeedbackPayload,
+  Reranker,
 } from "@vivantel/virage-core";
 import { normalizeMissingCategory } from "@vivantel/virage-core";
 
@@ -15,6 +16,8 @@ export interface McpContext {
   session?: TelemetrySession;
   lastSearchId?: string;
   feedbackArmed?: boolean;
+  reranker?: Reranker;
+  searchConfig?: { hybrid?: boolean; hybridAlpha?: number };
 }
 
 export async function handleSearch(
@@ -24,6 +27,8 @@ export async function handleSearch(
     collection?: string;
     alpha?: number;
     beta?: number;
+    hybrid?: boolean;
+    hybrid_alpha?: number;
   },
   ctx: McpContext,
 ) {
@@ -33,14 +38,31 @@ export async function handleSearch(
   const embedding = await ctx.embedder.embed(args.query);
   const embedMs = Date.now() - t0;
 
+  const useHybrid =
+    args.hybrid ?? ctx.searchConfig?.hybrid ?? false;
+  const hybridAlpha =
+    args.hybrid_alpha ?? ctx.searchConfig?.hybridAlpha;
+
   const t1 = Date.now();
-  const results = await ctx.vectorStore.search(
+  let results = await ctx.vectorStore.search(
     embedding,
     args.top_k ?? 5,
     args.collection,
-    { alpha: args.alpha, beta: args.beta },
+    {
+      alpha: args.alpha,
+      beta: args.beta,
+      ...(useHybrid
+        ? { hybrid: true, hybridAlpha, queryText: args.query }
+        : {}),
+    },
   );
   const searchMs = Date.now() - t1;
+
+  const reranked = ctx.reranker != null;
+  if (ctx.reranker) {
+    results = await ctx.reranker.rerank(args.query, results, args.top_k ?? 5);
+  }
+
   const totalMs = Date.now() - t0;
 
   ctx.session?.recordLatency("embed", embedMs);
@@ -51,6 +73,25 @@ export async function handleSearch(
   ctx.lastSearchId = searchId;
   ctx.feedbackArmed =
     ctx.session?.shouldSampleFeedback(results.length) ?? false;
+
+  // Log to local search_queries table for analytics
+  try {
+    ctx.db.insertSearchQuery({
+      id: searchId,
+      occurred_at: new Date().toISOString(),
+      query_text: args.query,
+      query_hash: createHash("sha256")
+        .update(args.query.toLowerCase().trim())
+        .digest("hex"),
+      result_count: results.length,
+      top_similarity: results[0]?.similarity ?? null,
+      was_empty: results.length === 0 ? 1 : 0,
+      hybrid_used: useHybrid ? 1 : 0,
+      reranked: reranked ? 1 : 0,
+    });
+  } catch {
+    // Analytics failure should not break search
+  }
 
   return results.map((r) => ({
     id: r.id,

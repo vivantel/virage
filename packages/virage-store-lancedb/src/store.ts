@@ -8,6 +8,7 @@ import type {
   QueryPerfReport,
   Logger,
 } from "@vivantel/virage-core";
+import { rrfMerge } from "@vivantel/virage-core";
 import { Field, FixedSizeList, Float32, Schema, Utf8 } from "apache-arrow";
 import { getIndexStats } from "./stats.js";
 import { getQueryPerfReport } from "./query-perf.js";
@@ -36,6 +37,7 @@ export class LanceDBVectorStore implements VectorStore {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private metaTable: any;
   private logger: Logger | null = null;
+  private ftsIndexCreated = false;
 
   constructor(options: LanceDBVectorStoreOptions) {
     if (!options.uri) {
@@ -115,6 +117,16 @@ export class LanceDBVectorStore implements VectorStore {
       this.table = await this.db.createEmptyTable(this.tableName, schema);
     }
     this.logger?.debug(`Table "${this.tableName}" ready (${this.dimensions}d)`);
+
+    // Create FTS index for hybrid search (idempotent — silently skipped if exists)
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await (this.table as any).createFtsIndex(["content"], { replace: false });
+      this.ftsIndexCreated = true;
+      this.logger?.debug("FTS index created on 'content'");
+    } catch {
+      this.ftsIndexCreated = false;
+    };
 
     const metaSchema = new Schema([
       new Field("key", new Utf8()),
@@ -200,44 +212,8 @@ export class LanceDBVectorStore implements VectorStore {
     return getQueryPerfReport(this.table, this.dimensions, timeframeHours);
   }
 
-  async search(
-    queryEmbedding: number[],
-    topK: number,
-    _collection?: string,
-    options?: SearchOptions,
-  ): Promise<VectorSearchResult[]> {
-    const filter = options?.filter;
-    // Fetch extra rows when a post-filter is applied so we can still return topK after filtering.
-    const fetchLimit = filter ? topK * 4 : topK;
-    this.logger?.debug(
-      `Search: topK=${topK} fetchLimit=${fetchLimit} filter=${JSON.stringify(filter ?? null)}`,
-    );
-    let rows: unknown[];
-    try {
-      rows = await this.table
-        .vectorSearch(queryEmbedding)
-        .column("embedding")
-        .distanceType("cosine")
-        .limit(fetchLimit)
-        .toArray();
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      if (
-        msg.includes("query dim") ||
-        msg.includes("doesn't match the column embedding vector dim")
-      ) {
-        throw new Error(
-          `Embedder mismatch: the stored index was built with a different embedding model (query is ${queryEmbedding.length}d but index vectors are larger). ` +
-            `Run "virage index --force" to rebuild the index with the current embedder.`,
-          { cause: err },
-        );
-      }
-      throw err;
-    }
-
-    const results: VectorSearchResult[] = (
-      rows as Record<string, unknown>[]
-    ).map((row) => {
+  private rowsToResults(rows: unknown[]): VectorSearchResult[] {
+    return (rows as Record<string, unknown>[]).map((row) => {
       const distance = typeof row._distance === "number" ? row._distance : 1;
       const metadata = (() => {
         try {
@@ -261,6 +237,111 @@ export class LanceDBVectorStore implements VectorStore {
           typeof row.source_file === "string" ? row.source_file : undefined,
       };
     });
+  }
+
+  private async vectorSearchInternal(
+    queryEmbedding: number[],
+    fetchLimit: number,
+  ): Promise<VectorSearchResult[]> {
+    try {
+      const rows = await this.table
+        .vectorSearch(queryEmbedding)
+        .column("embedding")
+        .distanceType("cosine")
+        .limit(fetchLimit)
+        .toArray();
+      return this.rowsToResults(rows);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (
+        msg.includes("query dim") ||
+        msg.includes("doesn't match the column embedding vector dim")
+      ) {
+        throw new Error(
+          `Embedder mismatch: the stored index was built with a different embedding model (query is ${queryEmbedding.length}d but index vectors are larger). ` +
+            `Run "virage index --force" to rebuild the index with the current embedder.`,
+          { cause: err },
+        );
+      }
+      throw err;
+    }
+  }
+
+  private async ftsSearchInternal(
+    queryText: string,
+    fetchLimit: number,
+  ): Promise<VectorSearchResult[]> {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const rows = await (this.table as any)
+        .search(queryText)
+        .queryType("fts")
+        .limit(fetchLimit)
+        .toArray();
+      return (rows as Record<string, unknown>[]).map((row) => ({
+        id: typeof row.id === "string" ? row.id : "",
+        content: typeof row.content === "string" ? row.content : "",
+        metadata: (() => {
+          try {
+            const p: unknown =
+              typeof row.metadata_json === "string"
+                ? JSON.parse(row.metadata_json)
+                : {};
+            return p && typeof p === "object" && !Array.isArray(p)
+              ? (p as Record<string, unknown>)
+              : {};
+          } catch {
+            return {};
+          }
+        })(),
+        similarity: typeof row._score === "number" ? row._score : 0,
+        sourceFile:
+          typeof row.source_file === "string" ? row.source_file : undefined,
+      }));
+    } catch {
+      return [];
+    }
+  }
+
+  async search(
+    queryEmbedding: number[],
+    topK: number,
+    _collection?: string,
+    options?: SearchOptions,
+  ): Promise<VectorSearchResult[]> {
+    const filter = options?.filter;
+    const useHybrid =
+      options?.hybrid === true &&
+      this.ftsIndexCreated &&
+      options.queryText;
+
+    if (useHybrid) {
+      const fetchLimit = topK * 2;
+      this.logger?.debug(`Hybrid search: topK=${topK}`);
+      const [vectorResults, ftsResults] = await Promise.all([
+        this.vectorSearchInternal(queryEmbedding, fetchLimit),
+        this.ftsSearchInternal(options!.queryText!, fetchLimit),
+      ]);
+      let merged = rrfMerge(
+        vectorResults,
+        ftsResults,
+        topK,
+        options?.hybridAlpha ?? 0.6,
+      );
+      if (filter) {
+        merged = merged.filter((r) =>
+          Object.entries(filter).every(([k, v]) => r.metadata[k] === v),
+        );
+      }
+      return merged.slice(0, topK);
+    }
+
+    // Pure vector search path (original)
+    const fetchLimit = filter ? topK * 4 : topK;
+    this.logger?.debug(
+      `Search: topK=${topK} fetchLimit=${fetchLimit} filter=${JSON.stringify(filter ?? null)}`,
+    );
+    const results = await this.vectorSearchInternal(queryEmbedding, fetchLimit);
 
     if (!filter) return results;
 

@@ -6,6 +6,7 @@ import type {
   QueryPerfReport,
   Logger,
 } from "@vivantel/virage-core";
+import { rrfMerge } from "@vivantel/virage-core";
 import pg from "pg";
 import pgvector from "pgvector/pg";
 import { getIndexStats } from "./stats.js";
@@ -102,6 +103,16 @@ export class PostgresVectorStore implements VectorStore {
         ALTER TABLE ${this.table}
         ADD COLUMN IF NOT EXISTS ingested_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
       `);
+      // FTS column for hybrid search — generated, always up-to-date
+      await client.query(`
+        ALTER TABLE ${this.table}
+        ADD COLUMN IF NOT EXISTS content_tsv tsvector
+          GENERATED ALWAYS AS (to_tsvector('english', content)) STORED
+      `);
+      await client.query(`
+        CREATE INDEX IF NOT EXISTS ${this.table}_tsv_idx
+        ON ${this.table} USING gin(content_tsv)
+      `);
       await client.query(this.buildIndexSQL());
       this.logger?.debug(
         `Index type: ${this.indexType}, params: ${JSON.stringify(this.indexParams)}`,
@@ -196,46 +207,103 @@ export class PostgresVectorStore implements VectorStore {
   ): Promise<VectorSearchResult[]> {
     const alpha = options?.alpha ?? 0.85;
     const beta = options?.beta ?? 0.15;
-    this.logger?.debug(`Search: topK=${topK}, alpha=${alpha}, beta=${beta}`);
+    const useHybrid = options?.hybrid === true && options.queryText;
+    this.logger?.debug(
+      `Search: topK=${topK}, alpha=${alpha}, beta=${beta}, hybrid=${useHybrid ?? false}`,
+    );
     const client = await this.pool.connect();
     try {
       await pgvector.registerTypes(client);
-      const { rows } = await client.query<{
-        id: number;
-        content: string;
-        metadata: Record<string, unknown>;
-        source_file: string;
-        similarity: number;
-        ingested_at: Date | null;
-      }>(
-        `SELECT id, content, metadata, source_file,
-                1 - (embedding <=> $1) AS similarity,
-                ingested_at
-         FROM ${this.table}
-         ORDER BY embedding <=> $1
-         LIMIT $2`,
-        [pgvector.toSql(embedding), topK * 2],
-      );
-      const now = Date.now();
-      const results = rows.map((r) => {
-        const ingestedAt = r.ingested_at ?? null;
-        const recencyScore = ingestedAt
-          ? Math.exp(-(now - ingestedAt.getTime()) / (1000 * 60 * 60 * 24 * 30))
-          : 0;
-        return {
-          id: String(r.id),
-          content: r.content,
-          metadata: r.metadata,
-          sourceFile: r.source_file,
-          similarity: r.similarity,
-          ingestedAt: ingestedAt ?? undefined,
-          _composite: r.similarity * alpha + recencyScore * beta,
-        };
-      });
-      return results
+      const fetchLimit = topK * 2;
+
+      const runVectorQuery = async () => {
+        const { rows } = await client.query<{
+          id: number;
+          content: string;
+          metadata: Record<string, unknown>;
+          source_file: string;
+          similarity: number;
+          ingested_at: Date | null;
+        }>(
+          `SELECT id, content, metadata, source_file,
+                  1 - (embedding <=> $1) AS similarity,
+                  ingested_at
+           FROM ${this.table}
+           ORDER BY embedding <=> $1
+           LIMIT $2`,
+          [pgvector.toSql(embedding), fetchLimit],
+        );
+        const now = Date.now();
+        return rows.map((r) => {
+          const ingestedAt = r.ingested_at ?? null;
+          const recencyScore = ingestedAt
+            ? Math.exp(
+                -(now - ingestedAt.getTime()) / (1000 * 60 * 60 * 24 * 30),
+              )
+            : 0;
+          return {
+            id: String(r.id),
+            content: r.content,
+            metadata: r.metadata,
+            sourceFile: r.source_file,
+            similarity: r.similarity,
+            ingestedAt: ingestedAt ?? undefined,
+            _composite: r.similarity * alpha + recencyScore * beta,
+          };
+        });
+      };
+
+      if (!useHybrid) {
+        const rows = await runVectorQuery();
+        return rows
+          .sort((a, b) => b._composite - a._composite)
+          .slice(0, topK)
+          .map(({ _composite: _, ...rest }) => rest);
+      }
+
+      const runFtsQuery = async (): Promise<VectorSearchResult[]> => {
+        try {
+          const { rows } = await client.query<{
+            id: number;
+            content: string;
+            metadata: Record<string, unknown>;
+            source_file: string;
+            fts_score: number;
+          }>(
+            `SELECT id, content, metadata, source_file,
+                    ts_rank_cd(content_tsv, query) AS fts_score
+             FROM ${this.table}, plainto_tsquery('english', $1) query
+             WHERE content_tsv @@ query
+             ORDER BY fts_score DESC
+             LIMIT $2`,
+            [options!.queryText!, fetchLimit],
+          );
+          return rows.map((r) => ({
+            id: String(r.id),
+            content: r.content,
+            metadata: r.metadata,
+            sourceFile: r.source_file,
+            similarity: r.fts_score,
+          }));
+        } catch {
+          return [];
+        }
+      };
+
+      const [vectorRaw, ftsResults] = await Promise.all([
+        runVectorQuery(),
+        runFtsQuery(),
+      ]);
+      const vectorResults: VectorSearchResult[] = vectorRaw
         .sort((a, b) => b._composite - a._composite)
-        .slice(0, topK)
         .map(({ _composite: _, ...rest }) => rest);
+
+      return rrfMerge(
+        vectorResults,
+        ftsResults,
+        topK,
+        options?.hybridAlpha ?? 0.6,
+      );
     } finally {
       client.release();
     }

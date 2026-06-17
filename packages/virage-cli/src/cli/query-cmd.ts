@@ -1,11 +1,14 @@
 import { loadConfig } from "@vivantel/virage-core";
-import type { VectorSearchResult } from "@vivantel/virage-core";
+import type { VectorSearchResult, SearchOptions } from "@vivantel/virage-core";
 
 export interface QueryOptions {
   config: string;
   topK: number;
   json: boolean;
   branch?: string;
+  hybrid?: boolean;
+  hybridAlpha?: number;
+  rerank?: boolean;
 }
 
 export async function runQuery(
@@ -21,12 +24,37 @@ export async function runQuery(
     ? { branch: opts.branch }
     : undefined;
 
-  const results: VectorSearchResult[] = await cfg.vectorStore.search(
+  const useHybrid = opts.hybrid ?? cfg.search?.hybrid ?? false;
+  const hybridAlpha = opts.hybridAlpha ?? cfg.search?.hybridAlpha;
+
+  const searchOptions: SearchOptions = {
+    ...(filter ? { filter } : {}),
+    ...(useHybrid ? { hybrid: true, hybridAlpha, queryText } : {}),
+  };
+
+  let results: VectorSearchResult[] = await cfg.vectorStore.search(
     queryEmbedding,
     opts.topK,
     undefined,
-    filter ? { filter } : undefined,
+    searchOptions,
   );
+
+  // Apply re-ranker from config, or bootstrap one if --rerank flag is set
+  let reranker = cfg.search?.reranker;
+  if (!reranker && opts.rerank) {
+    try {
+      const mod = await import("@vivantel/virage-reranker-cross-encoder");
+      reranker = mod.createReranker({});
+    } catch {
+      console.error(
+        'Install @vivantel/virage-reranker-cross-encoder to use --rerank:\n  npm install @vivantel/virage-reranker-cross-encoder',
+      );
+    }
+  }
+
+  if (reranker) {
+    results = await reranker.rerank(queryText, results, opts.topK);
+  }
 
   await cfg.vectorStore.close?.();
 
@@ -51,7 +79,7 @@ export async function runQuery(
     return;
   }
 
-  console.log(`\n🔍 Top ${results.length} result(s) for: "${queryText}"\n`);
+  console.log(`\nTop ${results.length} result(s) for: "${queryText}"\n`);
   console.log("─".repeat(60));
   for (let i = 0; i < results.length; i++) {
     const r = results[i];

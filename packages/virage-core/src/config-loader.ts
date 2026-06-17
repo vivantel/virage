@@ -13,6 +13,7 @@ import {
 import { createChunker } from "./helpers/create-chunker.js";
 import type { EmbeddingProvider } from "./interfaces/embedder.js";
 import type { VectorStore } from "./interfaces/vector-store.js";
+import type { Reranker } from "./interfaces/reranker.js";
 import type { Logger } from "./interfaces/logger.js";
 
 // ─── JSON config types ────────────────────────────────────────────────────────
@@ -30,6 +31,12 @@ interface JsonProviderConfig {
   config?: Record<string, unknown>;
 }
 
+interface JsonSearchConfig {
+  hybrid?: boolean;
+  hybridAlpha?: number;
+  reranker?: JsonProviderConfig;
+}
+
 interface JsonRagConfig {
   chunkers: JsonChunkerConfig[];
   embedder: JsonProviderConfig;
@@ -37,6 +44,7 @@ interface JsonRagConfig {
   agents?: string[];
   options?: RAGPipelineConfig["options"];
   telemetry?: TelemetryConfig;
+  search?: JsonSearchConfig;
 }
 
 // ─── JSON config loading ──────────────────────────────────────────────────────
@@ -85,7 +93,7 @@ function validateJsonConfig(raw: unknown): asserts raw is JsonRagConfig {
 
 async function resolveProvider<T>(
   spec: JsonProviderConfig,
-  factoryName: "createEmbedder" | "createVectorStore",
+  factoryName: "createEmbedder" | "createVectorStore" | "createReranker",
 ): Promise<T> {
   const expanded = expandEnvVars(spec.config ?? {}) as Record<string, unknown>;
 
@@ -181,12 +189,25 @@ async function loadJsonConfig(
     }
   }
 
+  let reranker: Reranker | undefined;
+  if (jsonConfig.search?.reranker) {
+    reranker = await resolveProvider<Reranker>(
+      jsonConfig.search.reranker,
+      "createReranker",
+    );
+  }
+
   return {
     chunkers,
     embedder,
     vectorStore,
     telemetry: jsonConfig.telemetry,
     options: jsonConfig.options,
+    search: {
+      hybrid: jsonConfig.search?.hybrid,
+      hybridAlpha: jsonConfig.search?.hybridAlpha,
+      reranker,
+    },
   };
 }
 

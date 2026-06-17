@@ -17,12 +17,18 @@ import { NullLogger } from "../logger/null-logger.js";
 import { RetryOptions } from "./utils.js";
 import { defaultVirageDb } from "./virage-defaults.js";
 import type { TelemetryConfig } from "../telemetry/types.js";
+import type { Reranker } from "../interfaces/reranker.js";
 
 export interface RAGPipelineConfig {
   chunkers: FileChunker[];
   embedder: EmbeddingProvider;
   vectorStore: VectorStore;
   telemetry?: TelemetryConfig;
+  search?: {
+    hybrid?: boolean;
+    hybridAlpha?: number;
+    reranker?: Reranker;
+  };
   options?: {
     /** @deprecated No longer used; chunks.json has been removed. */
     chunksFile?: string;
