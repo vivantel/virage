@@ -209,11 +209,17 @@ export async function runUpdate(): Promise<void> {
       ]);
       const cur = current ?? "unknown";
       const lat = latest ?? "unknown";
-      return { name, current: cur, latest: lat, outdated: cur !== lat };
+      return {
+        name,
+        current: cur,
+        latest: lat,
+        outdated: cur !== "unknown" && lat !== "unknown" && cur !== lat,
+      };
     }),
   );
 
   const outdated = statuses.filter((s) => s.outdated);
+  const unknownLatest = statuses.filter((s) => s.latest === "unknown");
 
   if (outdated.length === 0) {
     console.log("\nAll virage packages are up to date.\n");
@@ -221,6 +227,14 @@ export async function runUpdate(): Promise<void> {
     console.log(`\nFound ${outdated.length} outdated package(s):`);
     for (const s of outdated) {
       console.log(`  ${s.name}: ${s.current} → ${s.latest}`);
+    }
+  }
+  if (unknownLatest.length > 0) {
+    console.log(
+      `\nCould not fetch latest version for ${unknownLatest.length} package(s) (registry unreachable?):`,
+    );
+    for (const s of unknownLatest) {
+      console.log(`  ${s.name}: ${s.current}`);
     }
   }
 
@@ -235,7 +249,9 @@ export async function runUpdate(): Promise<void> {
     choices: statuses.map((s) => ({
       name: s.outdated
         ? `${s.name}  (${s.current} → ${s.latest})`
-        : `${s.name}  (${s.current}, up to date)`,
+        : s.latest === "unknown"
+          ? `${s.name}  (${s.current}, latest unknown)`
+          : `${s.name}  (${s.current}, up to date)`,
       value: s.name,
       checked: s.outdated,
     })),

@@ -1,0 +1,17 @@
+{
+  "name": "virage-telemetry-proxy",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Cloudflare Worker ingest proxy — forwards virage telemetry to Honeycomb",
+  "scripts": {
+    "build": "wrangler build --outdir dist",
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "type-check": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.0.0",
+    "typescript": "^6.0.3",
+    "wrangler": "^3.0.0"
+  }
+}

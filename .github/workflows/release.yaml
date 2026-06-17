@@ -36,6 +36,8 @@ jobs:
       virage-agent-copilot: ${{ steps.release.outputs['packages/virage-agent-copilot--release_created'] }}
       virage-agent-codex: ${{ steps.release.outputs['packages/virage-agent-codex--release_created'] }}
       virage-agent-antigravity: ${{ steps.release.outputs['packages/virage-agent-antigravity--release_created'] }}
+      virage-reranker-cross-encoder: ${{ steps.release.outputs['packages/virage-reranker-cross-encoder--release_created'] }}
+      virage-reranker-llm: ${{ steps.release.outputs['packages/virage-reranker-llm--release_created'] }}
     steps:
       - name: Run Release Please
         id: release
@@ -74,6 +76,8 @@ jobs:
           if [[ "${{ needs.release-please.outputs.virage-agent-copilot }}" == "true" ]]; then packages+=("virage-agent-copilot"); fi
           if [[ "${{ needs.release-please.outputs.virage-agent-codex }}" == "true" ]]; then packages+=("virage-agent-codex"); fi
           if [[ "${{ needs.release-please.outputs.virage-agent-antigravity }}" == "true" ]]; then packages+=("virage-agent-antigravity"); fi
+          if [[ "${{ needs.release-please.outputs.virage-reranker-cross-encoder }}" == "true" ]]; then packages+=("virage-reranker-cross-encoder"); fi
+          if [[ "${{ needs.release-please.outputs.virage-reranker-llm }}" == "true" ]]; then packages+=("virage-reranker-llm"); fi
           if [[ ${#packages[@]} -gt 0 ]]; then
             echo "packages=$(printf '%s\n' "${packages[@]}" | jq -R . | jq -sc .)" >> $GITHUB_OUTPUT
           else

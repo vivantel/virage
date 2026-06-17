@@ -175,6 +175,24 @@
       "bump-patch-for-minor-pre-major": true,
       "draft": false,
       "prerelease": false
+    },
+    "packages/virage-reranker-cross-encoder": {
+      "package-name": "@vivantel/virage-reranker-cross-encoder",
+      "changelog-path": "CHANGELOG.md",
+      "release-type": "node",
+      "bump-minor-pre-major": true,
+      "bump-patch-for-minor-pre-major": true,
+      "draft": false,
+      "prerelease": false
+    },
+    "packages/virage-reranker-llm": {
+      "package-name": "@vivantel/virage-reranker-llm",
+      "changelog-path": "CHANGELOG.md",
+      "release-type": "node",
+      "bump-minor-pre-major": true,
+      "bump-patch-for-minor-pre-major": true,
+      "draft": false,
+      "prerelease": false
     }
   },
   "plugins": [

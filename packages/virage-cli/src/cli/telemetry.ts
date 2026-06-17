@@ -144,23 +144,52 @@ export async function runTelemetryOff(opts: { tiers?: string }): Promise<void> {
   console.log("✅ Telemetry disabled.");
 }
 
+const COMMUNITY_ENDPOINT = "https://telemetry.virage.vivantel.dev/ingest";
+
 export async function runTelemetryInit(): Promise<void> {
   const cfg = await readConfig();
   const existing = getTelemetryConfig(cfg);
 
   console.log("\n🔧 Telemetry setup\n");
 
-  const endpoint = await input({
-    message: "Telemetry endpoint URL (leave blank for local-only):",
-    default: existing.endpoint ?? "",
+  const endpointChoice = await select({
+    message: "Telemetry endpoint:",
+    choices: [
+      {
+        name: `Virage community telemetry (${COMMUNITY_ENDPOINT})`,
+        value: "community",
+      },
+      { name: "Custom endpoint", value: "custom" },
+      { name: "Local-only (no transmission)", value: "none" },
+    ],
+    default:
+      existing.endpoint === COMMUNITY_ENDPOINT
+        ? "community"
+        : existing.endpoint
+          ? "custom"
+          : "none",
   });
 
+  let endpoint: string;
   let apiKey: string | undefined;
-  if (endpoint.trim()) {
-    apiKey = await input({
-      message: "API key (or $ENV_VAR name, leave blank for none):",
-      default: existing.api_key ?? "",
+
+  if (endpointChoice === "community") {
+    endpoint = COMMUNITY_ENDPOINT;
+    apiKey = undefined;
+  } else if (endpointChoice === "custom") {
+    endpoint = await input({
+      message: "Telemetry endpoint URL:",
+      default: existing.endpoint ?? "",
     });
+    if (endpoint.trim()) {
+      apiKey = await input({
+        message: "API key (or $ENV_VAR name, leave blank for none):",
+        default: existing.api_key ?? "",
+      });
+    }
+  } else {
+    endpoint = "";
+    apiKey = undefined;
   }
 
   const enableTier2 = await confirm({

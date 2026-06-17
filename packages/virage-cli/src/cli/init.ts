@@ -17,6 +17,15 @@ import {
   runInstall,
 } from "./pkg-manager.js";
 
+// ─── Known agent plugins (always shown, regardless of what's installed) ──────
+
+const KNOWN_AGENTS = [
+  { name: "claude-code", label: "Claude Code" },
+  { name: "copilot", label: "GitHub Copilot" },
+  { name: "codex", label: "OpenAI Codex" },
+  { name: "antigravity", label: "Antigravity" },
+];
+
 // ─── Back-navigation support ──────────────────────────────────────────────────
 
 const BACK_VALUE = "__back__";
@@ -349,14 +358,19 @@ export async function runInit(): Promise<void> {
 
       // ── Step 2: coding agents ──
       case 2: {
-        const pluginChoices =
-          discoveredAgentPlugins.length > 0
-            ? discoveredAgentPlugins.map((p) => ({
-                name: p.label,
-                value: p.name,
-                checked: p.name === "claude-code",
-              }))
-            : [{ name: "Claude Code", value: "claude-code", checked: true }];
+        const discoveredMap = new Map(
+          discoveredAgentPlugins.map((p) => [p.name, p]),
+        );
+        const pluginChoices = [
+          ...KNOWN_AGENTS.map((a) => ({
+            name: discoveredMap.get(a.name)?.label ?? a.label,
+            value: a.name,
+            checked: a.name === "claude-code",
+          })),
+          ...discoveredAgentPlugins
+            .filter((p) => !KNOWN_AGENTS.some((a) => a.name === p.name))
+            .map((p) => ({ name: p.label, value: p.name, checked: false })),
+        ];
 
         const agentChoices = await checkbox({
           message: "Select coding agents to integrate:",
@@ -371,6 +385,7 @@ export async function runInit(): Promise<void> {
       case 3: {
         const choice = await select({
           message: "Which embedding provider?",
+          default: "transformers",
           choices: withBack(
             registry.embedders.map((e) => ({ name: e.label, value: e.key })),
           ),
@@ -388,6 +403,7 @@ export async function runInit(): Promise<void> {
       case 4: {
         const choice = await select({
           message: "Which vector store?",
+          default: "lancedb",
           choices: withBack(
             registry.stores.map((s) => ({ name: s.label, value: s.key })),
           ),
