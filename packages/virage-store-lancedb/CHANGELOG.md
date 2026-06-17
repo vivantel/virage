@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.2.30](https://github.com/vivantel/virage/compare/virage-store-lancedb@v0.2.29...virage-store-lancedb@v0.2.30) (2026-06-17)
+
+
+### Bug Fixes
+
+* Apply prettier and eslint formatting to new files ([87d882e](https://github.com/vivantel/virage/commit/87d882ec7661dcfcf7e570b067cbd6bc28d661e3))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * devDependencies
+    * @vivantel/virage-core bumped from 0.2.27 to 0.2.28
+  * peerDependencies
+    * @vivantel/virage-core bumped from * to 0.2.28
+
 ## [0.2.29](https://github.com/vivantel/virage/compare/virage-store-lancedb@v0.2.28...virage-store-lancedb@v0.2.29) (2026-06-17)
 
 
