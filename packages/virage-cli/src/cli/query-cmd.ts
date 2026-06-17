@@ -1,5 +1,9 @@
 import { loadConfig } from "@vivantel/virage-core";
-import type { VectorSearchResult, SearchOptions } from "@vivantel/virage-core";
+import type {
+  VectorSearchResult,
+  SearchOptions,
+  Reranker,
+} from "@vivantel/virage-core";
 
 export interface QueryOptions {
   config: string;
@@ -43,7 +47,10 @@ export async function runQuery(
   let reranker = cfg.search?.reranker;
   if (!reranker && opts.rerank) {
     try {
-      const mod = await import("@vivantel/virage-reranker-cross-encoder");
+      const pkg = "@vivantel/virage-reranker-cross-encoder";
+      const mod = (await import(pkg)) as {
+        createReranker: (c: Record<string, unknown>) => Reranker;
+      };
       reranker = mod.createReranker({});
     } catch {
       console.error(
