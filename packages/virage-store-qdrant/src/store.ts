@@ -210,7 +210,11 @@ export class QdrantVectorStore implements VectorStore {
 
       const vectorMapped = vectorResults.map((r) => this.payloadToResult(r));
       const textMapped = textResults.points.map((p, i) =>
-        this.payloadToResult({ id: p.id, score: 1 / (i + 1), payload: p.payload as Record<string, unknown> | null }),
+        this.payloadToResult({
+          id: p.id,
+          score: 1 / (i + 1),
+          payload: p.payload as Record<string, unknown> | null,
+        }),
       );
 
       return rrfMerge(

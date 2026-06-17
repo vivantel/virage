@@ -1141,9 +1141,7 @@ export class VirageDb {
 
   getRecentSearchQueries(limit = 50): SearchQueryRow[] {
     return this.db
-      .prepare(
-        "SELECT * FROM search_queries ORDER BY occurred_at DESC LIMIT ?",
-      )
+      .prepare("SELECT * FROM search_queries ORDER BY occurred_at DESC LIMIT ?")
       .all(limit) as SearchQueryRow[];
   }
 
@@ -1159,10 +1157,7 @@ export class VirageDb {
       .all(limit) as { query_text: string; count: number }[];
   }
 
-  getZeroResultQueries(
-    threshold = 0.5,
-    limit = 50,
-  ): SearchQueryRow[] {
+  getZeroResultQueries(threshold = 0.5, limit = 50): SearchQueryRow[] {
     return this.db
       .prepare(
         `SELECT * FROM search_queries
@@ -1220,8 +1215,7 @@ export class VirageDb {
       queriesLastHour: lastHour,
       queriesLast24h: last24h,
       avgTopSimilarity: avgRow.avg ?? 0,
-      zeroResultRate:
-        totalRow.cnt > 0 ? emptyRow.cnt / totalRow.cnt : 0,
+      zeroResultRate: totalRow.cnt > 0 ? emptyRow.cnt / totalRow.cnt : 0,
     };
   }
 

@@ -709,9 +709,10 @@ export async function runDashboard(opts: DashboardOptions): Promise<void> {
       res.status(503).json({ error: "No active project" });
       return;
     }
-    const limit = typeof req.query.limit === "string"
-      ? Math.min(parseInt(req.query.limit, 10) || 50, 200)
-      : 50;
+    const limit =
+      typeof req.query.limit === "string"
+        ? Math.min(parseInt(req.query.limit, 10) || 50, 200)
+        : 50;
     const db = new VirageDb(active.virageDb);
     try {
       const queries = db.getRecentSearchQueries(limit);
@@ -729,9 +730,10 @@ export async function runDashboard(opts: DashboardOptions): Promise<void> {
       res.status(503).json({ error: "No active project" });
       return;
     }
-    const limit = typeof req.query.limit === "string"
-      ? Math.min(parseInt(req.query.limit, 10) || 20, 100)
-      : 20;
+    const limit =
+      typeof req.query.limit === "string"
+        ? Math.min(parseInt(req.query.limit, 10) || 20, 100)
+        : 20;
     const db = new VirageDb(active.virageDb);
     try {
       const terms = db.getTopSearchTerms(limit);
@@ -749,12 +751,14 @@ export async function runDashboard(opts: DashboardOptions): Promise<void> {
       res.status(503).json({ error: "No active project" });
       return;
     }
-    const threshold = typeof req.query.threshold === "string"
-      ? parseFloat(req.query.threshold) || 0.5
-      : 0.5;
-    const limit = typeof req.query.limit === "string"
-      ? Math.min(parseInt(req.query.limit, 10) || 50, 200)
-      : 50;
+    const threshold =
+      typeof req.query.threshold === "string"
+        ? parseFloat(req.query.threshold) || 0.5
+        : 0.5;
+    const limit =
+      typeof req.query.limit === "string"
+        ? Math.min(parseInt(req.query.limit, 10) || 50, 200)
+        : 50;
     const db = new VirageDb(active.virageDb);
     try {
       const queries = db.getZeroResultQueries(threshold, limit);
@@ -789,9 +793,10 @@ export async function runDashboard(opts: DashboardOptions): Promise<void> {
       res.status(503).json({ error: "No active project" });
       return;
     }
-    const hours = typeof req.query.hours === "string"
-      ? Math.min(parseInt(req.query.hours, 10) || 24, 168)
-      : 24;
+    const hours =
+      typeof req.query.hours === "string"
+        ? Math.min(parseInt(req.query.hours, 10) || 24, 168)
+        : 24;
     const db = new VirageDb(active.virageDb);
     try {
       const buckets = db.getQueriesPerHour(hours);

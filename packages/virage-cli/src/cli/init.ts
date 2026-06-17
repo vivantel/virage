@@ -422,9 +422,7 @@ export async function runInit(): Promise<void> {
           break;
         }
         state.reranker =
-          choice === "none"
-            ? undefined
-            : (choice as "cross-encoder" | "llm");
+          choice === "none" ? undefined : (choice as "cross-encoder" | "llm");
         step++;
         break;
       }

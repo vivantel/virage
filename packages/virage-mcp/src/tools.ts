@@ -38,10 +38,8 @@ export async function handleSearch(
   const embedding = await ctx.embedder.embed(args.query);
   const embedMs = Date.now() - t0;
 
-  const useHybrid =
-    args.hybrid ?? ctx.searchConfig?.hybrid ?? false;
-  const hybridAlpha =
-    args.hybrid_alpha ?? ctx.searchConfig?.hybridAlpha;
+  const useHybrid = args.hybrid ?? ctx.searchConfig?.hybrid ?? false;
+  const hybridAlpha = args.hybrid_alpha ?? ctx.searchConfig?.hybridAlpha;
 
   const t1 = Date.now();
   let results = await ctx.vectorStore.search(

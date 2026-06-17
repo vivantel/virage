@@ -18,13 +18,19 @@ export function rrfMerge(
 
   for (let i = 0; i < vectorResults.length; i++) {
     const r = vectorResults[i];
-    scores.set(r.id, (scores.get(r.id) ?? 0) + hybridAlpha * (1 / (RRF_K + i + 1)));
+    scores.set(
+      r.id,
+      (scores.get(r.id) ?? 0) + hybridAlpha * (1 / (RRF_K + i + 1)),
+    );
     byId.set(r.id, r);
   }
 
   for (let i = 0; i < bm25Results.length; i++) {
     const r = bm25Results[i];
-    scores.set(r.id, (scores.get(r.id) ?? 0) + (1 - hybridAlpha) * (1 / (RRF_K + i + 1)));
+    scores.set(
+      r.id,
+      (scores.get(r.id) ?? 0) + (1 - hybridAlpha) * (1 / (RRF_K + i + 1)),
+    );
     if (!byId.has(r.id)) byId.set(r.id, r);
   }
 

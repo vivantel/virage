@@ -126,7 +126,7 @@ export class LanceDBVectorStore implements VectorStore {
       this.logger?.debug("FTS index created on 'content'");
     } catch {
       this.ftsIndexCreated = false;
-    };
+    }
 
     const metaSchema = new Schema([
       new Field("key", new Utf8()),
@@ -311,9 +311,7 @@ export class LanceDBVectorStore implements VectorStore {
   ): Promise<VectorSearchResult[]> {
     const filter = options?.filter;
     const useHybrid =
-      options?.hybrid === true &&
-      this.ftsIndexCreated &&
-      options.queryText;
+      options?.hybrid === true && this.ftsIndexCreated && options.queryText;
 
     if (useHybrid) {
       const fetchLimit = topK * 2;

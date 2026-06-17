@@ -664,7 +664,11 @@ program
   )
   .option("--branch <name>", "Filter results to a specific git branch")
   .option("--json", "Output results as JSON", false)
-  .option("--hybrid", "Enable BM25 + vector hybrid search (overrides config)", false)
+  .option(
+    "--hybrid",
+    "Enable BM25 + vector hybrid search (overrides config)",
+    false,
+  )
   .option(
     "--hybrid-alpha <number>",
     "Hybrid blend: 0 = pure BM25, 1 = pure vector (default: 0.6)",

@@ -47,7 +47,7 @@ export async function runQuery(
       reranker = mod.createReranker({});
     } catch {
       console.error(
-        'Install @vivantel/virage-reranker-cross-encoder to use --rerank:\n  npm install @vivantel/virage-reranker-cross-encoder',
+        "Install @vivantel/virage-reranker-cross-encoder to use --rerank:\n  npm install @vivantel/virage-reranker-cross-encoder",
       );
     }
   }

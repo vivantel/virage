@@ -51,7 +51,10 @@ export class LlmReranker implements Reranker {
         messages: [
           {
             role: "user",
-            content: RANK_PROMPT(query, candidates.map((c) => c.content)),
+            content: RANK_PROMPT(
+              query,
+              candidates.map((c) => c.content),
+            ),
           },
         ],
       });

@@ -38,7 +38,10 @@ export class CrossEncoderReranker implements Reranker {
     const k = topK ?? this.defaultTopK;
 
     const pipe = await this.getPipeline();
-    const inputs = candidates.map((c) => ({ text: query, text_pair: c.content }));
+    const inputs = candidates.map((c) => ({
+      text: query,
+      text_pair: c.content,
+    }));
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const outputs: any[] = await pipe(inputs, { top_k: null });
 

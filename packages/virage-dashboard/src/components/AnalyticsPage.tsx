@@ -7,13 +7,7 @@ import {
   type QueriesPerHour,
 } from "../api/client";
 
-function StatCard({
-  label,
-  value,
-}: {
-  label: string;
-  value: string | number;
-}) {
+function StatCard({ label, value }: { label: string; value: string | number }) {
   return (
     <div className="stat-card">
       <div className="stat-value">{value}</div>
@@ -78,7 +72,14 @@ export function AnalyticsPage() {
 
   return (
     <div>
-      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20 }}>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 12,
+          marginBottom: 20,
+        }}
+      >
         <h2 style={{ margin: 0 }}>Search Activity</h2>
         <button onClick={() => void load()} style={{ marginLeft: "auto" }}>
           Refresh
@@ -182,12 +183,21 @@ export function AnalyticsPage() {
             <tbody>
               {zeroResults.map((q) => (
                 <tr key={q.id}>
-                  <td style={{ maxWidth: 320, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  <td
+                    style={{
+                      maxWidth: 320,
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
                     {q.query_text}
                   </td>
                   <td>{q.result_count}</td>
                   <td>{fmt(q.top_similarity)}</td>
-                  <td style={{ whiteSpace: "nowrap" }}>{relTime(q.occurred_at)}</td>
+                  <td style={{ whiteSpace: "nowrap" }}>
+                    {relTime(q.occurred_at)}
+                  </td>
                   <td>{q.hybrid_used ? "yes" : "no"}</td>
                 </tr>
               ))}
