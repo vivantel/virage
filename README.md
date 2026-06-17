@@ -187,6 +187,30 @@ Launch the web monitoring UI to inspect chunk distribution, embedding anomalies,
 npx virage dashboard
 ```
 
+## Use cases
+
+See [docs/USE_CASES.md](docs/USE_CASES.md) for detailed scenarios:
+
+- Onboarding new engineers with instant codebase search
+- AI code review with full codebase context, not just the diff
+- Keeping docs in sync with code via post-commit hooks
+- Zero-cost local RAG for private or air-gapped codebases
+- Multi-strategy indexing for mixed-content monorepos
+- Measuring retrieval quality before and after config changes
+- Cost-bounded CI indexing — only changed files are re-embedded
+- Sharing project knowledge across Claude Code, Copilot, and Codex simultaneously
+
+## Roadmap
+
+See [docs/ROADMAP.md](docs/ROADMAP.md) for planned features, an honest assessment of current gaps, and evaluation targets. Highlights:
+
+- **Hybrid search** (BM25 + vector fusion) — the highest-impact retrieval improvement not yet shipped
+- **Cross-file import graph indexing** — so agents can follow call chains, not just file contents
+- **Re-ranking layer** — cross-encoder or LLM-based, for when top-K precision matters more than latency
+- **Cost estimator** (`virage estimate`) — projected token count and API cost before any embedding call
+- **PR diff mode** — index only the files changed in a pull request, in an isolated namespace
+- **Query analytics dashboard** — track what's being searched and which chunks are actually useful
+
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for setup instructions, commit conventions, and how to open a PR.

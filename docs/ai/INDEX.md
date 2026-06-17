@@ -95,6 +95,16 @@ virage install-hooks                   # install post-merge & post-checkout git 
 
 ---
 
+## Key reference docs
+
+| Doc | Purpose |
+|-----|---------|
+| `docs/USE_CASES.md` | Concrete end-to-end scenarios with commands and measurable outcomes |
+| `docs/ROADMAP.md` | Critical gap analysis + planned features with rationale and eval targets |
+| `docs/ADR.md` | Architecture decision records (read before proposing structural changes) |
+
+---
+
 ## Memory pointers
 
 | Slug                            | Tracks                                          |

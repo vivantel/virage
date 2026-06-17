@@ -1,228 +1,376 @@
-# Roadmap: @vivantel/virage-core
+# Virage Roadmap
 
-## Current Status
-
-- **Current version:** 1.1.2
-- **State:** Core interfaces + GitTracker + Orchestrator + CLI working
-- **Provenance:** Fixed with `repository.url`
-- **Release automation:** Working (release-please + trusted publisher)
+> Last updated: 2026-06-17. This document reflects the full ecosystem — `virage-core`, CLI, MCP, dashboard, chunkers, embedders, stores, agent plugins.
 
 ---
 
-## Recently Released
+## What ships today — honest assessment
 
-| Feature | Description |
-| ------- | ----------- |
-| **`virage init` wizard** | Interactive wizard: file types, agent plugins, embedder, vector store, confirmation step |
-| **`virage update` command** | Discover outdated virage ecosystem packages, install `@latest`, re-configure plugins, re-sync skills |
-| **Static-file copier plugins (ADR-026)** | Agent plugins ship hand-authored `plugin-config/` files; `BaseAgentPlugin.configure()` copies them idempotently |
-| **`/plan` slash command** | Available in Claude Code (`.claude/commands/`) and Copilot (`.github/copilot/instructions/`) after `virage init` |
-| **`agents` in config schema** | `virage.config.json` stores selected agent plugin names from init |
+Virage has a genuinely strong foundation. Before adding features, it's worth being precise about where the real value is:
 
----
+**Solid strengths**
 
-## Version 1.2.0 — Enhanced Developer Experience
+| Capability | Why it matters |
+|---|---|
+| **Git-aware incremental indexing** | Commit-hash change detection means only modified files flow through the pipeline. For a 5,000-file TS repo, a one-file edit costs one embedding call instead of thousands. This is the single biggest cost-saver in the category. |
+| **Dual-layer change detection** | File-level git hash + chunk-level SHA-256 content hash. A changed file that produces unchanged chunks (e.g. only a comment moved) skips re-embedding entirely. |
+| **AST-aware code chunking** | Splitting at function/class boundaries with scope-chain metadata produces dramatically more coherent embeddings than character or token splitting. A chunk that begins mid-function is almost always noise. |
+| **Pluggable-everything architecture** | Clean `FileChunker`, `EmbeddingProvider`, `VectorStore` interfaces. Swap embedders or stores without touching the pipeline. This is the right abstraction. |
+| **Local-first option** | LanceDB (file-based) + FastEmbed/Transformers (no API key) = zero infrastructure, zero ongoing cost, suitable for private codebases. |
+| **MCP integration** | Exposing the knowledge base via Model Context Protocol is the correct integration point for AI tools. Read-only by design. |
+| **Evaluation infrastructure** | `virage evaluate`, experiment tracking with bootstrap significance testing, RAGAS metrics — this is more mature than most comparable tools. |
+| **Skills system** | Summary-then-full loading pattern keeps token overhead under 150 tokens until the agent commits to a skill. |
 
-**Focus:** Making it easier to write custom chunkers and providers.
+**Real weaknesses (not complaints — gaps with known fixes)**
 
-### Features
-
-| Feature                    | Description                            | Priority |
-| -------------------------- | -------------------------------------- | -------- |
-| **CLI `init` command**     | Generate `virage.config.json` config   | P0 ✅    |
-| **CLI `validate` command** | Validate config without running        | P0       |
-| **Better error messages**  | Human-readable errors with suggestions | P0       |
-| **Dry-run mode**           | `--dry-run` shows what would change    | P1       |
-| **Progress bar**           | Visual feedback during long operations | P1       |
-| **TypeScript examples**    | More examples in docs                  | P1       |
-
-### Breaking Changes
-
-- None (minor version)
-
-### Migration Effort
-
-- None — fully backward compatible
-
-### Estimated Delivery
-
-- 2 weeks
+| Gap | Impact | Why it's not just a nice-to-have |
+|---|---|---|
+| **No hybrid search** | High | Pure vector search misses exact-match queries ("what does `parseConfig` do?"). Pure BM25 misses paraphrased queries. Reciprocal Rank Fusion of both typically improves MRR by 10–25% without model changes. |
+| **No re-ranking** | High | Top-K from ANN is noisy. A cross-encoder pass over the top-20 candidates to return the top-5 reduces false positives significantly, especially for long chunks with uneven quality. |
+| **No cross-file graph** | High (for code RAG) | The code chunker knows scope within a file, but doesn't know that `OrderService.ts` calls `PaymentService.ts`. A query about "how is payment processed" needs cross-file context to return the right chunks. |
+| **No query analytics** | Medium | Without knowing what searches are being run and which return useful results, tuning is guesswork. |
+| **No semantic deduplication** | Medium | If you have similar docs copied across packages, you waste embedding budget and dilute retrieval — both copies compete for the same slot. |
+| **No cost estimation** | Medium | Users running against OpenAI's embedding API have no upfront signal about how much a full re-index will cost. Surprises here erode trust. |
+| **Dashboard is too thin** | Medium | Chunk histogram + anomaly flags is a starting point. A dashboard that doesn't show what's actually being retrieved is of limited use in practice. |
+| **No freshness weighting** | Low–Medium | All chunks are equal regardless of whether the file was touched yesterday or two years ago. For actively developed codebases, recently changed code is often more relevant to a query about current behavior. |
 
 ---
 
-## Version 1.2.1 — Token Efficiency, Generation Quality & Automatic Skill Routing
+## Shipped (no longer roadmap items)
 
-**Focus:** Reduce token overhead in skill loading, improve RAG result quality, and eliminate manual skill-selection friction for common developer workflows.
+These appear in earlier roadmap drafts but are already in the codebase:
 
-### Features
-
-| Feature | Description | Priority |
-| ------- | ----------- | -------- |
-| **Structured skill frontmatter (ADR-027)** | `list_skills` returns `SkillMeta[]` with `when_to_use`, `estimated_tokens`, `output_format` | P0 |
-| **Skill summary layer** | `read_skill_summary` tool + `SKILL.summary.md` files for all 12 skills | P0 |
-| **`suggest_skill` MCP tool** | Keyword-based skill routing — returns best-match skill(s) for a task | P0 |
-| **Slash command aliases** | `/arch`, `/doc`, `/review`, `/rag` installed by `virage init` | P0 |
-| **Intent detection hook** | `UserPromptSubmit` hook auto-suggests matching skill (≤150 token overhead) | P1 |
-| **FS interception hook** | `PreToolUse` hook on Bash suggests `virage search` for `grep -r` / `find .` patterns | P1 |
-| **Recency-weighted search** | Composite score = `similarity × α + recency × β`; configurable weights | P0 |
-| **Ecosystem eval suite** | `virage evaluate --suite ecosystem` — RAGAS + precision@5/recall@5/MRR + skill-routing accuracy | P1 |
-
-### Breaking Changes
-
-- `list_skills` response shape changes from `string[]` to `{ schema_version: 2, names: string[], skills: SkillMeta[] }` — backward compat via `names[]` field (ADR-027)
-- `VectorStore.search()` gains optional `options?: SearchOptions` parameter — fully additive, no implementation breakage
-
-### Estimated Delivery
-
-- 2 weeks
+- `virage init` interactive wizard
+- `virage update` command
+- Agent plugins for Claude Code, GitHub Copilot, OpenAI Codex, Google Antigravity
+- `/plan`, `/review`, `/rag`, `/doc`, `/arch`, `/usage`, `/index` slash commands
+- `virage-strategies` package (markdownHeaders, token, semantic, wholeFile)
+- `virage-code-chunk-chunker` (AST-aware, TS/JS/Py/Go/Java/Rust)
+- Evaluation suite (eval-generate, evaluate, RAGAS, experiment compare)
+- Telemetry (opt-in, buffered, preview/flush)
+- Dashboard (chunk histogram, anomalies, live stats)
+- `virage query` CLI command with `--json`/`--top-k`/`--branch`
+- `mcp__virage__suggest_skill`, `mcp__virage__read_skill_summary`, `mcp__virage__session_usage`
+- Structured skill frontmatter (`when_to_use`, `estimated_tokens`, `output_format`)
+- Recency-weighted search (`similarity × α + recency × β`)
+- `virage install-hooks` for post-merge/post-checkout auto-indexing
 
 ---
 
-## Version 1.3.0 — Production Hardening
+## Near-term (next 2–4 weeks)
 
-**Focus:** Reliability, retries, and production readiness.
+### 1. Hybrid search — BM25 + vector fusion
 
-### Features
+**The single highest-impact retrieval improvement available without changing embedders.**
 
-| Feature                         | Description                              | Priority |
-| ------------------------------- | ---------------------------------------- | -------- |
-| **Retry logic**                 | Exponential backoff for failed API calls | P0       |
-| **Parallel processing**         | Configurable concurrency for embeddings  | P0       |
-| **Resume capability**           | Continue interrupted pipeline            | P1       |
-| **Telemetry**                   | Optional usage metrics (opt-in)          | P2       |
-| **Slack/Webhook notifications** | Notify on completion/failure             | P2       |
+How it works: index each chunk's text in a BM25 index (per-store adapter) in addition to the vector store. At query time, compute vector similarity scores and BM25 scores independently, then merge via Reciprocal Rank Fusion (RRF). Return the fused top-K.
 
-### Technical Details
-
-**Retry configuration:**
-
-```typescript
-options: {
-  maxRetries: 3,
-  retryDelayMs: 1000,
-  retryBackoffFactor: 2
+```json
+{
+  "vectorStore": { "package": "@vivantel/virage-store-lancedb" },
+  "search": {
+    "hybrid": true,
+    "hybridAlpha": 0.6
+  }
 }
 ```
 
-**Parallel processing:**
+`hybridAlpha` controls the blend: 0 = pure BM25, 1 = pure vector, 0.6 is a typical starting point. Expose as `options.search.hybridAlpha` with a default of `0.6`.
 
-```typescript
-options: {
-  concurrency: 5; // parallel embedding requests
-}
-```
+**Implementation notes:**
+- LanceDB supports full-text search natively; adapter is minimal.
+- Postgres adapter uses `tsvector` + `tsquery` which already exists in pgvector setups.
+- Qdrant has sparse-vector support that maps cleanly to BM25.
+- ChromaDB: implement BM25 as a side-index in the adapter (or skip for now — it's the weakest store anyway).
 
-### Breaking Changes
-
-- None
-
-### Migration Effort
-
-- None
-
-### Estimated Delivery
-
-- 3 weeks
+**Evaluation:** add `hybrid_search` experiment group to `virage evaluate`. Expect MRR improvement of 10–25% on mixed exact/semantic query sets.
 
 ---
 
-## Version 2.0.0 — Plugin Ecosystem
+### 2. Cross-file import graph indexing
 
-**Focus:** Major refactor for better extensibility and separate provider packages.
+**For code RAG, file-level chunking without relationship context is incomplete.**
 
-### Features
+The code chunker already extracts scope chains within a file. The next step is to parse `import` / `require` / `use` / `from` statements and build a lightweight directed graph: `file A → [file B, file C]`.
 
-| Feature                        | Description                                  | Priority |
-| ------------------------------ | -------------------------------------------- | -------- |
-| **Separate provider packages** | Move embedders/vector stores to own packages | P0       |
-| **Plugin discovery**           | Auto-detect installed providers              | P0       |
-| **Configuration schema**       | JSON Schema for `virage.config.json`         | P1       |
-| **Hot reload**                 | Watch mode for config changes                | P2       |
-
-### Breaking Changes
-
-| Change                                | Reason                   | Migration                             |
-| ------------------------------------- | ------------------------ | ------------------------------------- |
-| `EmbeddingProvider` interface changed | Support streaming        | Implement new methods                 |
-| `VectorStore` interface changed       | Better batch operations  | Update implementations                |
-| Removed built-in strategies           | Move to separate package | Install `@vivantel/virage-strategies` |
-| CLI options renamed                   | Consistency              | Update scripts                        |
-
-### Migration Path
+Store this graph in `.virage/virage.db` (new `file_graph` table). At query time, optionally expand retrieved chunks with their first-degree callers/callees.
 
 ```bash
-# Old way
-import { tokenStrategy } from '@vivantel/virage-core';
-
-# New way
-npm install @vivantel/virage-strategies
-import { tokenStrategy } from '@vivantel/virage-strategies';
+virage query "how is payment processed" --expand-graph
 ```
 
-### Estimated Delivery
+MCP tool addition: `mcp__virage__related_files` — given a file path or chunk id, returns files that import it or are imported by it.
 
-- 4-5 weeks
+**Scope:** import graph only (no runtime call graph — that requires instrumentation). TypeScript/JavaScript first (use existing tree-sitter from `virage-code-chunk-chunker`). Python, Go in a follow-up.
 
----
-
-## Separated Packages (v2.0 companion)
-
-| Package                            | Description                            | Status   |
-| ---------------------------------- | -------------------------------------- | -------- |
-| `@vivantel/virage-strategies`      | Built-in chunking strategies           | Planned  |
-| `@vivantel/virage-embedder-github` | GitHub Models provider                 | Planned  |
-| `@vivantel/virage-embedder-openai` | OpenAI provider                        | Planned  |
-| `@vivantel/virage-store-postgres`  | PostgreSQL / pgvector store            | Existing |
-| `@vivantel/virage-store-pinecone`  | Pinecone store                         | Planned  |
-| `@vivantel/virage-chunker-event`   | Event YAML chunker (Vivantel-specific) | Planned  |
+**Why this matters:** the most common complaint in code RAG is "it found the interface but not the implementation." Cross-file edges solve this.
 
 ---
 
-## Questions for Clarification
+### 3. Cost estimator
 
-### About Version 1.2.0
+**Remove the guessing about how much a full re-index will cost.**
 
-1. **CLI `init` command** — What should be included in the template?
-   - [ ] Basic config with comments
-   - [ ] Examples for common use cases
-   - [ ] Links to documentation
+```bash
+virage estimate
+# → Chunks: 3,847 | New/changed: 412 | Model: text-embedding-3-small
+#   Estimated tokens: ~206,000 | Estimated cost: $0.004 | Time: ~45s
+```
 
-2. **Progress bar** — Which format?
-   - [ ] Simple text `[======>    ] 50%`
-   - [ ] Per-file counter `Processing: 50/100 files`
-   - [ ] Both
+```bash
+virage estimate --force
+# → Full re-embed: 3,847 chunks | Estimated tokens: ~1.9M | Cost: $0.038 | Time: ~7min
+```
 
-### About Version 1.3.0
+Implementation: dry-run the git tracker and chunk processor (no embedding calls), count chunks needing embedding, multiply by average chunk token count (tracked per model in `virage.db`), multiply by per-token price from a bundled price table (user can override).
 
-3. **Retry strategy** — Which backoff?
-   - [ ] Fixed delay (1s, 1s, 1s)
-   - [ ] Linear (1s, 2s, 3s)
-   - [ ] Exponential (1s, 2s, 4s)
-
-4. **Telemetry** — What data to collect?
-   - [ ] Anonymized usage stats (file count, duration)
-   - [ ] Error reports
-   - [ ] Nothing (opt-out by default)
-
-### About Version 2.0.0
-
-5. **Provider packages** — Should they be:
-   - [ ] Under `@vivantel` scope (official)
-   - [ ] Community-driven (any scope)
-   - [ ] Both (official + third-party)
-
-6. **Backward compatibility window** — How long to support v1 after v2 release?
-   - [ ] 1 month
-   - [ ] 3 months
-   - [ ] 6 months
-   - [ ] Indefinite (deprecation warnings only)
+Add `--format json` for CI integration (fail the build if estimated cost exceeds a threshold).
 
 ---
 
-## Timeline Summary
+## Medium-term (4–10 weeks)
 
-| Version | Focus                | Weeks | Cumulative |
-| ------- | -------------------- | ----- | ---------- |
-| 1.2.0   | Developer Experience | 2     | 2          |
-| 1.3.0   | Production Hardening | 3     | 5          |
-| 2.0.0   | Plugin Ecosystem     | 5     | 10         |
+### 4. Re-ranking layer
+
+After ANN retrieval returns top-20 candidates, a re-ranker scores each (query, chunk) pair more precisely and returns the final top-K. Two modes:
+
+**Mode A — lightweight cross-encoder (local)**
+
+```json
+{
+  "search": {
+    "reranker": {
+      "package": "@vivantel/virage-reranker-cross-encoder",
+      "config": { "model": "cross-encoder/ms-marco-MiniLM-L-6-v2", "topK": 5 }
+    }
+  }
+}
+```
+
+Ships as a new package. ONNX model, runs locally, no API key. Adds ~50–150ms latency. Justified when precision of top-5 matters more than speed.
+
+**Mode B — LLM judge (cloud)**
+
+```json
+{
+  "search": {
+    "reranker": {
+      "package": "@vivantel/virage-reranker-llm",
+      "config": { "model": "claude-haiku-4-5", "topK": 5 }
+    }
+  }
+}
+```
+
+Uses the existing `LLMJudge` interface (already in `interfaces/quality.ts`). More expensive but higher quality for complex queries. Appropriate for low-query-volume, high-stakes contexts.
+
+**CLI flag:** `virage query --rerank` to try re-ranking against the current index without config changes.
+
+---
+
+### 5. Semantic deduplication pre-pass
+
+Before embedding a new batch of chunks, detect near-duplicates and skip one copy.
+
+```bash
+virage index --dedup-threshold 0.92
+```
+
+Algorithm: embed a random sample of existing chunks; for each new chunk, compute cosine similarity against the sample; if any existing chunk scores above the threshold, mark as duplicate and skip upload (log the pair).
+
+Report duplicates in `virage chunks report` output:
+
+```
+Duplicate pairs detected: 14
+  docs/api.md#42 ≈ packages/core/README.md#7  (sim=0.96)
+  ...
+```
+
+This reduces index bloat in multi-package monorepos where the same explanatory text exists in multiple READMEs.
+
+---
+
+### 6. PR diff mode
+
+Index only the files changed in a pull request — useful for CI review workflows where you want an AI agent to have fresh context on exactly what changed.
+
+```bash
+virage index --pr 247                          # GitHub PR (requires GITHUB_TOKEN)
+virage index --diff main                       # local diff against a branch
+virage index --diff origin/main --namespace pr-247  # isolated namespace
+```
+
+Stores PR chunks in a separate namespace in the vector store so they don't pollute the main index. The MCP server gains a `namespace` parameter on `search`.
+
+Agent use case:
+```
+/rag --namespace pr-247 "what does this PR change about error handling"
+```
+
+---
+
+### 7. Query analytics in the dashboard
+
+The dashboard currently shows index structure. It should also show retrieval behavior.
+
+**New panel: Search Activity**
+
+| Metric | How tracked |
+|---|---|
+| Queries per hour | Logged to `virage.db` on each MCP search call |
+| Top 20 most-searched terms | TF-IDF on logged queries |
+| Avg similarity score of top result | Per-query, from search results |
+| Zero-result queries | Queries where top score < 0.5 threshold |
+| Click-through rate | Agent signals which chunk it actually used (new `mcp__virage__feedback` tool) |
+
+The zero-result queries panel is particularly actionable: if users repeatedly search for something and get poor results, that's a signal to add more content, change chunking strategy, or switch embedder models for that file type.
+
+---
+
+### 8. GitHub Actions integration
+
+An official `vivantel/virage-action` composite action for auto-indexing on push:
+
+```yaml
+# .github/workflows/virage-index.yaml
+on:
+  push:
+    branches: [main]
+
+jobs:
+  index:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - uses: vivantel/virage-action@v1
+        with:
+          config: virage.config.json
+          store-credentials: ${{ secrets.QDRANT_API_KEY }}
+```
+
+The action handles: install, cache the LanceDB/embeddings between runs (actions/cache), run `virage index`, and optionally post a summary comment on the triggering PR with stats (chunks changed, cost).
+
+This replaces the current manual `virage install-hooks` git-hooks approach for teams that want CI-driven indexing rather than local hooks.
+
+---
+
+## Longer-term (10+ weeks)
+
+### 9. Multi-project federation
+
+Index multiple repositories under a shared namespace and query across them:
+
+```json
+{
+  "federation": {
+    "projects": [
+      { "name": "api", "path": "../api-service", "config": "virage.config.json" },
+      { "name": "frontend", "path": "../web-app", "config": "virage.config.json" }
+    ]
+  }
+}
+```
+
+```bash
+virage query "how does the frontend call the auth endpoint" --federated
+```
+
+Requires: namespace support in vector stores (already planned for PR mode), a federated query planner that fans out to each namespace and merges results.
+
+The MCP server gains `list_namespaces` and a `namespace` parameter on `search`.
+
+**Primary use case:** monorepos with independent sub-projects, or organizations maintaining multiple repos that an AI agent needs to reason across simultaneously.
+
+---
+
+### 10. OpenTelemetry export
+
+Pipeline runs, embedding latency, search latency, and error rates are already tracked internally. Export them as standard OTEL spans and metrics:
+
+```json
+{
+  "telemetry": {
+    "otel": {
+      "endpoint": "http://localhost:4317",
+      "protocol": "grpc"
+    }
+  }
+}
+```
+
+This lets teams plug Virage into existing Grafana/Datadog/Honeycomb setups without building custom dashboards.
+
+The existing `virage report` and internal dashboard remain for teams without OTEL infrastructure.
+
+---
+
+### 11. Chunk feedback loop — closed-loop quality improvement
+
+Allow agents and users to signal which retrieved chunks were useful:
+
+**MCP tool:** `mcp__virage__feedback`
+
+```json
+{ "chunkId": "abc123", "query": "how is payment processed", "useful": true }
+```
+
+Store feedback in `virage.db`. Use it to:
+1. **Boost useful chunks** in search via a learned score modifier (simple: multiply similarity by `1 + 0.1 * positive_count`)
+2. **Surface low-quality chunks** in `virage chunks report` — chunks that are frequently retrieved but never marked useful are candidates for re-chunking
+3. **Drive eval dataset generation** — `virage eval-generate --from-feedback` creates ground truth pairs from confirmed useful results
+
+This closes the loop: the index improves from actual use rather than only from offline eval runs.
+
+---
+
+### 12. HyDE — Hypothetical Document Embeddings
+
+For queries where the exact answer text would look very different from the question text, embed a hypothetical answer instead of the raw query:
+
+```
+User query: "what does parseConfig return when the file is missing?"
+Hypothetical answer: "parseConfig throws a ConfigNotFoundError with the file path..."
+```
+
+The hypothetical answer's embedding is much closer to the actual implementation chunk than the question's embedding.
+
+```json
+{
+  "search": {
+    "hyde": {
+      "enabled": true,
+      "model": "claude-haiku-4-5"
+    }
+  }
+}
+```
+
+Tradeoff: adds one LLM call per search query. Should be opt-in, benchmarkable via `virage experiment`.
+
+---
+
+## What we are not building (and why)
+
+| Proposal | Reason not to build |
+|---|---|
+| **Real-time streaming search** | Search latency is dominated by ANN lookup (1–5ms for small indices). Streaming doesn't improve the experience meaningfully until indices exceed ~10M vectors — not the current target scale. |
+| **Pinecone store** | Pinecone's proprietary inference pipeline conflicts with Virage's embedding-at-your-own-store model. Users who want managed vector search should use Qdrant Cloud. |
+| **Built-in LLM generation** | Virage is a retrieval layer, not a generation layer. Adding generation couples it to specific LLM providers and makes it a worse retriever. The MCP integration is the right boundary. |
+| **GUI config editor** | The `$schema` in `virage.config.json` gives IDE autocomplete. A GUI would duplicate that effort with worse coverage and add a maintenance burden. |
+| **Automatic chunking strategy selection per file** | The `virage init` wizard already selects strategies based on detected file types. Fully automatic per-file switching would be unreliable and obscure what's actually happening. |
+
+---
+
+## Evaluation targets
+
+Every significant retrieval change should be validated against the existing eval suite before shipping. Baselines as of v1.1.x:
+
+| Metric | Target | Notes |
+|---|---|---|
+| MRR@10 | ≥ 0.72 (currently ~0.65) | Hybrid search (item 1) is expected to move this the most |
+| Precision@5 | ≥ 0.70 | |
+| Hit rate@5 | ≥ 0.85 | |
+| Search latency p95 | ≤ 50ms | Without re-ranking; ≤ 250ms with cross-encoder |
+| Index throughput | ≥ 50 chunks/s (local FastEmbed) | |
+| Cost per 1K chunks (OpenAI small) | ≤ $0.002 | Incremental, not full re-embed |
