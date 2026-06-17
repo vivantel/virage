@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.7](https://github.com/vivantel/virage/compare/virage-skills@v0.1.6...virage-skills@v0.1.7) (2026-06-17)
+
+
+### Bug Fixes
+
+* Retrigger release pipeline ([bd6b99c](https://github.com/vivantel/virage/commit/bd6b99c1332397e92259a37097f44a556cdc1b7e))
+
 ## [0.1.6](https://github.com/vivantel/virage/compare/virage-skills@v0.1.5...virage-skills@v0.1.6) (2026-06-16)
 
 

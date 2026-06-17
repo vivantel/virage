@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.2.28](https://github.com/vivantel/virage/compare/virage-store-chromadb@v0.2.27...virage-store-chromadb@v0.2.28) (2026-06-17)
+
+
+### Bug Fixes
+
+* Retrigger release pipeline ([bd6b99c](https://github.com/vivantel/virage/commit/bd6b99c1332397e92259a37097f44a556cdc1b7e))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * devDependencies
+    * @vivantel/virage-core bumped from 0.2.25 to 0.2.26
+  * peerDependencies
+    * @vivantel/virage-core bumped from * to 0.2.26
+
 ## [0.2.27](https://github.com/vivantel/virage/compare/virage-store-chromadb@v0.2.26...virage-store-chromadb@v0.2.27) (2026-06-15)
 
 

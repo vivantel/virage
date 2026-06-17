@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.1.8](https://github.com/vivantel/virage/compare/virage-agent-codex@v0.1.7...virage-agent-codex@v0.1.8) (2026-06-17)
+
+
+### Bug Fixes
+
+* Retrigger release pipeline ([bd6b99c](https://github.com/vivantel/virage/commit/bd6b99c1332397e92259a37097f44a556cdc1b7e))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @vivantel/virage-agent-core bumped from 0.1.4 to 0.1.5
+    * @vivantel/virage-skills bumped from 0.1.6 to 0.1.7
+
 ## [0.1.7](https://github.com/vivantel/virage/compare/virage-agent-codex@v0.1.6...virage-agent-codex@v0.1.7) (2026-06-16)
 
 
