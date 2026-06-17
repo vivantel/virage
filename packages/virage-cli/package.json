@@ -64,6 +64,7 @@
     "ws": "^8.21.0"
   },
   "devDependencies": {
+    "@vivantel/virage-reranker-cross-encoder": "*",
     "@eslint/js": "^10.0.1",
     "@types/cli-progress": "^3.11.6",
     "@types/express": "^5.0.6",
