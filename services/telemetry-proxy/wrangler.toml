@@ -1,8 +1,0 @@
-name = "virage-telemetry-proxy"
-main = "src/index.ts"
-compatibility_date = "2025-01-01"
-
-[vars]
-HONEYCOMB_DATASET = "virage-community"
-
-# HONEYCOMB_API_KEY is injected as a secret via Terraform (not stored here)
