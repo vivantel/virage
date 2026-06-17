@@ -838,3 +838,48 @@ Reasons:
 - **+** Skills remain auditable static files, not opaque agent invocations.
 - **−** Deterministic skills (`code-guardian`, `qa`) execute inline in the parent session, adding their tool calls to the main context window rather than isolating them.
 - **−** No parallel skill execution without vendor-specific workarounds.
+
+---
+
+## ADR-030: Semver ranges in peerDependencies for inter-package virage dependencies
+
+**Date:** 2026-06-17  
+**Status:** Accepted
+
+### Context
+
+Virage is a monorepo of 20+ packages that can be mixed and matched by consumers (e.g., using `virage-core` with a custom embedder, or `virage-store-lancedb` independently). Currently, published packages pin their inter-package dependencies to exact versions in `dependencies`, which means consumers cannot adopt a patched version of one package without upgrading the whole ecosystem.
+
+Users also want to express "my project requires virage-core ≥ 0.2.28" rather than being forced to land on a single exact version. The current pinned-exact model prevents this.
+
+### Decision
+
+**Published packages that consume other virage packages** (embedders, stores, agents, strategies) should declare those virage packages as `peerDependencies` with a semver range, and keep an exact pinned version only in `devDependencies` (used for local monorepo builds and CI):
+
+```jsonc
+// e.g., in virage-embedder-openai/package.json
+{
+  "peerDependencies": {
+    "@vivantel/virage-core": ">=0.2.28 <0.3.0"
+  },
+  "devDependencies": {
+    "@vivantel/virage-core": "0.2.28"   // exact, for monorepo builds
+  }
+}
+```
+
+The range constraint `>=X.Y.Z <X.(Y+1).0` (minor-locked for pre-1.0 packages) signals: "any patch release in this minor series is compatible." Once the project reaches 1.0, switch to `^X.Y.Z` (compatible within the major).
+
+**`virage-cli` is the exception** — it is a tool, not a consumed library. It keeps exact `dependencies` because it is always installed at a fixed version (globally or via npx) and does not participate in downstream resolution.
+
+**Changesets vs Release Please:** Changesets are not adopted. Release Please already automates semver versioning via conventional commits and handles coordinated bumps across the monorepo via `.release-please-manifest.json`. Changesets would require every contributor to run an extra manual step with no net benefit given the existing automation.
+
+**Implementation:** The peerDependency migration happens as part of a coordinated minor-version bump (separate PR) to avoid breaking consumers that rely on the current exact-dep resolution behavior.
+
+### Consequences
+
+- **+** Consumers can adopt a patched version of one virage package (e.g., a security fix in `virage-core`) without upgrading the full ecosystem.
+- **+** `npm install` resolves the constraint declaratively; no runtime version-checking code needed.
+- **+** Aligns with standard npm library conventions.
+- **−** Minor coordination cost: peerDep ranges must be updated when a package introduces a breaking change.
+- **−** `npm install` will warn about unmet peer dependencies if a consumer installs an incompatible version — this is intentional and informative.

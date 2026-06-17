@@ -78,10 +78,33 @@ npm test -w @vivantel/<pkg>            # unit tests for one package
 npm run build -w @vivantel/<pkg>       # build one package
 npm run build:with-dashboard -w @vivantel/virage-cli  # CLI build including dashboard UI
 virage init                            # interactive wizard: config, agents, embedder, vector store
-virage update                          # update virage ecosystem packages + re-run plugin configure
-virage query "<text>"                  # semantic search over the indexed knowledge base (--json, --top-k, --branch)
-virage install-hooks                   # install post-merge & post-checkout git hooks for auto-indexing
+virage update (up)                     # update all virage packages from config + re-run plugin configure + sync skills
+virage query (q) "<text>"             # semantic search over the indexed knowledge base (--json, --top-k, --branch)
+virage install-hooks (hooks)           # install post-merge & post-checkout git hooks for auto-indexing
+virage dashboard (d) [--verbose]       # start local RAG monitoring dashboard
+virage eval (e) run                    # one-shot retrieval quality check
+virage eval generate (gen)             # generate eval dataset from indexed chunks
+virage eval save --name <n>            # run evaluation and save results for comparison
+virage eval list                       # list saved evaluation runs
+virage eval compare --baseline --candidate  # bootstrap significance test between two runs
 ```
+
+### CLI alias quick-reference
+
+| Command | Alias |
+|---------|-------|
+| `index` | `i` |
+| `update` | `up` |
+| `check` | `c` |
+| `validate` | `val` |
+| `report` | `r` |
+| `query` | `q` |
+| `dashboard` | `d` |
+| `install-hooks` | `hooks` |
+| `usage` | `use` |
+| `read-skill-summary` | `skill` |
+| `eval` | `e` |
+| `eval generate` | `eval gen` / `e gen` |
 
 ---
 

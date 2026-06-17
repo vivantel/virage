@@ -5,6 +5,7 @@ import {
   useEffect,
   useRef,
   useState,
+  type ReactNode,
 } from "react";
 
 export type WsStatus = "disconnected" | "connecting" | "connected" | "error";
@@ -32,7 +33,7 @@ const WebSocketContext = createContext<WsContextValue>({
   startOp: () => undefined,
 });
 
-export function WebSocketProvider({ children }: { children: React.ReactNode }) {
+export function WebSocketProvider({ children }: { children: ReactNode }) {
   const [status, setStatus] = useState<WsStatus>("disconnected");
   const [messages, setMessages] = useState<WsMessage[]>([]);
   const [operationRunning, setOperationRunning] = useState(false);

@@ -1,5 +1,9 @@
 import { createHash, randomUUID } from "crypto";
-import express, { type Request, type Response } from "express";
+import express, {
+  type Request,
+  type Response,
+  type NextFunction,
+} from "express";
 import { WebSocketServer, type WebSocket } from "ws";
 import { readFile, writeFile, mkdir } from "fs/promises";
 import { existsSync } from "fs";
@@ -23,6 +27,7 @@ import {
 export interface DashboardOptions {
   port: number;
   dbPath: string;
+  verbose?: boolean;
 }
 
 export interface ProjectEntry {
@@ -44,9 +49,6 @@ let projectsState: ProjectsState = { projects: [], activeIndex: 0 };
 
 // Cache the loaded config per project root to avoid reloading the embedder model on every search
 let configCache: { path: string; cfg: RAGPipelineConfig } | null = null;
-
-// Single-operation guard for WebSocket pipeline runs
-let wsOperationRunning = false;
 
 const THIS_DIR = fileURLToPath(new URL(".", import.meta.url));
 const UI_DIR = join(THIS_DIR, "..", "dashboard-ui");
@@ -346,15 +348,19 @@ async function handleWsOperation(ws: WebSocket, msg: Record<string, unknown>) {
 // ─── Main entry point ──────────────────────────────────────────────────────────
 
 export async function runDashboard(opts: DashboardOptions): Promise<void> {
-  if (!HAS_UI) {
-    console.warn(
-      "⚠️  Dashboard UI not found. Run `npm run build -w @vivantel/virage-dashboard` first.",
-    );
-  }
+  // Startup diagnostics
+  const uiStatus = HAS_UI ? "found" : "NOT FOUND";
+  console.log(`  Dashboard UI : ${UI_DIR}  [${uiStatus}]`);
+  const dbAbs = resolve(opts.dbPath);
+  const dbStatus = existsSync(dbAbs) ? "found" : "not indexed yet";
+  console.log(`  Database     : ${dbAbs}  [${dbStatus}]`);
 
-  const startupRoot = resolve(opts.dbPath, "..", "..");
+  // Single-operation guard for WebSocket pipeline runs — scoped per server instance
+  let wsOperationRunning = false;
+
+  const startupRoot = resolve(process.cwd());
   const startupProject = projectFromRoot(startupRoot, {
-    virageDb: resolve(opts.dbPath),
+    virageDb: dbAbs,
   });
 
   const loaded = await loadRecentProjects();
@@ -372,6 +378,21 @@ export async function runDashboard(opts: DashboardOptions): Promise<void> {
 
   const app = express();
   app.use(express.json());
+
+  // Request logging — baseline one-liner always on; verbose adds detail
+  app.use((req: Request, res: Response, next: NextFunction) => {
+    res.on("finish", () => {
+      const line = `  ${req.method} ${req.path} → ${res.statusCode}`;
+      if (opts.verbose) {
+        console.log(
+          `${line}  (${res.getHeader("content-length") ?? "-"} bytes)`,
+        );
+      } else if (res.statusCode >= 400) {
+        console.log(line);
+      }
+    });
+    next();
+  });
 
   // ─── Existing routes ────────────────────────────────────────────────────────
 
@@ -815,13 +836,31 @@ export async function runDashboard(opts: DashboardOptions): Promise<void> {
     app.get("/{*splat}", (_req: Request, res: Response) => {
       res.sendFile(join(UI_DIR, "index.html"));
     });
+  } else {
+    app.get("/{*splat}", (_req: Request, res: Response) => {
+      res
+        .status(503)
+        .send(
+          `<!DOCTYPE html><html><body style="font-family:monospace;padding:32px">` +
+            `<h2>Dashboard UI not built</h2>` +
+            `<p>Run the following command from the repo root, then restart the dashboard:</p>` +
+            `<pre>npm run build:with-dashboard -w @vivantel/virage-cli</pre>` +
+            `<p>Expected UI path: <code>${UI_DIR}</code></p>` +
+            `</body></html>`,
+        );
+    });
   }
 
   // ─── Start server + attach WebSocket ────────────────────────────────────────
 
   const server = app.listen(opts.port, () => {
-    console.log(`🚀 RAG Dashboard running at http://localhost:${opts.port}`);
-    console.log("   Press Ctrl+C to stop");
+    console.log(`\n🚀 RAG Dashboard running at http://localhost:${opts.port}`);
+    if (!HAS_UI) {
+      console.log(
+        "   ⚠️  UI not built — open browser to see build instructions",
+      );
+    }
+    console.log("   Press Ctrl+C to stop\n");
   });
 
   const wss = new WebSocketServer({ server, path: "/ws" });

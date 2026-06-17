@@ -171,6 +171,7 @@ program
 
 program
   .command("index")
+  .alias("i")
   .description("Run the RAG indexing pipeline")
   .option("-c, --config <path>", "Path to config file", "./virage.config.json")
   .option("-f, --force", "Force full rebuild", false)
@@ -255,6 +256,7 @@ program
 
 program
   .command("update")
+  .alias("up")
   .description(
     "Update virage ecosystem packages (embedders, chunkers, agent plugins)",
   )
@@ -272,6 +274,7 @@ program
 
 program
   .command("usage")
+  .alias("use")
   .description(
     "Show per-prompt token usage for the current Claude Code session",
   )
@@ -285,6 +288,7 @@ program
 
 program
   .command("read-skill-summary")
+  .alias("skill")
   .description("Print the summary for a named Virage skill")
   .argument("<name>", "Skill name (e.g. planner, architect, doc_writer)")
   .action(async (name: string) => {
@@ -297,6 +301,7 @@ program
 
 program
   .command("check")
+  .alias("c")
   .description(
     "Validate that the current embedder config matches the stored index",
   )
@@ -311,6 +316,7 @@ program
 
 program
   .command("validate")
+  .alias("val")
   .description("Validate config without running the pipeline")
   .option("-c, --config <path>", "Path to config file", "./virage.config.json")
   .action(async (opts: { config: string }) => {
@@ -322,8 +328,30 @@ program
   });
 
 program
-  .command("evaluate")
-  .description("Evaluate retrieval quality against an eval dataset")
+  .command("report")
+  .alias("r")
+  .description("Show observability report from pipeline runs")
+  .action(async () => {
+    try {
+      await runReport();
+    } catch (error) {
+      handleError(error);
+    }
+  });
+
+const evalCmd = program
+  .command("eval")
+  .alias("e")
+  .description(
+    "Evaluation tools: run quality checks, generate datasets, track experiments",
+  )
+  .action(function () {
+    this.help();
+  });
+
+evalCmd
+  .command("run")
+  .description("Run a one-shot retrieval quality check against an eval dataset")
   .option("-c, --config <path>", "Path to config file", "./virage.config.json")
   .option(
     "-d, --dataset <path>",
@@ -337,6 +365,11 @@ program
     parseFloat,
   )
   .option("--ci", "Exit with code 1 if quality gate fails")
+  .option(
+    "--suite <type>",
+    "Evaluation suite: retrieval (default) or ecosystem",
+    "retrieval",
+  )
   .action(
     async (opts: {
       config: string;
@@ -344,6 +377,7 @@ program
       withLlmJudge: boolean;
       thresholdMrr?: number;
       ci: boolean;
+      suite: string;
     }) => {
       try {
         await runEvaluate({
@@ -352,6 +386,7 @@ program
           withLlmJudge: opts.withLlmJudge ?? false,
           thresholdMrr: opts.thresholdMrr,
           ci: opts.ci ?? false,
+          suite: opts.suite === "ecosystem" ? "ecosystem" : undefined,
         });
       } catch (error) {
         handleError(error);
@@ -359,20 +394,10 @@ program
     },
   );
 
-program
-  .command("report")
-  .description("Show observability report from pipeline runs")
-  .action(async () => {
-    try {
-      await runReport();
-    } catch (error) {
-      handleError(error);
-    }
-  });
-
-program
-  .command("eval-generate")
-  .description("Generate an eval dataset from existing chunks")
+evalCmd
+  .command("generate")
+  .alias("gen")
+  .description("Generate an eval dataset from existing indexed chunks")
   .option(
     "--output <path>",
     "Output dataset path",
@@ -410,6 +435,59 @@ program
     },
   );
 
+evalCmd
+  .command("save")
+  .description(
+    "Run evaluation and save results under a name for later comparison",
+  )
+  .requiredOption("--name <name>", "Experiment name")
+  .option("-c, --config <path>", "Path to config file", "./virage.config.json")
+  .option(
+    "-d, --dataset <path>",
+    "Eval dataset path",
+    `${getVirageDir()}/eval-dataset.json`,
+  )
+  .action(async (opts: { name: string; config: string; dataset: string }) => {
+    try {
+      await runExperimentRun({
+        name: opts.name,
+        config: opts.config,
+        dataset: opts.dataset,
+      });
+    } catch (error) {
+      handleError(error);
+    }
+  });
+
+evalCmd
+  .command("list")
+  .description("List saved evaluation runs")
+  .action(async () => {
+    try {
+      await runExperimentList();
+    } catch (error) {
+      handleError(error);
+    }
+  });
+
+evalCmd
+  .command("compare")
+  .description(
+    "Compare two saved evaluation runs with bootstrap significance test",
+  )
+  .requiredOption("--baseline <id>", "Baseline run name or id")
+  .requiredOption("--candidate <id>", "Candidate run name or id")
+  .action(async (opts: { baseline: string; candidate: string }) => {
+    try {
+      await runExperimentCompare({
+        baseline: opts.baseline,
+        candidate: opts.candidate,
+      });
+    } catch (error) {
+      handleError(error);
+    }
+  });
+
 const viz = program.command("viz").description("Visualization tools");
 viz
   .command("embeddings")
@@ -442,13 +520,16 @@ chunks
 
 program
   .command("dashboard")
+  .alias("d")
   .description("Start a local RAG monitoring dashboard")
   .option("--port <n>", "Port to serve on", (v) => parseInt(v, 10), 3000)
-  .action(async (opts: { port: number }) => {
+  .option("--verbose", "Enable detailed request logging")
+  .action(async (opts: { port: number; verbose: boolean }) => {
     try {
       await runDashboard({
         port: opts.port,
         dbPath: defaultVirageDb(),
+        verbose: opts.verbose ?? false,
       });
     } catch (error) {
       handleError(error);
@@ -507,59 +588,6 @@ store
       await runStorePerf({
         config: opts.config,
         timeframeHours: opts.timeframe,
-      });
-    } catch (error) {
-      handleError(error);
-    }
-  });
-
-const experiment = program
-  .command("experiment")
-  .description("Experiment tracking and statistical comparison");
-
-experiment
-  .command("run")
-  .description("Run an experiment and save results")
-  .requiredOption("--name <name>", "Experiment name")
-  .option("-c, --config <path>", "Path to config file", "./virage.config.json")
-  .option(
-    "-d, --dataset <path>",
-    "Eval dataset path",
-    `${getVirageDir()}/eval-dataset.json`,
-  )
-  .action(async (opts: { name: string; config: string; dataset: string }) => {
-    try {
-      await runExperimentRun({
-        name: opts.name,
-        config: opts.config,
-        dataset: opts.dataset,
-      });
-    } catch (error) {
-      handleError(error);
-    }
-  });
-
-experiment
-  .command("list")
-  .description("List saved experiment runs")
-  .action(async () => {
-    try {
-      await runExperimentList();
-    } catch (error) {
-      handleError(error);
-    }
-  });
-
-experiment
-  .command("compare")
-  .description("Compare two experiment runs with bootstrap significance test")
-  .requiredOption("--baseline <id>", "Baseline run name or id")
-  .requiredOption("--candidate <id>", "Candidate run name or id")
-  .action(async (opts: { baseline: string; candidate: string }) => {
-    try {
-      await runExperimentCompare({
-        baseline: opts.baseline,
-        candidate: opts.candidate,
       });
     } catch (error) {
       handleError(error);
@@ -653,6 +681,7 @@ telemetry
 
 program
   .command("query")
+  .alias("q")
   .description("Semantic search over the indexed knowledge base")
   .argument("<text>", "Search query text")
   .option("-c, --config <path>", "Path to config file", "./virage.config.json")
@@ -710,6 +739,7 @@ program
 
 program
   .command("install-hooks")
+  .alias("hooks")
   .description(
     "Install git lifecycle hooks (post-merge, post-checkout) to auto-index on pull/branch switch",
   )

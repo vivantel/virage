@@ -1,4 +1,4 @@
-import { checkbox, select } from "@inquirer/prompts";
+import { checkbox } from "@inquirer/prompts";
 import { readFile } from "fs/promises";
 import { existsSync } from "fs";
 import { join } from "path";
@@ -9,6 +9,7 @@ import { resolveSkillsPackagePath, syncSkills } from "./skills.js";
 import {
   detectPackageManager,
   buildInstallCommand,
+  buildGlobalInstallCommand,
   runInstall,
 } from "./pkg-manager.js";
 
@@ -22,6 +23,20 @@ interface PackageJson {
   "rag-plugin"?: unknown;
   "virage-agent"?: unknown;
 }
+
+interface VirageConfig {
+  embedder?: { package?: string };
+  vectorStore?: { package?: string };
+  search?: { reranker?: { package?: string } };
+  agents?: string[];
+}
+
+const AGENT_PACKAGES: Record<string, string> = {
+  "claude-code": "@vivantel/virage-agent-claude",
+  copilot: "@vivantel/virage-agent-copilot",
+  codex: "@vivantel/virage-agent-codex",
+  antigravity: "@vivantel/virage-agent-antigravity",
+};
 
 async function readProjectPackageJson(
   cwd: string,
@@ -50,28 +65,64 @@ async function readNodeModulePackageJson(
   }
 }
 
-async function discoverViragePackages(cwd: string): Promise<string[]> {
-  const projectPkg = await readProjectPackageJson(cwd);
-  if (!projectPkg) return [];
+async function readVirageConfig(cwd: string): Promise<VirageConfig | null> {
+  const configPath = join(cwd, "virage.config.json");
+  if (!existsSync(configPath)) return null;
+  try {
+    const raw = await readFile(configPath, "utf-8");
+    return JSON.parse(raw) as VirageConfig;
+  } catch {
+    return null;
+  }
+}
 
-  const allDeps = {
-    ...projectPkg.dependencies,
-    ...projectPkg.devDependencies,
-  };
-
+async function discoverViragePackages(
+  cwd: string,
+  isGlobal: boolean,
+): Promise<string[]> {
   const candidates = new Set<string>();
 
-  for (const pkgName of Object.keys(allDeps)) {
-    // Include all @vivantel/* packages
-    if (pkgName.startsWith("@vivantel/")) {
-      candidates.add(pkgName);
-      continue;
-    }
+  // Always include virage-core and virage-skills — required by every project
+  candidates.add("@vivantel/virage-core");
+  candidates.add("@vivantel/virage-skills");
 
-    // Include any package that declares a rag-plugin or virage-agent field
-    const depPkg = await readNodeModulePackageJson(cwd, pkgName);
-    if (depPkg && (depPkg["rag-plugin"] || depPkg["virage-agent"])) {
-      candidates.add(pkgName);
+  // Config-first: read virage.config.json to discover required packages
+  const virageConfig = await readVirageConfig(cwd);
+  if (virageConfig) {
+    if (virageConfig.embedder?.package) {
+      candidates.add(virageConfig.embedder.package);
+    }
+    if (virageConfig.vectorStore?.package) {
+      candidates.add(virageConfig.vectorStore.package);
+    }
+    if (virageConfig.search?.reranker?.package) {
+      candidates.add(virageConfig.search.reranker.package);
+    }
+    for (const agent of virageConfig.agents ?? []) {
+      const pkg = AGENT_PACKAGES[agent];
+      if (pkg) candidates.add(pkg);
+    }
+  }
+
+  // Supplement: if package.json exists, also scan it for any @vivantel/* or
+  // rag-plugin/virage-agent packages not already covered by config
+  if (!isGlobal) {
+    const projectPkg = await readProjectPackageJson(cwd);
+    if (projectPkg) {
+      const allDeps = {
+        ...projectPkg.dependencies,
+        ...projectPkg.devDependencies,
+      };
+      for (const pkgName of Object.keys(allDeps)) {
+        if (pkgName.startsWith("@vivantel/")) {
+          candidates.add(pkgName);
+          continue;
+        }
+        const depPkg = await readNodeModulePackageJson(cwd, pkgName);
+        if (depPkg && (depPkg["rag-plugin"] || depPkg["virage-agent"])) {
+          candidates.add(pkgName);
+        }
+      }
     }
   }
 
@@ -80,12 +131,11 @@ async function discoverViragePackages(cwd: string): Promise<string[]> {
 
 async function getLatestVersion(packageName: string): Promise<string | null> {
   try {
-    const { stdout } = await execFileAsync("npm", [
-      "view",
-      packageName,
-      "version",
-      "--json",
-    ]);
+    const { stdout } = await execFileAsync(
+      "npm",
+      ["view", packageName, "version", "--json", "--prefer-online"],
+      { timeout: 10_000 },
+    );
     return (JSON.parse(stdout.trim()) as string).trim();
   } catch {
     return null;
@@ -96,8 +146,25 @@ async function getCurrentVersion(
   cwd: string,
   packageName: string,
 ): Promise<string | null> {
+  // Try local node_modules first
   const pkg = await readNodeModulePackageJson(cwd, packageName);
-  return pkg?.version ?? null;
+  if (pkg?.version) return pkg.version;
+
+  // Fallback: query npm for the installed version (works for global installs)
+  try {
+    const { stdout } = await execFileAsync(
+      "npm",
+      ["list", packageName, "--json", "--depth=0"],
+      { timeout: 10_000 },
+    );
+    const parsed = JSON.parse(stdout) as {
+      dependencies?: Record<string, { version?: string }>;
+    };
+    const version = parsed.dependencies?.[packageName]?.version;
+    return version ?? null;
+  } catch {
+    return null;
+  }
 }
 
 interface PackageStatus {
@@ -110,17 +177,28 @@ interface PackageStatus {
 export async function runUpdate(): Promise<void> {
   const cwd = process.cwd();
 
-  console.log("\nVirage Update\n");
-  console.log("Discovering virage ecosystem packages...");
+  const hasPackageJson = existsSync(join(cwd, "package.json"));
+  const hasVirageConfig = existsSync(join(cwd, "virage.config.json"));
 
-  const packageNames = await discoverViragePackages(cwd);
-
-  if (packageNames.length === 0) {
+  if (!hasPackageJson && !hasVirageConfig) {
     console.log(
-      "\nNo virage packages found in package.json. Run `virage init` first.\n",
+      "\nNo virage.config.json found in current directory.\n" +
+        "Run `virage init` first to configure your project.\n",
     );
     return;
   }
+
+  const isGlobal = !hasPackageJson;
+  if (isGlobal) {
+    console.log(
+      "\n(No package.json found — treating as standalone project, will install globally.)\n",
+    );
+  }
+
+  console.log("\nVirage Update\n");
+  console.log("Discovering virage ecosystem packages...");
+
+  const packageNames = await discoverViragePackages(cwd, isGlobal);
 
   // Fetch current and latest versions in parallel
   const statuses = await Promise.all(
@@ -146,6 +224,11 @@ export async function runUpdate(): Promise<void> {
     }
   }
 
+  if (statuses.length === 0) {
+    console.log("\nNo virage packages to update.\n");
+    return;
+  }
+
   // Let user pick which packages to update
   const toUpdate = await checkbox({
     message: "Select packages to update:",
@@ -160,9 +243,10 @@ export async function runUpdate(): Promise<void> {
 
   if (toUpdate.length > 0) {
     const pm = await detectPackageManager(cwd);
-    // Build install@latest commands
     const latestPackages = toUpdate.map((n) => `${n}@latest`);
-    const { cmd, args } = buildInstallCommand(pm, latestPackages);
+    const { cmd, args } = isGlobal
+      ? buildGlobalInstallCommand(pm, latestPackages)
+      : buildInstallCommand(pm, latestPackages);
     console.log(`\nRunning: ${cmd} ${args.join(" ")}`);
     try {
       await runInstall(cmd, args);
@@ -198,36 +282,28 @@ export async function runUpdate(): Promise<void> {
     }
   }
 
-  // Offer to re-sync skills
+  // Auto-sync skills if available — no interactive prompt needed
   const skillsPkgPath = resolveSkillsPackagePath();
   if (skillsPkgPath !== null) {
-    const syncChoice = await select({
-      message: "Re-sync Virage AI agent skills?",
-      choices: [
-        { name: "Yes — update .agents/skills/virage/", value: true },
-        { name: "No, skip", value: false },
-      ],
-    });
-    if (syncChoice) {
-      try {
-        const result = await syncSkills(skillsPkgPath, cwd);
-        if (result.created.length > 0)
-          console.log(`\nSkills installed: ${result.created.length} new`);
-        if (result.updated.length > 0)
-          console.log(`Skills updated: ${result.updated.length}`);
-        if (result.deleted.length > 0)
-          console.log(`Skills removed: ${result.deleted.length}`);
-        if (
-          result.created.length === 0 &&
-          result.updated.length === 0 &&
-          result.deleted.length === 0
-        )
-          console.log("\nSkills already up to date.");
-      } catch (err) {
-        console.log(
-          `\nSkills sync failed: ${err instanceof Error ? err.message : String(err)}`,
-        );
-      }
+    console.log("\nSyncing Virage AI agent skills...");
+    try {
+      const result = await syncSkills(skillsPkgPath, cwd);
+      if (result.created.length > 0)
+        console.log(`  Skills installed: ${result.created.length} new`);
+      if (result.updated.length > 0)
+        console.log(`  Skills updated: ${result.updated.length}`);
+      if (result.deleted.length > 0)
+        console.log(`  Skills removed: ${result.deleted.length}`);
+      if (
+        result.created.length === 0 &&
+        result.updated.length === 0 &&
+        result.deleted.length === 0
+      )
+        console.log("  Already up to date.");
+    } catch (err) {
+      console.log(
+        `  Skills sync failed: ${err instanceof Error ? err.message : String(err)}`,
+      );
     }
   }
 
