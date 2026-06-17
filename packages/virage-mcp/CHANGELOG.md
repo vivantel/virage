@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.1.21](https://github.com/vivantel/virage/compare/virage-mcp@v0.1.20...virage-mcp@v0.1.21) (2026-06-17)
+
+
+### Features
+
+* Hybrid search, re-ranking layer, and query analytics ([4a64c64](https://github.com/vivantel/virage/commit/4a64c64fce7c68a75656a4e306997d87dcd6253d))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @vivantel/virage-core bumped from 0.2.26 to 0.2.27
+  * devDependencies
+    * @vivantel/virage-core bumped from 0.2.26 to 0.2.27
+  * peerDependencies
+    * @vivantel/virage-core bumped from * to 0.2.27
+
 ## [0.1.20](https://github.com/vivantel/virage/compare/virage-mcp@v0.1.19...virage-mcp@v0.1.20) (2026-06-17)
 
 
