@@ -1,8 +1,0 @@
-{
-  "name": "virage",
-  "displayName": "Virage",
-  "version": "0.2.4",
-  "description": "Virage AI context — project RAG skills and MCP server integration",
-  "author": { "name": "Vivantel" },
-  "mcpServers": "./.mcp.json"
-}

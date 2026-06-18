@@ -6,4 +6,4 @@ Load and follow the Virage planner skill to break down and execute the following
 
 $ARGUMENTS
 
-Read `.agents/skills/virage/planner/SKILL.md` for the full planning workflow and follow it precisely.
+Call `mcp__virage__read_skill` with `name: "planner"` to load the full planning workflow and follow it precisely.
