@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.21](https://github.com/vivantel/virage/compare/virage-agent-claude@v0.2.20...virage-agent-claude@v0.2.21) (2026-06-18)
+
+
+### Bug Fixes
+
+* **agent:** Decouple commands from installed skill paths, untrack generated dirs ([6ba865d](https://github.com/vivantel/virage/commit/6ba865df0a054415a1810ecc366c5a0510b42b50))
+
 ## [0.2.20](https://github.com/vivantel/virage/compare/virage-agent-claude@v0.2.19...virage-agent-claude@v0.2.20) (2026-06-17)
 
 
