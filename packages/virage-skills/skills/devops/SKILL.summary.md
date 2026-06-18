@@ -1,9 +1,10 @@
 # Skill: DevOps (summary)
 
-Use when: editing GitHub Actions workflows, changing release-please or npm publish config, adding CI secrets or env vars, diagnosing a failed CI step.
+Use when: editing CI/CD workflow files, changing release automation or publish configuration, adding CI secrets or environment variables, diagnosing a failed CI step.
 
-**Full skill cost:** ~1,219 tokens. Load with `read_skill('devops')` for the full CI/CD workflow.
+**Full skill cost:** ~700 tokens. Load with `read_skill('devops')` for the full CI/CD workflow.
 
 ## Key outputs
-- Updated `.github/workflows/*.yml` or release config
-- Explanation of change and expected CI behaviour
+- Updated workflow file or release config
+- Explanation of change and expected CI behavior after the change
+- Done when CI runs successfully with the changed config

@@ -8,11 +8,12 @@ when_to_use:
   - "Planning a refactor that changes module boundaries"
   - "Evaluating architectural trade-offs before implementation"
 prerequisites: []
-estimated_tokens: 2040
+estimated_tokens: 900
 output_format: "ADR appended to docs/ADR.md, or architectural analysis with decision and consequences"
+companions: [planner]
 metadata:
   author: vivantel-team
-  version: "1.1.0"
+  version: "2.0.0"
 ---
 
 # Skill: Architecture
@@ -21,148 +22,121 @@ metadata:
 
 ---
 
+## Role
+
+**Principal Architect** — owns the structural integrity of the system over time.
+
+Responsibilities:
+- Proactively review planned changes for architectural impact — before implementation, not after
+- Write and maintain ADRs as the authoritative record of design decisions
+- Evaluate whether existing ADRs need revision as requirements evolve — ADRs are not immutable
+- Define the standard for "good" architecture in this project through the decisions they document
+- Maintain coherence between current implementation and stated architectural decisions
+- Ensure interface contracts are stable and explicitly documented before they're depended on
+
+---
+
 ## When to use this skill
 
 - Making or reviewing an architecture decision
 - Writing a new ADR in `docs/ADR.md`
 - Designing a new provider interface or pipeline stage
-- Understanding the existing pipeline structure, module system, or plugin registry
+- Understanding the existing system structure, module system, or plugin registry
 
 ---
 
 ## Context checklist
 
+1. Search for relevant ADRs: `mcp__virage__search("ADR <decision topic>", top_k=3)`
+   - If a hit is ambiguous, read that specific section of `docs/ADR.md` only
+   - Also check: does this decision make an existing ADR obsolete or need revision?
+2. Search for existing interfaces: `mcp__virage__search("<InterfaceName> interface signature", top_k=5)`
+
+> **Fallback (index not populated):** Read `docs/ADR.md` and `docs/ai/INDEX.md` §Architecture state directly.
+
 ```
-[ ] mcp__virage__search("ADR <decision topic>", top_k=3) — loads only the relevant ADRs instead of the full docs/ADR.md file (~12,700 tokens)
-[ ] If an ADR hit is ambiguous, Read that specific section of docs/ADR.md only
-[ ] mcp__virage__search("<InterfaceName> interface signature", top_k=5) — loads relevant interface definitions instead of reading all files in packages/virage-core/src/interfaces/
-[ ] Before committing: npm run fix && npm run lint && npm run type-check:ci (see .agents/skills/code-guardian/SKILL.md)
+[ ] Run pre-commit quality checks before staging (see code-guard skill + INDEX.md §Code quality guardrails)
 ```
-
-> **Fallback:** if `mcp__virage__search` returns 0 results (index not populated), fall back to `Read docs/ADR.md` and `Read packages/virage-core/src/interfaces/index.ts` directly.
-
----
-
-## Current State — Architecture facts
-
-| Property                | Value                                                                                       |
-| ----------------------- | ------------------------------------------------------------------------------------------- |
-| Module system           | ESM (`"type": "module"`), NodeNext resolution                                               |
-| Import extensions       | `.js` on all internal imports (e.g. `from "./foo.js"` even though file is `.ts`)            |
-| TypeScript target       | ES2022                                                                                      |
-| Pipeline model          | 4-stage linear: GitTracker → ChunkProcessor → EmbedderProcessor → Uploader                  |
-| Default artifact dir    | `.virage/` (override via `VIRAGE_DIR` env var)                                              |
-| Config format           | JSON only; `loadConfig()` validates schema, expands `${ENV_VAR}`, dynamic-imports providers |
-| Core package constraint | `virage-core` has no CLI dependencies                                                       |
-
-> **Keep these facts current.** After any architectural change, update this table and write an ADR.
-
----
-
-## Current State — ADR log
-
-| ADR     | Decision                                          |
-| ------- | ------------------------------------------------- |
-| ADR-001 | ESM-first with NodeNext module resolution                       |
-| ADR-002 | Four-stage linear pipeline                                      |
-| ADR-003 | Consumer-implemented provider interfaces                        |
-| ADR-004 | Git commit hash for change detection                            |
-| ADR-005 | Content hash for embedding-layer incremental skip               |
-| ADR-026 | Static-file copier model for agent plugins (plugin-config/ dir) |
-
-> **Keep this log current.** After writing a new ADR in `docs/ADR.md`, add a row here.
 
 ---
 
 ## ADR process
 
 1. Check `docs/ADR.md` — has this trade-off been evaluated?
-2. If not: add a new entry to `docs/ADR.md` with format: `## ADR-NNN: Title` → Context → Decision → Consequences
-3. Reference the ADR number in the relevant commit message (e.g. `feat: add streaming pipeline [ADR-006]`)
-4. Update the §ADR log above
+2. If not: add a new entry to `docs/ADR.md` with format below
+3. Reference the ADR number in the relevant commit message: `feat: description [ADR-NNN]`
+4. Update the ADR log in `docs/ai/INDEX.md` §ADR log
 
----
+**ADR format:**
+```markdown
+## ADR-NNN: Title
 
-## Pipeline stages
+**Status:** Proposed | Accepted | Superseded by ADR-NNN
 
-1. **GitTracker** (`packages/virage-core/src/core/git-tracker.ts`)
-   - Uses `simple-git` + `glob` to find files matching chunker patterns
-   - Computes per-file commit hashes; appends `-dirty` when uncommitted changes exist
-   - Excludes: `node_modules/`, `dist/`, `build/`, `out/`, `coverage/`, `.git/`, `.next/`, `.turbo/`, `.cache/`
+### Context
+<Why is this decision needed? What forces are at play?>
 
-2. **ChunkProcessor** (`packages/virage-core/src/core/`)
-   - Runs each file through its matched `FileChunker`
-   - Adds `contentHash` (SHA-256 first 16 chars) to each chunk
-   - `replaceChunks()` atomically replaces old chunk rows — DB is always consistent
+### Decision
+<What was decided? One or two sentences.>
 
-3. **EmbedderProcessor** (`packages/virage-core/src/core/`)
-   - `embedChunks(chunks)`: batch embedding with automatic sub-batching by `batchSize` + `maxBatchChars`
-   - Triggered when pending-embed queue reaches `minEmbeddingBatchSize` (default 10)
-
-4. **Uploader** (`packages/virage-core/src/core/`)
-   - `prepareUpdate()`: deletes stale vector store entries before chunking loop
-   - `upsertBatch()`: uploads batch, marks chunks uploaded, clears embedding BLOB to reclaim storage
-   - Fatal vector store errors detected by `isFatalVectorStoreError()`
-   - Triggered when pending-upload queue reaches `minUploadingBatchSize` (default 20)
-
-**Orchestrator** (`packages/virage-core/src/core/orchestrator.ts`): runs a single streaming interleave loop — chunk → embed → upload as batches accumulate.
-
-**Progress callbacks**: `RAGPipelineConfig.options` accepts `onChunkProgress`, `onEmbedProgress`, `onUploadProgress`. Totals for embed/upload grow dynamically via `setTotal()`.
-
----
-
-## Provider interfaces (`packages/virage-core/src/interfaces/`)
-
-| Interface           | Key methods                                                               |
-| ------------------- | ------------------------------------------------------------------------- |
-| `FileChunker`       | `chunk(filePath, commitHash): Promise<Chunk[]>` + `patterns: string[]`    |
-| `EmbeddingProvider` | `embed(text): Promise<number[]>`, optional `embedBatch`                   |
-| `VectorStore`       | `initialize`, `upsert`, `deleteBySourceFile`, `getCurrentState`, `search` |
-| `Logger`            | `debug/info/warn/error(msg)`                                              |
-
-Quality/observability types in `src/interfaces/quality.ts`: `ChunkQualityMetrics`, `EmbeddingMetrics`, `IndexStats`, `QueryPerfReport`, `EvalResult`, `ExperimentRun`.
-
----
-
-## `createChunker` helper (`packages/virage-core/src/helpers/create-chunker.ts`)
-
-Two usage styles enforced by a TypeScript discriminated union:
-
-```ts
-// Strategy shorthand (common case):
-createChunker({ patterns: ["docs/**/*.md"], strategy: markdownHeadersStrategy() })
-
-// Custom process (advanced — name is required):
-createChunker({ name: "custom", patterns: ["**/*.txt"], process: async (content) => [...] })
+### Consequences
+<What are the trade-offs? What becomes easier or harder?>
 ```
 
-Built-in strategies (in `src/strategies/chunk/`): `tokenStrategy`, `markdownHeadersStrategy`, `semanticStrategy`, `wholeFileStrategy`.
-
-`ChunkStrategy` has an optional `getQualityMetrics?(chunks): ChunkQualityMetrics` hook.
+Each section should be ≤5 lines.
 
 ---
 
-## Plugin registry pattern (`packages/virage-core/src/plugin-registry.ts`)
+## Architecture gate
 
-Packages self-register by adding a `"rag-plugin"` field to their `package.json`:
+Write an ADR in `docs/ADR.md` **before implementing** when the plan includes any of:
 
-```json
-"rag-plugin": {
-  "type": "vectorStore",
-  "label": "MyStore",
-  "key": "mystore",
-  "envVars": ["MY_API_KEY"],
-  "defaultConfig": { "apiKey": "${MY_API_KEY}" }
-}
+- A new or changed public interface
+- A change to the pipeline stage structure or sequence
+- A cross-package contract (new shared type, new plugin registration field)
+- A new external dependency whose API will be wrapped by an interface
+
+If unsure whether a change is architectural: err on the side of writing the ADR. It is cheaper to write a short ADR than to undo an undocumented interface decision.
+
+---
+
+## Presenting alternatives
+
+When a decision has more than one viable approach, present options using this table before deciding:
+
+```markdown
+### Decision: <what needs to be decided>
+
+| Option | Summary | Pros | Cons |
+| ------ | ------- | ---- | ---- |
+| A — <name> | <one line> | <bullet> | <bullet> |
+| B — <name> | <one line> | <bullet> | <bullet> |
+
+**Recommendation:** <option> — <one sentence rationale>. Confirm to proceed.
 ```
 
-`loadRegistry(projectRoot)` merges `BUILT_IN_PLUGINS` with externals discovered from `node_modules`. External plugins override built-ins with the same `type:key`. The `package` field is auto-filled from the containing `package.json`'s `name`.
+Use for: implementation strategy, where logic lives, interface shape choices, public API naming.
+
+For trivially reversible choices, decide and note the choice inline without blocking.
 
 ---
 
-## Logger
+## Current State
 
-- `createLogger(verbosity: number): Logger` — factory in `packages/virage-cli/src/logger/`
-- `ConsolaLogger`: wraps `consola` for terminal output; verbosity 0 = errors only, 1–5 = progressively more debug
-- `NullLogger`: no-op for tests and library use (`packages/virage-core/src/logger/null-logger.ts`)
-- All provider packages accept `setLogger(logger: Logger)` so log output propagates through the full pipeline
+> Discover architecture facts for your project dynamically:
+>
+> - `mcp__virage__search("architecture module system pipeline config", top_k=3)` — finds architecture decisions and config format
+> - `mcp__virage__search("ADR <topic>", top_k=3)` — loads relevant ADRs
+> - `mcp__virage__search("<InterfaceName> interface", top_k=5)` — loads interface definitions
+>
+> **Fallback:** Read `docs/ai/INDEX.md` §Architecture state for this project's current architecture facts and ADR log.
+
+---
+
+## Output Format
+
+1. ADR entry appended to `docs/ADR.md` following the format above
+   - If this decision supersedes an existing ADR: mark the old one `**Status:** Superseded by ADR-NNN` and add a link
+2. Or: architectural analysis stating the trade-offs and the recommended decision
+
+Done when: ADR is written (if required) and the architecture gate has been cleared — either by confirming an existing ADR covers the decision, or by writing a new one. Update `docs/ai/INDEX.md` §ADR log with the new entry.

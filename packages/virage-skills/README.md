@@ -4,21 +4,22 @@ Redistributable AI agent skills for the [Virage RAG pipeline](https://github.com
 
 ## What's included
 
-11 agent skill files following the [Agent Skills v1.0](./skills/skill-guru/SKILL.md) standard:
+12 agent skill files following the [Agent Skills v1.0](./skills/skill-writer/SKILL.md) standard:
 
 | Skill | Purpose |
 |-------|---------|
-| `onboarding` | Agent self-orientation — reads all skills and applies setup |
-| `planner` | Implementation planning, 5-phase workflow, plan tracking |
-| `architect` | Architecture decisions, ADRs, provider interfaces |
-| `qa` | Unit/acceptance/type-check tests, eval workflows |
-| `code-guardian` | Code quality guardrails, commit validation, fix sequence |
-| `devops` | CI/CD workflows, release configuration |
-| `readme` | Root README maintenance and update rules |
 | `analyst` | Pipeline telemetry, vector store metrics, eval results |
-| `spec-cop` | Specification coherence, contradiction detection |
+| `architect` | Architecture decisions, ADR process, interface design |
+| `code-guard` | Code quality guardrails, commit protocol, fix sequence |
+| `devops` | CI/CD workflows, release configuration |
+| `doc-writer` | Root README and CHANGELOG maintenance |
+| `onboarding` | Agent self-orientation — discovers skills via MCP and applies setup |
 | `overseer` | Keep skill files in sync with codebase changes |
-| `skill-guru` | Agent Skills v1.0 standard reference |
+| `package` | Package lifecycle: add, update, build, sync, test |
+| `planner` | Implementation planning, 5-phase workflow, plan tracking |
+| `qa` | Tests, eval experiments, quality metrics |
+| `skill-writer` | Agent Skills v1.0 standard reference |
+| `spec-writer` | Specification authorship — keep NOW/NEXT/SPEC docs in sync |
 
 ## Installation
 
@@ -32,4 +33,4 @@ This copies skills to `.agents/skills/virage/` in your project and configures Cl
 
 ## Agent configuration
 
-The `agent-config/hooks.json` file contains Claude Code hooks that remind the agent to check the skill-guru standard before modifying installed skill files.
+The `agent-config/hooks.json` file contains Claude Code hooks that remind the agent to check the skill-writer standard before modifying installed skill files.

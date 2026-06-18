@@ -1,6 +1,6 @@
 ---
 name: onboarding
-description: Self-orientation command for AI agent. When invoked with "onboard", the agent reads all skills, then configures the environment based on their rules.
+description: Self-orientation command for AI agent. When invoked with "onboard", the agent discovers all skills via MCP, then configures the environment based on setup instructions they contain.
 license: MIT
 when_to_use:
   - "Starting a new session in a Virage project for the first time"
@@ -8,16 +8,29 @@ when_to_use:
   - "Running virage init or virage update in a new repo"
   - "Configuring Claude Code hooks and MCP server for a new project"
 prerequisites: []
-estimated_tokens: 525
-output_format: "Environment configured; summary of skills loaded and hooks active"
+estimated_tokens: 500
+output_format: "Environment configured; summary of skills loaded and setup actions applied"
 metadata:
   author: vivantel-team
-  version: "1.1.0"
+  version: "2.0.0"
 ---
 
 # Skill: Onboarding
 
-**Purpose:** When user says "onboard", the agent reads all skills and applies any setup instructions they contain.
+**Purpose:** When user says "onboard", the agent discovers all skills via MCP tools and applies any setup instructions they contain.
+
+---
+
+## Role
+
+**Developer Experience Lead** — ensures any agent (or human) can become productive in this project from a cold start.
+
+Responsibilities:
+- Validate the environment before work begins, not just collect configuration
+- Identify friction: missing hooks, unresponsive MCP server, or missing setup steps are blockers — not warnings
+- Surface setup gaps to the user rather than silently skipping them
+- Ensure the session is correctly oriented with all conventions loaded before any task starts
+- Treat onboarding as the quality gate for agent productivity — incomplete onboarding leads to incorrect behavior
 
 ---
 
@@ -33,28 +46,45 @@ metadata:
 
 When user says "onboard":
 
-### 1. Read all skills
+### 1. Discover available skills
 
-Read every `SKILL.md` in `.agents/skills/` and all subdirectories.
+Use MCP tools in order of increasing cost:
+
+1. `mcp__virage__list_skills()` — returns all skill names, `when_to_use` triggers, and `estimated_tokens`. Total cost: ~500 tokens for all 12 skills.
+2. For each skill whose `when_to_use` triggers include setup-relevant verbs (configure, create, install, remember, run, set): call `mcp__virage__read_skill_summary('<name>')` to read the ≤20-line summary (~150 tokens each).
+3. Call `mcp__virage__read_skill('<name>')` only for skills whose summary confirms actionable setup instructions.
+
+**Always load fully on first onboard:**
+- `code-guard` — defines commit protocol and quality gate rules to remember
+- `planner` — defines the ADR gate rule and plan format to remember
+- `skill-writer` — defines the skill standard; needed before any skill modification
+
+**Fallback (MCP unavailable):** Read `**/SKILL.summary.md` files from `.agents/skills/virage/*/` using Read tool. Load full `SKILL.md` only when the summary indicates setup actions (contains verbs: configure, create, install, remember, set).
 
 ### 2. Apply setup instructions
 
-While reading each skill, look for any **actionable setup instructions** — things the skill says the agent should configure, install, or remember.
+An instruction is **actionable** if it contains one of these verbs applied to a concrete artifact: *configure, create, install, remember, run, set*. Skip descriptive sentences.
 
-Examples of what to look for (but skills may contain others):
-
-- Hook configurations (git hooks, Claude `PreToolUse`, etc.)
-- Environment variables to set
+Examples of what to look for:
+- Hook configurations (git hooks, agent `PreToolUse` hooks, etc.)
+- Environment variables to set or remember
 - Directories to create
-- Commands to remember as triggers
+- Commands or rules to remember (commit format, ADR gate, etc.)
 - File paths to note as important
-- Rules to follow (commit format, ADR gate, etc.)
 
-Use your judgment: if a skill says "do X" or "configure Y", do it.
+### 3. Validate the environment
 
-### 3. Report
+Before declaring onboarding complete, verify that the setup is functional — not just that configuration was found:
 
-Tell the user what you configured and what you remembered.
+- Confirm MCP server is responsive: `mcp__virage__list_skills()` returned results without error
+- Confirm any required hooks are installed (e.g., pre-commit quality gate hook)
+- Confirm any required environment variables are set or noted
+
+**If any setup step fails or is missing, do not proceed to the user's task. Surface the gap first** — a session with broken tooling will produce incorrect results regardless of how well the agent understands the conventions.
+
+### 4. Report
+
+Tell the user what you configured, what you remembered, and any setup gaps found.
 
 ---
 
@@ -62,26 +92,40 @@ Tell the user what you configured and what you remembered.
 
 **User:** "onboard"
 
-**Agent reads skills and finds:**
+**Agent uses MCP tools and finds:**
 
-- `code-guardian/SKILL.md` contains a bash code block — creates `.git/hooks/pre-commit` with that content
-- `code-guardian/SKILL.md` mentions `PreToolUse` hook in `.claude/settings.json` — ensures it's configured
-- `planner/SKILL.md` says "write ADR before implementing" — remembers the gate rule
-- `spec-cop/SKILL.md` mentions `@spec-cop validate` — remembers the command
-- `package/SKILL.md` lists required `package.json` fields — remembers them
+- `mcp__virage__list_skills()` returns 12 skills
+- Summaries reveal `code-guard` and `planner` have setup-relevant content
+- Full read of `code-guard` → remembers commit protocol and quality gate rule
+- Full read of `planner` → remembers ADR gate rule and plan file path
+- Full read of `skill-writer` → remembers skill format standard
 
 **Agent responds:**
 
 ```
 Onboarding complete.
 
-Configured:
-  - .git/hooks/pre-commit
-  - .claude/settings.json (PreToolUse)
-
 Remembered:
-  - ADR gate rule
-  - @spec-cop validate command
-  - Package.json required fields
-  - Artifact paths (.virage/, .agents/specs/, docs/ADR.md)
+  - ADR gate rule (write ADR before structural changes)
+  - Commit protocol (run quality gate before staging)
+  - Plan file location
+  - Skill format standard (skill-writer)
+  - @spec-writer sync convention
+
+Skills available: analyst, architect, code-guard, devops, doc-writer,
+  onboarding, overseer, package, planner, qa, skill-writer, spec-writer
 ```
+
+## Output Format
+
+Summary of onboarding results:
+
+```
+Onboarding complete.
+
+Configured: <list of environment changes made>
+Remembered: <list of rules/conventions loaded>
+Skills available: <alphabetical list of discovered skills>
+```
+
+Done when: all setup-critical skills have been read, their actionable instructions applied or remembered, and the environment validated as functional. If any validation step failed, that gap is surfaced to the user before any other task proceeds.

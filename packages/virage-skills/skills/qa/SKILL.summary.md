@@ -1,10 +1,10 @@
 # Skill: QA (summary)
 
-Use when: writing or debugging unit/integration/acceptance tests, generating an eval dataset for RAG quality, running `virage evaluate` or `virage experiment` and interpreting results, diagnosing a flaky test in CI.
+Use when: defining quality criteria, tracking test coverage trends, writing or reviewing tests, evaluating test tooling, or making a ship/fix/escalate decision about output quality.
 
-**Full skill cost:** ~1,360 tokens. Load with `read_skill('qa')` for the full QA workflow.
+**Full skill cost:** ~900 tokens. Load with `read_skill('qa')` for the full QA workflow.
 
 ## Key outputs
-- Test files or eval dataset
-- Diagnostic report with pass/fail analysis and fix
-- Metric interpretation (precision@K, recall@K, MRR, RAGAS scores)
+- Quality verdict: SHIP / FIX / ESCALATE with explicit per-criterion evidence
+- Test strategy recommendation (type, framework, coverage baseline)
+- Blockers list with fix actions

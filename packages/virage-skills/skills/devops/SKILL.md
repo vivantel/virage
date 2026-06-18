@@ -1,29 +1,44 @@
 ---
 name: devops
-description: Modify CI/CD workflows and release configuration for the Virage monorepo.
+description: Modify CI/CD workflows and release configuration for a monorepo.
 license: MIT
 when_to_use:
-  - "Editing GitHub Actions workflows (.github/workflows/)"
-  - "Changing release-please or npm publish configuration"
+  - "Editing CI/CD workflow files"
+  - "Changing release automation or publish configuration"
   - "Adding environment variables or secrets to CI"
   - "Diagnosing a failed CI run or pipeline step"
 prerequisites: []
-estimated_tokens: 1219
-output_format: "Updated workflow YAML or config file with explanation of changes"
+estimated_tokens: 700
+output_format: "Updated workflow file or config, with explanation of change and expected CI behavior"
+companions: [package]
 metadata:
   author: vivantel-team
-  version: "1.1.0"
+  version: "2.0.0"
 ---
 
 # Skill: CI/CD and Release
 
-**Purpose:** Modify `.github/workflows/` and `.github/config/` to update CI, release, or deployment configuration.
+**Purpose:** Modify CI/CD workflows and release configuration.
+
+---
+
+## Role
+
+**Platform Lead** — owns the reliability and reproducibility of the build, test, and release pipeline.
+
+Responsibilities:
+- Keep the CI pipeline passing and stable — flaky pipelines are not tolerated as background noise
+- Design for reproducibility: a clean checkout and a `ci install + build + test` should always succeed
+- Own the release strategy: versioning scheme, publish criteria, rollback procedures
+- Investigate and fix CI failures proactively — don't let failures accumulate
+- Assess pipeline health before making configuration changes — never modify a pipeline that's already degraded
+- Minimize environment drift between local and CI by making CI the source of truth
 
 ---
 
 ## When to use this skill
 
-- Adding or modifying CI/CD workflows in `.github/workflows/`
+- Adding or modifying CI/CD workflows
 - Wiring a new package into the release matrix
 - Debugging failing CI runs or release jobs
 - Changing workflow triggers, secrets, or matrix configuration
@@ -32,87 +47,74 @@ metadata:
 
 ## Context checklist
 
+1. Discover current workflow state: `mcp__virage__search("CI workflow release trigger publish", top_k=5)`
+   - Fallback: list and read the CI configuration directory for your project (e.g., `.github/workflows/`)
+2. **Check pipeline health first**: are recent CI runs passing consistently? Is there flakiness? Do not make configuration changes on top of a degraded pipeline — fix instability first.
+3. Identify which workflow(s) to change
+4. For release changes: check your project's release manifest for current versions
+
 ```
-[ ] List current .github/workflows/ to confirm file names
-[ ] Identify which workflow(s) to change
-[ ] For release changes: check .release-please-manifest.json for current versions
-[ ] Before committing: npm run fix && npm run lint && npm run type-check:ci (see .agents/skills/code-guardian/SKILL.md)
+[ ] Run pre-commit quality checks before staging (see code-guard skill + INDEX.md §Code quality guardrails)
 ```
 
 ---
 
-## Current State — Workflow file map
+## Adding a new package to CI/CD
 
-| File                            | Trigger                      | Purpose                                                                                                   |
-| ------------------------------- | ---------------------------- | --------------------------------------------------------------------------------------------------------- |
-| `ci.yaml`                       | push/PR to master/develop    | Dynamic matrix: build + test only changed packages                                                        |
-| `release.yaml`                  | release-please PR merged     | Publish all packages to npm (OIDC trusted publisher)                                                      |
-| `virage-update.yaml`            | push to master               | Run `virage index --config virage.config.ci.json` to reindex the repo using lancedb (no DB secret needed) |
-| `automerge-release-please.yaml` | PR labeled by release-please | Auto-approve and merge release PRs after CI passes                                                        |
+When a new publishable package is added, update your project's:
 
-**Currently published packages in the release matrix** (in sync with `.github/config/release-please.json`):
+1. **Release manifest** — add entry for the new package with its initial version
+2. **Release automation job** — add the package to the automated publish trigger
+3. **CI path filter** — add the package path so CI runs on changes to that package
+4. **Skill inventories** — update `docs/ai/INDEX.md` §Package inventory and §CI/CD and release state
 
-`virage-core`, `virage-cli`, `virage-dashboard`, `virage-mcp`, `virage-strategies`, `virage-code-chunk-chunker`, `virage-embedder-openai`, `virage-embedder-transformers`, `virage-embedder-fastembed`, `virage-store-postgres`, `virage-store-qdrant`, `virage-store-lancedb`, `virage-store-chromadb`, `virage-skills`, `virage-agent-claude`
+> For this project's specific CI file locations and formats: see `docs/ai/INDEX.md` §CI/CD and release state.
 
-> **Keep both lists above current.** After adding or removing a package from CI, update this section, then run `.agents/skills/overseer/SKILL.md`.
+If the new package has native binary postinstall scripts: configure your CI dependency installation step to skip those scripts, then run them separately if needed.
 
 ---
 
-## Adding a new publishable package (4-file checklist)
+## Release process concepts
 
-1. **`.github/config/release-please.json`** — copy any sibling entry under `"packages"`, update the key and `package-name`
-
-2. **`.github/workflows/release.yaml`** — two locations:
-   - `outputs:` block of the `release-please` job → add:
-     ```yaml
-     <name>: ${{ steps.release.outputs['packages/<name>--release_created'] }}
-     ```
-   - `compute-publish-matrix` step bash block → add one conditional line:
-     ```bash
-     if [[ "${{ needs.release-please.outputs.<name> }}" == "true" ]]; then packages+=("virage-<name>"); fi
-     ```
-   > There is no static matrix array — the `publish` job uses `fromJSON(needs.compute-publish-matrix.outputs.packages)`.
-
-3. **`.github/workflows/ci.yaml`** — `filters:` block in the `changes` job: copy a sibling entry, update the package name and path glob
-
-4. **`.release-please-manifest.json`** → add:
-
-   ```json
-   "packages/<name>": "<initial-version>"
-   ```
-
-5. Update §Current State published packages list above
-
-If the new package has native binary postinstall scripts: add its name to the `contains()` list in the "Install dependencies" step in both `ci.yaml` and `release.yaml`.
-
----
-
-## Release process
-
-- release-please reads commit messages and generates version bumps automatically
-  - `feat:` → minor bump, `fix:` → patch, `feat!:` → major
-- The `prepublishOnly` script runs `build && test` before any publish
-- Private packages (`virage-store-test`) are excluded from all CI release files
+- Release automation reads commit messages to determine version bumps (minor, patch, major)
+- Pre-publish verification runs build + test before any package is published
+- Private packages are excluded from release automation
 
 ---
 
 ## Common tasks
 
-**Add a workflow secret:**
-
-1. GitHub repo → Settings → Secrets → Actions → New secret
-2. Reference as `${{ secrets.MY_SECRET }}` in a step `env:` block
+**Add a CI secret:**
+1. Add the secret in your CI provider's settings
+2. Reference it in the relevant workflow step via the provider's secret syntax
 
 **Change a workflow trigger:**
-Edit the `on:` block: `push.branches`, `pull_request.branches`, `schedule.cron`, etc.
+Edit the trigger block: push branches, pull request branches, schedule, etc.
 
-**Add `--ignore-scripts` for a package with native postinstall:**
-Find the "Install dependencies" step in both `ci.yaml` and `release.yaml`; add the package name to the `contains()` conditional.
+**Handle a native postinstall package:**
+Find the dependency installation step in CI; configure it to skip scripts for that package.
+
+---
+
+## Current State
+
+> Discover current CI/CD state for your project:
+>
+> - `mcp__virage__search("CI workflow release publish matrix", top_k=5)`
+> - Fallback: read `docs/ai/INDEX.md` §CI/CD and release state
 
 ---
 
 ## Validation after CI changes
 
-- Push to a branch → open PR → watch the Actions tab
-- Check that the `changes` job output correctly identifies the changed paths
-- For `release.yaml` changes: validate with a dry-run PR before merging to master
+1. Push to a branch → open PR → watch the CI run
+2. Verify the path-filter job correctly identifies changed packages
+3. For release config changes: validate with a dry-run before merging to the main branch
+
+## Output Format
+
+Updated workflow file or release config file. Include a one-paragraph explanation of:
+- What changed and why
+- Expected CI behavior after the change
+
+Done when: CI runs successfully on a branch with the changed config, the changed-path detection behaves as expected, and a rollback path is identified in case the change causes unexpected failures in production.

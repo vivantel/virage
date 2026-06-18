@@ -1,18 +1,19 @@
 ---
 name: package
-description: Add, update, develop, sync, and test packages in the Virage monorepo.
+description: Add, update, develop, sync, and test packages in a monorepo.
 license: MIT
 when_to_use:
   - "Adding a new package to the monorepo"
   - "Updating a package's dependencies or version"
-  - "Developing a new embedder, vector store, or chunker implementation"
-  - "Syncing package.json peer dependencies after an interface change"
+  - "Developing a new plugin or provider implementation"
+  - "Syncing package configuration across packages after an interface change"
 prerequisites: []
-estimated_tokens: 2254
-output_format: "New or updated package files with correct workspace wiring, tsconfig, and package.json"
+estimated_tokens: 1100
+output_format: "New or updated package files with correct workspace wiring and configuration"
+companions: [devops, qa]
 metadata:
   author: vivantel-team
-  version: "1.1.0"
+  version: "2.0.0"
 ---
 
 # Skill: Package Lifecycle
@@ -21,21 +22,35 @@ metadata:
 
 ---
 
+## Role
+
+**Library Maintainer** — owns a package's health from creation through active use.
+
+Responsibilities:
+- Manage the full lifecycle of a package: scaffold, dependencies, build, publish, deprecate
+- Keep the dependency graph safe: audit dependency versions for known vulnerabilities, don't bump blindly
+- Keep the API surface intentional and minimal: every export is a commitment
+- Ensure every published package meets quality standards — built, typed, tested, documented — before it ships
+- Maintain consistency across the monorepo: shared config, build targets, runtime requirements
+
+---
+
 ## When to use this skill
 
 - Adding a new package to the monorepo
 - Updating dependencies or publishing config in an existing package
 - Building, type-checking, or running tests for a specific package
-- Syncing shared tsconfig/eslint config across packages
+- Syncing shared config across packages
 
 ---
 
 ## Context checklist
 
+1. Identify which operation: Add / Update / Develop / Sync / Test
+2. For current package inventory: `mcp__virage__search("package workspace published private inventory", top_k=5)` or read `docs/ai/INDEX.md` §Package inventory
+
 ```
-[ ] Read docs/ai/INDEX.md cross-cutting rules (imports, commit style, pre-commit hook)
-[ ] Identify which operation: Add / Update / Develop / Sync / Test
-[ ] Before committing: npm run fix && npm run lint && npm run type-check:ci (see .agents/skills/code-guardian/SKILL.md)
+[ ] Run pre-commit quality checks before staging (see code-guard skill + INDEX.md §Code quality guardrails)
 ```
 
 ---
@@ -48,96 +63,66 @@ What are you doing?
 ├── Dep or version change    → §Update
 ├── Writing + building code  → §Develop
 ├── Syncing shared config    → §Sync
-└── Running tests only       → §Test (or load .agents/skills/qa/SKILL.md)
+└── Running tests only       → §Test (or load qa skill)
 ```
-
----
-
-## Current State — Package inventory
-
-| Package                      | Published    | Purpose                                                                   |
-| ---------------------------- | ------------ | ------------------------------------------------------------------------- |
-| virage-core                  | yes          | Pipeline engine, interfaces, strategies, eval — no CLI deps               |
-| virage-cli                   | yes          | `virage` binary + all CLI commands; embeds dashboard at build time        |
-| virage-dashboard             | yes          | React + Vite dashboard served by `virage dashboard`; publishes `dist/`    |
-| virage-strategies            | yes          | Re-export of built-in chunk strategies as standalone install              |
-| virage-embedder-openai       | yes          | OpenAI embeddings + semantic cache + LLM judge                            |
-| virage-embedder-transformers | yes          | HuggingFace Transformers (local inference)                                |
-| virage-embedder-fastembed    | yes          | FastEmbed ONNX (local inference)                                          |
-| virage-store-postgres        | yes          | pgvector vector store                                                     |
-| virage-store-qdrant          | yes          | Qdrant vector store (local or cloud)                                      |
-| virage-store-lancedb         | yes          | LanceDB embedded vector store (file-based)                                |
-| virage-store-chromadb        | yes          | ChromaDB vector store (local or hosted)                                   |
-| virage-mcp                   | yes          | MCP stdio server — search and inspect any virage index from AI assistants |
-| virage-code-chunk-chunker    | yes          | AST-aware code chunker using code-chunk/tree-sitter (TS, JS, Python, Rust, Go, Java) |
-| virage-store-test            | no (private) | File-backed mock VectorStore for acceptance testing                       |
-| virage-skills                | yes          | Distributable AI agent skill files (`plugin-config/` copied by virage init)           |
-| virage-agent-core            | yes          | Shared base: concrete `BaseAgentPlugin` (static file-copier), `VendorConfig` types    |
-| virage-agent-claude          | yes          | Claude Code plugin — copies `plugin-config/` → `.claude/` + registers MCP server     |
-| virage-agent-copilot         | yes          | GitHub Copilot plugin — copies `plugin-config/` → `.github/copilot/`                 |
-| virage-agent-codex           | yes          | OpenAI Codex plugin — copies `plugin-config/` → `.codex/`                            |
-| virage-agent-antigravity     | yes          | Google Antigravity plugin — copies `plugin-config/` → `.antigravity/`                |
-
-> **Keep this table current.** After adding or removing a package, update this snapshot, then run `.agents/skills/overseer/SKILL.md`.
 
 ---
 
 ## Published package required fields
 
-Every published `package.json` must have:
+Every published package manifest must have:
 
-| Field            | Value                                                             |
-| ---------------- | ----------------------------------------------------------------- |
-| `author`         | `"Vivantel"`                                                      |
-| `license`        | `"MIT"`                                                           |
-| `keywords`       | RAG-related terms + package-specific terms                        |
-| `repository`     | `{ "type": "git", "url": "...", "directory": "packages/<name>" }` |
-| `engines`        | `{ "node": ">=18.0.0" }`                                          |
-| `publishConfig`  | `{ "access": "public" }`                                          |
-| `files`          | Must include `"README.md"` alongside output dir                   |
-| `prepublishOnly` | At minimum `"npm run build"`                                      |
-
-Required scripts: `build`, `type-check`, `lint`, `lint:fix`, `format`, `format:check`, `fix`.
+| Field | Value |
+| ----- | ----- |
+| `author` | Package author or org name |
+| `license` | `"MIT"` (or your project's license) |
+| `keywords` | Domain-relevant terms for discoverability |
+| `repository` | `{ "type": "git", "url": "...", "directory": "packages/<name>" }` |
+| `engines` | Minimum runtime version requirement |
+| `publishConfig` | `{ "access": "public" }` for public packages |
+| `files` | Must include `"README.md"` alongside output dir |
+| `prepublishOnly` | At minimum `"<build command>"` |
 
 ---
 
 ## §Add — New package scaffold
 
-1. `mkdir packages/<name>/src`
-2. Create `packages/<name>/package.json` — all required fields above; set `"type": "module"`
-3. Copy `tsconfig.json` from `packages/virage-store-lancedb/tsconfig.json` (NodeNext pattern, `rootDir: "./src"`, `outDir: "./dist"`)
-4. Create `src/index.ts` (exports) and `README.md` (badges, description, install, usage)
-5. Wire release-please (see `.agents/skills/devops/SKILL.md` §Adding a new publishable package)
-6. Wire CI workflows: add path filter to `.github/workflows/ci.yaml` `filters:` block; add output + `packages+=` line to `.github/workflows/release.yaml`
-6a. Add `-w packages/<name>` to the `type-check:ci` script in root `package.json`
-7. Update §Current State table above
-8. Update `.agents/skills/devops/SKILL.md` §Current State published packages list
-9. `npm install` from repo root — links workspace and updates `package-lock.json`.  
-   **STOP if this fails for any reason** (disk space, network, native build error). Do not write source files or proceed to later steps until `npm install` completes successfully and `package-lock.json` contains the new package name.  
-   Stage `package-lock.json` alongside source files — a stale lock file breaks `npm ci` in CI.
-9a. Verify lock file integrity: `npm ci --dry-run` from repo root must pass. If it fails, re-run `npm install` and retry. A simple `grep` is insufficient — it misses missing transitive dependency entries that will break `npm ci` in CI.
-10. `npm run type-check -w @vivantel/<name>` must pass
-11. `npm run build -w @vivantel/<name>` must pass
-12. Run `.agents/skills/overseer/SKILL.md` reactive checklist
+1. Create `packages/<name>/src/`
+2. Create `packages/<name>/package.json` — all required fields above; set module type to match project convention (see `docs/ai/INDEX.md` §Architecture state)
+3. Copy build config (tsconfig.json or equivalent) from a sibling package matching your build target
+4. Create `src/index.<ext>` (exports) and `README.md` (badges, description, install, usage)
+5. Wire release automation — see `devops` skill
+6. Wire CI workflows — see `devops` skill and `docs/ai/INDEX.md` §CI/CD and release state
+7. Add `-w packages/<name>` (or equivalent) to the type-check command in root config
+8. Update package inventory in `docs/ai/INDEX.md` §Package inventory
+9. Update `devops` skill if the new package is publishable
+10. Install dependencies from repo root to link workspace and update the lock file.
+    **Stop if install fails** — do not proceed to later steps until it completes successfully.
+11. Verify lock file integrity: run the dry-run install check for your package manager
+12. Run type-check and build for the new package — both must pass
+13. Run `overseer` skill reactive checklist
 
 ---
 
 ## §Update — Existing package changes
 
-- **Dep bump**: update `package.json` → `npm install` → `npm run type-check -w @vivantel/<name>`
-- **Interface change**: grep all workspace packages for the changed import before committing
-- **CLI command changed**: update `docs/ai/INDEX.md` §Essential commands if the command is commonly used
-- **Commit format**: `feat(<name>): ...` or `fix(<name>): ...` (drives release-please version bumps)
+- **Dep bump**: before bumping a dependency, check for known vulnerabilities in the current version — don't bump blindly, verify what changed between versions. Then: update manifest → install → type-check → test
+- **Interface change**: search all workspace packages for the changed import before committing
+- **CLI command changed**: update `docs/ai/INDEX.md` §Essential commands if commonly used
+- **Version bump**: update every workspace package that pins the old version in the same commit, then re-run install to update the lock file
 
 ---
 
 ## §Develop — Build loop
 
-```bash
-npm run build -w @vivantel/<name>                        # one-shot compile
-npm run type-check -w @vivantel/<name>                   # type-only (faster)
-npm run build:with-dashboard -w @vivantel/virage-cli     # CLI + embedded dashboard UI
-```
+1. Build the package
+2. Run type-check (type-only is faster for iteration)
+3. Run tests
+4. Repeat from step 1 until all checks pass
+
+**API surface discipline:** New exports must be listed in `package.json` `files` and documented in the package README before they ship. An export not in the manifest is not part of the public API. An undocumented export is a maintenance liability.
+
+> For project-specific build commands: see `docs/ai/INDEX.md` §Package development.
 
 ---
 
@@ -145,25 +130,18 @@ npm run build:with-dashboard -w @vivantel/virage-cli     # CLI + embedded dashbo
 
 Items to keep consistent across all packages:
 
-| Config                           | Expected value                         |
-| -------------------------------- | -------------------------------------- |
-| `tsconfig.json` module           | `"NodeNext"`                           |
-| `tsconfig.json` moduleResolution | `"NodeNext"`                           |
-| `tsconfig.json` target           | `"ES2022"`                             |
-| ESLint config                    | Inherited from root `eslint.config.js` |
-| `engines.node`                   | `">=18.0.0"`                           |
+| Config | What to check |
+| ------ | ------------- |
+| Build config | Module system, resolution, and compilation target |
+| Linting config | Inherited from root config |
+| Runtime version requirement | Minimum version in engine field |
+
+> For this project's specific config values: see `docs/ai/INDEX.md` §Architecture state.
 
 ---
 
 ## §Test — Running tests
 
-See `.agents/skills/qa/SKILL.md` for the full test strategy. Quick reference:
+See `qa` skill for the full test strategy. Quick reference: run unit tests, acceptance tests, and type-check before any commit.
 
-```bash
-npm test -w @vivantel/virage-core                         # unit tests
-npm run test:acceptance -w @vivantel/virage-core          # acceptance (build virage-store-test first)
-npm run type-check:ci                                     # all included packages
-npx vitest run src/core/git-tracker.test.ts               # single test file
-```
-
-**Type-check exclusions**: `virage-embedder-openai`, `virage-embedder-transformers`, and `virage-mcp` are excluded from `type-check:ci` due to corrupted third-party type declarations in this environment (`@modelcontextprotocol/sdk` `stdio.d.ts` is empty).
+> For this project's specific test commands: see `docs/ai/INDEX.md` §Testing infrastructure.

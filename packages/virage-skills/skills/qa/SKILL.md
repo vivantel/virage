@@ -1,103 +1,151 @@
 ---
 name: qa
-description: Set up, run, and debug tests; generate eval datasets; run experiments; interpret quality metrics.
+description: Own and guarantee the quality bar across all project outputs. Defines quality criteria, tracks coverage trends, evaluates test tooling, and makes ship/fix/escalate decisions. The QA Lead is not a test runner — they are a quality owner.
 license: MIT
 when_to_use:
-  - "Writing or debugging unit, integration, or acceptance tests"
-  - "Generating an eval dataset for RAG quality measurement"
-  - "Running virage evaluate or virage experiment and interpreting results"
-  - "Diagnosing a test failure or flaky test in CI"
+  - "Defining or reviewing quality criteria for a feature or change"
+  - "Running and interpreting test suites, eval metrics, or coverage reports"
+  - "Deciding whether a build is ready to ship based on quality evidence"
+  - "Identifying and escalating quality risks before they become defects"
+  - "Evaluating or recommending test frameworks and tooling"
+  - "Investigating flaky tests or persistent quality regressions"
 prerequisites: []
-estimated_tokens: 1360
-output_format: "Test files, eval dataset, or diagnostic report with pass/fail analysis"
+estimated_tokens: 1000
+output_format: "Quality verdict (SHIP / FIX / ESCALATE) with supporting evidence per quality criterion and list of blockers"
+companions: [analyst]
 metadata:
   author: vivantel-team
-  version: "1.1.0"
+  version: "3.0.0"
 ---
 
-# Skill: QA — Tests, Eval, Quality Metrics
+# Skill: QA
 
-**Purpose:** Set up, run, and debug tests; generate eval datasets; run experiments; interpret quality metrics.
+**Purpose:** Own and guarantee the quality bar across all project outputs — code correctness, test coverage, and RAG retrieval quality. Not just a test runner: the QA Lead defines criteria, tracks trends, makes decisions, and escalates when the bar isn't met.
+
+---
+
+## Role
+
+**QA Lead** — owns the quality bar for all project outputs.
+
+Responsibilities:
+- Define what "quality" means for each output type (not just "tests pass")
+- Maintain and evolve the test architecture (what types of tests exist and why)
+- Track coverage trends over time — catch degradation before it compounds into technical debt
+- Evaluate and recommend test frameworks or tools if none is yet adopted
+- Design acceptance criteria for new features before implementation starts
+- Investigate flaky tests and mandate fixes — flakiness is not acceptable background noise
+- Manage quality debt alongside technical debt
+- Make ship / fix / escalate decisions based on quality evidence
+- Review PRs from a quality perspective: is this testable? does it regress coverage?
 
 ---
 
 ## When to use this skill
 
-- Running unit, acceptance, or type-check tests
-- Setting up new test infrastructure or a new test type
-- Generating eval datasets and running retrieval experiments
-- Interpreting eval metrics (MRR, P@5, R@10, HitRate@5)
+- Before signing off on any feature or change for merge
+- When test infrastructure needs to be set up or expanded
+- When quality metrics are ambiguous and a decision is needed
+- When a new feature's acceptance criteria haven't been defined yet
 
 ---
 
-## Context checklist
+## Quality criteria
+
+Quality is met when all of the following hold:
+
+| Output type | Quality bar |
+| ----------- | ----------- |
+| Code | All tests pass, no CRIT findings from code-guard, coverage at or above baseline |
+| RAG retrieval | Eval metrics at or above established baseline (see §Quality metrics) |
+| Documentation | User-facing docs updated to reflect the change (doc-writer sign-off) |
+| Type safety | Type-check passes on all included packages |
+
+If any criterion is below bar: **do not ship**. Log the specific criterion that failed and escalate if it can't be fixed in the current session.
+
+---
+
+## Test strategy
+
+When test infrastructure doesn't exist yet or needs expansion:
+
+1. **Identify the gap**: what behavior is untested and what's the risk of it being wrong?
+2. **Choose the test type**: unit for isolated logic; integration for module interactions; acceptance for full system behavior from the CLI or API; eval for RAG retrieval quality
+3. **Choose the framework**: `mcp__virage__search("test framework <language> unit acceptance", top_k=3)` to find what the project uses. If nothing is established, recommend the ecosystem standard for the project's language.
+4. **Set a coverage baseline**: before adding tests, measure current coverage so regressions can be detected
+
+Adding a new test type always requires updating `docs/ai/INDEX.md` §Testing infrastructure.
+
+---
+
+## Coverage tracking
+
+Coverage is a signal, not a goal. Use it to detect regression.
+
+- After any significant change: run coverage and compare to the previous baseline
+- If coverage drops: investigate before moving on — is the new code untested, or was old code deleted?
+- If coverage rises: note whether it reflects meaningful new tests or just test file additions
+- Coverage threshold: find in `docs/ai/INDEX.md` §Testing infrastructure. If not set, establish one before the next PR.
+
+---
+
+## Quality gate checklist
+
+Run before committing any change:
 
 ```
-[ ] Identify what you're testing: unit / acceptance / type-check / eval / quality
-[ ] For acceptance tests: build virage-store-test first
-      npm run build -w @vivantel/virage-store-test
-[ ] For acceptance tests: set E2E_CLONE_DIR to reuse an existing clone (skips slow clone step)
-      export E2E_CLONE_DIR=/path/to/existing/clone
-[ ] Before committing: npm run fix && npm run lint && npm run type-check:ci (see .agents/skills/code-guardian/SKILL.md)
+[ ] All tests pass (see docs/ai/INDEX.md §Testing infrastructure for project-specific commands)
+[ ] Coverage at or above baseline (or a documented exception exists)
+[ ] Type-check passes
+[ ] No CRIT findings from code-guard
+[ ] If RAG pipeline was changed: eval metrics at or above baseline
+[ ] Pre-commit quality checks passed (see code-guard skill)
 ```
 
----
-
-## Current State — Test type map
-
-| Type             | Command                                            | Location                                | Notes                                     |
-| ---------------- | -------------------------------------------------- | --------------------------------------- | ----------------------------------------- |
-| Unit             | `npm test -w @vivantel/<pkg>`                      | `packages/<pkg>/src/**/*.test.ts`       | Per-package vitest                        |
-| Acceptance (E2E) | `npm run test:acceptance -w @vivantel/virage-core` | `packages/virage-core/test/acceptance/` | Full CLI, 6-min timeout, forked processes |
-| Type check       | `npm run type-check:ci`                            | All included packages                   | tsc --noEmit                              |
-| Coverage         | `npm run test:coverage -w @vivantel/<pkg>`         | Same as unit                            | HTML output                               |
-| Single file      | `npx vitest run src/core/<file>.test.ts`           | Any package                             | Run from package dir                      |
-
-**Type-check exclusions**: `virage-embedder-openai`, `virage-embedder-transformers`, and `virage-store-lancedb` are excluded from `type-check:ci`. The embedder packages have corrupted third-party `.d.ts` files from a broken `npm install` that predates the project (run `npm ci` in those packages individually to restore). `virage-store-lancedb` is excluded because `@lancedb/lancedb` is missing from `node_modules` (disk-space constraint prevented installation).
-
-> **Keep this table current.** After adding a new test type or test infrastructure, add a row.
+Find project-specific test commands:
+- `mcp__virage__search("test framework acceptance unit coverage commands", top_k=3)`
+- Fallback: read `docs/ai/INDEX.md` §Testing infrastructure
 
 ---
 
-## Acceptance test setup
+## Test type taxonomy
 
-- Separate vitest config: `packages/virage-core/vitest.acceptance.config.ts`
-- Uses `virage-store-test` (file-backed mock VectorStore at `packages/virage-store-test/`)
-- Each test file runs in a forked process
-- `E2E_CLONE_DIR` env var: reuses an existing repo clone to skip the slow `git clone` step during iteration
+| Type | What it covers |
+| ---- | -------------- |
+| Unit | Single function or module in isolation |
+| Integration | Multiple modules together, without external I/O |
+| Acceptance (E2E) | Full system behavior from the CLI or API |
+| Type check | Static type correctness across all included packages |
+| Coverage | Percentage of code exercised by unit/integration tests |
+| Eval | RAG retrieval quality measurement |
+
+> For this project's specific test commands and file locations: see `docs/ai/INDEX.md` §Testing infrastructure.
 
 ---
 
 ## Eval workflow
 
-### 1. Generate eval dataset
+The virage eval workflow measures RAG retrieval quality:
 
+### 1. Generate eval dataset
 ```bash
 virage eval-generate
 ```
-
 Reads chunks from `.virage/virage.db`, generates query–ground-truth pairs. Output: `.virage/eval-dataset.json` (override with `--output`).
 
 ### 2. Run an experiment
-
 ```bash
 virage experiment run --name <name>
 ```
-
-Runs the RAG pipeline against the eval dataset and persists results.  
-Results saved to the `experiment_runs` table in `.virage/virage.db`.  
-Metrics collected: MRR, P@5, R@10, HitRate@5.
+Runs the RAG pipeline against the eval dataset and persists results. Metrics collected: MRR, P@5, R@10, HitRate@5.
 
 ### 3. Compare experiments
-
 ```bash
 virage experiment compare --baseline <id> --candidate <id>
 ```
-
 Runs a bootstrap significance test. Outputs: delta per metric, p-value, confidence interval, recommendation (accept / reject / inconclusive).
 
 ### 4. List saved experiments
-
 ```bash
 virage experiment list
 ```
@@ -106,29 +154,50 @@ virage experiment list
 
 ## Quality metrics
 
-**Chunk quality** (`packages/virage-core/src/strategies/chunk/quality-metrics.ts`):
+| Metric | Range | Description |
+| ------ | ----- | ----------- |
+| MRR | 0–1 | Mean Reciprocal Rank — average rank position of first relevant result |
+| P@5 | 0–1 | Precision at 5 — fraction of top-5 results that are relevant |
+| R@10 | 0–1 | Recall at 10 — fraction of relevant results found in top 10 |
+| HitRate@5 | 0–1 | Fraction of queries where a relevant result appears in top 5 |
 
-```bash
-virage chunks report   # reads virage.db, prints cohesion metrics
-```
+**Baselines:** find in `docs/ai/INDEX.md` §Testing infrastructure. If not established, run two experiments and treat the first as baseline before making changes.
 
-- `ChunkQualityMetrics` interface: `src/interfaces/quality.ts`
-- `computeChunkQualityMetrics()`: standalone function, usable without a full strategy instance
-- `ChunkStrategy.getQualityMetrics?(chunks)`: optional hook on strategy objects
+**Chunk quality:** `virage chunks report` — reads the database, prints cohesion metrics.
 
-**Embedding quality** (`virage store stats`, `virage store perf`) — see `.agents/skills/analyst/SKILL.md`.
+**Embedding / store quality:** `virage store stats` and `virage store perf` — see the `analyst` skill.
 
 ---
 
-## Eval source files (`packages/virage-core/src/eval/`)
+## Quality decision framework
 
-| File                  | Purpose                                                    |
-| --------------------- | ---------------------------------------------------------- |
-| `generator.ts`        | Build eval datasets from existing chunks                   |
-| `runner.ts`           | Execute evaluation with metric collection                  |
-| `ragas.ts`            | RAGAS LLM-as-judge integration (requires OpenAI embedder)  |
-| `metrics.ts`          | Precision / recall / NDCG computation                      |
-| `statistics.ts`       | Bootstrap confidence intervals, significance tests         |
-| `adaptive-tuner.ts`   | Grid-search over chunker parameters                        |
-| `experiment-store.ts` | Persist/load experiment runs; ID: `<name>_<iso-timestamp>` |
-| `dataset-io.ts`       | Read/write eval datasets                                   |
+| Verdict | When to use |
+| ------- | ----------- |
+| **SHIP** | All quality criteria met; no open blockers; eval delta is within noise (p > 0.05) |
+| **FIX** | Any test failure; coverage regression; CRIT finding; eval metric below baseline |
+| **ESCALATE** | Quality data is ambiguous; test environment issue masks real failures; conflicting metrics require human judgment |
+
+Do not ship on ESCALATE — surface the ambiguity to the user with the specific question that needs answering.
+
+---
+
+## Output Format
+
+```
+Quality verdict: SHIP | FIX | ESCALATE
+
+Evidence:
+  Tests: PASS | FAIL (<n> failures listed below)
+  Coverage: <pct>% (vs. baseline <pct>% → +/-<delta>%)
+  Type check: PASS | FAIL
+  Code-guard: <n> CRIT, <n> WARN
+  Eval (if applicable): MRR <val>  P@5 <val>  R@10 <val>  HitRate@5 <val>
+                        vs. baseline: <delta> (p=<val>, <recommendation>)
+
+Blockers (must be resolved before SHIP):
+  - <specific failure or threshold miss>
+
+Recommendation: <one sentence>
+```
+
+Done when: all quality criteria have been assessed against their bar, a verdict is declared, and all blockers are either resolved or escalated with a specific question for human decision.

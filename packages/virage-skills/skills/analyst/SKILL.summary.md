@@ -1,10 +1,10 @@
 # Skill: Analyst (summary)
 
-Use when: diagnosing pipeline failures, interpreting `virage evaluate` / `virage benchmark` output, checking vector store stats or cache hit rates, analyzing indexing or retrieval telemetry.
+Use when: synthesizing project context (roadmap, ADRs, docs, metrics) into expert analysis, identifying gaps between stated intent and current state, or producing prioritized recommendations grounded in all available project data.
 
-**Full skill cost:** ~1,061 tokens. Load with `read_skill('analyst')` for the complete diagnostic workflow.
+**Full skill cost:** ~700 tokens. Load with `read_skill('analyst')` for the complete analysis workflow.
 
 ## Key outputs
-- Root cause identification from telemetry logs
-- Metrics table (latency, hit rate, error rate)
-- Recommended corrective action
+- Analysis report: stated intent vs. current state vs. identified gaps
+- Prioritized recommendations with rationale
+- Diagnostic summary of what `virage report` shows (one data source among several)
