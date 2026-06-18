@@ -76,7 +76,9 @@ describe("AnalyticsPage", () => {
   it("renders Search Activity heading", async () => {
     setup();
     renderPage();
-    await waitFor(() => expect(screen.getByText("Search Activity")).toBeTruthy());
+    await waitFor(() =>
+      expect(screen.getByText("Search Activity")).toBeTruthy(),
+    );
   });
 
   it("displays stat cards with correct values", async () => {
@@ -106,21 +108,36 @@ describe("AnalyticsPage", () => {
   it("shows Queries per Hour section", async () => {
     setup();
     renderPage();
-    await waitFor(() => expect(screen.getByText("Queries per Hour (last 24 h)")).toBeTruthy());
+    await waitFor(() =>
+      expect(screen.getByText("Queries per Hour (last 24 h)")).toBeTruthy(),
+    );
   });
 
   it("shows error when API fails", async () => {
-    vi.mocked(api.analytics.stats).mockRejectedValue(new Error("Analytics unavailable"));
-    vi.mocked(api.analytics.perHour).mockRejectedValue(new Error("Analytics unavailable"));
-    vi.mocked(api.analytics.topTerms).mockRejectedValue(new Error("Analytics unavailable"));
-    vi.mocked(api.analytics.zeroResults).mockRejectedValue(new Error("Analytics unavailable"));
+    vi.mocked(api.analytics.stats).mockRejectedValue(
+      new Error("Analytics unavailable"),
+    );
+    vi.mocked(api.analytics.perHour).mockRejectedValue(
+      new Error("Analytics unavailable"),
+    );
+    vi.mocked(api.analytics.topTerms).mockRejectedValue(
+      new Error("Analytics unavailable"),
+    );
+    vi.mocked(api.analytics.zeroResults).mockRejectedValue(
+      new Error("Analytics unavailable"),
+    );
     renderPage();
-    await waitFor(() => expect(screen.getByText(/Analytics unavailable/)).toBeTruthy());
+    await waitFor(() =>
+      expect(screen.getByText(/Analytics unavailable/)).toBeTruthy(),
+    );
   });
 
   it("shows empty messages when no data", async () => {
     vi.mocked(api.analytics.stats).mockResolvedValue({
-      queriesLastHour: 0, queriesLast24h: 0, avgTopSimilarity: 0, zeroResultRate: 0,
+      queriesLastHour: 0,
+      queriesLast24h: 0,
+      avgTopSimilarity: 0,
+      zeroResultRate: 0,
     });
     vi.mocked(api.analytics.perHour).mockResolvedValue({ buckets: [] });
     vi.mocked(api.analytics.topTerms).mockResolvedValue({ terms: [] });

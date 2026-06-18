@@ -41,7 +41,10 @@ describe("SearchPage", () => {
     vi.mocked(api.search).mockResolvedValue({ results: [] });
     const user = userEvent.setup();
     renderPage();
-    await user.type(screen.getByPlaceholderText(/search query/i), "how does auth work");
+    await user.type(
+      screen.getByPlaceholderText(/search query/i),
+      "how does auth work",
+    );
     await user.click(screen.getByRole("button", { name: /search/i }));
     await waitFor(() =>
       expect(api.search).toHaveBeenCalledWith("how does auth work", 5),
@@ -51,15 +54,29 @@ describe("SearchPage", () => {
   it("displays search results with similarity scores", async () => {
     vi.mocked(api.search).mockResolvedValue({
       results: [
-        { id: "r1", content: "Auth uses JWT tokens.", metadata: {}, similarity: 0.92, sourceFile: "src/auth.ts" },
-        { id: "r2", content: "Session expires after 1h.", metadata: {}, similarity: 0.78, sourceFile: "src/session.ts" },
+        {
+          id: "r1",
+          content: "Auth uses JWT tokens.",
+          metadata: {},
+          similarity: 0.92,
+          sourceFile: "src/auth.ts",
+        },
+        {
+          id: "r2",
+          content: "Session expires after 1h.",
+          metadata: {},
+          similarity: 0.78,
+          sourceFile: "src/session.ts",
+        },
       ],
     });
     const user = userEvent.setup();
     renderPage();
     await user.type(screen.getByPlaceholderText(/search query/i), "auth");
     await user.click(screen.getByRole("button", { name: /search/i }));
-    await waitFor(() => expect(screen.getByText("Auth uses JWT tokens.")).toBeTruthy());
+    await waitFor(() =>
+      expect(screen.getByText("Auth uses JWT tokens.")).toBeTruthy(),
+    );
     expect(screen.getByText("92.0% match")).toBeTruthy();
     expect(screen.getByText("Session expires after 1h.")).toBeTruthy();
     expect(screen.getByText("78.0% match")).toBeTruthy();
@@ -71,14 +88,19 @@ describe("SearchPage", () => {
     renderPage();
     await user.type(screen.getByPlaceholderText(/search query/i), "xyzzy");
     await user.click(screen.getByRole("button", { name: /search/i }));
-    await waitFor(() => expect(screen.getByText(/No results found/i)).toBeTruthy());
+    await waitFor(() =>
+      expect(screen.getByText(/No results found/i)).toBeTruthy(),
+    );
   });
 
   it("shows error when api.search rejects", async () => {
     vi.mocked(api.search).mockRejectedValue(new Error("Search failed"));
     const user = userEvent.setup();
     renderPage();
-    await user.type(screen.getByPlaceholderText(/search query/i), "error query");
+    await user.type(
+      screen.getByPlaceholderText(/search query/i),
+      "error query",
+    );
     await user.click(screen.getByRole("button", { name: /search/i }));
     await waitFor(() => expect(screen.getByText(/Search failed/)).toBeTruthy());
   });
@@ -86,7 +108,13 @@ describe("SearchPage", () => {
   it("displays source file badge in results", async () => {
     vi.mocked(api.search).mockResolvedValue({
       results: [
-        { id: "r1", content: "Content.", metadata: {}, similarity: 0.85, sourceFile: "src/router.ts" },
+        {
+          id: "r1",
+          content: "Content.",
+          metadata: {},
+          similarity: 0.85,
+          sourceFile: "src/router.ts",
+        },
       ],
     });
     const user = userEvent.setup();

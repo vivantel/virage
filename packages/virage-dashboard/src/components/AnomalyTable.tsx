@@ -13,19 +13,28 @@ export function AnomalyTable({ anomalies }: Props) {
     return (
       <Card className="mb-4">
         <div className="flex items-center gap-2">
-          <Tag severity="success" value="No embedding anomalies detected" icon="pi pi-check" />
+          <Tag
+            severity="success"
+            value="No embedding anomalies detected"
+            icon="pi pi-check"
+          />
         </div>
       </Card>
     );
   }
 
   return (
-    <Card
-      title={`Embedding Anomalies (${anomalies.length})`}
-      className="mb-4"
-    >
+    <Card title={`Embedding Anomalies (${anomalies.length})`} className="mb-4">
       <DataTable value={anomalies.slice(0, 10)} size="small" stripedRows>
-        <Column field="sourceFile" header="File" style={{ maxWidth: "200px", overflow: "hidden", textOverflow: "ellipsis" }} />
+        <Column
+          field="sourceFile"
+          header="File"
+          style={{
+            maxWidth: "200px",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+          }}
+        />
         <Column
           field="zscore"
           header="Z-score"

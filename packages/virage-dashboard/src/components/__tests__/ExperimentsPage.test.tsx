@@ -12,8 +12,15 @@ vi.mock("../../api/client", () => ({
 }));
 
 vi.mock("../../context/WebSocketContext", () => ({
-  WebSocketProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
-  useWs: () => ({ status: "disconnected", operationRunning: false, messages: [], startOp: vi.fn() }),
+  WebSocketProvider: ({ children }: { children: React.ReactNode }) => (
+    <>{children}</>
+  ),
+  useWs: () => ({
+    status: "disconnected",
+    operationRunning: false,
+    messages: [],
+    startOp: vi.fn(),
+  }),
 }));
 
 import { api } from "../../api/client";
@@ -23,13 +30,25 @@ const sampleRuns = [
     id: "exp-1",
     name: "baseline",
     timestamp: "2026-06-01T10:00:00Z",
-    evalResult: { mrr: 0.65, precisionAt5: 0.72, recallAt10: 0.81, hitRateAt5: 0.88, queriesEvaluated: 100 },
+    evalResult: {
+      mrr: 0.65,
+      precisionAt5: 0.72,
+      recallAt10: 0.81,
+      hitRateAt5: 0.88,
+      queriesEvaluated: 100,
+    },
   },
   {
     id: "exp-2",
     name: "candidate-A",
     timestamp: "2026-06-02T11:00:00Z",
-    evalResult: { mrr: 0.71, precisionAt5: 0.77, recallAt10: 0.84, hitRateAt5: 0.90, queriesEvaluated: 100 },
+    evalResult: {
+      mrr: 0.71,
+      precisionAt5: 0.77,
+      recallAt10: 0.84,
+      hitRateAt5: 0.9,
+      queriesEvaluated: 100,
+    },
   },
 ];
 
@@ -55,7 +74,9 @@ describe("ExperimentsPage", () => {
   it("shows empty state when no experiments", async () => {
     vi.mocked(api.experiments).mockResolvedValue({ runs: [] });
     renderPage();
-    await waitFor(() => expect(screen.getByText(/No experiments found/i)).toBeTruthy());
+    await waitFor(() =>
+      expect(screen.getByText(/No experiments found/i)).toBeTruthy(),
+    );
   });
 
   it("lists experiment names and metrics", async () => {
@@ -70,7 +91,9 @@ describe("ExperimentsPage", () => {
   it("shows New Experiment card with Run button", async () => {
     vi.mocked(api.experiments).mockResolvedValue({ runs: [] });
     renderPage();
-    await waitFor(() => expect(screen.getByText("New Experiment")).toBeTruthy());
+    await waitFor(() =>
+      expect(screen.getByText("New Experiment")).toBeTruthy(),
+    );
     expect(screen.getByRole("button", { name: /run/i })).toBeTruthy();
   });
 
@@ -78,7 +101,9 @@ describe("ExperimentsPage", () => {
     vi.mocked(api.experiments).mockResolvedValue({ runs: sampleRuns });
     renderPage();
     await waitFor(() => expect(screen.getByText("baseline")).toBeTruthy());
-    expect(screen.queryByRole("button", { name: /compare selected/i })).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: /compare selected/i }),
+    ).toBeNull();
   });
 
   it("shows error card when loading fails", async () => {

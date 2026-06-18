@@ -43,7 +43,9 @@ export function SearchPage() {
         />
         <div className="search-controls">
           <label className="flex items-center gap-3 flex-1">
-            <span>Top-K: <strong>{topK}</strong></span>
+            <span>
+              Top-K: <strong>{topK}</strong>
+            </span>
             <Slider
               value={topK}
               onChange={(e) => setTopK(e.value as number)}

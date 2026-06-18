@@ -1,5 +1,9 @@
 import { useEffect, useRef, useState } from "react";
-import { DataTable, type DataTableExpandedRows, type DataTableSelectionMultipleChangeEvent } from "primereact/datatable";
+import {
+  DataTable,
+  type DataTableExpandedRows,
+  type DataTableSelectionMultipleChangeEvent,
+} from "primereact/datatable";
 import { Column } from "primereact/column";
 import { Button } from "primereact/button";
 import { InputText } from "primereact/inputtext";
@@ -29,17 +33,20 @@ function formatMessage(msg: WsMessage): string {
 
 const fmt = (n: number) => (n * 100).toFixed(1) + "%";
 
-const recommendationSeverity: Record<string, "success" | "danger" | "warning"> = {
-  accept: "success",
-  reject: "danger",
-  inconclusive: "warning",
-};
+const recommendationSeverity: Record<string, "success" | "danger" | "warning"> =
+  {
+    accept: "success",
+    reject: "danger",
+    inconclusive: "warning",
+  };
 
 export function ExperimentsPage() {
   const [runs, setRuns] = useState<ExperimentRun[]>([]);
   const [expandedRows, setExpandedRows] = useState<DataTableExpandedRows>({});
   const [selectedRuns, setSelectedRuns] = useState<ExperimentRun[]>([]);
-  const [compareResult, setCompareResult] = useState<StatTestResult | null>(null);
+  const [compareResult, setCompareResult] = useState<StatTestResult | null>(
+    null,
+  );
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [newName, setNewName] = useState("");
@@ -87,14 +94,19 @@ export function ExperimentsPage() {
   async function handleCompare() {
     if (selectedRuns.length !== 2) return;
     try {
-      const result = await api.compareExperiments(selectedRuns[0].id, selectedRuns[1].id);
+      const result = await api.compareExperiments(
+        selectedRuns[0].id,
+        selectedRuns[1].id,
+      );
       setCompareResult(result);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     }
   }
 
-  function handleSelectionChange(e: DataTableSelectionMultipleChangeEvent<ExperimentRun[]>) {
+  function handleSelectionChange(
+    e: DataTableSelectionMultipleChangeEvent<ExperimentRun[]>,
+  ) {
     const sel = e.value;
     if (sel.length <= 2) {
       setSelectedRuns(sel);
@@ -104,11 +116,13 @@ export function ExperimentsPage() {
 
   const rowExpansionTemplate = (run: ExperimentRun) => (
     <div className="experiment-detail card p-3">
-      <p><strong>ID:</strong> {run.id}</p>
-      <p><strong>Queries evaluated:</strong> {run.evalResult.queriesEvaluated}</p>
-      {run.ragasResult && (
-        <pre>{JSON.stringify(run.ragasResult, null, 2)}</pre>
-      )}
+      <p>
+        <strong>ID:</strong> {run.id}
+      </p>
+      <p>
+        <strong>Queries evaluated:</strong> {run.evalResult.queriesEvaluated}
+      </p>
+      {run.ragasResult && <pre>{JSON.stringify(run.ragasResult, null, 2)}</pre>}
     </div>
   );
 
@@ -162,7 +176,10 @@ export function ExperimentsPage() {
           <Button
             label="Clear selection"
             outlined
-            onClick={() => { setSelectedRuns([]); setCompareResult(null); }}
+            onClick={() => {
+              setSelectedRuns([]);
+              setCompareResult(null);
+            }}
           />
         </div>
       )}
@@ -173,10 +190,21 @@ export function ExperimentsPage() {
           <DataTable
             value={[
               { metric: "Baseline MRR", value: fmt(compareResult.baselineMrr) },
-              { metric: "Candidate MRR", value: fmt(compareResult.candidateMrr) },
-              { metric: "Delta", value: (compareResult.mrrDelta > 0 ? "+" : "") + fmt(compareResult.mrrDelta) },
+              {
+                metric: "Candidate MRR",
+                value: fmt(compareResult.candidateMrr),
+              },
+              {
+                metric: "Delta",
+                value:
+                  (compareResult.mrrDelta > 0 ? "+" : "") +
+                  fmt(compareResult.mrrDelta),
+              },
               { metric: "p-value", value: compareResult.pValue.toFixed(4) },
-              { metric: "95% CI", value: `[${fmt(compareResult.confidenceInterval95[0])}, ${fmt(compareResult.confidenceInterval95[1])}]` },
+              {
+                metric: "95% CI",
+                value: `[${fmt(compareResult.confidenceInterval95[0])}, ${fmt(compareResult.confidenceInterval95[1])}]`,
+              },
             ]}
             size="small"
           >
@@ -197,7 +225,9 @@ export function ExperimentsPage() {
           <ProgressSpinner />
         </div>
       ) : runs.length === 0 ? (
-        <Card>No experiments found. Enter a name above and click Run to create one.</Card>
+        <Card>
+          No experiments found. Enter a name above and click Run to create one.
+        </Card>
       ) : (
         <DataTable
           value={runs}
@@ -219,10 +249,22 @@ export function ExperimentsPage() {
             header="Date"
             body={(r: ExperimentRun) => new Date(r.timestamp).toLocaleString()}
           />
-          <Column header="MRR" body={(r: ExperimentRun) => fmt(r.evalResult.mrr)} />
-          <Column header="P@5" body={(r: ExperimentRun) => fmt(r.evalResult.precisionAt5)} />
-          <Column header="R@10" body={(r: ExperimentRun) => fmt(r.evalResult.recallAt10)} />
-          <Column header="Hit@5" body={(r: ExperimentRun) => fmt(r.evalResult.hitRateAt5)} />
+          <Column
+            header="MRR"
+            body={(r: ExperimentRun) => fmt(r.evalResult.mrr)}
+          />
+          <Column
+            header="P@5"
+            body={(r: ExperimentRun) => fmt(r.evalResult.precisionAt5)}
+          />
+          <Column
+            header="R@10"
+            body={(r: ExperimentRun) => fmt(r.evalResult.recallAt10)}
+          />
+          <Column
+            header="Hit@5"
+            body={(r: ExperimentRun) => fmt(r.evalResult.hitRateAt5)}
+          />
           <Column body={actionBodyTemplate} style={{ width: "60px" }} />
         </DataTable>
       )}

@@ -63,9 +63,7 @@ describe("PipelinePage", () => {
   });
 
   it("renders progress messages in the log", () => {
-    mockMessages = [
-      { type: "progress", stage: "embed", done: 50, total: 100 },
-    ];
+    mockMessages = [{ type: "progress", stage: "embed", done: 50, total: 100 }];
     renderPage();
     expect(screen.getByText(/\[embed\] 50 \/ 100/)).toBeTruthy();
   });

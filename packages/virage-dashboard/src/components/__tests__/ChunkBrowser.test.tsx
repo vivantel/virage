@@ -15,9 +15,24 @@ vi.mock("../../api/client", () => ({
 import { api } from "../../api/client";
 
 const sampleChunks = [
-  { contentHash: "hash1", sourceFile: "src/auth.ts", content: "Auth logic here, very interesting content.", metadata: {} },
-  { contentHash: "hash2", sourceFile: "src/router.ts", content: "Router setup and middleware.", metadata: {} },
-  { contentHash: "hash3", sourceFile: "src/auth.ts", content: "Token validation function.", metadata: {} },
+  {
+    contentHash: "hash1",
+    sourceFile: "src/auth.ts",
+    content: "Auth logic here, very interesting content.",
+    metadata: {},
+  },
+  {
+    contentHash: "hash2",
+    sourceFile: "src/router.ts",
+    content: "Router setup and middleware.",
+    metadata: {},
+  },
+  {
+    contentHash: "hash3",
+    sourceFile: "src/auth.ts",
+    content: "Token validation function.",
+    metadata: {},
+  },
 ];
 
 function renderPage() {
@@ -41,14 +56,20 @@ describe("ChunkBrowser", () => {
 
   it("displays all chunks in the table after load", async () => {
     renderPage();
-    await waitFor(() => expect(screen.getAllByText(/src\/(auth|router)\.ts/).length).toBeGreaterThan(0));
+    await waitFor(() =>
+      expect(
+        screen.getAllByText(/src\/(auth|router)\.ts/).length,
+      ).toBeGreaterThan(0),
+    );
     expect(screen.getByText(/Auth logic here/)).toBeTruthy();
     expect(screen.getByText(/Router setup/)).toBeTruthy();
   });
 
   it("shows Clear all button", async () => {
     renderPage();
-    await waitFor(() => expect(screen.getByRole("button", { name: /clear all/i })).toBeTruthy());
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: /clear all/i })).toBeTruthy(),
+    );
   });
 
   it("prompts for confirmation before clearing all", async () => {
@@ -57,7 +78,9 @@ describe("ChunkBrowser", () => {
     await waitFor(() => screen.getByRole("button", { name: /clear all/i }));
     await user.click(screen.getByRole("button", { name: /clear all/i }));
     expect(screen.getByText(/Sure/)).toBeTruthy();
-    expect(screen.getByRole("button", { name: /yes, clear all/i })).toBeTruthy();
+    expect(
+      screen.getByRole("button", { name: /yes, clear all/i }),
+    ).toBeTruthy();
     expect(screen.getByRole("button", { name: /cancel/i })).toBeTruthy();
   });
 

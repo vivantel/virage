@@ -16,8 +16,15 @@ vi.mock("../../api/client", () => ({
 }));
 
 vi.mock("../../context/WebSocketContext", () => ({
-  WebSocketProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
-  useWs: () => ({ status: "disconnected", operationRunning: false, messages: [], startOp: vi.fn() }),
+  WebSocketProvider: ({ children }: { children: React.ReactNode }) => (
+    <>{children}</>
+  ),
+  useWs: () => ({
+    status: "disconnected",
+    operationRunning: false,
+    messages: [],
+    startOp: vi.fn(),
+  }),
 }));
 
 import { api } from "../../api/client";
@@ -26,7 +33,14 @@ const mockStatus = { totalChunks: 42, totalEmbeddings: 38, memoryMB: 128 };
 const mockChunks = { histogram: [{ label: "0-100", count: 10 }] };
 const mockAnomalies = { anomalies: [] };
 const mockProjects = {
-  projects: [{ label: "my-project", rootPath: "/home/user/proj", embeddingsDb: "db", lastUsed: Date.now() }],
+  projects: [
+    {
+      label: "my-project",
+      rootPath: "/home/user/proj",
+      embeddingsDb: "db",
+      lastUsed: Date.now(),
+    },
+  ],
   activeIndex: 0,
 };
 const mockMeta = { status: "ok" as const };
@@ -102,14 +116,18 @@ describe("HomePage", () => {
       message: "Schema mismatch detected",
     });
     renderPage();
-    await waitFor(() => expect(screen.getByText(/Schema mismatch/)).toBeTruthy());
+    await waitFor(() =>
+      expect(screen.getByText(/Schema mismatch/)).toBeTruthy(),
+    );
   });
 
   it("shows anomaly table when anomalies are present", async () => {
     vi.mocked(api.status).mockResolvedValue(mockStatus);
     vi.mocked(api.chunks).mockResolvedValue(mockChunks);
     vi.mocked(api.anomalies).mockResolvedValue({
-      anomalies: [{ sourceFile: "src/bad.ts", zscore: 3.5, preview: "weird content" }],
+      anomalies: [
+        { sourceFile: "src/bad.ts", zscore: 3.5, preview: "weird content" },
+      ],
     });
     vi.mocked(api.projects).mockResolvedValue(mockProjects);
     vi.mocked(api.metaCheck).mockResolvedValue(mockMeta);

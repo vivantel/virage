@@ -2,7 +2,11 @@ import { useEffect, useRef } from "react";
 import { Button } from "primereact/button";
 import { Dropdown } from "primereact/dropdown";
 import { Tag } from "primereact/tag";
-import { useWs, type WsMessage, type WsStatus } from "../context/WebSocketContext";
+import {
+  useWs,
+  type WsMessage,
+  type WsStatus,
+} from "../context/WebSocketContext";
 import { useState } from "react";
 
 type PipelineOp = "update" | "eval-generate" | "evaluate";
@@ -31,7 +35,10 @@ const opOptions = [
   { label: "Run evaluation", value: "evaluate" },
 ];
 
-const statusSeverity: Record<WsStatus, "success" | "info" | "warning" | "danger"> = {
+const statusSeverity: Record<
+  WsStatus,
+  "success" | "info" | "warning" | "danger"
+> = {
   disconnected: "warning",
   connecting: "info",
   connected: "success",
@@ -56,7 +63,10 @@ export function PipelinePage() {
     }
   }, [messages]);
 
-  const label = status === "connected" && operationRunning ? "Running" : statusLabel[status];
+  const label =
+    status === "connected" && operationRunning
+      ? "Running"
+      : statusLabel[status];
 
   return (
     <div>
@@ -75,10 +85,7 @@ export function PipelinePage() {
           onClick={() => startOp({ op })}
           disabled={operationRunning}
         />
-        <Tag
-          severity={statusSeverity[status]}
-          value={label}
-        />
+        <Tag severity={statusSeverity[status]} value={label} />
       </div>
 
       <pre ref={logRef} className="pipeline-log">

@@ -86,9 +86,7 @@ export function ProjectSwitcher({
         />
         <Button label="Add project" size="small" onClick={handleAdd} />
       </div>
-      {addError && (
-        <span className="project-add-error">{addError}</span>
-      )}
+      {addError && <span className="project-add-error">{addError}</span>}
     </div>
   );
 }

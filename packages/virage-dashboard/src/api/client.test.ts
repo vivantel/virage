@@ -13,20 +13,35 @@ function mockFetch(data: unknown, status = 200) {
 describe("api client — shape check", () => {
   it("exports all dashboard API methods as functions", () => {
     const expected = [
-      "status", "chunks", "anomalies", "projects", "addProject",
-      "switchProject", "chunksAll", "deleteChunksFile", "deleteChunksAll",
-      "search", "experiments", "experiment", "deleteExperiment",
+      "status",
+      "chunks",
+      "anomalies",
+      "projects",
+      "addProject",
+      "switchProject",
+      "chunksAll",
+      "deleteChunksFile",
+      "deleteChunksAll",
+      "search",
+      "experiments",
+      "experiment",
+      "deleteExperiment",
       "compareExperiments",
     ];
     for (const method of expected) {
-      expect(typeof (api as Record<string, unknown>)[method], method).toBe("function");
+      expect(typeof (api as Record<string, unknown>)[method], method).toBe(
+        "function",
+      );
     }
   });
 
   it("exports analytics sub-object with all methods", () => {
     const expected = ["queries", "topTerms", "zeroResults", "stats", "perHour"];
     for (const method of expected) {
-      expect(typeof (api.analytics as Record<string, unknown>)[method], method).toBe("function");
+      expect(
+        typeof (api.analytics as Record<string, unknown>)[method],
+        method,
+      ).toBe("function");
     }
   });
 });
@@ -96,15 +111,17 @@ describe("api client — HTTP calls", () => {
   it("chunksAll() without filter calls GET /api/chunks/all", async () => {
     global.fetch = mockFetch({ chunks: [] });
     await api.chunksAll();
-    expect((global.fetch as ReturnType<typeof vi.fn>).mock.calls[0][0]).toBe("/api/chunks/all");
+    expect((global.fetch as ReturnType<typeof vi.fn>).mock.calls[0][0]).toBe(
+      "/api/chunks/all",
+    );
   });
 
   it("chunksAll() with filter encodes sourceFile in query string", async () => {
     global.fetch = mockFetch({ chunks: [] });
     await api.chunksAll("src/index.ts");
-    expect((global.fetch as ReturnType<typeof vi.fn>).mock.calls[0][0]).toContain(
-      "sourceFile=src%2Findex.ts",
-    );
+    expect(
+      (global.fetch as ReturnType<typeof vi.fn>).mock.calls[0][0],
+    ).toContain("sourceFile=src%2Findex.ts");
   });
 
   it("deleteChunksFile() calls DELETE /api/chunks/file", async () => {
@@ -127,8 +144,12 @@ describe("api client — HTTP calls", () => {
 
   it("compareExperiments() posts to /api/experiments/compare", async () => {
     global.fetch = mockFetch({
-      baselineMrr: 0.5, candidateMrr: 0.6, mrrDelta: 0.1,
-      pValue: 0.03, confidenceInterval95: [0.05, 0.15], recommendation: "accept",
+      baselineMrr: 0.5,
+      candidateMrr: 0.6,
+      mrrDelta: 0.1,
+      pValue: 0.03,
+      confidenceInterval95: [0.05, 0.15],
+      recommendation: "accept",
     });
     await api.compareExperiments("id-a", "id-b");
     expect(global.fetch).toHaveBeenCalledWith(
@@ -141,7 +162,12 @@ describe("api client — HTTP calls", () => {
   });
 
   it("analytics.stats() calls GET /api/analytics/stats", async () => {
-    global.fetch = mockFetch({ queriesLastHour: 0, queriesLast24h: 0, avgTopSimilarity: 0, zeroResultRate: 0 });
+    global.fetch = mockFetch({
+      queriesLastHour: 0,
+      queriesLast24h: 0,
+      avgTopSimilarity: 0,
+      zeroResultRate: 0,
+    });
     await api.analytics.stats();
     expect(global.fetch).toHaveBeenCalledWith("/api/analytics/stats");
   });
@@ -149,13 +175,17 @@ describe("api client — HTTP calls", () => {
   it("analytics.topTerms() includes limit param", async () => {
     global.fetch = mockFetch({ terms: [] });
     await api.analytics.topTerms(10);
-    expect((global.fetch as ReturnType<typeof vi.fn>).mock.calls[0][0]).toContain("limit=10");
+    expect(
+      (global.fetch as ReturnType<typeof vi.fn>).mock.calls[0][0],
+    ).toContain("limit=10");
   });
 
   it("analytics.perHour() includes hours param", async () => {
     global.fetch = mockFetch({ buckets: [] });
     await api.analytics.perHour(24);
-    expect((global.fetch as ReturnType<typeof vi.fn>).mock.calls[0][0]).toContain("hours=24");
+    expect(
+      (global.fetch as ReturnType<typeof vi.fn>).mock.calls[0][0],
+    ).toContain("hours=24");
   });
 
   it("propagates HTTP errors as thrown Error", async () => {

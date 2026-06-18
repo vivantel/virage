@@ -135,7 +135,11 @@ export function AnalyticsPage() {
           <p className="muted">No searches recorded yet.</p>
         ) : (
           <DataTable value={terms} size="small" stripedRows>
-            <Column header="#" body={(_: TopTerm, opt) => opt.rowIndex + 1} style={{ width: "50px" }} />
+            <Column
+              header="#"
+              body={(_: TopTerm, opt) => opt.rowIndex + 1}
+              style={{ width: "50px" }}
+            />
             <Column field="query_text" header="Query" />
             <Column field="count" header="Count" style={{ width: "80px" }} />
           </DataTable>
@@ -150,9 +154,18 @@ export function AnalyticsPage() {
             <Column
               field="query_text"
               header="Query"
-              style={{ maxWidth: "320px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+              style={{
+                maxWidth: "320px",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+              }}
             />
-            <Column field="result_count" header="Results" style={{ width: "80px" }} />
+            <Column
+              field="result_count"
+              header="Results"
+              style={{ width: "80px" }}
+            />
             <Column
               header="Top similarity"
               body={(q: SearchQueryRecord) => fmt(q.top_similarity)}

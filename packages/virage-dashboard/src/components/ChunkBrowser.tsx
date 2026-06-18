@@ -31,7 +31,9 @@ export function ChunkBrowser() {
     void load();
   }, []);
 
-  const sourceFiles = Array.from(new Set(chunks.map((c) => c.sourceFile))).sort();
+  const sourceFiles = Array.from(
+    new Set(chunks.map((c) => c.sourceFile)),
+  ).sort();
   const fileOptions = [
     { label: `All files (${chunks.length} chunks)`, value: "" },
     ...sourceFiles.map((f) => ({ label: f, value: f })),
