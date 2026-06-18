@@ -6,8 +6,8 @@
         "hooks": [
           {
             "type": "command",
-            "if": "Bash(*git commit*)",
-            "command": "npm run fix && npm run type-check:ci && git add -u",
+            "if": "Bash(git commit *)",
+            "command": "npm run fix && npm run type-check && git add -u || exit 2",
             "statusMessage": "Running fix + type-check before commit..."
           }
         ]

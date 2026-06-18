@@ -71,7 +71,7 @@ Falls back to direct `.mcp.json` editing when the `claude` CLI is unavailable. T
 
 ```bash
 npm run build:all                      # build all packages
-npm run type-check:ci                  # TypeScript check (all included packages)
+npm run type-check                     # TypeScript check (all packages)
 npm run fix                            # ESLint auto-fix + Prettier
 npm run lint                           # lint check only
 npm test -w @vivantel/<pkg>            # unit tests for one package
@@ -110,7 +110,7 @@ virage eval compare --baseline --candidate  # bootstrap significance test betwee
 
 ## Cross-cutting rules
 
-- **Pre-commit**: `.claude/settings.json` hook auto-runs `npm run fix && npm run lint && npm run type-check:ci` before every commit — do not skip (see §Code quality guardrails below)
+- **Pre-commit**: `.claude/settings.json` hook auto-runs `npm run fix && npm run type-check` before every commit — do not skip (see §Code quality guardrails below)
 - **package-lock.json**: any change to a `package.json` (new dep, version bump, new package added) **must** be followed by `npm install` from the repo root before committing; stage the updated `package-lock.json` in the same commit — a stale lock file breaks `npm ci` in CI
 - **Module imports**: all internal imports use `.js` extensions (NodeNext requirement), e.g. `from "./foo.js"` even though file is `.ts`
 - **Commit messages**: Conventional Commits (`feat:`, `fix:`, `chore:`, `feat!:` for breaking) — drives release-please versioning
@@ -126,10 +126,10 @@ virage eval compare --baseline --candidate  # bootstrap significance test betwee
 ```bash
 npm run fix            # lint:fix + prettier --write
 npm run lint           # eslint check (read-only)
-npm run type-check:ci  # type-check across included packages only
+npm run type-check     # type-check all workspaces
 ```
 
-Hook: `.claude/settings.json` fires `npm run fix && npm run lint && npm run type-check:ci` automatically before every commit. **Never skip with `--no-verify`.**
+Hook: `.claude/settings.json` fires `npm run fix && npm run type-check` automatically before every commit. **Never skip with `--no-verify`.**
 
 **Key npm scripts:**
 
@@ -139,7 +139,7 @@ Hook: `.claude/settings.json` fires `npm run fix && npm run lint && npm run type
 | `npm run lint` | `eslint packages/virage-core/src/ packages/*/src/` |
 | `npm run lint:fix` | same as `lint` but with `--fix` |
 | `npm run format` | `prettier --write "packages/*/src/**/*.{ts,tsx}"` |
-| `npm run type-check:ci` | type-check specific packages (see exclusions below) |
+| `npm run type-check` | type-check all workspaces |
 | `npm run build:all` | build `virage-core` → `virage-agent-core` → all others |
 | `npm test` | run tests in all workspaces |
 
@@ -282,7 +282,7 @@ npm run build:all                        # build all in dependency order
 | ---- | ------- |
 | Unit (one package) | `npm test -w packages/<name>` |
 | All tests | `npm test` |
-| Type check (CI set) | `npm run type-check:ci` |
+| Type check | `npm run type-check` |
 | Coverage | `npm test -- --coverage -w packages/<name>` |
 
 **Acceptance tests** (E2E):

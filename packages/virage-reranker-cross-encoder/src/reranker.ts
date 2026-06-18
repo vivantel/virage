@@ -24,7 +24,8 @@ export class CrossEncoderReranker implements Reranker {
   private async getPipeline(): Promise<any> {
     if (!this._pipeline) {
       const { pipeline } = await import("@huggingface/transformers");
-      this._pipeline = await pipeline("text-ranking", this.modelId);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      this._pipeline = await pipeline("text-ranking" as any, this.modelId);
     }
     return this._pipeline;
   }
