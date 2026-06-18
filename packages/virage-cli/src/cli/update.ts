@@ -107,7 +107,8 @@ async function discoverViragePackages(
       codeChunkAst: "@vivantel/virage-code-chunk-chunker",
     };
     for (const chunker of virageConfig.chunkers ?? []) {
-      const pkg = chunker.strategy && CHUNKER_STRATEGY_PACKAGES[chunker.strategy];
+      const pkg =
+        chunker.strategy && CHUNKER_STRATEGY_PACKAGES[chunker.strategy];
       if (pkg) candidates.add(pkg);
     }
   }

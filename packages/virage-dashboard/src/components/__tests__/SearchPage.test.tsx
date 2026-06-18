@@ -108,7 +108,10 @@ describe("SearchPage", () => {
     );
     await user.click(screen.getByRole("button", { name: /search/i }));
     await waitFor(() =>
-      expect(mockShowError).toHaveBeenCalledWith("Search failed", "Search failed"),
+      expect(mockShowError).toHaveBeenCalledWith(
+        "Search failed",
+        "Search failed",
+      ),
     );
   });
 

@@ -2,10 +2,11 @@
   "hooks": {
     "PreToolUse": [
       {
-        "matcher": "Bash(*git commit*)",
+        "matcher": "Bash",
         "hooks": [
           {
             "type": "command",
+            "if": "Bash(*git commit*)",
             "command": "npm run fix && npm run type-check:ci && git add -u",
             "statusMessage": "Running fix + type-check before commit..."
           }

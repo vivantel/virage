@@ -31,7 +31,10 @@ function formatMessage(msg: WsMessage): string {
 
 const opOptions = [
   { label: "Index (virage index)", value: "index" },
-  { label: "Generate eval dataset (virage eval generate)", value: "eval-generate" },
+  {
+    label: "Generate eval dataset (virage eval generate)",
+    value: "eval-generate",
+  },
   { label: "Run evaluation (virage eval run)", value: "eval-run" },
 ];
 

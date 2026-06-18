@@ -60,7 +60,10 @@ export function ExperimentsPage() {
       const data = await api.experiments();
       setRuns(data.runs);
     } catch (err) {
-      showError("Failed to load experiments", err instanceof Error ? err.message : String(err));
+      showError(
+        "Failed to load experiments",
+        err instanceof Error ? err.message : String(err),
+      );
     } finally {
       setLoading(false);
     }
@@ -87,7 +90,10 @@ export function ExperimentsPage() {
       setSelectedRuns((s) => s.filter((r) => r.id !== id));
       await load();
     } catch (err) {
-      showError("Failed to delete experiment", err instanceof Error ? err.message : String(err));
+      showError(
+        "Failed to delete experiment",
+        err instanceof Error ? err.message : String(err),
+      );
     }
   }
 
@@ -100,7 +106,10 @@ export function ExperimentsPage() {
       );
       setCompareResult(result);
     } catch (err) {
-      showError("Comparison failed", err instanceof Error ? err.message : String(err));
+      showError(
+        "Comparison failed",
+        err instanceof Error ? err.message : String(err),
+      );
     }
   }
 

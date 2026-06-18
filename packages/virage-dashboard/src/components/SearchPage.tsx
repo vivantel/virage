@@ -25,7 +25,10 @@ export function SearchPage() {
       setResults(data.results);
       setSearched(true);
     } catch (err) {
-      showError("Search failed", err instanceof Error ? err.message : String(err));
+      showError(
+        "Search failed",
+        err instanceof Error ? err.message : String(err),
+      );
     } finally {
       setLoading(false);
     }

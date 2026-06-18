@@ -52,7 +52,10 @@ export function AnalyticsPage() {
       setTerms(termsData.terms);
       setZeroResults(zeroData.queries);
     } catch (err) {
-      showError("Failed to load analytics", err instanceof Error ? err.message : String(err));
+      showError(
+        "Failed to load analytics",
+        err instanceof Error ? err.message : String(err),
+      );
     } finally {
       setLoading(false);
     }

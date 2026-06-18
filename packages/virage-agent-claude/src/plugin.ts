@@ -86,9 +86,15 @@ export class ClaudeAgentPlugin extends BaseAgentPlugin {
       await execFileAsync(
         "claude",
         [
-          "mcp", "add", "virage",
-          "--scope", "project",
-          "--", "npx", "-y", "@vivantel/virage-agent-claude@latest",
+          "mcp",
+          "add",
+          "virage",
+          "--scope",
+          "project",
+          "--",
+          "npx",
+          "-y",
+          "@vivantel/virage-agent-claude@latest",
         ],
         { cwd: targetDir },
       );

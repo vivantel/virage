@@ -54,7 +54,10 @@ export function HomePage() {
             : null,
       }));
     } catch (err) {
-      showError("Failed to load dashboard data", err instanceof Error ? err.message : String(err));
+      showError(
+        "Failed to load dashboard data",
+        err instanceof Error ? err.message : String(err),
+      );
     }
   }
 
@@ -64,7 +67,10 @@ export function HomePage() {
       setState((prev) => ({ ...prev, projects: updated }));
       void refresh();
     } catch (err) {
-      showError("Failed to switch project", err instanceof Error ? err.message : String(err));
+      showError(
+        "Failed to switch project",
+        err instanceof Error ? err.message : String(err),
+      );
     }
   }
 
@@ -74,7 +80,10 @@ export function HomePage() {
       setState((prev) => ({ ...prev, projects: updated }));
       void refresh();
     } catch (err) {
-      showError("Failed to add project", err instanceof Error ? err.message : String(err));
+      showError(
+        "Failed to add project",
+        err instanceof Error ? err.message : String(err),
+      );
     }
   }
 
