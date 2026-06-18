@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.17](https://github.com/vivantel/virage/compare/virage-dashboard@v0.1.16...virage-dashboard@v0.1.17) (2026-06-18)
+
+
+### Features
+
+* **cli,dashboard,agent-claude:** Chunker discovery, claude mcp add, dashboard fixes ([00f6287](https://github.com/vivantel/virage/commit/00f6287857af85828421044b2b0b4c502f577cb3))
+
 ## [0.1.16](https://github.com/vivantel/virage/compare/virage-dashboard@v0.1.15...virage-dashboard@v0.1.16) (2026-06-18)
 
 
