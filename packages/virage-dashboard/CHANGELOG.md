@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.15](https://github.com/vivantel/virage/compare/virage-dashboard@v0.1.14...virage-dashboard@v0.1.15) (2026-06-18)
+
+
+### Bug Fixes
+
+* **dashboard:** Migrate to PrimeReact 10 + Tailwind CSS v4, add test suite ([4c45e67](https://github.com/vivantel/virage/commit/4c45e67cac8aa1114000265faecc89e6fd055436))
+* **dashboard:** Migrate to PrimeReact 10 + Tailwind CSS v4, add test suite ([1eb4852](https://github.com/vivantel/virage/commit/1eb48524a4ffc03ddfd66eff0e02fa5d31444bc1))
+
 ## [0.1.14](https://github.com/vivantel/virage/compare/virage-dashboard@v0.1.13...virage-dashboard@v0.1.14) (2026-06-17)
 
 
