@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { Button } from "primereact/button";
+import { InputText } from "primereact/inputtext";
 import type { ProjectEntry } from "../api/client.js";
 
 interface Props {
@@ -39,21 +41,18 @@ export function ProjectSwitcher({
     setOpen(false);
   }
 
-  function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
-    if (e.key === "Enter") handleAdd();
-  }
-
   return (
     <div className="project-switcher">
       <div className="project-header-row">
         <span className="project-current">{activeProject?.label ?? "—"}</span>
         {projects.length > 1 && (
-          <button
-            className="project-dropdown-toggle"
+          <Button
+            label={open ? "Close" : "Switch"}
+            icon={open ? "pi pi-chevron-up" : "pi pi-chevron-down"}
+            size="small"
+            outlined
             onClick={() => setOpen((v) => !v)}
-          >
-            {open ? "▲ close" : "▼ switch"}
-          </button>
+          />
         )}
       </div>
 
@@ -78,16 +77,18 @@ export function ProjectSwitcher({
       )}
 
       <div className="project-add-form">
-        <input
-          type="text"
+        <InputText
           placeholder="Absolute path to project root"
           value={inputValue}
           onChange={(e) => setInputValue(e.target.value)}
-          onKeyDown={handleKeyDown}
+          onKeyDown={(e) => e.key === "Enter" && handleAdd()}
+          className="flex-1"
         />
-        <button onClick={handleAdd}>Add project</button>
+        <Button label="Add project" size="small" onClick={handleAdd} />
       </div>
-      {addError && <span className="project-add-error">{addError}</span>}
+      {addError && (
+        <span className="project-add-error">{addError}</span>
+      )}
     </div>
   );
 }

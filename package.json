@@ -31,6 +31,8 @@
   },
   "version": "0.1.0",
   "dependencies": {
-    "@vivantel/virage-agent-claude": "^0.2.6"
+    "@vivantel/virage-agent-claude": "^0.2.6",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7"
   }
 }

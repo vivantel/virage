@@ -1,4 +1,10 @@
 import { useState } from "react";
+import { InputText } from "primereact/inputtext";
+import { Button } from "primereact/button";
+import { Slider } from "primereact/slider";
+import { Card } from "primereact/card";
+import { Tag } from "primereact/tag";
+import { ProgressSpinner } from "primereact/progressspinner";
 import { api, type SearchResult } from "../api/client";
 
 export function SearchPage() {
@@ -29,52 +35,63 @@ export function SearchPage() {
     <div>
       <h2>RAG Search</h2>
       <form onSubmit={(e) => void handleSearch(e)} className="search-form">
-        <input
-          type="text"
-          className="search-input"
+        <InputText
+          className="w-full mb-3"
           placeholder="Enter a search query…"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
         />
         <div className="search-controls">
-          <label>
-            Top-K:&nbsp;
-            <input
-              type="range"
+          <label className="flex items-center gap-3 flex-1">
+            <span>Top-K: <strong>{topK}</strong></span>
+            <Slider
+              value={topK}
+              onChange={(e) => setTopK(e.value as number)}
               min={1}
               max={20}
-              value={topK}
-              onChange={(e) => setTopK(Number(e.target.value))}
+              className="flex-1"
             />
-            &nbsp;<strong>{topK}</strong>
           </label>
-          <button type="submit" disabled={loading || !query.trim()}>
-            {loading ? "Searching…" : "Search"}
-          </button>
+          <Button
+            type="submit"
+            label={loading ? "Searching…" : "Search"}
+            icon="pi pi-search"
+            disabled={loading || !query.trim()}
+          />
         </div>
       </form>
 
-      {error && <div className="card error">⚠️ {error}</div>}
+      {error && <Card className="card error mt-3">⚠️ {error}</Card>}
+
+      {loading && (
+        <div className="flex justify-center p-8">
+          <ProgressSpinner />
+        </div>
+      )}
 
       {searched && results.length === 0 && !loading && (
-        <div className="card">No results found.</div>
+        <Card className="mt-3">No results found.</Card>
       )}
 
       <div className="search-results">
         {results.map((r) => (
-          <div key={r.id} className="search-result-card card">
+          <Card key={r.id} className="search-result-card">
             <div className="result-header">
-              <span className="source-badge">
-                {r.sourceFile ??
+              <Tag
+                className="source-badge"
+                value={
+                  r.sourceFile ??
                   (r.metadata["source_file"] as string | undefined) ??
-                  r.id}
-              </span>
-              <span className="similarity-badge">
-                {(r.similarity * 100).toFixed(1)}% match
-              </span>
+                  r.id
+                }
+              />
+              <Tag
+                severity="success"
+                value={`${(r.similarity * 100).toFixed(1)}% match`}
+              />
             </div>
             <p className="result-content">{r.content}</p>
-          </div>
+          </Card>
         ))}
       </div>
     </div>
