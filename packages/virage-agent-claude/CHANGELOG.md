@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.23](https://github.com/vivantel/virage/compare/virage-agent-claude@v0.2.22...virage-agent-claude@v0.2.23) (2026-06-18)
+
+
+### Bug Fixes
+
+* **chore:** Correct PreToolUse hook syntax and apply Prettier formatting ([357c1c6](https://github.com/vivantel/virage/commit/357c1c6abf60e6eb979b91eb7db6637881a5632a))
+
 ## [0.2.22](https://github.com/vivantel/virage/compare/virage-agent-claude@v0.2.21...virage-agent-claude@v0.2.22) (2026-06-18)
 
 

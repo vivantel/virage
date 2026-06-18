@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.18](https://github.com/vivantel/virage/compare/virage-dashboard@v0.1.17...virage-dashboard@v0.1.18) (2026-06-18)
+
+
+### Bug Fixes
+
+* **chore:** Correct PreToolUse hook syntax and apply Prettier formatting ([357c1c6](https://github.com/vivantel/virage/commit/357c1c6abf60e6eb979b91eb7db6637881a5632a))
+
 ## [0.1.17](https://github.com/vivantel/virage/compare/virage-dashboard@v0.1.16...virage-dashboard@v0.1.17) (2026-06-18)
 
 
