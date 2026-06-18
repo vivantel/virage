@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.19](https://github.com/vivantel/virage/compare/virage-dashboard@v0.1.18...virage-dashboard@v0.1.19) (2026-06-18)
+
+
+### Bug Fixes
+
+* **virage-reranker-cross-encoder:** Wire up vitest and add unit tests ([90bb477](https://github.com/vivantel/virage/commit/90bb477a5059f2cce28e5f37c8dd8beef256218f))
+
 ## [0.1.18](https://github.com/vivantel/virage/compare/virage-dashboard@v0.1.17...virage-dashboard@v0.1.18) (2026-06-18)
 
 

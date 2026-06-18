@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.1.9](https://github.com/vivantel/virage/compare/virage-agent-antigravity@v0.1.8...virage-agent-antigravity@v0.1.9) (2026-06-18)
+
+
+### Bug Fixes
+
+* **virage-reranker-cross-encoder:** Wire up vitest and add unit tests ([90bb477](https://github.com/vivantel/virage/commit/90bb477a5059f2cce28e5f37c8dd8beef256218f))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @vivantel/virage-agent-core bumped from 0.1.5 to 0.1.6
+    * @vivantel/virage-skills bumped from 0.1.7 to 0.1.8
+
 ## [0.1.8](https://github.com/vivantel/virage/compare/virage-agent-antigravity@v0.1.7...virage-agent-antigravity@v0.1.8) (2026-06-17)
 
 
