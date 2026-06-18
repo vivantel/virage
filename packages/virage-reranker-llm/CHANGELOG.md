@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.3](https://github.com/vivantel/virage/compare/virage-reranker-llm@v0.1.2...virage-reranker-llm@v0.1.3) (2026-06-18)
+
+
+### Bug Fixes
+
+* **virage-reranker-llm:** Add unit tests and wire up vitest ([04bcf42](https://github.com/vivantel/virage/commit/04bcf4232ffad7a95d6c896ded1cb90f5078c8b5))
+
 ## [0.1.2](https://github.com/vivantel/virage/compare/virage-reranker-llm@v0.1.1...virage-reranker-llm@v0.1.2) (2026-06-18)
 
 
