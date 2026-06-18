@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.1.56](https://github.com/vivantel/virage/compare/virage-cli@v0.1.55...virage-cli@v0.1.56) (2026-06-18)
+
+
+### Bug Fixes
+
+* **chore:** Correct PreToolUse hook syntax and apply Prettier formatting ([357c1c6](https://github.com/vivantel/virage/commit/357c1c6abf60e6eb979b91eb7db6637881a5632a))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @vivantel/virage-agent-claude bumped from 0.2.22 to 0.2.23
+
 ## [0.1.55](https://github.com/vivantel/virage/compare/virage-cli@v0.1.54...virage-cli@v0.1.55) (2026-06-18)
 
 

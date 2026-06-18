@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.2](https://github.com/vivantel/virage/compare/virage-reranker-cross-encoder@v0.1.1...virage-reranker-cross-encoder@v0.1.2) (2026-06-18)
+
+
+### Bug Fixes
+
+* **chore:** Fix PreToolUse hook and use npm run type-check across all workspaces ([e650bbc](https://github.com/vivantel/virage/commit/e650bbc25ba7aa06804240a69eff050a29365862))
+
 ## [0.1.1](https://github.com/vivantel/virage/compare/virage-reranker-cross-encoder@v0.1.0...virage-reranker-cross-encoder@v0.1.1) (2026-06-17)
 
 
