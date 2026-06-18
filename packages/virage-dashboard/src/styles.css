@@ -1,3 +1,8 @@
+@import "tailwindcss";
+@import "primereact/resources/themes/lara-dark-cyan/theme.css";
+@import "primereact/resources/primereact.min.css";
+@import "primeicons/primeicons.css";
+
 body {
   font-family: monospace;
   background: #1a1a2e;
@@ -369,3 +374,27 @@ select {
 .badge-accept { background: #0a2a10; color: #7ec87e; }
 .badge-reject { background: #2a0a0a; color: #ff6b6b; }
 .badge-inconclusive { background: #2a2a0a; color: #cccc66; }
+
+/* ─── Analytics stat grid ─────────────────────────────────── */
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+}
+.stat-card {
+  background: #16213e;
+  border-radius: 8px;
+  padding: 14px 16px;
+  text-align: center;
+}
+.stat-value {
+  font-size: 2em;
+  color: #7ec8e3;
+  font-weight: bold;
+}
+.stat-label {
+  font-size: 0.8em;
+  color: #888;
+  margin-top: 4px;
+}
+.muted { color: #666; font-size: 0.9em; }

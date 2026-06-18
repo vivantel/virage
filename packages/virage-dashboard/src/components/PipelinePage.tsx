@@ -1,5 +1,9 @@
-import { useEffect, useRef, useState } from "react";
-import { useWs, type WsMessage } from "../context/WebSocketContext";
+import { useEffect, useRef } from "react";
+import { Button } from "primereact/button";
+import { Dropdown } from "primereact/dropdown";
+import { Tag } from "primereact/tag";
+import { useWs, type WsMessage, type WsStatus } from "../context/WebSocketContext";
+import { useState } from "react";
 
 type PipelineOp = "update" | "eval-generate" | "evaluate";
 
@@ -21,6 +25,26 @@ function formatMessage(msg: WsMessage): string {
   return JSON.stringify(msg);
 }
 
+const opOptions = [
+  { label: "Update index (virage update)", value: "update" },
+  { label: "Generate eval dataset", value: "eval-generate" },
+  { label: "Run evaluation", value: "evaluate" },
+];
+
+const statusSeverity: Record<WsStatus, "success" | "info" | "warning" | "danger"> = {
+  disconnected: "warning",
+  connecting: "info",
+  connected: "success",
+  error: "danger",
+};
+
+const statusLabel: Record<WsStatus, string> = {
+  disconnected: "Idle",
+  connecting: "Connecting…",
+  connected: "Idle",
+  error: "Error",
+};
+
 export function PipelinePage() {
   const [op, setOp] = useState<PipelineOp>("update");
   const { startOp, messages, status, operationRunning } = useWs();
@@ -32,32 +56,29 @@ export function PipelinePage() {
     }
   }, [messages]);
 
-  const statusLabel: Record<typeof status, string> = {
-    disconnected: "Idle",
-    connecting: "Connecting…",
-    connected: operationRunning ? "Running" : "Idle",
-    error: "Error",
-  };
+  const label = status === "connected" && operationRunning ? "Running" : statusLabel[status];
 
   return (
     <div>
       <h2>Pipeline</h2>
       <div className="pipeline-controls">
-        <select
+        <Dropdown
           value={op}
-          onChange={(e) => setOp(e.target.value as PipelineOp)}
+          options={opOptions}
+          onChange={(e) => setOp(e.value as PipelineOp)}
           disabled={operationRunning}
-        >
-          <option value="update">Update index (virage update)</option>
-          <option value="eval-generate">Generate eval dataset</option>
-          <option value="evaluate">Run evaluation</option>
-        </select>
-        <button onClick={() => startOp({ op })} disabled={operationRunning}>
-          {operationRunning ? "Running…" : "Run"}
-        </button>
-        <span className={`status-badge status-${status}`}>
-          {statusLabel[status]}
-        </span>
+          style={{ minWidth: "260px" }}
+        />
+        <Button
+          label={operationRunning ? "Running…" : "Run"}
+          icon={operationRunning ? "pi pi-spin pi-spinner" : "pi pi-play"}
+          onClick={() => startOp({ op })}
+          disabled={operationRunning}
+        />
+        <Tag
+          severity={statusSeverity[status]}
+          value={label}
+        />
       </div>
 
       <pre ref={logRef} className="pipeline-log">

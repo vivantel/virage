@@ -1,3 +1,5 @@
+import { Card } from "primereact/card";
+import { Tag } from "primereact/tag";
 import type { StatusData } from "../api/client.js";
 
 interface Props {
@@ -6,14 +8,16 @@ interface Props {
 
 export function StatusCard({ data }: Props) {
   return (
-    <div className="card">
-      <h2>System Status</h2>
-      <div className="metrics">
+    <Card title="System Status" className="mb-4">
+      <div className="flex flex-wrap gap-6">
         <Metric value={data.totalChunks} label="Total Chunks" />
         <Metric value={data.totalEmbeddings} label="Embeddings" />
         <Metric value={`${data.memoryMB} MB`} label="Heap Used" />
       </div>
-    </div>
+      <div className="mt-3">
+        <Tag severity="success" value="Online" icon="pi pi-circle-fill" />
+      </div>
+    </Card>
   );
 }
 

@@ -1,3 +1,5 @@
+import { Card } from "primereact/card";
+import { Chart } from "primereact/chart";
 import type { HistogramBucket } from "../api/client.js";
 
 interface Props {
@@ -7,23 +9,29 @@ interface Props {
 export function ChunkHistogram({ buckets }: Props) {
   if (buckets.length === 0) return null;
 
-  const maxCount = Math.max(...buckets.map((b) => b.count));
+  const chartData = {
+    labels: buckets.map((b) => b.label),
+    datasets: [
+      {
+        label: "Chunks",
+        data: buckets.map((b) => b.count),
+        backgroundColor: "#7ec8e3",
+        borderRadius: 4,
+      },
+    ],
+  };
+
+  const chartOptions = {
+    plugins: { legend: { display: false } },
+    scales: {
+      x: { ticks: { color: "#aaa" }, grid: { color: "#1e3a5f" } },
+      y: { ticks: { color: "#aaa" }, grid: { color: "#1e3a5f" } },
+    },
+  };
 
   return (
-    <div className="card">
-      <h2>Chunk Size Distribution</h2>
-      {buckets.map((b) => {
-        const pct = maxCount > 0 ? Math.round((b.count / maxCount) * 100) : 0;
-        return (
-          <div key={b.label}>
-            <div style={{ fontSize: 12 }}>{b.label}</div>
-            <div className="bar">
-              <div className="bar-fill" style={{ width: `${pct}%` }} />
-            </div>
-            <div style={{ fontSize: 11, color: "#888" }}>{b.count} chunks</div>
-          </div>
-        );
-      })}
-    </div>
+    <Card title="Chunk Size Distribution" className="mb-4">
+      <Chart type="bar" data={chartData} options={chartOptions} />
+    </Card>
   );
 }

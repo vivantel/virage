@@ -1,4 +1,11 @@
 import { useEffect, useRef, useState } from "react";
+import { DataTable, type DataTableExpandedRows, type DataTableSelectionMultipleChangeEvent } from "primereact/datatable";
+import { Column } from "primereact/column";
+import { Button } from "primereact/button";
+import { InputText } from "primereact/inputtext";
+import { Card } from "primereact/card";
+import { Tag } from "primereact/tag";
+import { ProgressSpinner } from "primereact/progressspinner";
 import { api, type ExperimentRun, type StatTestResult } from "../api/client";
 import { useWs, type WsMessage } from "../context/WebSocketContext";
 
@@ -20,16 +27,21 @@ function formatMessage(msg: WsMessage): string {
   return JSON.stringify(msg);
 }
 
+const fmt = (n: number) => (n * 100).toFixed(1) + "%";
+
+const recommendationSeverity: Record<string, "success" | "danger" | "warning"> = {
+  accept: "success",
+  reject: "danger",
+  inconclusive: "warning",
+};
+
 export function ExperimentsPage() {
   const [runs, setRuns] = useState<ExperimentRun[]>([]);
-  const [expanded, setExpanded] = useState<string | null>(null);
-  const [selected, setSelected] = useState<string[]>([]);
-  const [compareResult, setCompareResult] = useState<StatTestResult | null>(
-    null,
-  );
+  const [expandedRows, setExpandedRows] = useState<DataTableExpandedRows>({});
+  const [selectedRuns, setSelectedRuns] = useState<ExperimentRun[]>([]);
+  const [compareResult, setCompareResult] = useState<StatTestResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
   const [newName, setNewName] = useState("");
   const { startOp, messages, operationRunning } = useWs();
   const logRef = useRef<HTMLPreElement>(null);
@@ -51,12 +63,9 @@ export function ExperimentsPage() {
     void load();
   }, []);
 
-  // Refresh list when an experiment-run operation completes
   useEffect(() => {
     const last = messages[messages.length - 1];
-    if (last?.type === "done") {
-      void load();
-    }
+    if (last?.type === "done") void load();
   }, [messages]);
 
   useEffect(() => {
@@ -68,213 +77,154 @@ export function ExperimentsPage() {
   async function handleDelete(id: string) {
     try {
       await api.deleteExperiment(id);
-      setSelected((s) => s.filter((x) => x !== id));
-      if (expanded === id) setExpanded(null);
+      setSelectedRuns((s) => s.filter((r) => r.id !== id));
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     }
   }
 
-  function toggleSelect(id: string) {
-    setSelected((s) =>
-      s.includes(id)
-        ? s.filter((x) => x !== id)
-        : s.length < 2
-          ? [...s, id]
-          : s,
-    );
-    setCompareResult(null);
-  }
-
   async function handleCompare() {
-    if (selected.length !== 2) return;
+    if (selectedRuns.length !== 2) return;
     try {
-      const result = await api.compareExperiments(selected[0], selected[1]);
+      const result = await api.compareExperiments(selectedRuns[0].id, selectedRuns[1].id);
       setCompareResult(result);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     }
   }
 
-  const fmt = (n: number) => (n * 100).toFixed(1) + "%";
+  function handleSelectionChange(e: DataTableSelectionMultipleChangeEvent<ExperimentRun[]>) {
+    const sel = e.value;
+    if (sel.length <= 2) {
+      setSelectedRuns(sel);
+      setCompareResult(null);
+    }
+  }
+
+  const rowExpansionTemplate = (run: ExperimentRun) => (
+    <div className="experiment-detail card p-3">
+      <p><strong>ID:</strong> {run.id}</p>
+      <p><strong>Queries evaluated:</strong> {run.evalResult.queriesEvaluated}</p>
+      {run.ragasResult && (
+        <pre>{JSON.stringify(run.ragasResult, null, 2)}</pre>
+      )}
+    </div>
+  );
+
+  const actionBodyTemplate = (run: ExperimentRun) => (
+    <div className="row-actions">
+      <Button
+        icon="pi pi-trash"
+        severity="danger"
+        size="small"
+        text
+        onClick={() => void handleDelete(run.id)}
+      />
+    </div>
+  );
 
   return (
     <div>
       <h2>Experiments</h2>
-      {error && <div className="card error">⚠️ {error}</div>}
+      {error && <Card className="card error mb-3">⚠️ {error}</Card>}
 
-      <div className="card">
-        <h3 style={{ marginTop: 0 }}>New Experiment</h3>
+      <Card title="New Experiment" className="mb-4">
         <div className="pipeline-controls">
-          <input
-            type="text"
+          <InputText
             placeholder="Experiment name"
             value={newName}
             onChange={(e) => setNewName(e.target.value)}
             disabled={operationRunning}
-            style={{ flex: 1 }}
+            className="flex-1"
           />
-          <button
+          <Button
+            label={operationRunning ? "Running…" : "Run"}
+            icon={operationRunning ? "pi pi-spin pi-spinner" : "pi pi-play"}
             onClick={() => startOp({ op: "experiment-run", name: newName })}
             disabled={operationRunning || !newName.trim()}
-          >
-            {operationRunning ? "Running…" : "Run"}
-          </button>
+          />
         </div>
         {messages.length > 0 && (
-          <pre ref={logRef} className="pipeline-log" style={{ marginTop: 8 }}>
+          <pre ref={logRef} className="pipeline-log mt-2">
             {messages.map(formatMessage).join("\n")}
           </pre>
         )}
-      </div>
+      </Card>
 
-      {selected.length === 2 && (
-        <div className="toolbar">
-          <button onClick={() => void handleCompare()}>
-            Compare selected ({selected.length}/2)
-          </button>
-          <button
-            onClick={() => {
-              setSelected([]);
-              setCompareResult(null);
-            }}
-          >
-            Clear selection
-          </button>
+      {selectedRuns.length === 2 && (
+        <div className="toolbar mb-3">
+          <Button
+            label={`Compare selected (${selectedRuns.length}/2)`}
+            icon="pi pi-chart-bar"
+            onClick={() => void handleCompare()}
+          />
+          <Button
+            label="Clear selection"
+            outlined
+            onClick={() => { setSelectedRuns([]); setCompareResult(null); }}
+          />
         </div>
       )}
 
       {compareResult && (
-        <div
-          className={`card compare-result badge-${compareResult.recommendation}`}
-        >
-          <strong>Comparison result</strong>
-          <table>
-            <tbody>
-              <tr>
-                <td>Baseline MRR</td>
-                <td>{fmt(compareResult.baselineMrr)}</td>
-              </tr>
-              <tr>
-                <td>Candidate MRR</td>
-                <td>{fmt(compareResult.candidateMrr)}</td>
-              </tr>
-              <tr>
-                <td>Delta</td>
-                <td>
-                  {compareResult.mrrDelta > 0 ? "+" : ""}
-                  {fmt(compareResult.mrrDelta)}
-                </td>
-              </tr>
-              <tr>
-                <td>p-value</td>
-                <td>{compareResult.pValue.toFixed(4)}</td>
-              </tr>
-              <tr>
-                <td>95% CI</td>
-                <td>
-                  [{fmt(compareResult.confidenceInterval95[0])},{" "}
-                  {fmt(compareResult.confidenceInterval95[1])}]
-                </td>
-              </tr>
-              <tr>
-                <td>Verdict</td>
-                <td>
-                  <span
-                    className={`badge badge-${compareResult.recommendation}`}
-                  >
-                    {compareResult.recommendation.toUpperCase()}
-                  </span>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
+        <Card className="mb-4">
+          <h3 className="mt-0">Comparison Result</h3>
+          <DataTable
+            value={[
+              { metric: "Baseline MRR", value: fmt(compareResult.baselineMrr) },
+              { metric: "Candidate MRR", value: fmt(compareResult.candidateMrr) },
+              { metric: "Delta", value: (compareResult.mrrDelta > 0 ? "+" : "") + fmt(compareResult.mrrDelta) },
+              { metric: "p-value", value: compareResult.pValue.toFixed(4) },
+              { metric: "95% CI", value: `[${fmt(compareResult.confidenceInterval95[0])}, ${fmt(compareResult.confidenceInterval95[1])}]` },
+            ]}
+            size="small"
+          >
+            <Column field="metric" header="Metric" />
+            <Column field="value" header="Value" />
+          </DataTable>
+          <div className="mt-3">
+            <Tag
+              severity={recommendationSeverity[compareResult.recommendation]}
+              value={`Verdict: ${compareResult.recommendation.toUpperCase()}`}
+            />
+          </div>
+        </Card>
       )}
 
       {loading ? (
-        <div className="card">Loading…</div>
-      ) : runs.length === 0 ? (
-        <div className="card">
-          No experiments found. Enter a name above and click Run to create one.
+        <div className="flex justify-center p-8">
+          <ProgressSpinner />
         </div>
+      ) : runs.length === 0 ? (
+        <Card>No experiments found. Enter a name above and click Run to create one.</Card>
       ) : (
-        <table className="experiment-table">
-          <thead>
-            <tr>
-              <th>Select</th>
-              <th>Name</th>
-              <th>Date</th>
-              <th>MRR</th>
-              <th>P@5</th>
-              <th>R@10</th>
-              <th>Hit@5</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            {runs.map((r) => (
-              <>
-                <tr
-                  key={r.id}
-                  className={expanded === r.id ? "expanded-row" : ""}
-                >
-                  <td>
-                    <input
-                      type="checkbox"
-                      checked={selected.includes(r.id)}
-                      onChange={() => toggleSelect(r.id)}
-                      disabled={
-                        !selected.includes(r.id) && selected.length >= 2
-                      }
-                    />
-                  </td>
-                  <td>{r.name}</td>
-                  <td>{new Date(r.timestamp).toLocaleString()}</td>
-                  <td>{fmt(r.evalResult.mrr)}</td>
-                  <td>{fmt(r.evalResult.precisionAt5)}</td>
-                  <td>{fmt(r.evalResult.recallAt10)}</td>
-                  <td>{fmt(r.evalResult.hitRateAt5)}</td>
-                  <td className="row-actions">
-                    <button
-                      className="btn-sm"
-                      onClick={() =>
-                        setExpanded(expanded === r.id ? null : r.id)
-                      }
-                    >
-                      {expanded === r.id ? "▲" : "▼"}
-                    </button>
-                    <button
-                      className="btn-sm btn-danger"
-                      onClick={() => void handleDelete(r.id)}
-                    >
-                      ✕
-                    </button>
-                  </td>
-                </tr>
-                {expanded === r.id && (
-                  <tr key={`${r.id}-detail`}>
-                    <td colSpan={8}>
-                      <div className="experiment-detail card">
-                        <p>
-                          <strong>ID:</strong> {r.id}
-                        </p>
-                        <p>
-                          <strong>Queries evaluated:</strong>{" "}
-                          {r.evalResult.queriesEvaluated}
-                        </p>
-                        {r.ragasResult && (
-                          <pre>{JSON.stringify(r.ragasResult, null, 2)}</pre>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                )}
-              </>
-            ))}
-          </tbody>
-        </table>
+        <DataTable
+          value={runs}
+          dataKey="id"
+          selection={selectedRuns}
+          onSelectionChange={handleSelectionChange}
+          selectionMode="checkbox"
+          expandedRows={expandedRows}
+          onRowToggle={(e) => setExpandedRows(e.data as DataTableExpandedRows)}
+          rowExpansionTemplate={rowExpansionTemplate}
+          size="small"
+          stripedRows
+          className="experiment-table"
+        >
+          <Column selectionMode="multiple" headerStyle={{ width: "3rem" }} />
+          <Column expander style={{ width: "3rem" }} />
+          <Column field="name" header="Name" />
+          <Column
+            header="Date"
+            body={(r: ExperimentRun) => new Date(r.timestamp).toLocaleString()}
+          />
+          <Column header="MRR" body={(r: ExperimentRun) => fmt(r.evalResult.mrr)} />
+          <Column header="P@5" body={(r: ExperimentRun) => fmt(r.evalResult.precisionAt5)} />
+          <Column header="R@10" body={(r: ExperimentRun) => fmt(r.evalResult.recallAt10)} />
+          <Column header="Hit@5" body={(r: ExperimentRun) => fmt(r.evalResult.hitRateAt5)} />
+          <Column body={actionBodyTemplate} style={{ width: "60px" }} />
+        </DataTable>
       )}
     </div>
   );

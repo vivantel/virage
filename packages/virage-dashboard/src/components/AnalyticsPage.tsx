@@ -1,4 +1,10 @@
 import { useEffect, useState } from "react";
+import { DataTable } from "primereact/datatable";
+import { Column } from "primereact/column";
+import { Button } from "primereact/button";
+import { Card } from "primereact/card";
+import { Chart } from "primereact/chart";
+import { ProgressSpinner } from "primereact/progressspinner";
 import {
   api,
   type SearchQueryRecord,
@@ -6,15 +12,6 @@ import {
   type TopTerm,
   type QueriesPerHour,
 } from "../api/client";
-
-function StatCard({ label, value }: { label: string; value: string | number }) {
-  return (
-    <div className="stat-card">
-      <div className="stat-value">{value}</div>
-      <div className="stat-label">{label}</div>
-    </div>
-  );
-}
 
 function pct(n: number) {
   return `${(n * 100).toFixed(1)}%`;
@@ -65,29 +62,53 @@ export function AnalyticsPage() {
     void load();
   }, []);
 
-  if (loading) return <p>Loading analytics…</p>;
-  if (error) return <p className="error">Error: {error}</p>;
+  if (loading) {
+    return (
+      <div className="flex justify-center p-12">
+        <ProgressSpinner />
+      </div>
+    );
+  }
+  if (error) {
+    return <Card className="card error">Error: {error}</Card>;
+  }
 
-  const maxCount = Math.max(...perHour.map((b) => b.count), 1);
+  const perHourChartData = {
+    labels: perHour.map((b) => b.hour.slice(11, 16) + " UTC"),
+    datasets: [
+      {
+        label: "Queries",
+        data: perHour.map((b) => b.count),
+        backgroundColor: "#7ec8e3",
+        borderRadius: 4,
+      },
+    ],
+  };
+
+  const chartOptions = {
+    plugins: { legend: { display: false } },
+    scales: {
+      x: { ticks: { color: "#aaa" }, grid: { color: "#1e3a5f" } },
+      y: { ticks: { color: "#aaa" }, grid: { color: "#1e3a5f" } },
+    },
+  };
 
   return (
     <div>
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 12,
-          marginBottom: 20,
-        }}
-      >
+      <div className="flex items-center gap-3 mb-5">
         <h2 style={{ margin: 0 }}>Search Activity</h2>
-        <button onClick={() => void load()} style={{ marginLeft: "auto" }}>
-          Refresh
-        </button>
+        <Button
+          label="Refresh"
+          icon="pi pi-refresh"
+          size="small"
+          outlined
+          onClick={() => void load()}
+          style={{ marginLeft: "auto" }}
+        />
       </div>
 
       {stats && (
-        <div className="stat-grid" style={{ marginBottom: 24 }}>
+        <div className="stat-grid mb-6">
           <StatCard label="Queries (last hour)" value={stats.queriesLastHour} />
           <StatCard label="Queries (24 h)" value={stats.queriesLast24h} />
           <StatCard
@@ -101,110 +122,64 @@ export function AnalyticsPage() {
         </div>
       )}
 
-      <section style={{ marginBottom: 28 }}>
-        <h3>Queries per Hour (last 24 h)</h3>
+      <Card title="Queries per Hour (last 24 h)" className="mb-4">
         {perHour.length === 0 ? (
           <p className="muted">No data yet.</p>
         ) : (
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Hour</th>
-                <th>Queries</th>
-                <th style={{ width: "50%" }}></th>
-              </tr>
-            </thead>
-            <tbody>
-              {perHour.map((b) => (
-                <tr key={b.hour}>
-                  <td style={{ fontFamily: "monospace", whiteSpace: "nowrap" }}>
-                    {b.hour.slice(11, 16)} UTC
-                  </td>
-                  <td>{b.count}</td>
-                  <td>
-                    <div
-                      style={{
-                        background: "var(--accent, #6366f1)",
-                        height: 10,
-                        borderRadius: 3,
-                        width: `${(b.count / maxCount) * 100}%`,
-                        minWidth: b.count > 0 ? 4 : 0,
-                      }}
-                    />
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <Chart type="bar" data={perHourChartData} options={chartOptions} />
         )}
-      </section>
+      </Card>
 
-      <section style={{ marginBottom: 28 }}>
-        <h3>Top 20 Search Terms</h3>
+      <Card title="Top 20 Search Terms" className="mb-4">
         {terms.length === 0 ? (
           <p className="muted">No searches recorded yet.</p>
         ) : (
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>#</th>
-                <th>Query</th>
-                <th>Count</th>
-              </tr>
-            </thead>
-            <tbody>
-              {terms.map((t, i) => (
-                <tr key={t.query_text}>
-                  <td>{i + 1}</td>
-                  <td>{t.query_text}</td>
-                  <td>{t.count}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <DataTable value={terms} size="small" stripedRows>
+            <Column header="#" body={(_: TopTerm, opt) => opt.rowIndex + 1} style={{ width: "50px" }} />
+            <Column field="query_text" header="Query" />
+            <Column field="count" header="Count" style={{ width: "80px" }} />
+          </DataTable>
         )}
-      </section>
+      </Card>
 
-      <section>
-        <h3>Low-Quality Queries (top similarity &lt; 0.5)</h3>
+      <Card title="Low-Quality Queries (top similarity < 0.5)">
         {zeroResults.length === 0 ? (
           <p className="muted">No low-quality queries detected.</p>
         ) : (
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Query</th>
-                <th>Results</th>
-                <th>Top similarity</th>
-                <th>When</th>
-                <th>Hybrid</th>
-              </tr>
-            </thead>
-            <tbody>
-              {zeroResults.map((q) => (
-                <tr key={q.id}>
-                  <td
-                    style={{
-                      maxWidth: 320,
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                      whiteSpace: "nowrap",
-                    }}
-                  >
-                    {q.query_text}
-                  </td>
-                  <td>{q.result_count}</td>
-                  <td>{fmt(q.top_similarity)}</td>
-                  <td style={{ whiteSpace: "nowrap" }}>
-                    {relTime(q.occurred_at)}
-                  </td>
-                  <td>{q.hybrid_used ? "yes" : "no"}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <DataTable value={zeroResults} size="small" stripedRows>
+            <Column
+              field="query_text"
+              header="Query"
+              style={{ maxWidth: "320px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+            />
+            <Column field="result_count" header="Results" style={{ width: "80px" }} />
+            <Column
+              header="Top similarity"
+              body={(q: SearchQueryRecord) => fmt(q.top_similarity)}
+              style={{ width: "120px" }}
+            />
+            <Column
+              header="When"
+              body={(q: SearchQueryRecord) => relTime(q.occurred_at)}
+              style={{ width: "100px", whiteSpace: "nowrap" }}
+            />
+            <Column
+              header="Hybrid"
+              body={(q: SearchQueryRecord) => (q.hybrid_used ? "yes" : "no")}
+              style={{ width: "70px" }}
+            />
+          </DataTable>
         )}
-      </section>
+      </Card>
+    </div>
+  );
+}
+
+function StatCard({ label, value }: { label: string; value: string | number }) {
+  return (
+    <div className="stat-card">
+      <div className="stat-value">{value}</div>
+      <div className="stat-label">{label}</div>
     </div>
   );
 }

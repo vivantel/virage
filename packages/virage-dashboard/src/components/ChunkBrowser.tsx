@@ -1,4 +1,10 @@
 import { useEffect, useState } from "react";
+import { DataTable } from "primereact/datatable";
+import { Column } from "primereact/column";
+import { Button } from "primereact/button";
+import { Dropdown } from "primereact/dropdown";
+import { ProgressSpinner } from "primereact/progressspinner";
+import { Card } from "primereact/card";
 import { api, type ChunkRecord } from "../api/client";
 
 export function ChunkBrowser() {
@@ -25,9 +31,11 @@ export function ChunkBrowser() {
     void load();
   }, []);
 
-  const sourceFiles = Array.from(
-    new Set(chunks.map((c) => c.sourceFile)),
-  ).sort();
+  const sourceFiles = Array.from(new Set(chunks.map((c) => c.sourceFile))).sort();
+  const fileOptions = [
+    { label: `All files (${chunks.length} chunks)`, value: "" },
+    ...sourceFiles.map((f) => ({ label: f, value: f })),
+  ];
 
   async function handleFilterChange(file: string) {
     setSelectedFile(file);
@@ -63,80 +71,86 @@ export function ChunkBrowser() {
   return (
     <div>
       <h2>Chunk Browser</h2>
-      {error && <div className="card error">⚠️ {error}</div>}
+      {error && <Card className="card error mb-3">⚠️ {error}</Card>}
 
-      <div className="toolbar">
-        <select
+      <div className="toolbar mb-3">
+        <Dropdown
           value={selectedFile}
-          onChange={(e) => void handleFilterChange(e.target.value)}
-        >
-          <option value="">All files ({chunks.length} chunks)</option>
-          {sourceFiles.map((f) => (
-            <option key={f} value={f}>
-              {f}
-            </option>
-          ))}
-        </select>
+          options={fileOptions}
+          onChange={(e) => void handleFilterChange(e.value as string)}
+          className="flex-1"
+          style={{ minWidth: "200px" }}
+        />
 
         {selectedFile && (
-          <button
-            className="btn-danger"
+          <Button
+            label="Delete file chunks"
+            severity="danger"
+            size="small"
             onClick={() => void handleDeleteFile()}
-          >
-            Delete file chunks
-          </button>
+          />
         )}
 
         {!confirmClear ? (
-          <button className="btn-danger" onClick={() => setConfirmClear(true)}>
-            Clear all
-          </button>
+          <Button
+            label="Clear all"
+            severity="danger"
+            size="small"
+            onClick={() => setConfirmClear(true)}
+          />
         ) : (
           <span className="confirm-inline">
             Sure?&nbsp;
-            <button
-              className="btn-danger"
+            <Button
+              label="Yes, clear all"
+              severity="danger"
+              size="small"
               onClick={() => void handleClearAll()}
-            >
-              Yes, clear all
-            </button>
+            />
             &nbsp;
-            <button onClick={() => setConfirmClear(false)}>Cancel</button>
+            <Button
+              label="Cancel"
+              size="small"
+              outlined
+              onClick={() => setConfirmClear(false)}
+            />
           </span>
         )}
       </div>
 
       {loading ? (
-        <div className="card">Loading...</div>
+        <div className="flex justify-center p-8">
+          <ProgressSpinner />
+        </div>
       ) : (
-        <table className="chunk-table">
-          <thead>
-            <tr>
-              <th>Source file</th>
-              <th>Preview</th>
-              <th>Hash</th>
-            </tr>
-          </thead>
-          <tbody>
-            {displayed.map((c) => (
-              <tr key={c.contentHash}>
-                <td className="source-file">{c.sourceFile}</td>
-                <td className="content-preview">
-                  {c.content.slice(0, 80)}
-                  {c.content.length > 80 ? "…" : ""}
-                </td>
-                <td className="hash">{c.contentHash}</td>
-              </tr>
-            ))}
-            {displayed.length === 0 && (
-              <tr>
-                <td colSpan={3} style={{ textAlign: "center", color: "#888" }}>
-                  No chunks found
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+        <DataTable
+          value={displayed}
+          dataKey="contentHash"
+          size="small"
+          stripedRows
+          emptyMessage="No chunks found"
+          className="chunk-table"
+        >
+          <Column
+            field="sourceFile"
+            header="Source file"
+            className="source-file"
+            style={{ whiteSpace: "nowrap" }}
+          />
+          <Column
+            header="Preview"
+            body={(c: ChunkRecord) =>
+              c.content.slice(0, 80) + (c.content.length > 80 ? "…" : "")
+            }
+            className="content-preview"
+          />
+          <Column
+            field="contentHash"
+            header="Hash"
+            className="hash"
+            style={{ whiteSpace: "nowrap", fontSize: "0.8em" }}
+          />
+        </DataTable>
       )}
     </div>
   );
