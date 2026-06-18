@@ -54,7 +54,7 @@ describe("PipelinePage", () => {
     const user = userEvent.setup();
     renderPage();
     await user.click(screen.getByRole("button", { name: /run/i }));
-    expect(mockStartOp).toHaveBeenCalledWith({ op: "update" });
+    expect(mockStartOp).toHaveBeenCalledWith({ op: "index" });
   });
 
   it("shows placeholder text when no messages", () => {

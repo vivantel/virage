@@ -700,18 +700,18 @@ Additionally, the `/plan` slash command was absent from all agent integrations. 
 
 4. **`/plan` slash command.** Claude plugin ships `plugin-config/commands/plan.md` → written to `.claude/commands/plan.md`, creating a `/plan` slash command in Claude Code. Copilot ships `plugin-config/instructions/virage-plan.md` → `.github/copilot/instructions/virage-plan.md`. Both reference `.agents/skills/virage/planner/SKILL.md`.
 
-5. **Claude plugin retains one override.** `ClaudeAgentPlugin.configure()` calls `super.configure()` (for the static file copy) then calls `mergeMcpServer()` (writes `.mcp.json` with the virage-agent MCP entry). MCP registration is Claude-specific and cannot be expressed as a static file.
+5. **Claude plugin retains one override.** `ClaudeAgentPlugin.configure()` calls `super.configure()` (for the static file copy) then calls `mergeMcpServer()`, which registers the MCP server via `claude mcp add virage --scope project -- npx -y @vivantel/virage-agent-claude@latest`. Falls back to direct `.mcp.json` editing when the `claude` CLI is unavailable. MCP registration is Claude-specific and cannot be expressed as a static file.
 
 6. **`config.ts` translation files removed** from `virage-agent-copilot`, `virage-agent-codex`, and `virage-agent-antigravity`. Shared PM helpers extracted from `init.ts` into `virage-cli/src/cli/pkg-manager.ts`.
 
-7. **`virage update` command added.** Discovers `@vivantel/*` and `rag-plugin`/`virage-agent` packages from `package.json`, shows current vs. latest versions, and runs `pm install pkg@latest` for selected packages. Optionally re-runs agent plugin configuration and re-syncs skills.
+7. **`virage update` command added.** Discovers `@vivantel/*` and `rag-plugin`/`virage-agent` packages from `package.json` and chunker packages from `virage.config.json` (e.g. `codeChunkAst` → `@vivantel/virage-code-chunk-chunker`), shows current vs. latest versions, and runs `pm install pkg@latest` for selected packages. Optionally re-runs agent plugin configuration and re-syncs skills.
 
 ### Consequences
 
 - **+** Vendor plugins are thin: ~15 lines of TypeScript each for copilot/codex/antigravity, no imperative hook translation.
 - **+** Static files are diff-friendly, auditable, and version-controlled alongside the plugin package.
 - **+** `/plan` command available in Claude Code after `virage init`; Copilot retains `virage-plan` instruction.
-- **+** `virage update` provides one-command ecosystem maintenance.
+- **+** `virage update` provides one-command ecosystem maintenance including chunker packages discovered from `virage.config.json`.
 - **−** Static hook files must be manually updated when `virage-skills/agent-config/hooks.json` changes.
 - **−** `VendorConfig` now embeds `packageName`, coupling the constant to the published package name; renaming a package requires updating the constant.
 

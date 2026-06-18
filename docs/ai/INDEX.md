@@ -35,12 +35,11 @@ Four coding agent plugins are supported. Each installs via `virage init` and cop
 
 Shared base: `@vivantel/virage-agent-core` — TypeScript types, concrete `BaseAgentPlugin` (static file-copier), `VendorConfig` constants for all 4 vendors. Architecture: ADR-026.
 
-**Claude Code marketplace install** (alternative to `virage init`):
+**Claude Code MCP registration** — `virage init` / `virage update` automatically run:
 ```bash
-claude plugin marketplace add vivantel/virage --scope project
-claude plugin install virage-agent@vivantel --scope project
+claude mcp add virage --scope project -- npx -y @vivantel/virage-agent-claude@latest
 ```
-The marketplace manifest is at `.claude-plugin/marketplace.json` in the repo root. The plugin source is `packages/virage-agent-claude/plugin-config` (sparse-cloned via `git-subdir`). The plugin is self-contained: it declares `commands/plan.md` and an MCP server via `.mcp.json`.
+Falls back to direct `.mcp.json` editing when the `claude` CLI is unavailable. The plugin is self-contained: it copies `commands/plan.md` and other files from `plugin-config/` and registers the MCP server.
 
 **Claude Code slash commands** installed by the plugin (`plugin-config/commands/`):
 
@@ -54,7 +53,7 @@ The marketplace manifest is at `.claude-plugin/marketplace.json` in the repo roo
 | `/arch` | Load and follow the Virage architect skill |
 | `/usage` | Show per-prompt token usage for the current session |
 
-**MCP tools** exposed by the `virage` MCP server (registered in `.mcp.json`):
+**MCP tools** exposed by the `virage` MCP server (registered via `claude mcp add virage --scope project`):
 
 | Tool | Purpose |
 | ---- | ------- |
@@ -79,7 +78,7 @@ npm test -w @vivantel/<pkg>            # unit tests for one package
 npm run build -w @vivantel/<pkg>       # build one package
 npm run build:with-dashboard -w @vivantel/virage-cli  # CLI build including dashboard UI
 virage init                            # interactive wizard: config, agents, embedder, vector store
-virage update (up)                     # update all virage packages from config + re-run plugin configure + sync skills
+virage update (up)                     # update all virage packages (embedders, stores, rerankers, agents, chunkers) from config + re-run plugin configure + sync skills
 virage query (q) "<text>"             # semantic search over the indexed knowledge base (--json, --top-k, --branch)
 virage install-hooks (hooks)           # install post-merge & post-checkout git hooks for auto-indexing
 virage dashboard (d) [--verbose]       # start local RAG monitoring dashboard

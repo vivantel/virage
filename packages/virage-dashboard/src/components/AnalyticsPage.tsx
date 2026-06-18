@@ -12,6 +12,7 @@ import {
   type TopTerm,
   type QueriesPerHour,
 } from "../api/client";
+import { useToast } from "../context/ToastContext";
 
 function pct(n: number) {
   return `${(n * 100).toFixed(1)}%`;
@@ -35,11 +36,10 @@ export function AnalyticsPage() {
   const [terms, setTerms] = useState<TopTerm[]>([]);
   const [zeroResults, setZeroResults] = useState<SearchQueryRecord[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { showError } = useToast();
 
   async function load() {
     setLoading(true);
-    setError(null);
     try {
       const [statsData, perHourData, termsData, zeroData] = await Promise.all([
         api.analytics.stats(),
@@ -52,7 +52,7 @@ export function AnalyticsPage() {
       setTerms(termsData.terms);
       setZeroResults(zeroData.queries);
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      showError("Failed to load analytics", err instanceof Error ? err.message : String(err));
     } finally {
       setLoading(false);
     }
@@ -68,9 +68,6 @@ export function AnalyticsPage() {
         <ProgressSpinner />
       </div>
     );
-  }
-  if (error) {
-    return <Card className="card error">Error: {error}</Card>;
   }
 
   const perHourChartData = {

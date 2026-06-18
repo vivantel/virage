@@ -14,6 +14,11 @@ vi.mock("../../api/client", () => ({
   },
 }));
 
+const mockShowError = vi.fn();
+vi.mock("../../context/ToastContext", () => ({
+  useToast: () => ({ showError: mockShowError, showSuccess: vi.fn() }),
+}));
+
 import { api } from "../../api/client";
 
 const mockStats = {
@@ -113,7 +118,7 @@ describe("AnalyticsPage", () => {
     );
   });
 
-  it("shows error when API fails", async () => {
+  it("shows error toast when API fails", async () => {
     vi.mocked(api.analytics.stats).mockRejectedValue(
       new Error("Analytics unavailable"),
     );
@@ -128,7 +133,10 @@ describe("AnalyticsPage", () => {
     );
     renderPage();
     await waitFor(() =>
-      expect(screen.getByText(/Analytics unavailable/)).toBeTruthy(),
+      expect(mockShowError).toHaveBeenCalledWith(
+        "Failed to load analytics",
+        "Analytics unavailable",
+      ),
     );
   });
 

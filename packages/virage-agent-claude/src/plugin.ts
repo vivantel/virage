@@ -1,6 +1,10 @@
 import { readFile, writeFile } from "fs/promises";
 import { existsSync } from "fs";
 import { join } from "path";
+import { execFile } from "child_process";
+import { promisify } from "util";
+
+const execFileAsync = promisify(execFile);
 import {
   BaseAgentPlugin,
   CLAUDE_VENDOR_CONFIG,
@@ -78,6 +82,23 @@ export class ClaudeAgentPlugin extends BaseAgentPlugin {
   }
 
   private async mergeMcpServer(targetDir: string): Promise<boolean> {
+    try {
+      await execFileAsync(
+        "claude",
+        [
+          "mcp", "add", "virage",
+          "--scope", "project",
+          "--", "npx", "-y", "@vivantel/virage-agent-claude@latest",
+        ],
+        { cwd: targetDir },
+      );
+      return true;
+    } catch {
+      return this.mergeMcpServerFallback(targetDir);
+    }
+  }
+
+  private async mergeMcpServerFallback(targetDir: string): Promise<boolean> {
     const mcpPath = join(targetDir, ".mcp.json");
 
     let config: McpConfig = {};

@@ -6,26 +6,26 @@ import { Card } from "primereact/card";
 import { Tag } from "primereact/tag";
 import { ProgressSpinner } from "primereact/progressspinner";
 import { api, type SearchResult } from "../api/client";
+import { useToast } from "../context/ToastContext";
 
 export function SearchPage() {
   const [query, setQuery] = useState("");
   const [topK, setTopK] = useState(5);
   const [results, setResults] = useState<SearchResult[]>([]);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [searched, setSearched] = useState(false);
+  const { showError } = useToast();
 
   async function handleSearch(e: React.FormEvent) {
     e.preventDefault();
     if (!query.trim()) return;
     setLoading(true);
-    setError(null);
     try {
       const data = await api.search(query.trim(), topK);
       setResults(data.results);
       setSearched(true);
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      showError("Search failed", err instanceof Error ? err.message : String(err));
     } finally {
       setLoading(false);
     }
@@ -62,8 +62,6 @@ export function SearchPage() {
           />
         </div>
       </form>
-
-      {error && <Card className="card error mt-3">⚠️ {error}</Card>}
 
       {loading && (
         <div className="flex justify-center p-8">

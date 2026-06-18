@@ -12,6 +12,7 @@ import { Tag } from "primereact/tag";
 import { ProgressSpinner } from "primereact/progressspinner";
 import { api, type ExperimentRun, type StatTestResult } from "../api/client";
 import { useWs, type WsMessage } from "../context/WebSocketContext";
+import { useToast } from "../context/ToastContext";
 
 function formatMessage(msg: WsMessage): string {
   if (msg.type === "progress") {
@@ -48,19 +49,18 @@ export function ExperimentsPage() {
     null,
   );
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [newName, setNewName] = useState("");
   const { startOp, messages, operationRunning } = useWs();
+  const { showError } = useToast();
   const logRef = useRef<HTMLPreElement>(null);
 
   async function load() {
     setLoading(true);
-    setError(null);
     try {
       const data = await api.experiments();
       setRuns(data.runs);
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      showError("Failed to load experiments", err instanceof Error ? err.message : String(err));
     } finally {
       setLoading(false);
     }
@@ -87,7 +87,7 @@ export function ExperimentsPage() {
       setSelectedRuns((s) => s.filter((r) => r.id !== id));
       await load();
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      showError("Failed to delete experiment", err instanceof Error ? err.message : String(err));
     }
   }
 
@@ -100,7 +100,7 @@ export function ExperimentsPage() {
       );
       setCompareResult(result);
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      showError("Comparison failed", err instanceof Error ? err.message : String(err));
     }
   }
 
@@ -141,7 +141,6 @@ export function ExperimentsPage() {
   return (
     <div>
       <h2>Experiments</h2>
-      {error && <Card className="card error mb-3">⚠️ {error}</Card>}
 
       <Card title="New Experiment" className="mb-4">
         <div className="pipeline-controls">
@@ -155,7 +154,7 @@ export function ExperimentsPage() {
           <Button
             label={operationRunning ? "Running…" : "Run"}
             icon={operationRunning ? "pi pi-spin pi-spinner" : "pi pi-play"}
-            onClick={() => startOp({ op: "experiment-run", name: newName })}
+            onClick={() => startOp({ op: "eval-save", name: newName })}
             disabled={operationRunning || !newName.trim()}
           />
         </div>

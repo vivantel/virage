@@ -8,7 +8,6 @@ interface Props {
   activeIndex: number;
   onSwitch: (index: number) => void;
   onAdd: (rootPath: string) => void;
-  addError: string | null;
 }
 
 function timeAgo(ts: number): string {
@@ -26,7 +25,6 @@ export function ProjectSwitcher({
   activeIndex,
   onSwitch,
   onAdd,
-  addError,
 }: Props) {
   const [open, setOpen] = useState(false);
   const [inputValue, setInputValue] = useState("");
@@ -86,7 +84,6 @@ export function ProjectSwitcher({
         />
         <Button label="Add project" size="small" onClick={handleAdd} />
       </div>
-      {addError && <span className="project-add-error">{addError}</span>}
     </div>
   );
 }

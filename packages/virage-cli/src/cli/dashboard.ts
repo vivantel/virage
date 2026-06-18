@@ -228,7 +228,7 @@ async function handleWsOperation(ws: WebSocket, msg: Record<string, unknown>) {
   try {
     const cfg = await getCachedConfig(configPath);
 
-    if (op === "update") {
+    if (op === "index") {
       const orchestrator = new Orchestrator({
         ...cfg,
         options: {
@@ -263,7 +263,7 @@ async function handleWsOperation(ws: WebSocket, msg: Record<string, unknown>) {
         type: "done",
         message: `Eval dataset written to ${outputPath}`,
       });
-    } else if (op === "evaluate") {
+    } else if (op === "eval-run") {
       const datasetPath = join(active.rootPath, ".virage", "eval-dataset.json");
       if (!existsSync(datasetPath)) {
         safeSend(ws, {
@@ -288,7 +288,7 @@ async function handleWsOperation(ws: WebSocket, msg: Record<string, unknown>) {
         }),
       );
       safeSend(ws, { type: "done", result });
-    } else if (op === "experiment-run") {
+    } else if (op === "eval-save") {
       const name =
         typeof msg.name === "string" && msg.name.trim()
           ? msg.name.trim()

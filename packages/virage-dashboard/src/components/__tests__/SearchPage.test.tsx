@@ -10,6 +10,11 @@ vi.mock("../../api/client", () => ({
   },
 }));
 
+const mockShowError = vi.fn();
+vi.mock("../../context/ToastContext", () => ({
+  useToast: () => ({ showError: mockShowError, showSuccess: vi.fn() }),
+}));
+
 import { api } from "../../api/client";
 
 function renderPage() {
@@ -102,7 +107,9 @@ describe("SearchPage", () => {
       "error query",
     );
     await user.click(screen.getByRole("button", { name: /search/i }));
-    await waitFor(() => expect(screen.getByText(/Search failed/)).toBeTruthy());
+    await waitFor(() =>
+      expect(mockShowError).toHaveBeenCalledWith("Search failed", "Search failed"),
+    );
   });
 
   it("displays source file badge in results", async () => {

@@ -7,6 +7,7 @@ import { PipelinePage } from "./components/PipelinePage";
 import { ExperimentsPage } from "./components/ExperimentsPage";
 import { AnalyticsPage } from "./components/AnalyticsPage";
 import { WebSocketProvider } from "./context/WebSocketContext";
+import { ToastProvider } from "./context/ToastContext";
 
 class DashboardErrorBoundary extends Component<
   { children: ReactNode },
@@ -58,6 +59,7 @@ class DashboardErrorBoundary extends Component<
 export function App() {
   return (
     <DashboardErrorBoundary>
+      <ToastProvider>
       <WebSocketProvider>
         <BrowserRouter>
           <div className="layout">
@@ -85,6 +87,7 @@ export function App() {
           </div>
         </BrowserRouter>
       </WebSocketProvider>
+      </ToastProvider>
     </DashboardErrorBoundary>
   );
 }

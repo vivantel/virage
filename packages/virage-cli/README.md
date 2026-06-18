@@ -28,7 +28,7 @@ Every top-level command has a single-key alias — use `virage --help` to see al
 | Command | Alias | Description |
 |---------|-------|-------------|
 | `virage init` | — | Generate a `virage.config.json` template and configure agent plugins |
-| `virage update` | `up` | Update all virage packages (reads `virage.config.json`; works in non-Node projects) |
+| `virage update` | `up` | Update all virage packages — embedders, vector stores, rerankers, agents, and chunkers (reads `virage.config.json`; works in non-Node projects) |
 | `virage install-hooks` | `hooks` | Install git hooks for auto-indexing on pull/branch switch |
 | `virage usage` | `use` | Print per-prompt token usage for the current Claude Code session |
 | `virage read-skill-summary <name>` | `skill` | Print the summary for a named Virage skill |

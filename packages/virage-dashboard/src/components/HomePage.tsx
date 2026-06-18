@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { api } from "../api/client";
+import { useToast } from "../context/ToastContext";
 import type {
   StatusData,
   ChunksData,
@@ -19,8 +20,6 @@ interface HomeState {
   anomalies: AnomaliesData | null;
   projects: ProjectsData | null;
   metaMismatch: string | null;
-  error: string | null;
-  addProjectError: string | null;
 }
 
 export function HomePage() {
@@ -30,9 +29,8 @@ export function HomePage() {
     anomalies: null,
     projects: null,
     metaMismatch: null,
-    error: null,
-    addProjectError: null,
   });
+  const { showError } = useToast();
 
   async function refresh() {
     try {
@@ -54,47 +52,29 @@ export function HomePage() {
           metaResult.status === "mismatch"
             ? (metaResult.message ?? null)
             : null,
-        error: null,
       }));
     } catch (err) {
-      setState((prev) => ({
-        ...prev,
-        error: err instanceof Error ? err.message : String(err),
-      }));
+      showError("Failed to load dashboard data", err instanceof Error ? err.message : String(err));
     }
   }
 
   async function handleSwitch(index: number) {
     try {
       const updated = await api.switchProject(index);
-      setState((prev) => ({
-        ...prev,
-        projects: updated,
-        addProjectError: null,
-      }));
+      setState((prev) => ({ ...prev, projects: updated }));
       void refresh();
     } catch (err) {
-      setState((prev) => ({
-        ...prev,
-        error: err instanceof Error ? err.message : String(err),
-      }));
+      showError("Failed to switch project", err instanceof Error ? err.message : String(err));
     }
   }
 
   async function handleAdd(rootPath: string) {
     try {
       const updated = await api.addProject(rootPath);
-      setState((prev) => ({
-        ...prev,
-        projects: updated,
-        addProjectError: null,
-      }));
+      setState((prev) => ({ ...prev, projects: updated }));
       void refresh();
     } catch (err) {
-      setState((prev) => ({
-        ...prev,
-        addProjectError: err instanceof Error ? err.message : String(err),
-      }));
+      showError("Failed to add project", err instanceof Error ? err.message : String(err));
     }
   }
 
@@ -112,20 +92,18 @@ export function HomePage() {
           activeIndex={state.projects.activeIndex}
           onSwitch={handleSwitch}
           onAdd={handleAdd}
-          addError={state.addProjectError}
         />
       )}
       <h1>RAG Dashboard</h1>
       {state.metaMismatch && (
         <div className="card warning">⚠️ {state.metaMismatch}</div>
       )}
-      {state.error && <div className="card error">⚠️ {state.error}</div>}
       {state.status && <StatusCard data={state.status} />}
       {state.chunks && <ChunkHistogram buckets={state.chunks.histogram} />}
       {state.anomalies && (
         <AnomalyTable anomalies={state.anomalies.anomalies} />
       )}
-      {!state.status && !state.error && <div className="card">Loading...</div>}
+      {!state.status && <div className="card">Loading...</div>}
     </>
   );
 }

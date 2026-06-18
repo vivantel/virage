@@ -29,6 +29,7 @@ interface VirageConfig {
   vectorStore?: { package?: string };
   search?: { reranker?: { package?: string } };
   agents?: string[];
+  chunkers?: Array<{ strategy?: string }>;
 }
 
 const AGENT_PACKAGES: Record<string, string> = {
@@ -100,6 +101,13 @@ async function discoverViragePackages(
     }
     for (const agent of virageConfig.agents ?? []) {
       const pkg = AGENT_PACKAGES[agent];
+      if (pkg) candidates.add(pkg);
+    }
+    const CHUNKER_STRATEGY_PACKAGES: Record<string, string> = {
+      codeChunkAst: "@vivantel/virage-code-chunk-chunker",
+    };
+    for (const chunker of virageConfig.chunkers ?? []) {
+      const pkg = chunker.strategy && CHUNKER_STRATEGY_PACKAGES[chunker.strategy];
       if (pkg) candidates.add(pkg);
     }
   }

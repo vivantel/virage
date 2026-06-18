@@ -9,7 +9,7 @@ import {
 } from "../context/WebSocketContext";
 import { useState } from "react";
 
-type PipelineOp = "update" | "eval-generate" | "evaluate";
+type PipelineOp = "index" | "eval-generate" | "eval-run";
 
 function formatMessage(msg: WsMessage): string {
   if (msg.type === "progress") {
@@ -30,9 +30,9 @@ function formatMessage(msg: WsMessage): string {
 }
 
 const opOptions = [
-  { label: "Update index (virage update)", value: "update" },
-  { label: "Generate eval dataset", value: "eval-generate" },
-  { label: "Run evaluation", value: "evaluate" },
+  { label: "Index (virage index)", value: "index" },
+  { label: "Generate eval dataset (virage eval generate)", value: "eval-generate" },
+  { label: "Run evaluation (virage eval run)", value: "eval-run" },
 ];
 
 const statusSeverity: Record<
@@ -53,7 +53,7 @@ const statusLabel: Record<WsStatus, string> = {
 };
 
 export function PipelinePage() {
-  const [op, setOp] = useState<PipelineOp>("update");
+  const [op, setOp] = useState<PipelineOp>("index");
   const { startOp, messages, status, operationRunning } = useWs();
   const logRef = useRef<HTMLPreElement>(null);
 

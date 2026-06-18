@@ -7,6 +7,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { useToast } from "./ToastContext";
 
 export type WsStatus = "disconnected" | "connecting" | "connected" | "error";
 
@@ -23,8 +24,8 @@ interface WsContextValue {
 }
 
 const TERMINAL_TYPES = new Set(["done", "error", "busy"]);
-const MAX_RETRIES = 5;
 const BASE_DELAY_MS = 1000;
+const MAX_DELAY_MS = 30_000;
 
 const WebSocketContext = createContext<WsContextValue>({
   status: "disconnected",
@@ -37,6 +38,7 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
   const [status, setStatus] = useState<WsStatus>("disconnected");
   const [messages, setMessages] = useState<WsMessage[]>([]);
   const [operationRunning, setOperationRunning] = useState(false);
+  const { showError } = useToast();
 
   const wsRef = useRef<WebSocket | null>(null);
   const retryCountRef = useRef(0);
@@ -69,6 +71,12 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
       setMessages((prev) => [...prev, msg]);
       if (TERMINAL_TYPES.has(msg.type)) {
         setOperationRunning(false);
+        if (msg.type === "error") {
+          showError(
+            "Operation failed",
+            String(msg["message"] ?? "Unknown error"),
+          );
+        }
       }
     };
 
@@ -76,22 +84,18 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
       if (wsRef.current !== ws) return;
       wsRef.current = null;
       setStatus("disconnected");
-
-      if (retryCountRef.current < MAX_RETRIES) {
-        const delay = BASE_DELAY_MS * Math.pow(2, retryCountRef.current);
-        retryCountRef.current += 1;
-        retryTimerRef.current = setTimeout(() => {
-          connect();
-        }, delay);
-      } else {
-        setStatus("error");
-      }
+      const delay = Math.min(
+        BASE_DELAY_MS * Math.pow(2, retryCountRef.current),
+        MAX_DELAY_MS,
+      );
+      retryCountRef.current += 1;
+      retryTimerRef.current = setTimeout(connect, delay);
     };
 
     ws.onerror = () => {
       // onclose fires right after; let it handle reconnect
     };
-  }, []);
+  }, [showError]);
 
   useEffect(() => {
     connect();

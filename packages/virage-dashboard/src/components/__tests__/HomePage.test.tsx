@@ -27,6 +27,11 @@ vi.mock("../../context/WebSocketContext", () => ({
   }),
 }));
 
+const mockShowError = vi.fn();
+vi.mock("../../context/ToastContext", () => ({
+  useToast: () => ({ showError: mockShowError, showSuccess: vi.fn() }),
+}));
+
 import { api } from "../../api/client";
 
 const mockStatus = { totalChunks: 42, totalEmbeddings: 38, memoryMB: 128 };
@@ -96,14 +101,19 @@ describe("HomePage", () => {
     await waitFor(() => expect(screen.getByText("RAG Dashboard")).toBeTruthy());
   });
 
-  it("shows error card when API throws", async () => {
+  it("shows error toast when API throws", async () => {
     vi.mocked(api.status).mockRejectedValue(new Error("Network error"));
     vi.mocked(api.chunks).mockRejectedValue(new Error("Network error"));
     vi.mocked(api.anomalies).mockRejectedValue(new Error("Network error"));
     vi.mocked(api.projects).mockRejectedValue(new Error("Network error"));
     vi.mocked(api.metaCheck).mockRejectedValue(new Error("Network error"));
     renderPage();
-    await waitFor(() => expect(screen.getByText(/Network error/)).toBeTruthy());
+    await waitFor(() =>
+      expect(mockShowError).toHaveBeenCalledWith(
+        "Failed to load dashboard data",
+        "Network error",
+      ),
+    );
   });
 
   it("shows meta mismatch warning when API returns mismatch", async () => {

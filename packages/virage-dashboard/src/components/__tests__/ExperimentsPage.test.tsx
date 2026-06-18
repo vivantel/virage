@@ -23,6 +23,11 @@ vi.mock("../../context/WebSocketContext", () => ({
   }),
 }));
 
+const mockShowError = vi.fn();
+vi.mock("../../context/ToastContext", () => ({
+  useToast: () => ({ showError: mockShowError, showSuccess: vi.fn() }),
+}));
+
 import { api } from "../../api/client";
 
 const sampleRuns = [
@@ -106,10 +111,15 @@ describe("ExperimentsPage", () => {
     ).toBeNull();
   });
 
-  it("shows error card when loading fails", async () => {
+  it("shows error toast when loading fails", async () => {
     vi.mocked(api.experiments).mockRejectedValue(new Error("Load error"));
     renderPage();
-    await waitFor(() => expect(screen.getByText(/Load error/)).toBeTruthy());
+    await waitFor(() =>
+      expect(mockShowError).toHaveBeenCalledWith(
+        "Failed to load experiments",
+        "Load error",
+      ),
+    );
   });
 
   it("calls api.experiments on mount", async () => {

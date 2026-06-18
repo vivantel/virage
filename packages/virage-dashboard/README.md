@@ -23,7 +23,7 @@ serves an actionable build-instructions page instead of a blank screen.
 | Home        | Live chunk count, embedding count, memory usage, chunk histogram, anomaly table    |
 | Chunks      | Browse and delete individual chunks by source file                                 |
 | Search      | Interactive semantic search against the indexed knowledge base                     |
-| Pipeline    | Trigger index updates, generate eval datasets, and run evaluations via WebSocket   |
+| Pipeline    | Trigger pipeline operations via WebSocket (`index` → `virage index`, `eval-generate` → `virage eval generate`, `eval-run` → `virage eval run`); reconnects automatically if the server is restarted |
 | Experiments | View and compare saved evaluation runs                                             |
 | Analytics   | Query history, top search terms, zero-result queries, queries-per-hour chart       |
 

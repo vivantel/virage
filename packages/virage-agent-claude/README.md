@@ -37,7 +37,13 @@ Select the Claude Code agent plugin when prompted.
 
 ### MCP server registration
 
-Add to your project's `.mcp.json`:
+`virage init` and `virage update` automatically register the MCP server by running:
+
+```bash
+claude mcp add virage --scope project -- npx -y @vivantel/virage-agent-claude@latest
+```
+
+If the `claude` CLI is not available the plugin falls back to writing `.mcp.json` directly. For manual registration, add to your project's `.mcp.json`:
 
 ```json
 {
@@ -45,7 +51,7 @@ Add to your project's `.mcp.json`:
     "virage": {
       "type": "stdio",
       "command": "npx",
-      "args": ["-y", "@vivantel/virage-agent-claude"]
+      "args": ["-y", "@vivantel/virage-agent-claude@latest"]
     }
   }
 }
