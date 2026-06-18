@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.6](https://github.com/vivantel/virage/compare/virage-agent-core@v0.1.5...virage-agent-core@v0.1.6) (2026-06-18)
+
+
+### Bug Fixes
+
+* **virage-reranker-cross-encoder:** Wire up vitest and add unit tests ([90bb477](https://github.com/vivantel/virage/commit/90bb477a5059f2cce28e5f37c8dd8beef256218f))
+
 ## [0.1.5](https://github.com/vivantel/virage/compare/virage-agent-core@v0.1.4...virage-agent-core@v0.1.5) (2026-06-17)
 
 

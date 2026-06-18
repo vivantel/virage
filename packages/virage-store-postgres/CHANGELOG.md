@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.2.30](https://github.com/vivantel/virage/compare/virage-store-postgres@v0.2.29...virage-store-postgres@v0.2.30) (2026-06-18)
+
+
+### Bug Fixes
+
+* **virage-reranker-cross-encoder:** Wire up vitest and add unit tests ([90bb477](https://github.com/vivantel/virage/commit/90bb477a5059f2cce28e5f37c8dd8beef256218f))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * devDependencies
+    * @vivantel/virage-core bumped from 0.2.28 to 0.2.29
+  * peerDependencies
+    * @vivantel/virage-core bumped from * to 0.2.29
+
 ## [0.2.29](https://github.com/vivantel/virage/compare/virage-store-postgres@v0.2.28...virage-store-postgres@v0.2.29) (2026-06-17)
 
 

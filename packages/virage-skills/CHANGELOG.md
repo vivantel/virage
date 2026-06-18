@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.8](https://github.com/vivantel/virage/compare/virage-skills@v0.1.7...virage-skills@v0.1.8) (2026-06-18)
+
+
+### Bug Fixes
+
+* **virage-reranker-cross-encoder:** Wire up vitest and add unit tests ([90bb477](https://github.com/vivantel/virage/commit/90bb477a5059f2cce28e5f37c8dd8beef256218f))
+
 ## [0.1.7](https://github.com/vivantel/virage/compare/virage-skills@v0.1.6...virage-skills@v0.1.7) (2026-06-17)
 
 

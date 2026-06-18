@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.2.24](https://github.com/vivantel/virage/compare/virage-agent-claude@v0.2.23...virage-agent-claude@v0.2.24) (2026-06-18)
+
+
+### Bug Fixes
+
+* **virage-reranker-cross-encoder:** Wire up vitest and add unit tests ([90bb477](https://github.com/vivantel/virage/commit/90bb477a5059f2cce28e5f37c8dd8beef256218f))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @vivantel/virage-agent-core bumped from 0.1.5 to 0.1.6
+    * @vivantel/virage-skills bumped from 0.1.7 to 0.1.8
+
 ## [0.2.23](https://github.com/vivantel/virage/compare/virage-agent-claude@v0.2.22...virage-agent-claude@v0.2.23) (2026-06-18)
 
 

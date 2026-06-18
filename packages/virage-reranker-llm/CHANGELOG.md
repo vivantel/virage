@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.1.2](https://github.com/vivantel/virage/compare/virage-reranker-llm@v0.1.1...virage-reranker-llm@v0.1.2) (2026-06-18)
+
+
+### Bug Fixes
+
+* **virage-reranker-cross-encoder:** Wire up vitest and add unit tests ([90bb477](https://github.com/vivantel/virage/commit/90bb477a5059f2cce28e5f37c8dd8beef256218f))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * devDependencies
+    * @vivantel/virage-core bumped from * to 0.2.29
+  * peerDependencies
+    * @vivantel/virage-core bumped from * to 0.2.29
+
 ## [0.1.1](https://github.com/vivantel/virage/compare/virage-reranker-llm@v0.1.0...virage-reranker-llm@v0.1.1) (2026-06-17)
 
 
