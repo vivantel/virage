@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.2.35](https://github.com/vivantel/virage/compare/virage-embedder-transformers@v0.2.34...virage-embedder-transformers@v0.2.35) (2026-06-19)
+
+
+### Bug Fixes
+
+* **virage:** Hide cursor during progress, fix embedding cache, fix model progress ([394f949](https://github.com/vivantel/virage/commit/394f9495c79a02fef907ebaa119add954c9c402b))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * devDependencies
+    * @vivantel/virage-core bumped from 0.2.32 to 0.2.33
+  * peerDependencies
+    * @vivantel/virage-core bumped from * to 0.2.33
+
 ## [0.2.34](https://github.com/vivantel/virage/compare/virage-embedder-transformers@v0.2.33...virage-embedder-transformers@v0.2.34) (2026-06-19)
 
 

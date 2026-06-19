@@ -1,1 +1,32 @@
 # Changelog
+
+## [0.1.1](https://github.com/vivantel/virage/compare/virage-git-isomorphic@v0.1.0...virage-git-isomorphic@v0.1.1) (2026-06-19)
+
+
+### Features
+
+* **virage-core:** Add SourceRepository abstraction and switch to blob SHA tracking ([2458899](https://github.com/vivantel/virage/commit/245889997fbf2677f7523e6916155d373c905d08))
+
+
+### Bug Fixes
+
+* Retrigger release pipeline ([bd6b99c](https://github.com/vivantel/virage/commit/bd6b99c1332397e92259a37097f44a556cdc1b7e))
+* **virage-reranker-cross-encoder:** Wire up vitest and add unit tests ([90bb477](https://github.com/vivantel/virage/commit/90bb477a5059f2cce28e5f37c8dd8beef256218f))
+
+
+### Code Refactoring
+
+* **virage-cli:** Apply prettier formatting ([a74ffb2](https://github.com/vivantel/virage/commit/a74ffb26cebc0a6979dc1a0e0243381b741347fe))
+* **virage-core:** Apply prettier formatting ([97c697a](https://github.com/vivantel/virage/commit/97c697a9a46697e6bb6c94977f74b6b56de1ab28))
+* **virage-mcp:** Apply prettier formatting ([05428d5](https://github.com/vivantel/virage/commit/05428d56514a74e176e0d223aecdb459e60064ac))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * devDependencies
+    * @vivantel/virage-core bumped from 0.2.32 to 0.2.33
+  * peerDependencies
+    * @vivantel/virage-core bumped from * to 0.2.33
+
+## Changelog

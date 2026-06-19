@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.33](https://github.com/vivantel/virage/compare/virage-core@v0.2.32...virage-core@v0.2.33) (2026-06-19)
+
+
+### Features
+
+* **virage-core:** Add SourceRepository abstraction and switch to blob SHA tracking ([2458899](https://github.com/vivantel/virage/commit/245889997fbf2677f7523e6916155d373c905d08))
+
+
+### Bug Fixes
+
+* **virage:** Hide cursor during progress, fix embedding cache, fix model progress ([394f949](https://github.com/vivantel/virage/commit/394f9495c79a02fef907ebaa119add954c9c402b))
+
 ## [0.2.32](https://github.com/vivantel/virage/compare/virage-core@v0.2.31...virage-core@v0.2.32) (2026-06-19)
 
 
