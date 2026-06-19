@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.65](https://github.com/vivantel/virage/compare/virage-cli@v0.1.64...virage-cli@v0.1.65) (2026-06-19)
+
+
+### Documentation
+
+* Add virage-code-chunk-chunker to README pluginVersions examples ([a1c7693](https://github.com/vivantel/virage/commit/a1c769343202b681130c56ee3dcf4082b7f266f5))
+
 ## [0.1.64](https://github.com/vivantel/virage/compare/virage-cli@v0.1.63...virage-cli@v0.1.64) (2026-06-19)
 
 
