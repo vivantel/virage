@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.1.58](https://github.com/vivantel/virage/compare/virage-cli@v0.1.57...virage-cli@v0.1.58) (2026-06-19)
+
+
+### Features
+
+* **virage-cli:** Add hybrid search step to init wizard; fix global package resolution ([9accf69](https://github.com/vivantel/virage/commit/9accf6911bdc642bb71021f027d0d8e145a9c803))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @vivantel/virage-core bumped from 0.2.29 to 0.2.30
+
 ## [0.1.57](https://github.com/vivantel/virage/compare/virage-cli@v0.1.56...virage-cli@v0.1.57) (2026-06-18)
 
 
