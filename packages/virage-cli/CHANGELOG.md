@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.1.59](https://github.com/vivantel/virage/compare/virage-cli@v0.1.58...virage-cli@v0.1.59) (2026-06-19)
+
+
+### Features
+
+* **virage-cli:** Progress reporting overhaul ([e5a960d](https://github.com/vivantel/virage/commit/e5a960dc0d56d6312c308f35071e8df736591d60))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @vivantel/virage-core bumped from 0.2.30 to 0.2.31
+
 ## [0.1.58](https://github.com/vivantel/virage/compare/virage-cli@v0.1.57...virage-cli@v0.1.58) (2026-06-19)
 
 
