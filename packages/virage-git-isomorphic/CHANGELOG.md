@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.1.2](https://github.com/vivantel/virage/compare/virage-git-isomorphic@v0.1.1...virage-git-isomorphic@v0.1.2) (2026-06-19)
+
+
+### Bug Fixes
+
+* **virage-git-isomorphic:** Apply prettier formatting to new files ([eb2a77d](https://github.com/vivantel/virage/commit/eb2a77d44b8fa220037870c6ba8bb63d076d6003))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * devDependencies
+    * @vivantel/virage-core bumped from 0.2.33 to 0.2.34
+  * peerDependencies
+    * @vivantel/virage-core bumped from * to 0.2.34
+
 ## [0.1.1](https://github.com/vivantel/virage/compare/virage-git-isomorphic@v0.1.0...virage-git-isomorphic@v0.1.1) (2026-06-19)
 
 
