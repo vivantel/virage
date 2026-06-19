@@ -138,6 +138,10 @@ export class PipelineRenderer {
   }
 
   startModelLoading(model: string): void {
+    if (this.phase === "scanning" && this.ephemeralLines > 0) {
+      process.stdout.write("\n");
+      this.ephemeralLines = 0;
+    }
     this.modelName = model;
     this.phase = "model";
     this.dirty = true;
@@ -150,7 +154,11 @@ export class PipelineRenderer {
   }
 
   startPipeline(): void {
+    if (this.phase === "scanning" || this.phase === "model") {
+      if (this.ephemeralLines > 0) process.stdout.write("\n");
+    }
     this.phase = "pipeline";
+    this.ephemeralLines = 0;
     this.dirty = true;
   }
 
@@ -174,7 +182,12 @@ export class PipelineRenderer {
       clearInterval(this.timer);
       this.timer = null;
     }
-    this.doRender();
+    const isSingleLine = this.phase === "scanning" || this.phase === "model";
+    if (isSingleLine) {
+      if (this.ephemeralLines > 0) process.stdout.write("\n");
+    } else {
+      this.doRender();
+    }
   }
 
   // --- Rendering ---
@@ -186,36 +199,52 @@ export class PipelineRenderer {
       return;
     }
 
-    const phaseLines = this.buildPhase();
     const hasLogs = this.logBuffer.length > 0;
+    const isSingleLine = this.phase === "scanning" || this.phase === "model";
 
-    // Skip re-render when nothing changed — prevents cursor-movement flicker
-    const newPhaseStr = phaseLines.join("\n");
-    if (!hasLogs && newPhaseStr === this.lastPhaseStr) return;
-    this.lastPhaseStr = newPhaseStr;
+    if (isSingleLine) {
+      const phaseLines = this.buildPhase();
+      const newPhaseStr = phaseLines.length > 0 ? phaseLines[0] : "";
+      if (!hasLogs && newPhaseStr === this.lastPhaseStr) return;
+      this.lastPhaseStr = newPhaseStr;
 
-    let out = "";
+      if (hasLogs) {
+        // Clear current single-line, write permanent logs, then redraw phase
+        let out = "\r\x1b[K";
+        for (const msg of this.logBuffer) {
+          const line = msg.endsWith("\n") ? msg.slice(0, -1) : msg;
+          out += line + "\n";
+        }
+        this.logBuffer = [];
+        if (newPhaseStr) out += newPhaseStr + "\x1b[K";
+        process.stdout.write(out);
+      } else {
+        // \r puts cursor at col 0; overwrite in-place — zero cursor-up movement
+        process.stdout.write("\r" + newPhaseStr + "\x1b[K");
+      }
+      this.ephemeralLines = newPhaseStr ? 1 : 0;
+    } else {
+      // Pipeline (multi-line): cursor-up approach
+      const phaseLines = this.buildPhase();
+      const newPhaseStr = phaseLines.join("\n");
+      if (!hasLogs && newPhaseStr === this.lastPhaseStr) return;
+      this.lastPhaseStr = newPhaseStr;
 
-    // Move cursor up to the start of the ephemeral section (no screen-clear)
-    if (this.ephemeralLines > 0) {
-      out += `\x1b[${this.ephemeralLines}A`;
+      let out = "";
+      if (this.ephemeralLines > 0) {
+        out += `\x1b[${this.ephemeralLines}A`;
+      }
+      for (const msg of this.logBuffer) {
+        const line = msg.endsWith("\n") ? msg.slice(0, -1) : msg;
+        out += line + "\x1b[K\n";
+      }
+      this.logBuffer = [];
+      for (const line of phaseLines) {
+        out += line + "\x1b[K\n";
+      }
+      process.stdout.write(out);
+      this.ephemeralLines = phaseLines.length;
     }
-
-    // Flush buffered log messages (permanent — stay above the live section).
-    // \x1b[K erases leftover chars from any phase line this message overwrites.
-    for (const msg of this.logBuffer) {
-      const line = msg.endsWith("\n") ? msg.slice(0, -1) : msg;
-      out += line + "\x1b[K\n";
-    }
-    this.logBuffer = [];
-
-    // Overwrite phase lines in-place; \x1b[K clears any leftover trailing chars
-    for (const line of phaseLines) {
-      out += line + "\x1b[K\n";
-    }
-
-    process.stdout.write(out);
-    this.ephemeralLines = phaseLines.length;
   }
 
   private buildPhase(): string[] {
@@ -293,13 +322,7 @@ export class PipelineRenderer {
     const elapsed = Date.now() - this.startTime;
     const sep = ` ${ansi.dim}│${ansi.reset} `;
 
-    const maxTotalDigits = Math.max(
-      ...Object.values(this.bars).map((b) => String(b.total).length),
-      1,
-    );
-    const ptColWidth = Math.max(15, maxTotalDigits * 2 + 1);
-
-    // Header row
+    // Header row — no Processed/Total column
     const barHeader =
       "[" +
       ansi.dim +
@@ -307,16 +330,8 @@ export class PipelineRenderer {
       ansi.reset +
       "]" +
       "     "; // 5 spaces matches body's " NNN%"
-    const ptHeader =
-      ansi.bold + "Processed/Total".padEnd(ptColWidth) + ansi.reset;
     const header =
-      ansi.bold +
-      "Operation".padEnd(9) +
-      ansi.reset +
-      sep +
-      barHeader +
-      sep +
-      ptHeader;
+      ansi.bold + "Operation".padEnd(9) + ansi.reset + sep + barHeader;
 
     const labels: Array<[string, "chunk" | "embed" | "upload"]> = [
       ["Chunking ", "chunk"],
@@ -324,18 +339,20 @@ export class PipelineRenderer {
       ["Uploading", "upload"],
     ];
     const rows = labels.map(([label, key]) =>
-      this.buildBarRow(label, this.bars[key], maxTotalDigits, ptColWidth),
+      this.buildBarRow(label, this.bars[key]),
     );
 
-    // Footer: single elapsed + ETA line below the table
+    // Footer: files processed + elapsed + ETA
+    const { value: filesProcessed, total: filesTotal } = this.bars.chunk;
     const etaMs = this.calcPipelineEta(elapsed);
+    const dim = ansi.dim;
+    const rst = ansi.reset;
     const footer =
-      ansi.dim +
-      "Elapsed: " +
-      fmtTime(elapsed / 1000) +
-      "   │   ETA: " +
-      (etaMs !== null ? fmtTime(etaMs / 1000) : "?") +
-      ansi.reset;
+      `${dim}Files processed:${rst} ${filesProcessed}/${filesTotal}` +
+      `  ${dim}│${rst}  ` +
+      `${dim}Elapsed:${rst} ${fmtTime(elapsed / 1000)}` +
+      `  ${dim}│${rst}  ` +
+      `${dim}ETA:${rst} ${etaMs !== null ? fmtTime(etaMs / 1000) : "?"}`;
 
     return [header, ...rows, footer];
   }
@@ -355,25 +372,12 @@ export class PipelineRenderer {
     return null;
   }
 
-  private buildBarRow(
-    label: string,
-    bar: BarState,
-    maxTotalDigits: number,
-    ptColWidth: number,
-  ): string {
+  private buildBarRow(label: string, bar: BarState): string {
     const { value, total } = bar;
     const sep = ` ${ansi.dim}│${ansi.reset} `;
-
-    // Progress bar + percentage — visual width: 1 + BAR_WIDTH + 1 + 1 + 3 + 1 = BAR_WIDTH + 7
     const barContent =
       "[" + renderBar(value, total) + "] " + renderPct(value, total);
-
-    // Processed/Total column — right-align both numbers to maxTotalDigits
-    const valStr = String(value).padStart(maxTotalDigits);
-    const totStr = String(total).padStart(maxTotalDigits);
-    const ptStr = (valStr + "/" + totStr).padEnd(ptColWidth);
-
-    return ansi.bold + label + ansi.reset + sep + barContent + sep + ptStr;
+    return ansi.bold + label + ansi.reset + sep + barContent;
   }
 }
 
