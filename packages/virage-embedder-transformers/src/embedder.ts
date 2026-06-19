@@ -1,3 +1,5 @@
+import { homedir } from "node:os";
+import { join } from "node:path";
 import type { EmbeddingProvider, Logger } from "@vivantel/virage-core";
 
 export interface QuantizationOptions {
@@ -34,16 +36,19 @@ export class TransformersEmbedder implements EmbeddingProvider {
   readonly preferredBatchSize = 32;
 
   private readonly device: "cpu" | "webgpu";
-  private readonly cacheDir?: string;
+  private readonly cacheDir: string;
   private readonly quantization?: QuantizationOptions;
-  private _pipeline: Pipeline | null = null;
+  private _pipelinePromise: Promise<Pipeline> | null = null;
   private logger: Logger | null = null;
 
   constructor(options: TransformersEmbedderOptions) {
     this.model = options.model;
     this.dimensions = options.dimensions ?? 384;
     this.device = options.device ?? "cpu";
-    this.cacheDir = options.cacheDir;
+    // Default to the user's home directory so globally-installed packages
+    // (owned by root) don't try to write the model cache inside node_modules.
+    this.cacheDir =
+      options.cacheDir ?? join(homedir(), ".cache", "huggingface", "hub");
     this.quantization = options.quantization;
   }
 
@@ -51,9 +56,14 @@ export class TransformersEmbedder implements EmbeddingProvider {
     this.logger = logger.withTag("transformers");
   }
 
-  private async getPipeline(): Promise<Pipeline> {
-    if (this._pipeline) return this._pipeline;
+  private getPipeline(): Promise<Pipeline> {
+    if (!this._pipelinePromise) {
+      this._pipelinePromise = this._loadPipeline();
+    }
+    return this._pipelinePromise;
+  }
 
+  private async _loadPipeline(): Promise<Pipeline> {
     this.logger?.info(`Loading model ${this.model}`);
     this.logger?.debug(
       `Device: ${this.device}${this.quantization ? `, dtype: ${this.quantization.dtype}` : ""}`,
@@ -61,12 +71,9 @@ export class TransformersEmbedder implements EmbeddingProvider {
 
     // Lazy import — consumers must install @huggingface/transformers
     const { pipeline, env } = await import("@huggingface/transformers");
+    env.cacheDir = this.cacheDir;
 
-    if (this.cacheDir) {
-      env.cacheDir = this.cacheDir;
-    }
-
-    this._pipeline = (await pipeline("feature-extraction", this.model, {
+    const pipe = (await pipeline("feature-extraction", this.model, {
       device: this.device,
       ...(this.quantization ? { dtype: this.quantization.dtype } : {}),
     })) as unknown as Pipeline;
@@ -74,7 +81,7 @@ export class TransformersEmbedder implements EmbeddingProvider {
     this.logger?.info(
       `Model ${this.model} ready (${this.dimensions}d, device=${this.device})`,
     );
-    return this._pipeline;
+    return pipe;
   }
 
   async embed(text: string): Promise<number[]> {
