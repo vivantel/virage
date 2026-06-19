@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.2.33](https://github.com/vivantel/virage/compare/virage-embedder-transformers@v0.2.32...virage-embedder-transformers@v0.2.33) (2026-06-19)
+
+
+### Features
+
+* **virage-cli:** Progress reporting overhaul ([e5a960d](https://github.com/vivantel/virage/commit/e5a960dc0d56d6312c308f35071e8df736591d60))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * devDependencies
+    * @vivantel/virage-core bumped from 0.2.30 to 0.2.31
+  * peerDependencies
+    * @vivantel/virage-core bumped from * to 0.2.31
+
 ## [0.2.32](https://github.com/vivantel/virage/compare/virage-embedder-transformers@v0.2.31...virage-embedder-transformers@v0.2.32) (2026-06-19)
 
 
