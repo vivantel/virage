@@ -324,17 +324,12 @@ export class Orchestrator {
         chunkDone++;
         opts.onChunkProgress?.(chunkDone, toProcess.length);
 
-        // Project a shared total for both embed and upload bars so they always
-        // show the same denominator — updated on each file, accurate once all
-        // files are processed.
+        // Project a shared total using actual average chunks-per-file across
+        // fully-processed files; include carry-over pending work in the total.
         if (chunkDone > 0) {
           const avgChunksPerFile = chunksGenerated / chunkDone;
-          const projectedNew = Math.ceil(toProcess.length * avgChunksPerFile);
-          sharedTotal = Math.max(
-            initialPendingEmbed,
-            initialPendingUpload,
-            projectedNew,
-          );
+          const projectedNew = Math.round(toProcess.length * avgChunksPerFile);
+          sharedTotal = initialPendingEmbed + Math.max(projectedNew, 1);
           opts.onEmbedProgress?.(embedDone, sharedTotal);
           opts.onUploadProgress?.(uploadDone, sharedTotal);
         }

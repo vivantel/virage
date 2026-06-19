@@ -159,7 +159,24 @@ function getRequiredPackages(
 }
 
 async function rotateConfigBackups(configPath: string): Promise<void> {
+  if (!existsSync(configPath)) return;
+
   const bak = (n: number) => `${configPath}.bak.${n}`;
+
+  // Skip rotation when the current config is identical to the latest backup —
+  // avoids accumulating redundant backups on repeated runs without real changes.
+  if (existsSync(bak(1))) {
+    try {
+      const [current, latest] = await Promise.all([
+        readFile(configPath, "utf-8"),
+        readFile(bak(1), "utf-8"),
+      ]);
+      if (current === latest) return;
+    } catch {
+      // If we can't read either file, proceed with the normal rotation
+    }
+  }
+
   try {
     await rename(bak(5), bak(5) + ".del");
     const { unlink } = await import("fs/promises");
@@ -174,9 +191,7 @@ async function rotateConfigBackups(configPath: string): Promise<void> {
       // No backup at this slot
     }
   }
-  if (existsSync(configPath)) {
-    await rename(configPath, bak(1));
-  }
+  await rename(configPath, bak(1));
 }
 
 // ─── Config generation ────────────────────────────────────────────────────────

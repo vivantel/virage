@@ -15,8 +15,6 @@ export const ansi = {
 const SPINNER_FRAMES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
 const BAR_WIDTH = 36;
 const RENDER_INTERVAL_MS = 80;
-const ELAPSED_W = 7;
-const ETA_W = 7;
 
 export interface ProgressBar {
   update(current: number): void;
@@ -82,6 +80,7 @@ export class PipelineRenderer {
   private phase: "idle" | "scanning" | "model" | "pipeline" = "idle";
   private logBuffer: string[] = [];
   private ephemeralLines = 0;
+  private lastPhaseStr = "";
   private readonly startTime = Date.now();
   private tickCount = 0;
   private timer: ReturnType<typeof setInterval> | null = null;
@@ -106,7 +105,11 @@ export class PipelineRenderer {
   constructor() {
     this.timer = setInterval(() => {
       this.tickCount++;
-      if (this.dirty || this.phase === "scanning" || this.phase === "model") {
+      const needsAnim = this.phase === "scanning" || this.phase === "model";
+      // Update elapsed/ETA footer every ~960ms even with no new progress events
+      const needsFooter =
+        this.phase === "pipeline" && this.tickCount % 12 === 0;
+      if (this.dirty || needsAnim || needsFooter) {
         this.dirty = false;
         this.doRender();
       }
@@ -184,22 +187,31 @@ export class PipelineRenderer {
     }
 
     const phaseLines = this.buildPhase();
+    const hasLogs = this.logBuffer.length > 0;
+
+    // Skip re-render when nothing changed — prevents cursor-movement flicker
+    const newPhaseStr = phaseLines.join("\n");
+    if (!hasLogs && newPhaseStr === this.lastPhaseStr) return;
+    this.lastPhaseStr = newPhaseStr;
+
     let out = "";
 
-    // Erase previous ephemeral section by moving cursor up and clearing to end
+    // Move cursor up to the start of the ephemeral section (no screen-clear)
     if (this.ephemeralLines > 0) {
-      out += `\x1b[${this.ephemeralLines}A\x1b[J`;
+      out += `\x1b[${this.ephemeralLines}A`;
     }
 
-    // Flush buffered log messages (these stay permanently above the live section)
+    // Flush buffered log messages (permanent — stay above the live section).
+    // \x1b[K erases leftover chars from any phase line this message overwrites.
     for (const msg of this.logBuffer) {
-      out += msg;
+      const line = msg.endsWith("\n") ? msg.slice(0, -1) : msg;
+      out += line + "\x1b[K\n";
     }
     this.logBuffer = [];
 
-    // Draw live phase output
-    if (phaseLines.length > 0) {
-      out += phaseLines.join("\n") + "\n";
+    // Overwrite phase lines in-place; \x1b[K clears any leftover trailing chars
+    for (const line of phaseLines) {
+      out += line + "\x1b[K\n";
     }
 
     process.stdout.write(out);
@@ -287,7 +299,7 @@ export class PipelineRenderer {
     );
     const ptColWidth = Math.max(15, maxTotalDigits * 2 + 1);
 
-    // Header row — "Progress" center-padded with ─ inside the same bracket structure as body rows
+    // Header row
     const barHeader =
       "[" +
       ansi.dim +
@@ -297,8 +309,6 @@ export class PipelineRenderer {
       "     "; // 5 spaces matches body's " NNN%"
     const ptHeader =
       ansi.bold + "Processed/Total".padEnd(ptColWidth) + ansi.reset;
-    const elHeader = ansi.bold + "Elapsed".padStart(ELAPSED_W) + ansi.reset;
-    const etaHeader = ansi.bold + "ETA".padStart(ETA_W) + ansi.reset;
     const header =
       ansi.bold +
       "Operation".padEnd(9) +
@@ -306,11 +316,7 @@ export class PipelineRenderer {
       sep +
       barHeader +
       sep +
-      ptHeader +
-      sep +
-      elHeader +
-      sep +
-      etaHeader;
+      ptHeader;
 
     const labels: Array<[string, "chunk" | "embed" | "upload"]> = [
       ["Chunking ", "chunk"],
@@ -318,33 +324,40 @@ export class PipelineRenderer {
       ["Uploading", "upload"],
     ];
     const rows = labels.map(([label, key]) =>
-      this.buildBarRow(
-        label,
-        this.bars[key],
-        elapsed,
-        maxTotalDigits,
-        ptColWidth,
-      ),
+      this.buildBarRow(label, this.bars[key], maxTotalDigits, ptColWidth),
     );
 
-    // Summary ETA = max ETA across all bars (the bottleneck determines when we finish)
-    const etaValues = Object.values(this.bars)
-      .map((b) => calcEtaMs(b.value, b.total, elapsed))
-      .filter((e): e is number => e !== null);
-    const maxEta = etaValues.length > 0 ? Math.max(...etaValues) : null;
-    const etaSummary =
+    // Footer: single elapsed + ETA line below the table
+    const etaMs = this.calcPipelineEta(elapsed);
+    const footer =
       ansi.dim +
-      "ETA: " +
-      (maxEta !== null ? fmtTime(maxEta / 1000) : "?") +
+      "Elapsed: " +
+      fmtTime(elapsed / 1000) +
+      "   │   ETA: " +
+      (etaMs !== null ? fmtTime(etaMs / 1000) : "?") +
       ansi.reset;
 
-    return [header, ...rows, etaSummary];
+    return [header, ...rows, footer];
+  }
+
+  private calcPipelineEta(elapsedMs: number): number | null {
+    // Use the most-downstream bar that has started — gives the most accurate ETA
+    if (this.bars.upload.value > 0)
+      return calcEtaMs(
+        this.bars.upload.value,
+        this.bars.upload.total,
+        elapsedMs,
+      );
+    if (this.bars.embed.value > 0)
+      return calcEtaMs(this.bars.embed.value, this.bars.embed.total, elapsedMs);
+    if (this.bars.chunk.value > 0)
+      return calcEtaMs(this.bars.chunk.value, this.bars.chunk.total, elapsedMs);
+    return null;
   }
 
   private buildBarRow(
     label: string,
     bar: BarState,
-    elapsedMs: number,
     maxTotalDigits: number,
     ptColWidth: number,
   ): string {
@@ -360,28 +373,7 @@ export class PipelineRenderer {
     const totStr = String(total).padStart(maxTotalDigits);
     const ptStr = (valStr + "/" + totStr).padEnd(ptColWidth);
 
-    const elStr =
-      ansi.dim + fmtTime(elapsedMs / 1000).padStart(ELAPSED_W) + ansi.reset;
-
-    const etaMs = calcEtaMs(value, total, elapsedMs);
-    const etaStr =
-      ansi.dim +
-      (etaMs !== null ? fmtTime(etaMs / 1000) : "?").padStart(ETA_W) +
-      ansi.reset;
-
-    return (
-      ansi.bold +
-      label +
-      ansi.reset +
-      sep +
-      barContent +
-      sep +
-      ptStr +
-      sep +
-      elStr +
-      sep +
-      etaStr
-    );
+    return ansi.bold + label + ansi.reset + sep + barContent + sep + ptStr;
   }
 }
 
