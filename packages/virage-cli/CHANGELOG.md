@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.61](https://github.com/vivantel/virage/compare/virage-cli@v0.1.60...virage-cli@v0.1.61) (2026-06-19)
+
+
+### Bug Fixes
+
+* **virage-cli:** Eliminate scanning flicker and remove Processed/Total column ([68102e1](https://github.com/vivantel/virage/commit/68102e1676707612bed645a3a77703dd1c47ee01))
+
 ## [0.1.60](https://github.com/vivantel/virage/compare/virage-cli@v0.1.59...virage-cli@v0.1.60) (2026-06-19)
 
 
