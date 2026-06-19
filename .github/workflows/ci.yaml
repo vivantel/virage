@@ -143,6 +143,12 @@ jobs:
               - 'package.json'
               - 'package-lock.json'
               - '.github/workflows/ci.yaml'
+            virage-git-isomorphic:
+              - 'packages/virage-git-isomorphic/**'
+              - 'eslint.config.js'
+              - 'package.json'
+              - 'package-lock.json'
+              - '.github/workflows/ci.yaml'
 
   build-and-test:
     needs: changes

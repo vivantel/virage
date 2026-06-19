@@ -15,6 +15,7 @@ import { createChunker } from "./helpers/create-chunker.js";
 import type { EmbeddingProvider } from "./interfaces/embedder.js";
 import type { VectorStore } from "./interfaces/vector-store.js";
 import type { Reranker } from "./interfaces/reranker.js";
+import type { SourceRepository } from "./interfaces/source-repository.js";
 import type { Logger } from "./interfaces/logger.js";
 
 // ─── JSON config types ────────────────────────────────────────────────────────
@@ -42,6 +43,7 @@ interface JsonRagConfig {
   chunkers: JsonChunkerConfig[];
   embedder: JsonProviderConfig;
   vectorStore: JsonProviderConfig;
+  source?: JsonProviderConfig;
   agents?: string[];
   options?: RAGPipelineConfig["options"];
   telemetry?: TelemetryConfig;
@@ -94,7 +96,11 @@ function validateJsonConfig(raw: unknown): asserts raw is JsonRagConfig {
 
 async function resolveProvider<T>(
   spec: JsonProviderConfig,
-  factoryName: "createEmbedder" | "createVectorStore" | "createReranker",
+  factoryName:
+    | "createEmbedder"
+    | "createVectorStore"
+    | "createReranker"
+    | "createSourceRepository",
 ): Promise<T> {
   const expanded = expandEnvVars(spec.config ?? {}) as Record<string, unknown>;
 
@@ -201,10 +207,19 @@ async function loadJsonConfig(
     );
   }
 
+  let sourceRepository: SourceRepository | undefined;
+  if (jsonConfig.source) {
+    sourceRepository = await resolveProvider<SourceRepository>(
+      jsonConfig.source,
+      "createSourceRepository",
+    );
+  }
+
   return {
     chunkers,
     embedder,
     vectorStore,
+    sourceRepository,
     telemetry: jsonConfig.telemetry,
     options: jsonConfig.options,
     search: {

@@ -1,5 +1,10 @@
 import { glob } from "glob";
-import { loadConfig, GitTracker, ConfigError } from "@vivantel/virage-core";
+import {
+  loadConfig,
+  GitTracker,
+  CliGitSourceRepository,
+  ConfigError,
+} from "@vivantel/virage-core";
 import { detectFileExtensions } from "./file-detect.js";
 
 export async function runValidate(configPath: string): Promise<void> {
@@ -39,7 +44,10 @@ export async function runValidate(configPath: string): Promise<void> {
     }
   }
 
-  const gitTracker = new GitTracker(config.chunkers);
+  const gitTracker = new GitTracker(
+    config.chunkers,
+    new CliGitSourceRepository(process.cwd()),
+  );
   const allFiles = await gitTracker.getAllTrackedFiles();
   console.log(
     `  Total: ${allFiles.length} file(s) tracked across ${config.chunkers.length} chunker(s)`,

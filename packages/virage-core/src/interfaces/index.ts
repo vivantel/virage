@@ -4,3 +4,4 @@ export * from "./vector-store.js";
 export * from "./quality.js";
 export * from "./logger.js";
 export * from "./reranker.js";
+export * from "./source-repository.js";

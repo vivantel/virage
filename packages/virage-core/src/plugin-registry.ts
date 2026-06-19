@@ -1,7 +1,7 @@
 import { readFile } from "fs/promises";
 import { join } from "path";
 
-export type PluginType = "embedder" | "vectorStore";
+export type PluginType = "embedder" | "vectorStore" | "source";
 
 export interface PluginEntry {
   type: PluginType;
@@ -13,6 +13,15 @@ export interface PluginEntry {
 }
 
 export const BUILT_IN_PLUGINS: PluginEntry[] = [
+  // ── Source repositories ──
+  {
+    type: "source",
+    label: "Git CLI (default, uses local git binary)",
+    key: "cli-git",
+    package: "@vivantel/virage-core",
+    envVars: [],
+    defaultConfig: {},
+  },
   // ── Embedders ──
   {
     type: "embedder",
@@ -147,7 +156,7 @@ export async function discoverExternalPlugins(
       const { type, label, key } = plugin;
 
       if (
-        (type !== "embedder" && type !== "vectorStore") ||
+        (type !== "embedder" && type !== "vectorStore" && type !== "source") ||
         typeof label !== "string" ||
         typeof key !== "string"
       )
@@ -179,6 +188,7 @@ export async function discoverExternalPlugins(
 export interface PluginRegistry {
   embedders: PluginEntry[];
   stores: PluginEntry[];
+  sources: PluginEntry[];
 }
 
 export async function loadRegistry(
@@ -198,5 +208,6 @@ export async function loadRegistry(
   return {
     embedders: all.filter((e) => e.type === "embedder"),
     stores: all.filter((e) => e.type === "vectorStore"),
+    sources: all.filter((e) => e.type === "source"),
   };
 }

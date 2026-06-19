@@ -1,4 +1,5 @@
 import { GitTracker } from "./git-tracker.js";
+import { CliGitSourceRepository } from "./cli-git-source-repository.js";
 import { ChunkProcessor } from "./chunk-processor.js";
 import { EmbedderProcessor } from "./embedder.js";
 import { Uploader } from "./uploader.js";
@@ -12,6 +13,7 @@ import {
   EmbeddedChunk,
   EmbeddingsMeta,
 } from "../interfaces/index.js";
+import type { SourceRepository } from "../interfaces/source-repository.js";
 import type { Logger } from "../interfaces/logger.js";
 import { NullLogger } from "../logger/null-logger.js";
 import { RetryOptions } from "./utils.js";
@@ -23,6 +25,7 @@ export interface RAGPipelineConfig {
   chunkers: FileChunker[];
   embedder: EmbeddingProvider;
   vectorStore: VectorStore;
+  sourceRepository?: SourceRepository;
   telemetry?: TelemetryConfig;
   search?: {
     hybrid?: boolean;
@@ -127,7 +130,10 @@ export class Orchestrator {
       // Git tracking
       logger.info("📂 Scanning for changes...");
       const t1 = Date.now();
-      const gitTracker = new GitTracker(this.config.chunkers, opts.logger);
+      const source =
+        this.config.sourceRepository ??
+        new CliGitSourceRepository(process.cwd(), opts.logger);
+      const gitTracker = new GitTracker(this.config.chunkers, source, opts.logger);
       const [currentState, currentBranch] = await Promise.all([
         gitTracker.getCurrentState(opts.onScanProgress),
         gitTracker.getCurrentBranch(),

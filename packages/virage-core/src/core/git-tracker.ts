@@ -1,6 +1,6 @@
-import { simpleGit, SimpleGit } from "simple-git";
 import { glob } from "glob";
 import { FileChunker } from "../interfaces/index.js";
+import type { SourceRepository } from "../interfaces/source-repository.js";
 import type { Logger } from "../interfaces/logger.js";
 import { NullLogger } from "../logger/null-logger.js";
 import { minimatch } from "minimatch";
@@ -8,49 +8,25 @@ import path from "path";
 import { IGNORED_DIRS } from "./virage-defaults.js";
 
 export class GitTracker {
-  private git: SimpleGit;
+  private source: SourceRepository;
   private chunkers: FileChunker[];
   private allPatterns: string[];
-  private currentHeadCache: string | null = null;
-  private dirtyFilesCache: Set<string> | null = null;
   private logger: Logger;
 
-  constructor(chunkers: FileChunker[], logger?: Logger) {
-    this.git = simpleGit();
+  constructor(
+    chunkers: FileChunker[],
+    source: SourceRepository,
+    logger?: Logger,
+  ) {
     this.chunkers = chunkers;
+    this.source = source;
     this.allPatterns = chunkers.flatMap((c) => c.patterns);
     this.logger = (logger ?? new NullLogger()).withTag("git");
   }
 
-  private async getCurrentHead(): Promise<string> {
-    if (!this.currentHeadCache) {
-      this.currentHeadCache = await this.git.revparse(["HEAD"]);
-    }
-    return this.currentHeadCache;
-  }
-
-  /** Returns the set of files with uncommitted changes (modified, staged, or untracked). */
-  private async getDirtyFiles(): Promise<Set<string>> {
-    if (this.dirtyFilesCache === null) {
-      const status = await this.git.status();
-      this.dirtyFilesCache = new Set(status.files.map((f) => f.path));
-      if (this.dirtyFilesCache.size > 0) {
-        this.logger.debug(
-          `Working tree has ${this.dirtyFilesCache.size} uncommitted file(s) — appending -dirty per file`,
-        );
-      }
-    }
-    return this.dirtyFilesCache;
-  }
-
   /** Returns the current git branch name, or "HEAD" when detached. */
   async getCurrentBranch(): Promise<string> {
-    try {
-      const branch = await this.git.revparse(["--abbrev-ref", "HEAD"]);
-      return branch.trim() || "HEAD";
-    } catch {
-      return "HEAD";
-    }
+    return (await this.source.getContext?.()) ?? "HEAD";
   }
 
   private getChunkerForFile(filePath: string): FileChunker | null {
@@ -68,7 +44,6 @@ export class GitTracker {
   private matchesPattern(filePath: string, pattern: string): boolean {
     const normalizedPath = filePath.split(path.sep).join("/");
     const normalizedPattern = pattern.split(path.sep).join("/");
-
     return minimatch(normalizedPath, normalizedPattern);
   }
 
@@ -84,46 +59,12 @@ export class GitTracker {
     return unique;
   }
 
-  async getCommitHashes(
-    files: string[],
-    onProgress?: (done: number, total: number) => void,
-  ): Promise<Map<string, string>> {
-    const commitMap = new Map<string, string>();
-    let done = 0;
-
-    await Promise.all(
-      files.map(async (file) => {
-        try {
-          const output = await this.git.raw([
-            "log",
-            "-1",
-            "--format=%H",
-            "--",
-            file,
-          ]);
-          const hash = output.trim();
-          const resolved = hash || (await this.getCurrentHead());
-          commitMap.set(file, resolved);
-          this.logger.trace(`Hash for ${file}: ${resolved.slice(0, 8)}`);
-        } catch {
-          const head = await this.getCurrentHead();
-          commitMap.set(file, head);
-          this.logger.trace(`Hash for ${file}: ${head.slice(0, 8)} (fallback)`);
-        }
-        onProgress?.(++done, files.length);
-      }),
-    );
-
-    return commitMap;
-  }
-
   async getCurrentState(
     onProgress?: (done: number, total: number) => void,
   ): Promise<Map<string, { commitHash: string; chunker: FileChunker }>> {
     const allFiles = await this.getAllTrackedFiles();
-    const commitMap = await this.getCommitHashes(allFiles, onProgress);
-    const dirtyFiles = await this.getDirtyFiles();
-    const currentHead = await this.getCurrentHead();
+    const revisionMap = await this.source.getFileRevisions(allFiles, onProgress);
+    const currentRevision = await this.source.getCurrentRevision();
 
     const state = new Map<
       string,
@@ -131,14 +72,10 @@ export class GitTracker {
     >();
 
     for (const file of allFiles) {
-      let commitHash = commitMap.get(file) || currentHead;
-      if (dirtyFiles.has(file)) {
-        commitHash = `${commitHash}-dirty`;
-      }
-
+      const revision = revisionMap.get(file) ?? currentRevision;
       const chunker = this.getChunkerForFile(file);
       if (chunker) {
-        state.set(file, { commitHash, chunker });
+        state.set(file, { commitHash: revision, chunker });
       }
     }
 

@@ -12,6 +12,7 @@ export {
 
 // Core
 export { GitTracker } from "./core/git-tracker.js";
+export { CliGitSourceRepository } from "./core/cli-git-source-repository.js";
 export { ChunkProcessor } from "./core/chunk-processor.js";
 export { EmbedderProcessor } from "./core/embedder.js";
 export { Uploader } from "./core/uploader.js";

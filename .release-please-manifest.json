@@ -19,5 +19,6 @@
   "packages/virage-mcp": "0.1.26",
   "packages/virage-code-chunk-chunker": "0.1.17",
   "packages/virage-reranker-cross-encoder": "0.1.6",
-  "packages/virage-reranker-llm": "0.1.6"
+  "packages/virage-reranker-llm": "0.1.6",
+  "packages/virage-git-isomorphic": "0.1.0"
 }

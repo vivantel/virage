@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { GitTracker } from "./git-tracker.js";
+import { CliGitSourceRepository } from "./cli-git-source-repository.js";
 import { FileChunker } from "../interfaces/index.js";
 import { mkdtempSync, rmSync, writeFileSync, mkdirSync } from "fs";
 import { join } from "path";
@@ -43,12 +44,14 @@ describe("GitTracker", () => {
   });
 
   it("should be instantiable", () => {
-    const tracker = new GitTracker([mockChunker]);
+    const source = new CliGitSourceRepository(testDir);
+    const tracker = new GitTracker([mockChunker], source);
     expect(tracker).toBeInstanceOf(GitTracker);
   });
 
   it("should getAllTrackedFiles", async () => {
-    const tracker = new GitTracker([mockChunker]);
+    const source = new CliGitSourceRepository(testDir);
+    const tracker = new GitTracker([mockChunker], source);
     const files = await tracker.getAllTrackedFiles();
 
     expect(files.length).toBeGreaterThan(0);
@@ -56,7 +59,8 @@ describe("GitTracker", () => {
   });
 
   it("should getCurrentState", async () => {
-    const tracker = new GitTracker([mockChunker]);
+    const source = new CliGitSourceRepository(testDir);
+    const tracker = new GitTracker([mockChunker], source);
     const state = await tracker.getCurrentState();
 
     expect(state.size).toBeGreaterThan(0);

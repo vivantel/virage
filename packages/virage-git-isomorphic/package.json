@@ -1,0 +1,63 @@
+{
+  "name": "@vivantel/virage-git-isomorphic",
+  "version": "0.1.0",
+  "description": "Pure-JS git source repository for Virage using isomorphic-git (no subprocess spawning)",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "sideEffects": false,
+  "publishConfig": {
+    "access": "public"
+  },
+  "rag-plugin": {
+    "type": "source",
+    "key": "isomorphic-git",
+    "label": "isomorphic-git (pure JS, no subprocess spawning)"
+  },
+  "scripts": {
+    "build": "tsc",
+    "type-check": "tsc --noEmit",
+    "test": "vitest run",
+    "format:check": "prettier --check src/",
+    "lint": "eslint src/",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "rag",
+    "git",
+    "isomorphic-git",
+    "source-repository"
+  ],
+  "author": "Vivantel",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/vivantel/virage",
+    "directory": "packages/virage-git-isomorphic"
+  },
+  "dependencies": {
+    "isomorphic-git": "^1.29.0"
+  },
+  "peerDependencies": {
+    "@vivantel/virage-core": "*"
+  },
+  "devDependencies": {
+    "@vivantel/virage-core": "0.2.32",
+    "@types/node": "^25.9.3",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.9"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

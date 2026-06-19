@@ -57,11 +57,12 @@ CREATE TABLE IF NOT EXISTS meta (
 
 // embedding: raw IEEE-754 float32 little-endian bytes (~4× smaller than JSON).
 // NULL until embedded; cleared after upload to reclaim storage.
+// file_revision: git blob SHA (content-addressed, stable across rebases).
 const CHUNKS_DDL = `
 CREATE TABLE IF NOT EXISTS chunks (
   content_hash TEXT PRIMARY KEY,
   source_file TEXT NOT NULL,
-  commit_hash TEXT NOT NULL,
+  file_revision TEXT NOT NULL,
   content TEXT NOT NULL,
   metadata_json TEXT NOT NULL,
   embedding BLOB,
@@ -229,6 +230,13 @@ export class VirageDb {
       this.migrateFromEmbeddingsTable();
     }
 
+    // Breaking schema change: drop chunks if it uses the old commit_hash column.
+    // Embeddings are preserved by content_hash; first run re-scans all files.
+    if (this.hasColumn("chunks", "commit_hash")) {
+      this.db.exec("DROP TABLE IF EXISTS chunks");
+      this.db.exec("DROP INDEX IF EXISTS idx_source_file");
+    }
+
     this.db.exec(CHUNKS_DDL);
     this.db.exec(EXPERIMENT_RUNS_DDL);
     this.db.exec(EVAL_DATASETS_DDL);
@@ -247,6 +255,13 @@ export class VirageDb {
       cnt: number;
     };
     return row.cnt === 0;
+  }
+
+  private hasColumn(table: string, column: string): boolean {
+    const cols = this.db.pragma(`table_info(${table})`) as Array<{
+      name: string;
+    }>;
+    return cols.some((c) => c.name === column);
   }
 
   private migrateFromEmbeddingsTable(): void {
@@ -270,7 +285,7 @@ export class VirageDb {
         CREATE TABLE IF NOT EXISTS chunks (
           content_hash TEXT PRIMARY KEY,
           source_file TEXT NOT NULL,
-          commit_hash TEXT NOT NULL,
+          file_revision TEXT NOT NULL,
           content TEXT NOT NULL,
           metadata_json TEXT NOT NULL,
           embedding BLOB,
@@ -283,7 +298,7 @@ export class VirageDb {
 
       const stmt = this.db.prepare(`
         INSERT OR IGNORE INTO chunks
-          (content_hash, source_file, commit_hash, content, metadata_json, embedding, embedded_at, uploaded)
+          (content_hash, source_file, file_revision, content, metadata_json, embedding, embedded_at, uploaded)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
       `);
 
@@ -340,7 +355,7 @@ export class VirageDb {
     this.db
       .prepare(
         `INSERT OR IGNORE INTO chunks
-           (content_hash, source_file, commit_hash, content, metadata_json, embedding, embedded_at, uploaded)
+           (content_hash, source_file, file_revision, content, metadata_json, embedding, embedded_at, uploaded)
          VALUES (?, ?, ?, ?, ?, NULL, NULL, 0)`,
       )
       .run(
@@ -356,7 +371,7 @@ export class VirageDb {
   insertChunks(chunks: Chunk[]): void {
     const stmt = this.db.prepare(
       `INSERT OR IGNORE INTO chunks
-         (content_hash, source_file, commit_hash, content, metadata_json, embedding, embedded_at, uploaded)
+         (content_hash, source_file, file_revision, content, metadata_json, embedding, embedded_at, uploaded)
        VALUES (?, ?, ?, ?, ?, NULL, NULL, 0)`,
     );
     const insertAll = this.db.transaction((items: Chunk[]) => {
@@ -421,11 +436,11 @@ export class VirageDb {
     // conflict — this preserves computed embeddings for unchanged content.
     const upsert = this.db.prepare(
       `INSERT INTO chunks
-         (content_hash, source_file, commit_hash, content, metadata_json, embedding, embedded_at, uploaded)
+         (content_hash, source_file, file_revision, content, metadata_json, embedding, embedded_at, uploaded)
        VALUES (?, ?, ?, ?, ?, NULL, NULL, 0)
        ON CONFLICT(content_hash) DO UPDATE SET
          source_file   = excluded.source_file,
-         commit_hash   = excluded.commit_hash,
+         file_revision = excluded.file_revision,
          content       = excluded.content,
          metadata_json = excluded.metadata_json`,
     );
@@ -465,19 +480,19 @@ export class VirageDb {
     type Row = {
       content_hash: string;
       source_file: string;
-      commit_hash: string;
+      file_revision: string;
       content: string;
       metadata_json: string;
     };
     const rows = this.db
       .prepare(
-        "SELECT content_hash, source_file, commit_hash, content, metadata_json FROM chunks WHERE embedding IS NULL AND uploaded = 0",
+        "SELECT content_hash, source_file, file_revision, content, metadata_json FROM chunks WHERE embedding IS NULL AND uploaded = 0",
       )
       .all() as Row[];
     return rows.map((row) => ({
       contentHash: row.content_hash,
       sourceFile: row.source_file,
-      commitHash: row.commit_hash,
+      commitHash: row.file_revision,
       content: row.content,
       metadata: parseMetadata(row.metadata_json),
     }));
@@ -495,33 +510,33 @@ export class VirageDb {
     type Row = {
       content_hash: string;
       source_file: string;
-      commit_hash: string;
+      file_revision: string;
       content: string;
       metadata_json: string;
     };
     const rows = this.db
       .prepare(
-        "SELECT content_hash, source_file, commit_hash, content, metadata_json FROM chunks",
+        "SELECT content_hash, source_file, file_revision, content, metadata_json FROM chunks",
       )
       .all() as Row[];
     return rows.map((row) => ({
       contentHash: row.content_hash,
       sourceFile: row.source_file,
-      commitHash: row.commit_hash,
+      commitHash: row.file_revision,
       content: row.content,
       metadata: parseMetadata(row.metadata_json),
     }));
   }
 
-  /** Returns a file → commitHash map for all files tracked in the DB. */
+  /** Returns a file → revision map for all files tracked in the DB. */
   getFileStates(): Map<string, string> {
-    type Row = { source_file: string; commit_hash: string };
+    type Row = { source_file: string; file_revision: string };
     const rows = this.db
       .prepare(
-        "SELECT source_file, commit_hash FROM chunks GROUP BY source_file",
+        "SELECT source_file, file_revision FROM chunks GROUP BY source_file",
       )
       .all() as Row[];
-    return new Map(rows.map((r) => [r.source_file, r.commit_hash]));
+    return new Map(rows.map((r) => [r.source_file, r.file_revision]));
   }
 
   // ── Preserved methods ──────────────────────────────────────────────────────
@@ -530,7 +545,7 @@ export class VirageDb {
   insert(chunks: EmbeddedChunk[]): void {
     const stmt = this.db.prepare(`
       INSERT OR IGNORE INTO chunks
-        (content_hash, source_file, commit_hash, content, metadata_json, embedding, embedded_at, uploaded)
+        (content_hash, source_file, file_revision, content, metadata_json, embedding, embedded_at, uploaded)
       VALUES (?, ?, ?, ?, ?, ?, ?, 0)
     `);
     const insertMany = this.db.transaction((items: EmbeddedChunk[]) => {
@@ -630,7 +645,7 @@ export class VirageDb {
     if (chunks.length > 0) {
       const stmt = this.db.prepare(`
         INSERT OR IGNORE INTO chunks
-          (content_hash, source_file, commit_hash, content, metadata_json, embedding, embedded_at, uploaded)
+          (content_hash, source_file, file_revision, content, metadata_json, embedding, embedded_at, uploaded)
         VALUES (?, ?, ?, ?, ?, ?, ?, 1)
       `);
       const insertAll = this.db.transaction((items: EmbeddedChunk[]) => {
@@ -660,7 +675,7 @@ export class VirageDb {
     type Row = {
       content_hash: string;
       source_file: string;
-      commit_hash: string;
+      file_revision: string;
       content: string;
       metadata_json: string;
       embedding: Buffer;
@@ -670,7 +685,7 @@ export class VirageDb {
     return rows.map((row) => ({
       contentHash: row.content_hash,
       sourceFile: row.source_file,
-      commitHash: row.commit_hash,
+      commitHash: row.file_revision,
       content: row.content,
       metadata: parseMetadata(row.metadata_json),
       embedding: blobToEmbedding(row.embedding),
