@@ -63,7 +63,10 @@ export class GitTracker {
     onProgress?: (done: number, total: number) => void,
   ): Promise<Map<string, { commitHash: string; chunker: FileChunker }>> {
     const allFiles = await this.getAllTrackedFiles();
-    const revisionMap = await this.source.getFileRevisions(allFiles, onProgress);
+    const revisionMap = await this.source.getFileRevisions(
+      allFiles,
+      onProgress,
+    );
     const currentRevision = await this.source.getCurrentRevision();
 
     const state = new Map<

@@ -6,7 +6,6 @@ export { IsomorphicGitSourceRepository };
 export function createSourceRepository(
   config: Record<string, unknown>,
 ): SourceRepository {
-  const dir =
-    typeof config.dir === "string" ? config.dir : process.cwd();
+  const dir = typeof config.dir === "string" ? config.dir : process.cwd();
   return new IsomorphicGitSourceRepository(dir);
 }

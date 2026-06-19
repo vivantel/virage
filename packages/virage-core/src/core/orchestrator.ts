@@ -133,7 +133,11 @@ export class Orchestrator {
       const source =
         this.config.sourceRepository ??
         new CliGitSourceRepository(process.cwd(), opts.logger);
-      const gitTracker = new GitTracker(this.config.chunkers, source, opts.logger);
+      const gitTracker = new GitTracker(
+        this.config.chunkers,
+        source,
+        opts.logger,
+      );
       const [currentState, currentBranch] = await Promise.all([
         gitTracker.getCurrentState(opts.onScanProgress),
         gitTracker.getCurrentBranch(),

@@ -75,7 +75,11 @@ describe("getFileRevisions", () => {
     const blobSha = "blobsha1".padEnd(40, "0");
     // Simulate walk calling map with (filepath, [entry])
     mockWalk.mockImplementation(
-      async ({ map }: { map: (p: string, e: unknown[]) => Promise<unknown> }) => {
+      async ({
+        map,
+      }: {
+        map: (p: string, e: unknown[]) => Promise<unknown>;
+      }) => {
         await map("src/foo.ts", [makeEntry(blobSha)]);
         await map("src/dir", [makeEntry("treeSha", "tree")]);
       },
@@ -89,7 +93,11 @@ describe("getFileRevisions", () => {
 
   it("calls onProgress for each file", async () => {
     mockWalk.mockImplementation(
-      async ({ map }: { map: (p: string, e: unknown[]) => Promise<unknown> }) => {
+      async ({
+        map,
+      }: {
+        map: (p: string, e: unknown[]) => Promise<unknown>;
+      }) => {
         await map("a.ts", [makeEntry("sha1".padEnd(40, "0"))]);
         await map("b.ts", [makeEntry("sha2".padEnd(40, "0"))]);
       },
@@ -100,7 +108,10 @@ describe("getFileRevisions", () => {
     await repo.getFileRevisions(["a.ts", "b.ts"], (done, total) =>
       calls.push([done, total]),
     );
-    expect(calls).toEqual([[1, 2], [2, 2]]);
+    expect(calls).toEqual([
+      [1, 2],
+      [2, 2],
+    ]);
   });
 
   it("uses computed SHA for dirty files", async () => {
@@ -109,7 +120,11 @@ describe("getFileRevisions", () => {
     // Tree contains old SHA for src/bar.ts
     const oldSha = "oldshaold".padEnd(40, "0");
     mockWalk.mockImplementation(
-      async ({ map }: { map: (p: string, e: unknown[]) => Promise<unknown> }) => {
+      async ({
+        map,
+      }: {
+        map: (p: string, e: unknown[]) => Promise<unknown>;
+      }) => {
         await map("src/bar.ts", [makeEntry(oldSha)]);
       },
     );
@@ -139,7 +154,11 @@ describe("getChangedFilesSince", () => {
     const sha3 = "cccc".padEnd(40, "0");
 
     mockWalk.mockImplementation(
-      async ({ map }: { map: (p: string, e: unknown[]) => Promise<unknown> }) => {
+      async ({
+        map,
+      }: {
+        map: (p: string, e: unknown[]) => Promise<unknown>;
+      }) => {
         // added: exists in HEAD only
         await map("new.ts", [makeEntry(sha1), null]);
         // deleted: exists in prev only
@@ -165,7 +184,11 @@ describe("getChangedFilesSince", () => {
 
   it("skips tree entries when walking two trees", async () => {
     mockWalk.mockImplementation(
-      async ({ map }: { map: (p: string, e: unknown[]) => Promise<unknown> }) => {
+      async ({
+        map,
+      }: {
+        map: (p: string, e: unknown[]) => Promise<unknown>;
+      }) => {
         // directory entry — must be skipped
         await map("src", [makeEntry("sha", "tree"), makeEntry("sha", "tree")]);
       },

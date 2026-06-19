@@ -50,7 +50,9 @@ export class IsomorphicGitSourceRepository implements SourceRepository {
     });
 
     // Get dirty files via statusMatrix
-    const matrix = await git.statusMatrix({ fs, dir: this.dir }).catch(() => []);
+    const matrix = await git
+      .statusMatrix({ fs, dir: this.dir })
+      .catch(() => []);
     const dirtySet = new Set<string>();
     for (const [filepath, head, workdir] of matrix) {
       // workdir !== head means the working-tree copy differs from the tree
@@ -90,7 +92,11 @@ export class IsomorphicGitSourceRepository implements SourceRepository {
   async getChangedFilesSince(
     prevRevision: string,
     patterns?: string[],
-  ): Promise<{ added: string[]; modified: string[]; deleted: string[] } | null> {
+  ): Promise<{
+    added: string[];
+    modified: string[];
+    deleted: string[];
+  } | null> {
     try {
       const headSha = await git.resolveRef({ fs, dir: this.dir, ref: "HEAD" });
 

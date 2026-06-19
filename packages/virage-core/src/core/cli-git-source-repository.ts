@@ -107,7 +107,11 @@ export class CliGitSourceRepository implements SourceRepository {
   async getChangedFilesSince(
     prevRevision: string,
     patterns?: string[],
-  ): Promise<{ added: string[]; modified: string[]; deleted: string[] } | null> {
+  ): Promise<{
+    added: string[];
+    modified: string[];
+    deleted: string[];
+  } | null> {
     try {
       const args = [
         "diff",
