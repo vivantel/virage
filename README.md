@@ -81,6 +81,7 @@ All configuration lives in `virage.config.json`. The `$schema` field enables IDE
   "pluginVersions": {
     "@vivantel/virage-embedder-fastembed": "0.2.35",
     "@vivantel/virage-store-lancedb": "0.2.36",
+    "@vivantel/virage-code-chunk-chunker": "0.1.19",
     "@vivantel/virage-agent-claude": "0.2.24"
   },
   "options": {

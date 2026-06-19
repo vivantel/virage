@@ -18,7 +18,7 @@ virage init   # interactive wizard: selects embedder, vector store, agents; inst
 virage index  # index the codebase
 ```
 
-`virage init` installs all required plugins (embedder, vector store, re-ranker, agent plugins) to either `~/.virage/plugins` (global) or `$PROJECT_DIR/.virage/plugins` (local). Installed versions are recorded in `virage.config.json` under `pluginVersions`.
+`virage init` installs all required plugins (embedder, vector store, re-ranker, chunker, and agent plugins) to either `~/.virage/plugins` (global) or `$PROJECT_DIR/.virage/plugins` (local). Installed versions are recorded in `virage.config.json` under `pluginVersions`.
 
 ## Plugin management
 
@@ -127,6 +127,8 @@ All configuration lives in `virage.config.json`. The `$schema` field enables IDE
   "pluginVersions": {
     "@vivantel/virage-embedder-transformers": "0.2.36",
     "@vivantel/virage-store-lancedb": "0.2.36",
+    "@vivantel/virage-reranker-cross-encoder": "0.1.8",
+    "@vivantel/virage-code-chunk-chunker": "0.1.19",
     "@vivantel/virage-agent-claude": "0.2.24"
   }
 }
