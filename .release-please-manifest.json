@@ -2,7 +2,7 @@
   "packages/virage-core": "0.2.30",
   "packages/virage-strategies": "0.2.31",
   "packages/virage-embedder-openai": "0.2.31",
-  "packages/virage-embedder-transformers": "0.2.31",
+  "packages/virage-embedder-transformers": "0.2.32",
   "packages/virage-embedder-fastembed": "0.2.31",
   "packages/virage-store-postgres": "0.2.31",
   "packages/virage-store-qdrant": "0.2.31",

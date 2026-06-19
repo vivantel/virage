@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.32](https://github.com/vivantel/virage/compare/virage-embedder-transformers@v0.2.31...virage-embedder-transformers@v0.2.32) (2026-06-19)
+
+
+### Bug Fixes
+
+* **virage-embedder-transformers:** Default cacheDir to ~/.cache/huggingface/hub; fix pipeline singleton race ([6599173](https://github.com/vivantel/virage/commit/6599173af1078274141c381497bd211839b45280))
+
 ## [0.2.31](https://github.com/vivantel/virage/compare/virage-embedder-transformers@v0.2.30...virage-embedder-transformers@v0.2.31) (2026-06-19)
 
 
