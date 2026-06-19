@@ -318,9 +318,14 @@ export class Orchestrator {
           chunk.metadata = { ...chunk.metadata, branch: currentBranch };
         }
         db.replaceChunks(file, newChunks);
-        pendingEmbed.push(...newChunks);
-        embedTotal += newChunks.length;
-        chunksGenerated += newChunks.length;
+        // Skip chunks whose embeddings were preserved (unchanged content)
+        const alreadyEmbedded = db.getEmbeddedContentHashes(file);
+        const chunksToEmbed = newChunks.filter(
+          (c) => !alreadyEmbedded.has(c.contentHash!),
+        );
+        pendingEmbed.push(...chunksToEmbed);
+        embedTotal += chunksToEmbed.length;
+        chunksGenerated += chunksToEmbed.length;
         chunkDone++;
         opts.onChunkProgress?.(chunkDone, toProcess.length);
 

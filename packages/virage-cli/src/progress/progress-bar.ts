@@ -85,6 +85,7 @@ export class PipelineRenderer {
   private tickCount = 0;
   private timer: ReturnType<typeof setInterval> | null = null;
   private dirty = false;
+  private _restoreCursor: (() => void) | undefined;
 
   // Scanning
   private scanDone = 0;
@@ -103,6 +104,22 @@ export class PipelineRenderer {
   };
 
   constructor() {
+    if (process.stdout.isTTY) {
+      process.stdout.write("\x1b[?25l"); // hide cursor
+      const restore = () => {
+        if (process.stdout.isTTY) process.stdout.write("\x1b[?25h");
+      };
+      this._restoreCursor = restore;
+      process.once("exit", restore);
+      process.once("SIGINT", () => {
+        restore();
+        process.exit(130);
+      });
+      process.once("SIGTERM", () => {
+        restore();
+        process.exit(143);
+      });
+    }
     this.timer = setInterval(() => {
       this.tickCount++;
       const needsAnim = this.phase === "scanning" || this.phase === "model";
@@ -188,6 +205,8 @@ export class PipelineRenderer {
     } else {
       this.doRender();
     }
+    this._restoreCursor?.();
+    this._restoreCursor = undefined;
   }
 
   // --- Rendering ---

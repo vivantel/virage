@@ -122,6 +122,15 @@ export class TransformersEmbedder implements EmbeddingProvider {
       ...(progressCallback ? { progress_callback: progressCallback } : {}),
     })) as unknown as Pipeline;
 
+    // Ensure the progress bar reaches 100% — download events only fire for
+    // shards that aren't cached, so the bar may be stuck at a low value when
+    // the model loads from disk with no network activity.
+    if (onProgress) {
+      const sumTotal = [...fileTotals.values()].reduce((a, b) => a + b, 0);
+      const final = sumTotal > 0 ? sumTotal : 1;
+      onProgress(final, final);
+    }
+
     this.logger?.info(
       `Model ${this.model} ready (${this.dimensions}d, device=${this.device})`,
     );

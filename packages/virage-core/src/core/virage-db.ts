@@ -401,21 +401,45 @@ export class VirageDb {
   }
 
   /**
-   * Atomically replace all chunks for a source file with a new set.
-   * The delete and insert run in a single SQLite transaction.
+   * Atomically replace all chunks for a source file with a new set,
+   * preserving existing embeddings for chunks whose content hasn't changed.
    */
   replaceChunks(sourceFile: string, chunks: Chunk[]): void {
-    const del = this.db.prepare("DELETE FROM chunks WHERE source_file = ?");
-    const ins = this.db.prepare(
-      `INSERT OR IGNORE INTO chunks
+    const newHashes = chunks.map((c) => chunkContentHash(c));
+
+    // Delete chunks that are no longer present in this file.
+    // When the file is empty we delete everything; otherwise only removed chunks.
+    const del =
+      newHashes.length > 0
+        ? this.db.prepare(
+            `DELETE FROM chunks WHERE source_file = ? AND content_hash NOT IN (${newHashes.map(() => "?").join(",")})`,
+          )
+        : this.db.prepare("DELETE FROM chunks WHERE source_file = ?");
+
+    // Upsert: insert new chunks OR update metadata for existing ones.
+    // embedding / embedded_at / uploaded are intentionally NOT overwritten on
+    // conflict — this preserves computed embeddings for unchanged content.
+    const upsert = this.db.prepare(
+      `INSERT INTO chunks
          (content_hash, source_file, commit_hash, content, metadata_json, embedding, embedded_at, uploaded)
-       VALUES (?, ?, ?, ?, ?, NULL, NULL, 0)`,
+       VALUES (?, ?, ?, ?, ?, NULL, NULL, 0)
+       ON CONFLICT(content_hash) DO UPDATE SET
+         source_file   = excluded.source_file,
+         commit_hash   = excluded.commit_hash,
+         content       = excluded.content,
+         metadata_json = excluded.metadata_json`,
     );
+
     const txn = this.db.transaction(() => {
-      del.run(sourceFile);
-      for (const chunk of chunks) {
-        ins.run(
-          chunkContentHash(chunk),
+      if (newHashes.length > 0) {
+        del.run(sourceFile, ...newHashes);
+      } else {
+        del.run(sourceFile);
+      }
+      for (let i = 0; i < chunks.length; i++) {
+        const chunk = chunks[i];
+        upsert.run(
+          newHashes[i],
           chunk.sourceFile,
           chunk.commitHash,
           chunk.content,
@@ -424,6 +448,16 @@ export class VirageDb {
       }
     });
     txn();
+  }
+
+  /** Content hashes of chunks for a file that already have embeddings. */
+  getEmbeddedContentHashes(sourceFile: string): Set<string> {
+    const rows = this.db
+      .prepare(
+        "SELECT content_hash FROM chunks WHERE source_file = ? AND embedding IS NOT NULL",
+      )
+      .all(sourceFile) as Array<{ content_hash: string }>;
+    return new Set(rows.map((r) => r.content_hash));
   }
 
   /** Chunks inserted during chunking that still need an embedding computed. */
