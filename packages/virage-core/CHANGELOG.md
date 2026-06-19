@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.32](https://github.com/vivantel/virage/compare/virage-core@v0.2.31...virage-core@v0.2.32) (2026-06-19)
+
+
+### Bug Fixes
+
+* **virage-cli:** Progress display polish ([918c84d](https://github.com/vivantel/virage/commit/918c84d7200730b37eecd6df1a76e4c2fc97a233))
+
 ## [0.2.31](https://github.com/vivantel/virage/compare/virage-core@v0.2.30...virage-core@v0.2.31) (2026-06-19)
 
 

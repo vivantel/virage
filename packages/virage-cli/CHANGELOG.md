@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.1.60](https://github.com/vivantel/virage/compare/virage-cli@v0.1.59...virage-cli@v0.1.60) (2026-06-19)
+
+
+### Bug Fixes
+
+* **virage-cli:** Progress display polish ([918c84d](https://github.com/vivantel/virage/commit/918c84d7200730b37eecd6df1a76e4c2fc97a233))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @vivantel/virage-core bumped from 0.2.31 to 0.2.32
+
 ## [0.1.59](https://github.com/vivantel/virage/compare/virage-cli@v0.1.58...virage-cli@v0.1.59) (2026-06-19)
 
 
