@@ -56,6 +56,15 @@ export class TransformersEmbedder implements EmbeddingProvider {
     this.logger = logger.withTag("transformers");
   }
 
+  async preWarm(
+    onProgress?: (loaded: number, total: number) => void,
+  ): Promise<void> {
+    if (!this._pipelinePromise) {
+      this._pipelinePromise = this._loadPipeline(onProgress);
+    }
+    await this._pipelinePromise;
+  }
+
   private getPipeline(): Promise<Pipeline> {
     if (!this._pipelinePromise) {
       this._pipelinePromise = this._loadPipeline();
@@ -63,7 +72,9 @@ export class TransformersEmbedder implements EmbeddingProvider {
     return this._pipelinePromise;
   }
 
-  private async _loadPipeline(): Promise<Pipeline> {
+  private async _loadPipeline(
+    onProgress?: (loaded: number, total: number) => void,
+  ): Promise<Pipeline> {
     this.logger?.info(`Loading model ${this.model}`);
     this.logger?.debug(
       `Device: ${this.device}${this.quantization ? `, dtype: ${this.quantization.dtype}` : ""}`,
@@ -73,9 +84,42 @@ export class TransformersEmbedder implements EmbeddingProvider {
     const { pipeline, env } = await import("@huggingface/transformers");
     env.cacheDir = this.cacheDir;
 
+    // Track per-file download progress and aggregate into a single callback
+    const fileTotals = new Map<string, number>();
+    const fileLoaded = new Map<string, number>();
+    const progressCallback = onProgress
+      ? (event: {
+          status: string;
+          name?: string;
+          loaded?: number;
+          total?: number;
+        }) => {
+          if (
+            event.status === "progress" &&
+            event.name &&
+            typeof event.loaded === "number" &&
+            typeof event.total === "number" &&
+            event.total > 0
+          ) {
+            fileTotals.set(event.name, event.total);
+            fileLoaded.set(event.name, event.loaded);
+            const sumTotal = [...fileTotals.values()].reduce(
+              (a, b) => a + b,
+              0,
+            );
+            const sumLoaded = [...fileLoaded.values()].reduce(
+              (a, b) => a + b,
+              0,
+            );
+            onProgress(sumLoaded, sumTotal);
+          }
+        }
+      : undefined;
+
     const pipe = (await pipeline("feature-extraction", this.model, {
       device: this.device,
       ...(this.quantization ? { dtype: this.quantization.dtype } : {}),
+      ...(progressCallback ? { progress_callback: progressCallback } : {}),
     })) as unknown as Pipeline;
 
     this.logger?.info(

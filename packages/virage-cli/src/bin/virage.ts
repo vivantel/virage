@@ -12,8 +12,7 @@ import {
 } from "@vivantel/virage-core";
 import type { Logger } from "@vivantel/virage-core";
 import { createLogger } from "../logger/index.js";
-import { createMultiProgressBars } from "../progress/progress-bar.js";
-import type { MultiProgressBars } from "../progress/progress-bar.js";
+import { PipelineRenderer, ansi } from "../progress/progress-bar.js";
 import { runInit } from "../cli/init.js";
 import { runUpdate } from "../cli/update.js";
 import { runUsage } from "../cli/usage.js";
@@ -65,46 +64,49 @@ function handleError(error: unknown): never {
   process.exit(1);
 }
 
-// Routes log output through the MultiBar so messages appear above the bars.
-// Thresholds match ConsolaLogger's VERBOSITY_LEVELS: verbose=-v, debug=-vv,
-// trace=-vvv, silly=-vvvvv.
+// Routes log output through PipelineRenderer so messages appear above the live
+// section. Verbosity thresholds: verbose=-v, debug=-vv, trace=-vvv, silly=-vvvvv.
 class MultiBarLogger implements Logger {
   constructor(
     private readonly inner: Logger,
-    private readonly bars: MultiProgressBars,
+    private readonly sink: { log(message: string): void },
     private readonly verbosity: number,
   ) {}
   fatal(msg: string, ...args: unknown[]) {
     this.inner.fatal(msg, ...args);
   }
-  error(msg: string, ...args: unknown[]) {
-    this.inner.error(msg, ...args);
+  error(msg: string, ..._args: unknown[]) {
+    this.sink.log(`${ansi.boldRed}✕ ${msg}${ansi.reset}\n`);
   }
   warn(msg: string, ..._args: unknown[]) {
-    this.bars.log(`⚠ ${msg}\n`);
+    this.sink.log(`${ansi.yellow}⚠ ${msg}${ansi.reset}\n`);
   }
   info(msg: string, ..._args: unknown[]) {
-    this.bars.log(`${msg}\n`);
+    this.sink.log(`${msg}\n`);
   }
   success(msg: string, ..._args: unknown[]) {
-    this.bars.log(`✓ ${msg}\n`);
+    this.sink.log(`${ansi.green}${msg}${ansi.reset}\n`);
   }
   verbose(msg: string, ..._args: unknown[]) {
-    if (this.verbosity >= 1) this.bars.log(`  ${msg}\n`);
+    if (this.verbosity >= 1)
+      this.sink.log(`${ansi.dim}  ${msg}${ansi.reset}\n`);
   }
   debug(msg: string, ..._args: unknown[]) {
-    if (this.verbosity >= 2) this.bars.log(`  [debug] ${msg}\n`);
+    if (this.verbosity >= 2)
+      this.sink.log(`${ansi.dimGray}  [debug] ${msg}${ansi.reset}\n`);
   }
   trace(msg: string, ..._args: unknown[]) {
-    if (this.verbosity >= 3) this.bars.log(`  [trace] ${msg}\n`);
+    if (this.verbosity >= 3)
+      this.sink.log(`${ansi.gray}  [trace] ${msg}${ansi.reset}\n`);
   }
   silly(msg: string, ..._args: unknown[]) {
-    if (this.verbosity >= 5) this.bars.log(`  [silly] ${msg}\n`);
+    if (this.verbosity >= 5)
+      this.sink.log(`${ansi.gray}  [silly] ${msg}${ansi.reset}\n`);
   }
   withTag(tag: string): Logger {
     return new MultiBarLogger(
       this.inner.withTag(tag),
-      this.bars,
+      this.sink,
       this.verbosity,
     );
   }
@@ -118,15 +120,17 @@ async function runOnce(options: {
   logger: Logger;
   verbosity: number;
 }): Promise<void> {
-  const bars = createMultiProgressBars();
+  const renderer = new PipelineRenderer();
   const pipelineLogger = new MultiBarLogger(
     options.logger,
-    bars,
+    renderer,
     options.verbosity,
   );
 
   try {
     const cfg = await loadConfig(options.config, pipelineLogger);
+    const modelName = cfg.embedder.model ?? "embedding model";
+
     const orchestrator = new Orchestrator({
       ...cfg,
       options: {
@@ -135,23 +139,22 @@ async function runOnce(options: {
         skipUpload: options.noUpload || cfg.options?.skipUpload,
         dryRun: options.dryRun || cfg.options?.dryRun,
         logger: pipelineLogger,
-        onChunkProgress: (done, total) => {
-          bars.chunk.setTotal(total);
-          bars.chunk.update(done);
+        onScanProgress: (done, total) => {
+          renderer.startScanning(total);
+          renderer.updateScanning(done, total);
         },
-        onEmbedProgress: (done, total) => {
-          bars.embed.setTotal(total);
-          bars.embed.update(done);
-        },
-        onUploadProgress: (done, total) => {
-          bars.upload.setTotal(total);
-          bars.upload.update(done);
-        },
+        onPreWarmStart: () => renderer.startModelLoading(modelName),
+        onModelProgress: (loaded, total) =>
+          renderer.updateModelProgress(loaded, total),
+        onPreWarmDone: () => renderer.startPipeline(),
+        onChunkProgress: (done, total) => renderer.updateChunk(done, total),
+        onEmbedProgress: (done, total) => renderer.updateEmbed(done, total),
+        onUploadProgress: (done, total) => renderer.updateUpload(done, total),
       },
     });
     await orchestrator.run();
   } finally {
-    bars.stop();
+    renderer.stop();
   }
 }
 

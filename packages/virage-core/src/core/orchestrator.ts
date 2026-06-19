@@ -50,6 +50,10 @@ export interface RAGPipelineConfig {
     telemetry?: boolean;
     notifications?: { webhookUrl?: string };
     logger?: Logger;
+    onScanProgress?: (done: number, total: number) => void;
+    onModelProgress?: (loaded: number, total: number) => void;
+    onPreWarmStart?: () => void;
+    onPreWarmDone?: () => void;
     onChunkProgress?: (done: number, total: number) => void;
     onEmbedProgress?: (done: number, total: number) => void;
     onUploadProgress?: (done: number, total: number) => void;
@@ -125,7 +129,7 @@ export class Orchestrator {
       const t1 = Date.now();
       const gitTracker = new GitTracker(this.config.chunkers, opts.logger);
       const [currentState, currentBranch] = await Promise.all([
-        gitTracker.getCurrentState(),
+        gitTracker.getCurrentState(opts.onScanProgress),
         gitTracker.getCurrentBranch(),
       ]);
 
@@ -192,13 +196,21 @@ export class Orchestrator {
         db.deleteBySourceFile(file);
       }
 
+      // Pre-warm the embedding model so loading time is separate from pipeline progress
+      if (typeof this.config.embedder.preWarm === "function") {
+        opts.onPreWarmStart?.();
+        await this.config.embedder.preWarm(opts.onModelProgress);
+        opts.onPreWarmDone?.();
+      } else {
+        opts.onPreWarmDone?.();
+      }
+
       // Streaming loop configuration
       const minEmbedBatch = opts.minEmbeddingBatchSize ?? 10;
       const minUploadBatch =
         opts.minUploadingBatchSize ?? opts.minIngestionBatchSize ?? 20;
 
       let embedTotal = pendingEmbed.length;
-      let uploadTotal = pendingUpload.length;
       let chunkDone = 0;
       let embedDone = 0;
       let uploadDone = 0;
@@ -207,9 +219,13 @@ export class Orchestrator {
       const initialPendingEmbed = pendingEmbed.length;
       const initialPendingUpload = pendingUpload.length;
 
+      // Shared projected total used by both embed and upload bars so they always
+      // show the same denominator — avoids the "Embedding: 50/300, Uploading: 50/5120" confusion.
+      let sharedTotal = Math.max(initialPendingEmbed, initialPendingUpload, 1);
+
       opts.onChunkProgress?.(0, toProcess.length);
-      opts.onEmbedProgress?.(0, embedTotal);
-      opts.onUploadProgress?.(0, uploadTotal);
+      opts.onEmbedProgress?.(0, sharedTotal);
+      opts.onUploadProgress?.(0, sharedTotal);
 
       const chunkProcessor = new ChunkProcessor(
         this.config.chunkers,
@@ -253,7 +269,7 @@ export class Orchestrator {
           await uploader.upsertBatch(db, ubatch);
           uploadDone += ubatch.length;
           uploadedCount += ubatch.length;
-          opts.onUploadProgress?.(uploadDone, uploadTotal);
+          opts.onUploadProgress?.(uploadDone, sharedTotal);
         }
       };
 
@@ -268,10 +284,9 @@ export class Orchestrator {
           }
           db.setMeta(newMeta);
           pendingUpload.push(...embedded);
-          uploadTotal += embedded.length;
           embedDone += batch.length;
           chunksEmbedded += batch.length;
-          opts.onEmbedProgress?.(embedDone, embedTotal);
+          opts.onEmbedProgress?.(embedDone, sharedTotal);
           await flushUpload(false);
         }
       };
@@ -309,16 +324,19 @@ export class Orchestrator {
         chunkDone++;
         opts.onChunkProgress?.(chunkDone, toProcess.length);
 
-        // Project embed/upload totals using average chunks-per-file so the bars
-        // show a meaningful scale before the first flushEmbed triggers.
-        if (toProcess.length > 0) {
+        // Project a shared total for both embed and upload bars so they always
+        // show the same denominator — updated on each file, accurate once all
+        // files are processed.
+        if (chunkDone > 0) {
           const avgChunksPerFile = chunksGenerated / chunkDone;
           const projectedNew = Math.ceil(toProcess.length * avgChunksPerFile);
-          opts.onEmbedProgress?.(embedDone, initialPendingEmbed + projectedNew);
-          opts.onUploadProgress?.(
-            uploadDone,
-            initialPendingUpload + projectedNew,
+          sharedTotal = Math.max(
+            initialPendingEmbed,
+            initialPendingUpload,
+            projectedNew,
           );
+          opts.onEmbedProgress?.(embedDone, sharedTotal);
+          opts.onUploadProgress?.(uploadDone, sharedTotal);
         }
 
         await flushEmbed(false);
@@ -331,6 +349,9 @@ export class Orchestrator {
         chunksGenerated,
         errors: 0,
       });
+
+      // All chunking done — switch to actual total for final flush progress
+      sharedTotal = Math.max(embedTotal, 1);
 
       // Flush remaining pending embed and upload
       const t3 = Date.now();

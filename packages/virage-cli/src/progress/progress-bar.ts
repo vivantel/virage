@@ -1,45 +1,27 @@
-import cliProgress from "cli-progress";
+// ANSI helpers
+export const ansi = {
+  reset: "\x1b[0m",
+  bold: "\x1b[1m",
+  dim: "\x1b[2m",
+  red: "\x1b[31m",
+  green: "\x1b[32m",
+  yellow: "\x1b[33m",
+  cyan: "\x1b[36m",
+  gray: "\x1b[90m",
+  boldRed: "\x1b[1;31m",
+  dimGray: "\x1b[2;90m",
+};
 
-// Guards against NaN/Infinity ETA at the first render frame (t=0, rate=0).
-function safeFormatTime(t: number): string {
-  if (!isFinite(t) || isNaN(t) || t <= 0) return "?";
-  if (t > 3600)
-    return `${Math.floor(t / 3600)}h${Math.floor((t % 3600) / 60)}m`;
-  if (t > 60) return `${Math.floor(t / 60)}m${Math.round(t % 60)}s`;
-  return `${Math.round(t)}s`;
-}
+const SPINNER_FRAMES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
+const BAR_WIDTH = 36;
+const RENDER_INTERVAL_MS = 80;
+const ELAPSED_W = 7;
+const ETA_W = 7;
 
 export interface ProgressBar {
   update(current: number): void;
   setTotal(total: number): void;
   stop(finalMessage?: string): void;
-}
-
-export function createProgressBar(label: string, total: number): ProgressBar {
-  const bar = new cliProgress.SingleBar(
-    {
-      format: `${label} [{bar}] {percentage}% | {value}/{total} | {duration_formatted} elapsed | ETA: {eta_formatted}`,
-      clearOnComplete: false,
-      hideCursor: true,
-      formatTime: safeFormatTime,
-    },
-    cliProgress.Presets.shades_classic,
-  );
-  // Start with total=1 minimum so the bar renders; setTotal() updates it as work is discovered.
-  bar.start(Math.max(total, 1), 0);
-
-  return {
-    update(current: number) {
-      bar.update(current);
-    },
-    setTotal(newTotal: number) {
-      bar.setTotal(Math.max(newTotal, 1));
-    },
-    stop(finalMessage?: string) {
-      bar.stop();
-      if (finalMessage) console.log(finalMessage);
-    },
-  };
 }
 
 export interface MultiProgressBars {
@@ -50,50 +32,428 @@ export interface MultiProgressBars {
   log(message: string): void;
 }
 
-const BAR_FORMAT =
-  "{label} [{bar}] {percentage}% | {value}/{total} | {duration_formatted} elapsed | ETA: {eta_formatted}";
+interface BarState {
+  value: number;
+  total: number;
+}
 
-export function createMultiProgressBars(): MultiProgressBars {
-  const multi = new cliProgress.MultiBar(
-    {
-      clearOnComplete: false,
-      hideCursor: true,
-      forceRedraw: true,
-      autopadding: true,
-      format: BAR_FORMAT,
-      formatTime: safeFormatTime,
-    },
-    cliProgress.Presets.shades_classic,
-  );
+function fmtTime(seconds: number): string {
+  if (!isFinite(seconds) || isNaN(seconds) || seconds <= 0) return "?";
+  if (seconds > 3600)
+    return `${Math.floor(seconds / 3600)}h${Math.floor((seconds % 3600) / 60)}m`;
+  if (seconds > 60)
+    return `${Math.floor(seconds / 60)}m${Math.round(seconds % 60)}s`;
+  return `${Math.round(seconds)}s`;
+}
 
-  // Lazily adds a bar to the MultiBar on first setTotal() call so stages that
-  // never fire (e.g. upload with --no-upload) don't appear in the output.
-  const makeBar = (label: string): ProgressBar => {
-    let inner: cliProgress.SingleBar | null = null;
-    return {
-      update(current: number) {
-        inner?.update(current);
-      },
-      setTotal(newTotal: number) {
-        if (!inner) {
-          inner = multi.create(Math.max(newTotal, 1), 0, { label });
-        } else {
-          inner.setTotal(Math.max(newTotal, 1));
-        }
-      },
-      stop() {},
-    };
+function calcEtaMs(
+  value: number,
+  total: number,
+  elapsedMs: number,
+): number | null {
+  if (value <= 0 || total <= 0 || elapsedMs <= 0) return null;
+  if (value >= total) return 0;
+  return ((total - value) / value) * elapsedMs;
+}
+
+function centerInWidth(text: string, width: number, fill = " "): string {
+  const pad = Math.max(0, width - text.length);
+  const left = Math.floor(pad / 2);
+  return fill.repeat(left) + text + fill.repeat(pad - left);
+}
+
+function renderBar(value: number, total: number): string {
+  const fillCount =
+    total > 0
+      ? Math.min(BAR_WIDTH, Math.floor((value / total) * BAR_WIDTH))
+      : 0;
+  const fill = ansi.cyan + "█".repeat(fillCount) + ansi.reset;
+  const empty = ansi.gray + "░".repeat(BAR_WIDTH - fillCount) + ansi.reset;
+  return fill + empty;
+}
+
+function renderPct(value: number, total: number): string {
+  const pct = total > 0 ? Math.min(100, Math.floor((value / total) * 100)) : 0;
+  const color = pct >= 100 ? ansi.green : ansi.yellow;
+  return color + String(pct).padStart(3) + "%" + ansi.reset;
+}
+
+export class PipelineRenderer {
+  private phase: "idle" | "scanning" | "model" | "pipeline" = "idle";
+  private logBuffer: string[] = [];
+  private ephemeralLines = 0;
+  private readonly startTime = Date.now();
+  private tickCount = 0;
+  private timer: ReturnType<typeof setInterval> | null = null;
+  private dirty = false;
+
+  // Scanning
+  private scanDone = 0;
+  private scanTotal = 0;
+
+  // Model loading
+  private modelName = "";
+  private modelLoaded = 0;
+  private modelTotal = 0;
+
+  // Pipeline
+  private bars: Record<"chunk" | "embed" | "upload", BarState> = {
+    chunk: { value: 0, total: 0 },
+    embed: { value: 0, total: 0 },
+    upload: { value: 0, total: 0 },
   };
 
+  constructor() {
+    this.timer = setInterval(() => {
+      this.tickCount++;
+      if (this.dirty || this.phase === "scanning" || this.phase === "model") {
+        this.dirty = false;
+        this.doRender();
+      }
+    }, RENDER_INTERVAL_MS);
+    // Don't keep the process alive just for the animation timer
+    this.timer.unref();
+  }
+
+  log(message: string): void {
+    this.logBuffer.push(message);
+    this.dirty = true;
+  }
+
+  // --- Phase transitions ---
+
+  startScanning(total: number): void {
+    this.scanTotal = total;
+    if (this.phase === "idle") this.phase = "scanning";
+    this.dirty = true;
+  }
+
+  updateScanning(done: number, total: number): void {
+    this.scanDone = done;
+    this.scanTotal = total;
+    this.dirty = true;
+  }
+
+  startModelLoading(model: string): void {
+    this.modelName = model;
+    this.phase = "model";
+    this.dirty = true;
+  }
+
+  updateModelProgress(loaded: number, total: number): void {
+    this.modelLoaded = loaded;
+    this.modelTotal = total;
+    this.dirty = true;
+  }
+
+  startPipeline(): void {
+    this.phase = "pipeline";
+    this.dirty = true;
+  }
+
+  updateChunk(value: number, total: number): void {
+    this.bars.chunk = { value, total };
+    this.dirty = true;
+  }
+
+  updateEmbed(value: number, total: number): void {
+    this.bars.embed = { value, total };
+    this.dirty = true;
+  }
+
+  updateUpload(value: number, total: number): void {
+    this.bars.upload = { value, total };
+    this.dirty = true;
+  }
+
+  stop(): void {
+    if (this.timer) {
+      clearInterval(this.timer);
+      this.timer = null;
+    }
+    this.doRender();
+  }
+
+  // --- Rendering ---
+
+  private doRender(): void {
+    if (!process.stdout.isTTY) {
+      for (const msg of this.logBuffer) process.stdout.write(msg);
+      this.logBuffer = [];
+      return;
+    }
+
+    const phaseLines = this.buildPhase();
+    let out = "";
+
+    // Erase previous ephemeral section by moving cursor up and clearing to end
+    if (this.ephemeralLines > 0) {
+      out += `\x1b[${this.ephemeralLines}A\x1b[J`;
+    }
+
+    // Flush buffered log messages (these stay permanently above the live section)
+    for (const msg of this.logBuffer) {
+      out += msg;
+    }
+    this.logBuffer = [];
+
+    // Draw live phase output
+    if (phaseLines.length > 0) {
+      out += phaseLines.join("\n") + "\n";
+    }
+
+    process.stdout.write(out);
+    this.ephemeralLines = phaseLines.length;
+  }
+
+  private buildPhase(): string[] {
+    switch (this.phase) {
+      case "scanning":
+        return this.buildScanning();
+      case "model":
+        return this.buildModel();
+      case "pipeline":
+        return this.buildPipeline();
+      default:
+        return [];
+    }
+  }
+
+  private spinner(): string {
+    return SPINNER_FRAMES[this.tickCount % SPINNER_FRAMES.length];
+  }
+
+  private buildScanning(): string[] {
+    const sp = this.spinner();
+    const fillCount =
+      this.scanTotal > 0
+        ? Math.floor((this.scanDone / this.scanTotal) * 20)
+        : 0;
+    const bar =
+      ansi.cyan +
+      "█".repeat(fillCount) +
+      ansi.gray +
+      "░".repeat(20 - fillCount) +
+      ansi.reset;
+    const pct =
+      this.scanTotal > 0
+        ? Math.floor((this.scanDone / this.scanTotal) * 100)
+        : 0;
+    const counter =
+      this.scanTotal > 0
+        ? `${this.scanDone}/${this.scanTotal} files`
+        : "discovering files...";
+    return [
+      `${ansi.cyan}${sp}${ansi.reset} ${ansi.bold}Scanning${ansi.reset}  [${bar}] ${String(pct).padStart(3)}%  ${ansi.dim}${counter}${ansi.reset}`,
+    ];
+  }
+
+  private buildModel(): string[] {
+    const sp = this.spinner();
+    const name = ansi.bold + this.modelName + ansi.reset;
+    if (this.modelTotal > 0) {
+      const pct = Math.min(
+        100,
+        Math.floor((this.modelLoaded / this.modelTotal) * 100),
+      );
+      const fillCount = Math.floor(
+        (this.modelLoaded / this.modelTotal) * BAR_WIDTH,
+      );
+      const bar =
+        "[" +
+        ansi.yellow +
+        "█".repeat(fillCount) +
+        ansi.gray +
+        "░".repeat(BAR_WIDTH - fillCount) +
+        ansi.reset +
+        "]";
+      const pctStr = ansi.yellow + String(pct).padStart(3) + "%" + ansi.reset;
+      return [
+        `${ansi.yellow}${sp}${ansi.reset} ${ansi.bold}Loading model${ansi.reset} ${name}  ${bar} ${pctStr}`,
+      ];
+    }
+    return [
+      `${ansi.yellow}${sp}${ansi.reset} ${ansi.bold}Loading model${ansi.reset} ${name}`,
+    ];
+  }
+
+  private buildPipeline(): string[] {
+    const elapsed = Date.now() - this.startTime;
+    const sep = ` ${ansi.dim}│${ansi.reset} `;
+
+    const maxTotalDigits = Math.max(
+      ...Object.values(this.bars).map((b) => String(b.total).length),
+      1,
+    );
+    const ptColWidth = Math.max(15, maxTotalDigits * 2 + 1);
+
+    // Header row — "Progress" center-padded with ─ inside the same bracket structure as body rows
+    const barHeader =
+      "[" +
+      ansi.dim +
+      centerInWidth(" Progress ", BAR_WIDTH, "─") +
+      ansi.reset +
+      "]" +
+      "     "; // 5 spaces matches body's " NNN%"
+    const ptHeader =
+      ansi.bold + "Processed/Total".padEnd(ptColWidth) + ansi.reset;
+    const elHeader = ansi.bold + "Elapsed".padStart(ELAPSED_W) + ansi.reset;
+    const etaHeader = ansi.bold + "ETA".padStart(ETA_W) + ansi.reset;
+    const header =
+      ansi.bold +
+      "Operation".padEnd(9) +
+      ansi.reset +
+      sep +
+      barHeader +
+      sep +
+      ptHeader +
+      sep +
+      elHeader +
+      sep +
+      etaHeader;
+
+    const labels: Array<[string, "chunk" | "embed" | "upload"]> = [
+      ["Chunking ", "chunk"],
+      ["Embedding", "embed"],
+      ["Uploading", "upload"],
+    ];
+    const rows = labels.map(([label, key]) =>
+      this.buildBarRow(
+        label,
+        this.bars[key],
+        elapsed,
+        maxTotalDigits,
+        ptColWidth,
+      ),
+    );
+
+    // Summary ETA = max ETA across all bars (the bottleneck determines when we finish)
+    const etaValues = Object.values(this.bars)
+      .map((b) => calcEtaMs(b.value, b.total, elapsed))
+      .filter((e): e is number => e !== null);
+    const maxEta = etaValues.length > 0 ? Math.max(...etaValues) : null;
+    const etaSummary =
+      ansi.dim +
+      "ETA: " +
+      (maxEta !== null ? fmtTime(maxEta / 1000) : "?") +
+      ansi.reset;
+
+    return [header, ...rows, etaSummary];
+  }
+
+  private buildBarRow(
+    label: string,
+    bar: BarState,
+    elapsedMs: number,
+    maxTotalDigits: number,
+    ptColWidth: number,
+  ): string {
+    const { value, total } = bar;
+    const sep = ` ${ansi.dim}│${ansi.reset} `;
+
+    // Progress bar + percentage — visual width: 1 + BAR_WIDTH + 1 + 1 + 3 + 1 = BAR_WIDTH + 7
+    const barContent =
+      "[" + renderBar(value, total) + "] " + renderPct(value, total);
+
+    // Processed/Total column — right-align both numbers to maxTotalDigits
+    const valStr = String(value).padStart(maxTotalDigits);
+    const totStr = String(total).padStart(maxTotalDigits);
+    const ptStr = (valStr + "/" + totStr).padEnd(ptColWidth);
+
+    const elStr =
+      ansi.dim + fmtTime(elapsedMs / 1000).padStart(ELAPSED_W) + ansi.reset;
+
+    const etaMs = calcEtaMs(value, total, elapsedMs);
+    const etaStr =
+      ansi.dim +
+      (etaMs !== null ? fmtTime(etaMs / 1000) : "?").padStart(ETA_W) +
+      ansi.reset;
+
+    return (
+      ansi.bold +
+      label +
+      ansi.reset +
+      sep +
+      barContent +
+      sep +
+      ptStr +
+      sep +
+      elStr +
+      sep +
+      etaStr
+    );
+  }
+}
+
+// Kept for backward compatibility with any external callers
+export function createProgressBar(label: string, total: number): ProgressBar {
+  let _total = total;
+  let _current = 0;
+  const tick = setInterval(() => {
+    if (process.stdout.isTTY) {
+      process.stdout.write(`\r${label} ${_current}/${_total}`);
+    }
+  }, 100);
+  (tick as ReturnType<typeof setInterval>).unref();
   return {
-    chunk: makeBar("Chunking "),
-    embed: makeBar("Embedding"),
-    upload: makeBar("Uploading"),
-    stop() {
-      multi.stop();
+    update(current: number) {
+      _current = current;
     },
-    log(message: string) {
-      multi.log(message);
+    setTotal(newTotal: number) {
+      _total = newTotal;
     },
+    stop(finalMessage?: string) {
+      clearInterval(tick);
+      if (process.stdout.isTTY) process.stdout.write("\n");
+      if (finalMessage) console.log(finalMessage);
+    },
+  };
+}
+
+// Kept for backward compatibility — wraps PipelineRenderer in the old MultiProgressBars shape
+export function createMultiProgressBars(): MultiProgressBars {
+  const renderer = new PipelineRenderer();
+  renderer.startPipeline();
+  const state = {
+    chunk: { value: 0, total: 0 },
+    embed: { value: 0, total: 0 },
+    upload: { value: 0, total: 0 },
+  };
+  return {
+    chunk: {
+      update: (v) => {
+        state.chunk.value = v;
+        renderer.updateChunk(v, state.chunk.total);
+      },
+      setTotal: (t) => {
+        state.chunk.total = t;
+        renderer.updateChunk(state.chunk.value, t);
+      },
+      stop: () => {},
+    },
+    embed: {
+      update: (v) => {
+        state.embed.value = v;
+        renderer.updateEmbed(v, state.embed.total);
+      },
+      setTotal: (t) => {
+        state.embed.total = t;
+        renderer.updateEmbed(state.embed.value, t);
+      },
+      stop: () => {},
+    },
+    upload: {
+      update: (v) => {
+        state.upload.value = v;
+        renderer.updateUpload(v, state.upload.total);
+      },
+      setTotal: (t) => {
+        state.upload.total = t;
+        renderer.updateUpload(state.upload.value, t);
+      },
+      stop: () => {},
+    },
+    stop: () => renderer.stop(),
+    log: (msg) => renderer.log(msg),
   };
 }

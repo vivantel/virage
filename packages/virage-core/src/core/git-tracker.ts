@@ -84,8 +84,12 @@ export class GitTracker {
     return unique;
   }
 
-  async getCommitHashes(files: string[]): Promise<Map<string, string>> {
+  async getCommitHashes(
+    files: string[],
+    onProgress?: (done: number, total: number) => void,
+  ): Promise<Map<string, string>> {
     const commitMap = new Map<string, string>();
+    let done = 0;
 
     await Promise.all(
       files.map(async (file) => {
@@ -106,17 +110,18 @@ export class GitTracker {
           commitMap.set(file, head);
           this.logger.trace(`Hash for ${file}: ${head.slice(0, 8)} (fallback)`);
         }
+        onProgress?.(++done, files.length);
       }),
     );
 
     return commitMap;
   }
 
-  async getCurrentState(): Promise<
-    Map<string, { commitHash: string; chunker: FileChunker }>
-  > {
+  async getCurrentState(
+    onProgress?: (done: number, total: number) => void,
+  ): Promise<Map<string, { commitHash: string; chunker: FileChunker }>> {
     const allFiles = await this.getAllTrackedFiles();
-    const commitMap = await this.getCommitHashes(allFiles);
+    const commitMap = await this.getCommitHashes(allFiles, onProgress);
     const dirtyFiles = await this.getDirtyFiles();
     const currentHead = await this.getCurrentHead();
 
@@ -148,7 +153,7 @@ export class GitTracker {
     toDelete: string[];
     unchanged: string[];
   }> {
-    const current = currentState ?? (await this.getCurrentState());
+    const current = currentState ?? (await this.getCurrentState(undefined));
     const toProcess: string[] = [];
     const toDelete: string[] = [];
     const unchanged: string[] = [];

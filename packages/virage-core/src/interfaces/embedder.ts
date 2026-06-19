@@ -40,6 +40,13 @@ export interface EmbeddingProvider {
 
   /** Compute quality metrics for an already-generated set of embeddings */
   getMetrics?(embeddings: number[][]): Promise<EmbeddingMetrics>;
+
+  /**
+   * Pre-load the model before the main pipeline loop begins.
+   * Implement this on local/ONNX-based providers to surface loading progress.
+   * API-backed providers can omit it — the first embed() call is already fast.
+   */
+  preWarm?(onProgress?: (loaded: number, total: number) => void): Promise<void>;
 }
 
 export interface EmbeddingConfig {

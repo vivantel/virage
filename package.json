@@ -31,7 +31,12 @@
   },
   "version": "0.1.0",
   "dependencies": {
-    "@vivantel/virage-agent-claude": "^0.2.6",
+    "@vivantel/virage-agent-claude": "^0.2.24",
+    "@vivantel/virage-code-chunk-chunker": "^0.1.15",
+    "@vivantel/virage-core": "^0.2.30",
+    "@vivantel/virage-embedder-transformers": "^0.2.32",
+    "@vivantel/virage-skills": "^0.1.8",
+    "@vivantel/virage-store-lancedb": "^0.2.32",
     "react": "^19.2.7",
     "react-dom": "^19.2.7"
   }
