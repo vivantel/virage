@@ -1,5 +1,6 @@
 import type { ChunkStrategy } from "../interfaces/chunker.js";
 import { ConfigError } from "./errors.js";
+import { importPackage } from "./module-import.js";
 
 export type BuiltinStrategyName =
   | "markdownHeaders"
@@ -44,7 +45,7 @@ export async function resolveStrategy(
   // runtime dependency that may not be installed.
   const strategiesPkg = "@vivantel/virage-strategies";
   try {
-    mod = (await import(strategiesPkg)) as StrategyModule;
+    mod = (await importPackage(strategiesPkg)) as StrategyModule;
   } catch {
     // Fall back to re-exports from core
     try {
@@ -76,13 +77,16 @@ export async function resolveStrategy(
     case "codeChunkAst": {
       const pkg = "@vivantel/virage-code-chunk-chunker";
       try {
-        const mod = (await import(pkg)) as {
+        const mod = (await importPackage(pkg)) as {
           codeChunkStrategy: (opts?: StrategyOptions) => ChunkStrategy;
         };
         return mod.codeChunkStrategy(options);
       } catch (err) {
         const isNotFound =
-          err instanceof Error && err.message.includes("Cannot find module");
+          err instanceof Error &&
+          (err.message.includes("Cannot find module") ||
+            err.message.includes("Cannot find package") ||
+            (err as { code?: string }).code === "ERR_MODULE_NOT_FOUND");
         throw new ConfigError(`Cannot load strategy package "${pkg}"`, {
           suggestion: isNotFound
             ? `Install it first: npm install ${pkg}`

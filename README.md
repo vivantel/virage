@@ -228,12 +228,11 @@ See [docs/USE_CASES.md](docs/USE_CASES.md) for detailed scenarios:
 
 See [docs/ROADMAP.md](docs/ROADMAP.md) for planned features, an honest assessment of current gaps, and evaluation targets. Highlights:
 
-- **Hybrid search** (BM25 + vector fusion) — the highest-impact retrieval improvement not yet shipped
-- **Cross-file import graph indexing** — so agents can follow call chains, not just file contents
-- **Re-ranking layer** — cross-encoder or LLM-based, for when top-K precision matters more than latency
+- **Cross-file import graph indexing** — so agents can follow call chains across files, not just within them
 - **Cost estimator** (`virage estimate`) — projected token count and API cost before any embedding call
 - **PR diff mode** — index only the files changed in a pull request, in an isolated namespace
-- **Query analytics dashboard** — track what's being searched and which chunks are actually useful
+- **Semantic deduplication** — skip near-duplicate chunks before embedding to reduce index bloat
+- **GitHub Actions integration** — official `vivantel/virage-action` composite action for CI-driven indexing
 
 ## Contributing
 

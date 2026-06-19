@@ -3,6 +3,7 @@ import { existsSync } from "fs";
 import { resolve } from "path";
 import { RAGPipelineConfig } from "./core/orchestrator.js";
 import { ConfigError } from "./core/errors.js";
+import { importPackage } from "./core/module-import.js";
 import type { TelemetryConfig } from "./telemetry/types.js";
 import { expandEnvVars } from "./core/env-expand.js";
 import {
@@ -99,10 +100,13 @@ async function resolveProvider<T>(
 
   let mod: Record<string, unknown>;
   try {
-    mod = (await import(spec.package)) as Record<string, unknown>;
+    mod = (await importPackage(spec.package)) as Record<string, unknown>;
   } catch (err) {
     const isNotFound =
-      err instanceof Error && err.message.includes("Cannot find module");
+      err instanceof Error &&
+      (err.message.includes("Cannot find module") ||
+        err.message.includes("Cannot find package") ||
+        (err as { code?: string }).code === "ERR_MODULE_NOT_FOUND");
     throw new ConfigError(`Cannot load provider package "${spec.package}"`, {
       suggestion: isNotFound
         ? `Install it first: npm install ${spec.package}`

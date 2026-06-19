@@ -66,6 +66,10 @@ function formatSummary(state: WizardState, registry: PluginRegistry): string {
         ? "LLM (Anthropic)"
         : "(none)";
 
+  const hybridLabel = state.hybrid
+    ? `Enabled (alpha=${state.hybridAlpha ?? 0.6})`
+    : "Disabled";
+
   const width = 52;
   const labelWidth = 14;
   const labelPad = 2; // leading spaces
@@ -109,6 +113,7 @@ function formatSummary(state: WizardState, registry: PluginRegistry): string {
     wrapLine("Embedder:", embedderLabel),
     wrapLine("Vector store:", storeLabel),
     wrapLine("Re-ranker:", rerankerLabel),
+    wrapLine("Hybrid search:", hybridLabel),
     wrapLine("Output:", state.outputPath),
     `╚${bar}╝`,
   ].join("\n");
@@ -123,6 +128,8 @@ interface WizardState {
   embedder: string;
   vectorStore: string;
   reranker?: "cross-encoder" | "llm";
+  hybrid?: boolean;
+  hybridAlpha?: number;
 }
 
 // ─── Package helpers ──────────────────────────────────────────────────────────
@@ -235,8 +242,14 @@ function generateJsonConfig(
     },
   };
 
-  if (rerankerConfig) {
-    config.search = { reranker: rerankerConfig };
+  const searchConfig: Record<string, unknown> = {};
+  if (rerankerConfig) searchConfig.reranker = rerankerConfig;
+  if (state.hybrid) {
+    searchConfig.hybrid = true;
+    searchConfig.hybridAlpha = state.hybridAlpha ?? 0.6;
+  }
+  if (Object.keys(searchConfig).length > 0) {
+    config.search = searchConfig;
   }
 
   return JSON.stringify(config, null, 2) + "\n";
@@ -298,7 +311,7 @@ export async function runInit(): Promise<void> {
   const state: Partial<WizardState> = {};
   let step = 0;
 
-  while (step < 7) {
+  while (step < 8) {
     switch (step) {
       // ── Step 0: output path ──
       case 0: {
@@ -443,8 +456,44 @@ export async function runInit(): Promise<void> {
         break;
       }
 
-      // ── Step 6: confirmation ──
+      // ── Step 6: hybrid search ──
       case 6: {
+        const hybridChoice = await select({
+          message:
+            "Enable hybrid search? (BM25 + vector fusion improves recall for keyword-heavy queries)",
+          choices: withBack([
+            { name: "No — pure vector search", value: "no" },
+            {
+              name: "Yes — BM25 + vector hybrid (recommended)",
+              value: "yes",
+            },
+          ]),
+        });
+        if (isBack(hybridChoice)) {
+          step--;
+          break;
+        }
+        state.hybrid = hybridChoice === "yes";
+        if (state.hybrid) {
+          const alphaStr = await input({
+            message:
+              "Blend weight — hybridAlpha (0 = pure BM25, 1 = pure vector):",
+            default: "0.6",
+            validate: (v) => {
+              const n = parseFloat(v);
+              if (isNaN(n) || n < 0 || n > 1)
+                return "Enter a number between 0 and 1";
+              return true;
+            },
+          });
+          state.hybridAlpha = parseFloat(alphaStr);
+        }
+        step++;
+        break;
+      }
+
+      // ── Step 7: confirmation ──
+      case 7: {
         console.log("\n" + formatSummary(state as WizardState, registry));
         const confirm = await select({
           message: "Proceed with this configuration?",
