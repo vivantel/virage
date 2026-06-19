@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.1.62](https://github.com/vivantel/virage/compare/virage-cli@v0.1.61...virage-cli@v0.1.62) (2026-06-19)
+
+
+### Features
+
+* **virage-core:** Add SourceRepository abstraction and switch to blob SHA tracking ([2458899](https://github.com/vivantel/virage/commit/245889997fbf2677f7523e6916155d373c905d08))
+
+
+### Bug Fixes
+
+* **virage:** Hide cursor during progress, fix embedding cache, fix model progress ([394f949](https://github.com/vivantel/virage/commit/394f9495c79a02fef907ebaa119add954c9c402b))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @vivantel/virage-core bumped from 0.2.32 to 0.2.33
+
 ## [0.1.61](https://github.com/vivantel/virage/compare/virage-cli@v0.1.60...virage-cli@v0.1.61) (2026-06-19)
 
 
