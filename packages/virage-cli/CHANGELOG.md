@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.1.64](https://github.com/vivantel/virage/compare/virage-cli@v0.1.63...virage-cli@v0.1.64) (2026-06-19)
+
+
+### Features
+
+* **virage-cli,virage-core:** Plugin dir storage + init wizard refactor ([d4e02fa](https://github.com/vivantel/virage/commit/d4e02fa8c222f01bbdba21a27a196a5b4d5809da))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @vivantel/virage-core bumped from 0.2.34 to 0.2.35
+
 ## [0.1.63](https://github.com/vivantel/virage/compare/virage-cli@v0.1.62...virage-cli@v0.1.63) (2026-06-19)
 
 
