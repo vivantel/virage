@@ -45,6 +45,7 @@ interface JsonRagConfig {
   vectorStore: JsonProviderConfig;
   source?: JsonProviderConfig;
   agents?: string[];
+  pluginVersions?: Record<string, string>;
   options?: RAGPipelineConfig["options"];
   telemetry?: TelemetryConfig;
   search?: JsonSearchConfig;

@@ -1,6 +1,7 @@
 import { existsSync } from "fs";
-import { join } from "path";
-import { spawn } from "child_process";
+import { homedir } from "os";
+import { dirname, join } from "path";
+import { execFileSync, spawn } from "child_process";
 
 export type PackageManager = "npm" | "yarn" | "pnpm" | "bun";
 
@@ -42,6 +43,44 @@ export function buildGlobalInstallCommand(
       return { cmd: "bun", args: ["add", "-g", ...packages] };
     default:
       return { cmd: "npm", args: ["install", "-g", ...packages] };
+  }
+}
+
+// ─── Plugin directory helpers ─────────────────────────────────────────────────
+
+export function getLocalPluginDir(configDir: string): string {
+  return join(configDir, ".virage", "plugins");
+}
+
+export function getGlobalPluginDir(): string {
+  return join(homedir(), ".virage", "plugins");
+}
+
+export function getPluginDirForConfig(configPath: string): string {
+  return getLocalPluginDir(dirname(configPath));
+}
+
+// Plugin installs always use npm --prefix regardless of project package manager,
+// so the plugin dir is a self-contained node_modules tree independent of project deps.
+export function buildPluginPrefixInstallCommand(
+  packages: string[],
+  prefixDir: string,
+): { cmd: string; args: string[] } {
+  return {
+    cmd: "npm",
+    args: ["install", "--prefix", prefixDir, ...packages],
+  };
+}
+
+export async function fetchLatestVersion(pkg: string): Promise<string> {
+  try {
+    const version = execFileSync("npm", ["view", pkg, "version"], {
+      encoding: "utf-8",
+      stdio: ["pipe", "pipe", "pipe"],
+    }).trim();
+    return version;
+  } catch {
+    return "latest";
   }
 }
 

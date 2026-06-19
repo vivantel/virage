@@ -24,11 +24,11 @@ Load this index before any task. Pick a skill, load it, then execute.
 
 ## Agent integrations
 
-Four coding agent plugins are supported. Each installs via `virage init` and copies hand-authored static files from the plugin's `plugin-config/` directory into the project. `BaseAgentPlugin.configure()` handles the recursive copy with content-comparison (idempotent). Run `virage update` to re-apply configs after upgrading plugin packages.
+Four coding agent plugins are supported. `virage init` installs the selected agent packages to `~/.virage/plugins` (global) or `$PROJECT_DIR/.virage/plugins` (local) and runs `configure()` to copy static files from the plugin's `plugin-config/` directory into the project. `BaseAgentPlugin.configure()` is idempotent (content-equality check before overwrite). Run `virage update` to upgrade plugin packages and resync configs.
 
 | Agent | Package | Config directory written |
 | ----- | ------- | ------------------------ |
-| Claude Code | `@vivantel/virage-agent-claude` | `.claude/skills/virage-agent/` (skills-dir plugin, includes MCP) — or install via `virage-agent@vivantel` marketplace |
+| Claude Code | `@vivantel/virage-agent-claude` | `.claude/skills/virage-agent/` (skills-dir plugin, includes MCP) |
 | GitHub Copilot | `@vivantel/virage-agent-copilot` | `.github/copilot/` (hooks.json, instructions/) |
 | OpenAI Codex | `@vivantel/virage-agent-codex` | `.codex/` (hooks.json) |
 | Google Antigravity | `@vivantel/virage-agent-antigravity` | `.antigravity/` (hooks.json) |
@@ -77,8 +77,8 @@ npm run lint                           # lint check only
 npm test -w @vivantel/<pkg>            # unit tests for one package
 npm run build -w @vivantel/<pkg>       # build one package
 npm run build:with-dashboard -w @vivantel/virage-cli  # CLI build including dashboard UI
-virage init                            # interactive wizard: config, agents, embedder, vector store
-virage update (up)                     # update all virage packages (embedders, stores, rerankers, agents, chunkers) from config + re-run plugin configure + sync skills
+virage init                            # interactive wizard: config, agents, embedder, vector store, re-ranker, hybrid search; installs all plugins to ~/.virage/plugins or $PROJECT_DIR/.virage/plugins
+virage update (up)                     # update virage plugins from plugin dirs + node_modules + re-run agent configure + sync skills
 virage query (q) "<text>"             # semantic search over the indexed knowledge base (--json, --top-k, --branch)
 virage install-hooks (hooks)           # install post-merge & post-checkout git hooks for auto-indexing
 virage dashboard (d) [--verbose]       # start local RAG monitoring dashboard

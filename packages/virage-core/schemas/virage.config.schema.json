@@ -35,7 +35,7 @@
           },
           "strategy": {
             "type": "string",
-            "enum": ["markdownHeaders", "token", "wholeFile", "semantic"],
+            "enum": ["markdownHeaders", "token", "wholeFile", "semantic", "codeChunkAst"],
             "description": "Built-in strategy name."
           },
           "strategyOptions": {
@@ -119,6 +119,13 @@
             }
           }
         }
+      }
+    },
+    "pluginVersions": {
+      "type": "object",
+      "description": "Installed plugin package versions, recorded by virage init/update.",
+      "additionalProperties": {
+        "type": "string"
       }
     },
     "options": {

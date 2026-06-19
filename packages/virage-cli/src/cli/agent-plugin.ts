@@ -1,5 +1,6 @@
 import { readFile, readdir } from "fs/promises";
 import { existsSync } from "fs";
+import { homedir } from "os";
 import { join, resolve } from "path";
 
 export interface AgentPluginMeta {
@@ -58,11 +59,10 @@ async function tryReadPlugin(
   }
 }
 
-export async function discoverAgentPlugins(
-  projectRoot: string,
+async function scanNodeModulesForAgentPlugins(
+  nodeModulesDir: string,
+  seen: Set<string>,
 ): Promise<AgentPluginMeta[]> {
-  const nodeModulesDir = join(projectRoot, "node_modules");
-  const seen = new Set<string>();
   const plugins: AgentPluginMeta[] = [];
 
   async function scanDir(dir: string, scope?: string) {
@@ -72,7 +72,6 @@ export async function discoverAgentPlugins(
         if (!entry.isDirectory() && !entry.isSymbolicLink()) continue;
         const name = scope ? `${scope}/${entry.name}` : entry.name;
         if (name.startsWith("@") && !scope) {
-          // scoped package — recurse one level
           await scanDir(join(dir, entry.name), entry.name);
           continue;
         }
@@ -82,12 +81,44 @@ export async function discoverAgentPlugins(
         if (plugin) plugins.push(plugin);
       }
     } catch {
-      // node_modules may not exist
+      // dir may not exist
     }
   }
 
   await scanDir(nodeModulesDir);
   return plugins;
+}
+
+export async function discoverAgentPlugins(
+  projectRoot: string,
+): Promise<AgentPluginMeta[]> {
+  // Local plugin dir wins, then global plugin dir, then node_modules (backwards compat)
+  const localPluginModules = join(
+    projectRoot,
+    ".virage",
+    "plugins",
+    "node_modules",
+  );
+  const globalPluginModules = join(
+    homedir(),
+    ".virage",
+    "plugins",
+    "node_modules",
+  );
+  const nodeModulesDir = join(projectRoot, "node_modules");
+
+  const [local, global_, compat] = await Promise.all([
+    scanNodeModulesForAgentPlugins(localPluginModules, new Set()),
+    scanNodeModulesForAgentPlugins(globalPluginModules, new Set()),
+    scanNodeModulesForAgentPlugins(nodeModulesDir, new Set()),
+  ]);
+
+  // Merge: local wins over global wins over node_modules, dedup by name
+  const byName = new Map<string, AgentPluginMeta>();
+  for (const p of compat) byName.set(p.name, p);
+  for (const p of global_) byName.set(p.name, p);
+  for (const p of local) byName.set(p.name, p);
+  return Array.from(byName.values());
 }
 
 export async function runAgentPlugin(

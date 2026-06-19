@@ -1,4 +1,6 @@
-import { readFile } from "fs/promises";
+import { readFile, readdir } from "fs/promises";
+import { existsSync } from "fs";
+import { homedir } from "os";
 import { join } from "path";
 
 export type PluginType = "embedder" | "vectorStore" | "source";
@@ -115,58 +117,36 @@ export const BUILT_IN_PLUGINS: PluginEntry[] = [
   },
 ];
 
-export async function discoverExternalPlugins(
-  projectRoot: string,
+async function scanDirForRagPlugins(
+  nodeModulesDir: string,
 ): Promise<PluginEntry[]> {
-  let pkgJson: Record<string, unknown>;
-  try {
-    const content = await readFile(join(projectRoot, "package.json"), "utf-8");
-    pkgJson = JSON.parse(content) as Record<string, unknown>;
-  } catch {
-    return [];
-  }
-
-  const deps: Record<string, string> = {
-    ...((pkgJson.dependencies as Record<string, string> | undefined) ?? {}),
-    ...((pkgJson.devDependencies as Record<string, string> | undefined) ?? {}),
-  };
-
   const entries: PluginEntry[] = [];
+  if (!existsSync(nodeModulesDir)) return entries;
 
-  for (const depName of Object.keys(deps)) {
+  async function tryEntry(pkgDir: string, pkgName: string): Promise<void> {
     try {
-      const depPkgPath = join(
-        projectRoot,
-        "node_modules",
-        depName,
-        "package.json",
-      );
-      const depContent = await readFile(depPkgPath, "utf-8");
-      const depPkg = JSON.parse(depContent) as Record<string, unknown>;
-
+      const content = await readFile(join(pkgDir, "package.json"), "utf-8");
+      const depPkg = JSON.parse(content) as Record<string, unknown>;
       const ragPlugin = depPkg["rag-plugin"];
       if (
         !ragPlugin ||
         typeof ragPlugin !== "object" ||
         Array.isArray(ragPlugin)
       )
-        continue;
-
+        return;
       const plugin = ragPlugin as Record<string, unknown>;
       const { type, label, key } = plugin;
-
       if (
         (type !== "embedder" && type !== "vectorStore" && type !== "source") ||
         typeof label !== "string" ||
         typeof key !== "string"
       )
-        continue;
-
+        return;
       entries.push({
         type: type as PluginType,
         label,
         key,
-        package: depName,
+        package: pkgName,
         envVars: Array.isArray(plugin.envVars)
           ? plugin.envVars.filter((v): v is string => typeof v === "string")
           : [],
@@ -178,11 +158,85 @@ export async function discoverExternalPlugins(
             : {},
       });
     } catch {
-      // skip packages without valid rag-plugin field
+      // skip
     }
   }
 
+  try {
+    const top = await readdir(nodeModulesDir, { withFileTypes: true });
+    for (const entry of top) {
+      if (!entry.isDirectory() && !entry.isSymbolicLink()) continue;
+      if (entry.name.startsWith("@")) {
+        const scopeDir = join(nodeModulesDir, entry.name);
+        try {
+          const scoped = await readdir(scopeDir, { withFileTypes: true });
+          for (const s of scoped) {
+            if (!s.isDirectory() && !s.isSymbolicLink()) continue;
+            const pkgName = `${entry.name}/${s.name}`;
+            await tryEntry(join(scopeDir, s.name), pkgName);
+          }
+        } catch {
+          // skip
+        }
+      } else {
+        await tryEntry(join(nodeModulesDir, entry.name), entry.name);
+      }
+    }
+  } catch {
+    // dir unreadable
+  }
+
   return entries;
+}
+
+export async function discoverExternalPlugins(
+  projectRoot: string,
+): Promise<PluginEntry[]> {
+  const localPluginModules = join(
+    projectRoot,
+    ".virage",
+    "plugins",
+    "node_modules",
+  );
+  const globalPluginModules = join(
+    homedir(),
+    ".virage",
+    "plugins",
+    "node_modules",
+  );
+
+  const [localEntries, globalEntries, nodeModulesEntries] = await Promise.all([
+    scanDirForRagPlugins(localPluginModules),
+    scanDirForRagPlugins(globalPluginModules),
+    // Backwards compat: also scan project node_modules
+    (async (): Promise<PluginEntry[]> => {
+      let pkgJson: Record<string, unknown>;
+      try {
+        const content = await readFile(
+          join(projectRoot, "package.json"),
+          "utf-8",
+        );
+        pkgJson = JSON.parse(content) as Record<string, unknown>;
+      } catch {
+        return [];
+      }
+      const deps: Record<string, string> = {
+        ...((pkgJson.dependencies as Record<string, string> | undefined) ?? {}),
+        ...((pkgJson.devDependencies as Record<string, string> | undefined) ??
+          {}),
+      };
+      return scanDirForRagPlugins(join(projectRoot, "node_modules")).then(
+        (all) => all.filter((e) => deps[e.package] !== undefined),
+      );
+    })(),
+  ]);
+
+  // Merge: local wins over global wins over node_modules
+  const merged = new Map<string, PluginEntry>();
+  for (const e of nodeModulesEntries) merged.set(`${e.type}:${e.key}`, e);
+  for (const e of globalEntries) merged.set(`${e.type}:${e.key}`, e);
+  for (const e of localEntries) merged.set(`${e.type}:${e.key}`, e);
+  return Array.from(merged.values());
 }
 
 export interface PluginRegistry {

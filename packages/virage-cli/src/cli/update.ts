@@ -1,5 +1,5 @@
 import { checkbox } from "@inquirer/prompts";
-import { readFile } from "fs/promises";
+import { readFile, writeFile } from "fs/promises";
 import { existsSync } from "fs";
 import { join } from "path";
 import { execFile } from "child_process";
@@ -10,6 +10,9 @@ import {
   detectPackageManager,
   buildInstallCommand,
   buildGlobalInstallCommand,
+  getLocalPluginDir,
+  getGlobalPluginDir,
+  buildPluginPrefixInstallCommand,
   runInstall,
 } from "./pkg-manager.js";
 
@@ -29,6 +32,7 @@ interface VirageConfig {
   vectorStore?: { package?: string };
   search?: { reranker?: { package?: string } };
   agents?: string[];
+  pluginVersions?: Record<string, string>;
   chunkers?: Array<{ strategy?: string }>;
 }
 
@@ -151,11 +155,39 @@ async function getLatestVersion(packageName: string): Promise<string | null> {
   }
 }
 
+async function readPluginDirPackageJson(
+  pluginDir: string,
+  packageName: string,
+): Promise<PackageJson | null> {
+  const pkgPath = join(pluginDir, "node_modules", packageName, "package.json");
+  if (!existsSync(pkgPath)) return null;
+  try {
+    const raw = await readFile(pkgPath, "utf-8");
+    return JSON.parse(raw) as PackageJson;
+  } catch {
+    return null;
+  }
+}
+
 async function getCurrentVersion(
   cwd: string,
   packageName: string,
 ): Promise<string | null> {
-  // Try local node_modules first
+  // Check local plugin dir first (highest priority)
+  const localPluginPkg = await readPluginDirPackageJson(
+    getLocalPluginDir(cwd),
+    packageName,
+  );
+  if (localPluginPkg?.version) return localPluginPkg.version;
+
+  // Check global plugin dir
+  const globalPluginPkg = await readPluginDirPackageJson(
+    getGlobalPluginDir(),
+    packageName,
+  );
+  if (globalPluginPkg?.version) return globalPluginPkg.version;
+
+  // Try local node_modules (backwards compat)
   const pkg = await readNodeModulePackageJson(cwd, packageName);
   if (pkg?.version) return pkg.version;
 
@@ -176,11 +208,30 @@ async function getCurrentVersion(
   }
 }
 
+async function getPackageInstallLocation(
+  cwd: string,
+  packageName: string,
+): Promise<"local-plugin" | "global-plugin" | "node_modules" | "global-npm"> {
+  if (
+    (await readPluginDirPackageJson(getLocalPluginDir(cwd), packageName))
+      ?.version
+  )
+    return "local-plugin";
+  if (
+    (await readPluginDirPackageJson(getGlobalPluginDir(), packageName))?.version
+  )
+    return "global-plugin";
+  if ((await readNodeModulePackageJson(cwd, packageName))?.version)
+    return "node_modules";
+  return "global-npm";
+}
+
 interface PackageStatus {
   name: string;
   current: string;
   latest: string;
   outdated: boolean;
+  location: "local-plugin" | "global-plugin" | "node_modules" | "global-npm";
 }
 
 export async function runUpdate(): Promise<void> {
@@ -212,9 +263,10 @@ export async function runUpdate(): Promise<void> {
   // Fetch current and latest versions in parallel
   const statuses = await Promise.all(
     packageNames.map(async (name): Promise<PackageStatus> => {
-      const [current, latest] = await Promise.all([
+      const [current, latest, location] = await Promise.all([
         getCurrentVersion(cwd, name),
         getLatestVersion(name),
+        getPackageInstallLocation(cwd, name),
       ]);
       const cur = current ?? "unknown";
       const lat = latest ?? "unknown";
@@ -223,6 +275,7 @@ export async function runUpdate(): Promise<void> {
         current: cur,
         latest: lat,
         outdated: cur !== "unknown" && lat !== "unknown" && cur !== lat,
+        location,
       };
     }),
   );
@@ -268,17 +321,92 @@ export async function runUpdate(): Promise<void> {
 
   if (toUpdate.length > 0) {
     const pm = await detectPackageManager(cwd);
-    const latestPackages = toUpdate.map((n) => `${n}@latest`);
-    const { cmd, args } = isGlobal
-      ? buildGlobalInstallCommand(pm, latestPackages)
-      : buildInstallCommand(pm, latestPackages);
-    console.log(`\nRunning: ${cmd} ${args.join(" ")}`);
-    try {
-      await runInstall(cmd, args);
+
+    // Split packages by install location
+    const selectedStatuses = statuses.filter((s) => toUpdate.includes(s.name));
+    const localPluginPkgs = selectedStatuses
+      .filter((s) => s.location === "local-plugin")
+      .map((s) => `${s.name}@latest`);
+    const globalPluginPkgs = selectedStatuses
+      .filter((s) => s.location === "global-plugin")
+      .map((s) => `${s.name}@latest`);
+    const nodeModulesPkgs = selectedStatuses
+      .filter(
+        (s) => s.location === "node_modules" || s.location === "global-npm",
+      )
+      .map((s) => `${s.name}@latest`);
+
+    let updateFailed = false;
+
+    if (localPluginPkgs.length > 0) {
+      const { cmd, args } = buildPluginPrefixInstallCommand(
+        localPluginPkgs,
+        getLocalPluginDir(cwd),
+      );
+      console.log(`\nRunning: ${cmd} ${args.join(" ")}`);
+      try {
+        await runInstall(cmd, args);
+      } catch {
+        console.log("\nLocal plugin update failed. Try running manually:");
+        console.log(`  ${cmd} ${args.join(" ")}`);
+        updateFailed = true;
+      }
+    }
+
+    if (globalPluginPkgs.length > 0) {
+      const { cmd, args } = buildPluginPrefixInstallCommand(
+        globalPluginPkgs,
+        getGlobalPluginDir(),
+      );
+      console.log(`\nRunning: ${cmd} ${args.join(" ")}`);
+      try {
+        await runInstall(cmd, args);
+      } catch {
+        console.log("\nGlobal plugin update failed. Try running manually:");
+        console.log(`  ${cmd} ${args.join(" ")}`);
+        updateFailed = true;
+      }
+    }
+
+    if (nodeModulesPkgs.length > 0) {
+      const { cmd, args } = isGlobal
+        ? buildGlobalInstallCommand(pm, nodeModulesPkgs)
+        : buildInstallCommand(pm, nodeModulesPkgs);
+      console.log(`\nRunning: ${cmd} ${args.join(" ")}`);
+      try {
+        await runInstall(cmd, args);
+      } catch {
+        console.log("\nUpdate failed. Try running manually:");
+        console.log(`  ${cmd} ${args.join(" ")}`);
+        updateFailed = true;
+      }
+    }
+
+    if (!updateFailed) {
       console.log("\nPackages updated successfully.");
-    } catch {
-      console.log("\nUpdate failed. Try running manually:");
-      console.log(`  ${cmd} ${args.join(" ")}`);
+
+      // Rewrite pluginVersions in virage.config.json for plugin-dir packages
+      const configPath = join(cwd, "virage.config.json");
+      if (existsSync(configPath)) {
+        try {
+          const raw = await readFile(configPath, "utf-8");
+          const cfg = JSON.parse(raw) as Record<string, unknown>;
+          const existingVersions =
+            (cfg.pluginVersions as Record<string, string> | undefined) ?? {};
+          for (const s of selectedStatuses) {
+            if (
+              s.location === "local-plugin" ||
+              s.location === "global-plugin"
+            ) {
+              existingVersions[s.name] = s.latest;
+            }
+          }
+          cfg.pluginVersions = existingVersions;
+          await writeFile(configPath, JSON.stringify(cfg, null, 2) + "\n");
+        } catch {
+          // Non-fatal: config update failed but packages were installed
+        }
+      }
     }
   }
 

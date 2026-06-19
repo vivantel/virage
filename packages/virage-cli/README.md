@@ -4,11 +4,34 @@ CLI for the [Virage RAG pipeline](https://github.com/vivantel/virage).
 
 ## Installation
 
+Install the CLI globally:
+
 ```bash
 npm install -g @vivantel/virage-cli
-# or run directly
-npx @vivantel/virage-cli <command>
 ```
+
+Then set up a project:
+
+```bash
+cd my-project
+virage init   # interactive wizard: selects embedder, vector store, agents; installs plugins
+virage index  # index the codebase
+```
+
+`virage init` installs all required plugins (embedder, vector store, re-ranker, agent plugins) to either `~/.virage/plugins` (global) or `$PROJECT_DIR/.virage/plugins` (local). Installed versions are recorded in `virage.config.json` under `pluginVersions`.
+
+## Plugin management
+
+Virage extensions — embedders, vector stores, re-rankers, and agent plugins — are managed by the CLI and stored in dedicated plugin directories:
+
+| Scope | Path |
+|-------|------|
+| Local (per-project) | `$PROJECT_DIR/.virage/plugins/` |
+| Global (all projects) | `~/.virage/plugins/` |
+
+Load priority: local > global. Install scope is chosen during `virage init`.
+
+Use `virage update` to update installed plugins and resync agent configs.
 
 ## Commands
 
@@ -23,13 +46,18 @@ Every top-level command has a single-key alias — use `virage --help` to see al
 | `virage validate` | `val` | Validate config without running the pipeline |
 | `virage query <text>` | `q` | Semantic search over the indexed knowledge base |
 
-### Agent integration
+### Setup & updates
 
 | Command | Alias | Description |
 |---------|-------|-------------|
-| `virage init` | — | Generate a `virage.config.json` template and configure agent plugins |
-| `virage update` | `up` | Update all virage packages — embedders, vector stores, rerankers, agents, and chunkers (reads `virage.config.json`; works in non-Node projects) |
+| `virage init` | — | Interactive wizard: configure embedder, vector store, re-ranker, hybrid search, and agent plugins; installs all selected plugins |
+| `virage update` | `up` | Check for outdated plugins, update selected ones, and resync agent configs |
 | `virage install-hooks` | `hooks` | Install git hooks for auto-indexing on pull/branch switch |
+
+### Agent utilities
+
+| Command | Alias | Description |
+|---------|-------|-------------|
 | `virage usage` | `use` | Print per-prompt token usage for the current Claude Code session |
 | `virage read-skill-summary <name>` | `skill` | Print the summary for a named Virage skill |
 
@@ -67,6 +95,79 @@ All evaluation commands live under the `virage eval` (`e`) parent:
 | `virage telemetry init` | Interactive telemetry configuration wizard |
 | `virage telemetry preview` | Preview the telemetry payload (no transmission) |
 | `virage telemetry flush` | Flush buffered telemetry to the configured endpoint |
+
+## Configuration
+
+All configuration lives in `virage.config.json`. The `$schema` field enables IDE autocomplete and inline validation. `${ENV_VAR}` patterns are expanded from the environment at runtime.
+
+```json
+{
+  "$schema": "https://unpkg.com/@vivantel/virage-core/schemas/virage.config.schema.json",
+  "chunkers": [
+    { "patterns": ["**/*.md"], "strategy": "markdownHeaders" },
+    { "patterns": ["src/**/*.ts"], "strategy": "codeChunkAst" }
+  ],
+  "agents": ["claude-code"],
+  "embedder": {
+    "package": "@vivantel/virage-embedder-transformers",
+    "config": { "model": "Xenova/all-MiniLM-L6-v2", "dimensions": 384 }
+  },
+  "vectorStore": {
+    "package": "@vivantel/virage-store-lancedb",
+    "config": { "uri": ".virage/lancedb" }
+  },
+  "search": {
+    "hybrid": true,
+    "hybridAlpha": 0.6,
+    "reranker": {
+      "package": "@vivantel/virage-reranker-cross-encoder",
+      "config": { "model": "Xenova/ms-marco-MiniLM-L-6-v2", "topK": 5 }
+    }
+  },
+  "pluginVersions": {
+    "@vivantel/virage-embedder-transformers": "0.2.36",
+    "@vivantel/virage-store-lancedb": "0.2.36",
+    "@vivantel/virage-agent-claude": "0.2.24"
+  }
+}
+```
+
+## Embedders
+
+| Package | Requires API key | Notes |
+|---------|-----------------|-------|
+| `@vivantel/virage-embedder-openai` | Yes | OpenAI, Azure, GitHub Models, Ollama, any OpenAI-compatible endpoint |
+| `@vivantel/virage-embedder-fastembed` | No | Fast local ONNX inference; good default for offline use |
+| `@vivantel/virage-embedder-transformers` | No | HuggingFace Transformers.js; wider model selection |
+
+## Vector stores
+
+| Package | Infrastructure | Best for |
+|---------|---------------|---------|
+| `@vivantel/virage-store-lancedb` | None (file-based) | Local dev, CI, small projects |
+| `@vivantel/virage-store-postgres` | PostgreSQL + pgvector | Production, complex SQL queries |
+| `@vivantel/virage-store-qdrant` | Qdrant (Docker or cloud) | High-scale, distributed deployments |
+| `@vivantel/virage-store-chromadb` | ChromaDB (Docker or hosted) | Simple hosted deployments |
+
+## Re-rankers
+
+Optional post-retrieval re-rankers improve result precision by re-scoring the top-K candidates.
+
+| Package | Requires API key | Notes |
+|---------|-----------------|-------|
+| `@vivantel/virage-reranker-cross-encoder` | No | Local ONNX cross-encoder; no API key required |
+| `@vivantel/virage-reranker-llm` | Yes (Anthropic) | LLM-based re-ranker using claude-haiku-4-5 |
+
+## Agent plugins
+
+Agent plugins configure AI coding assistants to use Virage for semantic search and context retrieval. Selected during `virage init`, they are installed to the plugin dir and their `configure()` function is run to write vendor-native config files (hooks, MCP registration, slash commands).
+
+| Package | Agent | Config written |
+|---------|-------|---------------|
+| `@vivantel/virage-agent-claude` | Claude Code | `.claude/skills/virage-agent/` + MCP server registration |
+| `@vivantel/virage-agent-copilot` | GitHub Copilot | `.github/copilot/` (hooks.json, instructions/) |
+| `@vivantel/virage-agent-codex` | OpenAI Codex | `.codex/` (hooks.json) |
+| `@vivantel/virage-agent-antigravity` | Google Antigravity | `.antigravity/` (hooks.json) |
 
 ## Options
 

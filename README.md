@@ -35,44 +35,53 @@ Monorepo for the **Virage** ecosystem — a Git-aware RAG pipeline that turns yo
 
 ## Quick start
 
-Install the core packages and at least one embedder and one vector store:
+Install the CLI globally:
 
 ```bash
-npm install @vivantel/virage-core @vivantel/virage-cli @vivantel/virage-strategies \
-  @vivantel/virage-embedder-fastembed @vivantel/virage-store-lancedb
+npm install -g @vivantel/virage-cli
 ```
 
-Generate a config interactively (detects file types and selects strategies automatically; installs required packages including `@vivantel/virage-code-chunk-chunker` for code projects):
+Set up a project (interactive wizard selects embedder, vector store, re-ranker, hybrid search, and agent plugins — and installs everything):
 
 ```bash
-npx virage init
+cd my-project
+virage init
 ```
 
 Run the pipeline:
 
 ```bash
-npx virage index
+virage index
 ```
 
 ## Configuration
 
-All configuration lives in `virage.config.json`. The `$schema` field enables IDE autocomplete and inline validation.  
-`${ENV_VAR}` patterns are expanded from the environment at runtime.
+All configuration lives in `virage.config.json`. The `$schema` field enables IDE autocomplete and inline validation. `${ENV_VAR}` patterns are expanded from the environment at runtime. `pluginVersions` records the exact versions installed by `virage init` / `virage update`.
 
 ```json
 {
-  "$schema": "./node_modules/@vivantel/virage-core/schemas/virage.config.schema.json",
+  "$schema": "https://unpkg.com/@vivantel/virage-core/schemas/virage.config.schema.json",
   "chunkers": [
     { "patterns": ["**/*.md"], "strategy": "markdownHeaders" },
     { "patterns": ["src/**/*.ts", "src/**/*.tsx"], "strategy": "codeChunkAst" }
   ],
+  "agents": ["claude-code"],
   "embedder": {
     "package": "@vivantel/virage-embedder-fastembed",
     "config": { "model": "BAAI/bge-small-en-v1.5", "dimensions": 384 }
   },
   "vectorStore": {
     "package": "@vivantel/virage-store-lancedb",
-    "config": { "uri": "./lancedb" }
+    "config": { "uri": ".virage/lancedb" }
+  },
+  "search": {
+    "hybrid": true,
+    "hybridAlpha": 0.6
+  },
+  "pluginVersions": {
+    "@vivantel/virage-embedder-fastembed": "0.2.35",
+    "@vivantel/virage-store-lancedb": "0.2.36",
+    "@vivantel/virage-agent-claude": "0.2.24"
   },
   "options": {
     "rateLimitMs": 200,
@@ -161,6 +170,15 @@ The embedder model name and dimensions are tracked in `embeddings.json`. Changin
 | `virage-store-qdrant`   | Qdrant (Docker or cloud)    | High-scale, distributed deployments |
 | `virage-store-chromadb` | ChromaDB (Docker or hosted) | Simple hosted deployments           |
 
+## Re-rankers
+
+Optional post-retrieval re-rankers re-score the top-K candidates for higher precision. Configured under `search.reranker` in `virage.config.json`.
+
+| Package | Requires API key | Notes |
+|---------|-----------------|-------|
+| `@vivantel/virage-reranker-cross-encoder` | No | Local ONNX cross-encoder; no API key required |
+| `@vivantel/virage-reranker-llm` | Yes (Anthropic) | LLM-based re-ranker using claude-haiku-4-5 |
+
 ## Tuning
 
 Fine-tune indexing performance via the `options` block in `virage.config.json`:
@@ -173,34 +191,18 @@ Fine-tune indexing performance via the `options` block in `virage.config.json`:
 Use `--force` to discard the incremental cache and re-index everything from scratch.  
 Use `-v` / `-vv` / `-vvv` with `virage index` to increase log verbosity for debugging.
 
-## AI assistant integration (MCP)
+## AI assistant integration
 
-`@vivantel/virage-mcp` exposes your indexed knowledge to AI assistants via the [Model Context Protocol](https://modelcontextprotocol.io).
+Agent plugins configure your coding assistant to use Virage for semantic search and context retrieval. Select one or more agents during `virage init` — the plugin is installed and configured automatically.
 
-**Claude Code:**
+| Agent | Plugin | What gets configured |
+|-------|--------|---------------------|
+| Claude Code | `@vivantel/virage-agent-claude` | MCP server registration, slash commands, skills |
+| GitHub Copilot | `@vivantel/virage-agent-copilot` | `.github/copilot/` hooks and instructions |
+| OpenAI Codex | `@vivantel/virage-agent-codex` | `.codex/` hooks |
+| Google Antigravity | `@vivantel/virage-agent-antigravity` | `.antigravity/` hooks |
 
-```bash
-claude mcp add virage -- npx @vivantel/virage-mcp --config ./virage.config.json
-```
-
-**Claude Desktop** — add to `claude_desktop_config.json`:
-
-```json
-{
-  "mcpServers": {
-    "virage": {
-      "command": "npx",
-      "args": [
-        "@vivantel/virage-mcp",
-        "--config",
-        "/path/to/virage.config.json"
-      ]
-    }
-  }
-}
-```
-
-The server exposes tools for semantic search, chunk browsing, and index statistics — all read-only.
+Run `virage update` to resync agent configs after upgrading plugin packages.
 
 ## Dashboard
 

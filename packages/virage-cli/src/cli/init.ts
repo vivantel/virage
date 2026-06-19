@@ -1,6 +1,7 @@
 import { checkbox, input, select } from "@inquirer/prompts";
 import { existsSync } from "fs";
 import { readFile, rename, writeFile } from "fs/promises";
+import { dirname, resolve } from "path";
 import { loadRegistry, getVirageDir } from "@vivantel/virage-core";
 import type { PluginRegistry } from "@vivantel/virage-core";
 import {
@@ -8,30 +9,55 @@ import {
   type ExtGroup,
   detectFileExtensions,
 } from "./file-detect.js";
-import { resolveSkillsPackagePath, syncSkills } from "./skills.js";
 import { discoverAgentPlugins, runAgentPlugin } from "./agent-plugin.js";
 import {
-  detectPackageManager,
-  buildInstallCommand,
-  buildGlobalInstallCommand,
+  getLocalPluginDir,
+  getGlobalPluginDir,
+  buildPluginPrefixInstallCommand,
+  fetchLatestVersion,
   runInstall,
 } from "./pkg-manager.js";
 
 // ─── Known agent plugins (always shown, regardless of what's installed) ──────
 
 const KNOWN_AGENTS = [
-  { name: "claude-code", label: "Claude Code" },
-  { name: "copilot", label: "GitHub Copilot" },
-  { name: "codex", label: "OpenAI Codex" },
-  { name: "antigravity", label: "Antigravity" },
+  {
+    name: "claude-code",
+    label: "Claude Code",
+    package: "@vivantel/virage-agent-claude",
+  },
+  {
+    name: "copilot",
+    label: "GitHub Copilot",
+    package: "@vivantel/virage-agent-copilot",
+  },
+  {
+    name: "codex",
+    label: "OpenAI Codex",
+    package: "@vivantel/virage-agent-codex",
+  },
+  {
+    name: "antigravity",
+    label: "Antigravity",
+    package: "@vivantel/virage-agent-antigravity",
+  },
 ];
+
+const AGENT_PACKAGES: Record<string, string> = Object.fromEntries(
+  KNOWN_AGENTS.map((a) => [a.name, a.package]),
+);
 
 // ─── Back-navigation support ──────────────────────────────────────────────────
 
 const BACK_VALUE = "__back__";
+const EXIT_VALUE = "__exit__";
 
 function isBack(value: unknown): value is typeof BACK_VALUE {
   return value === BACK_VALUE;
+}
+
+function isExit(value: unknown): value is typeof EXIT_VALUE {
+  return value === EXIT_VALUE;
 }
 
 function withBack<T>(
@@ -40,6 +66,15 @@ function withBack<T>(
   return [
     ...choices,
     { name: "← Back", value: BACK_VALUE as typeof BACK_VALUE },
+  ];
+}
+
+function withExit<T>(
+  choices: { name: string; value: T }[],
+): { name: string; value: T | typeof EXIT_VALUE }[] {
+  return [
+    ...choices,
+    { name: "← Exit", value: EXIT_VALUE as typeof EXIT_VALUE },
   ];
 }
 
@@ -70,10 +105,15 @@ function formatSummary(state: WizardState, registry: PluginRegistry): string {
     ? `Enabled (alpha=${state.hybridAlpha ?? 0.6})`
     : "Disabled";
 
+  const scopeLabel =
+    state.installScope === "global"
+      ? `Global (~/.virage/plugins)`
+      : `Local (${getLocalPluginDir(dirname(resolve(state.outputPath)))})`;
+
   const width = 52;
   const labelWidth = 14;
-  const labelPad = 2; // leading spaces
-  const valueWidth = width - 2 - labelPad - labelWidth; // 34
+  const labelPad = 2;
+  const valueWidth = width - 2 - labelPad - labelWidth;
 
   const wrapValue = (value: string): string[] => {
     const parts = value.split(", ");
@@ -114,6 +154,7 @@ function formatSummary(state: WizardState, registry: PluginRegistry): string {
     wrapLine("Vector store:", storeLabel),
     wrapLine("Re-ranker:", rerankerLabel),
     wrapLine("Hybrid search:", hybridLabel),
+    wrapLine("Install scope:", scopeLabel),
     wrapLine("Output:", state.outputPath),
     `╚${bar}╝`,
   ].join("\n");
@@ -130,6 +171,8 @@ interface WizardState {
   reranker?: "cross-encoder" | "llm";
   hybrid?: boolean;
   hybridAlpha?: number;
+  installScope: "local" | "global";
+  pluginVersions: Record<string, string>;
 }
 
 // ─── Package helpers ──────────────────────────────────────────────────────────
@@ -155,6 +198,11 @@ function getRequiredPackages(
     pkgs.add("@vivantel/virage-code-chunk-chunker");
   if (state.reranker && RERANKER_PACKAGES[state.reranker])
     pkgs.add(RERANKER_PACKAGES[state.reranker]);
+  // Add agent packages for selected agents
+  for (const agent of state.agents) {
+    const pkg = AGENT_PACKAGES[agent];
+    if (pkg) pkgs.add(pkg);
+  }
   return Array.from(pkgs);
 }
 
@@ -163,8 +211,6 @@ async function rotateConfigBackups(configPath: string): Promise<void> {
 
   const bak = (n: number) => `${configPath}.bak.${n}`;
 
-  // Skip rotation when the current config is identical to the latest backup —
-  // avoids accumulating redundant backups on repeated runs without real changes.
   if (existsSync(bak(1))) {
     try {
       const [current, latest] = await Promise.all([
@@ -244,7 +290,7 @@ function generateJsonConfig(
 
   const config: Record<string, unknown> = {
     $schema:
-      "./node_modules/@vivantel/virage-core/schemas/virage.config.schema.json",
+      "https://unpkg.com/@vivantel/virage-core/schemas/virage.config.schema.json",
     chunkers,
     agents: state.agents,
     embedder: {
@@ -265,6 +311,10 @@ function generateJsonConfig(
   }
   if (Object.keys(searchConfig).length > 0) {
     config.search = searchConfig;
+  }
+
+  if (Object.keys(state.pluginVersions).length > 0) {
+    config.pluginVersions = state.pluginVersions;
   }
 
   return JSON.stringify(config, null, 2) + "\n";
@@ -326,29 +376,47 @@ export async function runInit(): Promise<void> {
   const state: Partial<WizardState> = {};
   let step = 0;
 
-  while (step < 8) {
+  // 9 steps (0–8); step 9 exits the loop
+  while (step < 9) {
     switch (step) {
-      // ── Step 0: output path ──
+      // ── Step 0: output path (Exit instead of Back) ──
       case 0: {
-        const outputPath = await input({
-          message: "Output path for the config file?",
-          default: "./virage.config.json",
+        const pathChoice = await select({
+          message: "Config file output path?",
+          choices: withExit([
+            {
+              name: "Use default (./virage.config.json)",
+              value: "default" as const,
+            },
+            { name: "Enter custom path", value: "custom" as const },
+          ]),
         });
-        const resolved = outputPath.trim() || "./virage.config.json";
-        if (existsSync(resolved)) {
-          const overwrite = await select({
-            message: `${resolved} already exists. Overwrite?`,
-            choices: [
-              { name: "Yes (backup & overwrite)", value: true },
-              { name: "No, cancel", value: false },
-            ],
-          });
-          if (!overwrite) {
-            console.log("\nCancelled.");
-            return;
-          }
+        if (isExit(pathChoice)) {
+          console.log("\nExiting.");
+          return;
         }
-        state.outputPath = resolved;
+
+        let outputPath = "./virage.config.json";
+        if (pathChoice === "custom") {
+          outputPath = await input({
+            message: "Custom output path:",
+            default: "./virage.config.json",
+          });
+          outputPath = outputPath.trim() || "./virage.config.json";
+        }
+
+        if (existsSync(outputPath)) {
+          const overwrite = await select({
+            message: `${outputPath} already exists. Overwrite?`,
+            choices: withBack([
+              { name: "Yes (backup & overwrite)", value: "overwrite" as const },
+            ]),
+          });
+          if (isBack(overwrite)) break; // re-run step 0
+          // overwrite === "overwrite"
+        }
+
+        state.outputPath = outputPath;
         step++;
         break;
       }
@@ -356,14 +424,23 @@ export async function runInit(): Promise<void> {
       // ── Step 1: file types ──
       case 1: {
         if (detectedGroups.length > 0) {
-          const confirmed = await checkbox({
-            message: "Detected file types — select which to index:",
-            choices: detectedGroups.map((g) => ({
+          const choices = withBack(
+            detectedGroups.map((g) => ({
               name: `${g.name} (${g.exts.join(", ")}) → ${g.strategyFn}`,
               value: g.name,
-              checked: true,
+            })),
+          );
+          const confirmed = await checkbox({
+            message: "Detected file types — select which to index:",
+            choices: choices.map((c) => ({
+              ...c,
+              checked: !isBack(c.value),
             })),
           });
+          if (confirmed.includes(BACK_VALUE)) {
+            step--;
+            break;
+          }
           state.groups = detectedGroups.filter((g) =>
             confirmed.includes(g.name),
           );
@@ -371,13 +448,20 @@ export async function runInit(): Promise<void> {
           console.log(
             "No known file types detected. Choose strategies manually:",
           );
-          const chosen = await checkbox({
-            message: "Which chunking strategies do you need?",
-            choices: EXT_GROUPS.map((g) => ({
+          const choices = withBack(
+            EXT_GROUPS.map((g) => ({
               name: `${g.name} (${g.strategyFn})`,
               value: g.name,
             })),
+          );
+          const chosen = await checkbox({
+            message: "Which chunking strategies do you need?",
+            choices,
           });
+          if (chosen.includes(BACK_VALUE)) {
+            step--;
+            break;
+          }
           state.groups = EXT_GROUPS.filter((g) => chosen.includes(g.name));
         }
         step++;
@@ -389,22 +473,28 @@ export async function runInit(): Promise<void> {
         const discoveredMap = new Map(
           discoveredAgentPlugins.map((p) => [p.name, p]),
         );
-        const pluginChoices = [
+        const agentChoices = withBack([
           ...KNOWN_AGENTS.map((a) => ({
             name: discoveredMap.get(a.name)?.label ?? a.label,
             value: a.name,
-            checked: a.name === "claude-code",
           })),
           ...discoveredAgentPlugins
             .filter((p) => !KNOWN_AGENTS.some((a) => a.name === p.name))
-            .map((p) => ({ name: p.label, value: p.name, checked: false })),
-        ];
+            .map((p) => ({ name: p.label, value: p.name })),
+        ]);
 
-        const agentChoices = await checkbox({
+        const selected = await checkbox({
           message: "Select coding agents to integrate:",
-          choices: pluginChoices,
+          choices: agentChoices.map((c) => ({
+            ...c,
+            checked: !isBack(c.value) && c.value === "claude-code",
+          })),
         });
-        state.agents = agentChoices;
+        if (selected.includes(BACK_VALUE)) {
+          step--;
+          break;
+        }
+        state.agents = selected.filter((v) => !isBack(v)) as string[];
         step++;
         break;
       }
@@ -473,42 +563,109 @@ export async function runInit(): Promise<void> {
 
       // ── Step 6: hybrid search ──
       case 6: {
-        const hybridChoice = await select({
-          message:
-            "Enable hybrid search? (BM25 + vector fusion improves recall for keyword-heavy queries)",
+        // Sub-loop: yes/no → optionally hybridAlpha.
+        // Back in yes/no → previous step. Back in alpha → re-run yes/no.
+        let backToStep5 = false;
+        let step6Done = false;
+
+        while (!step6Done && !backToStep5) {
+          const hybridChoice = await select({
+            message:
+              "Enable hybrid search? (BM25 + vector fusion improves recall for keyword-heavy queries)",
+            default: "yes",
+            choices: withBack([
+              {
+                name: "Yes — BM25 + vector hybrid (recommended)",
+                value: "yes",
+              },
+              { name: "No — pure vector search", value: "no" },
+            ]),
+          });
+
+          if (isBack(hybridChoice)) {
+            backToStep5 = true;
+            break;
+          }
+
+          state.hybrid = hybridChoice === "yes";
+
+          if (state.hybrid) {
+            const alphaChoice = await select({
+              message:
+                "Blend weight — hybridAlpha (0 = pure BM25, 1 = pure vector):",
+              default: "0.6",
+              choices: withBack([
+                { name: "0.6 (recommended)", value: "0.6" },
+                { name: "0.3 (lean BM25)", value: "0.3" },
+                { name: "0.8 (lean vector)", value: "0.8" },
+                { name: "Enter custom value", value: "custom" },
+              ]),
+            });
+
+            if (isBack(alphaChoice)) {
+              // Back within step 6 → re-run the yes/no prompt
+              state.hybrid = undefined;
+              state.hybridAlpha = undefined;
+              continue;
+            }
+
+            if (alphaChoice === "custom") {
+              const alphaStr = await input({
+                message: "hybridAlpha (0.0–1.0):",
+                default: "0.6",
+                validate: (v) => {
+                  const n = parseFloat(v);
+                  if (isNaN(n) || n < 0 || n > 1)
+                    return "Enter a number between 0 and 1";
+                  return true;
+                },
+              });
+              state.hybridAlpha = parseFloat(alphaStr);
+            } else {
+              state.hybridAlpha = parseFloat(alphaChoice);
+            }
+          }
+
+          step6Done = true;
+        }
+
+        if (backToStep5) {
+          step--;
+        } else {
+          step++;
+        }
+        break;
+      }
+
+      // ── Step 7: install scope ──
+      case 7: {
+        const configDir = dirname(resolve(state.outputPath!));
+        const localDir = getLocalPluginDir(configDir);
+        const globalDir = getGlobalPluginDir();
+        const choice = await select({
+          message: "Where should virage plugins be installed?",
           choices: withBack([
-            { name: "No — pure vector search", value: "no" },
             {
-              name: "Yes — BM25 + vector hybrid (recommended)",
-              value: "yes",
+              name: `Local — ${localDir}`,
+              value: "local" as const,
+            },
+            {
+              name: `Global — ${globalDir}`,
+              value: "global" as const,
             },
           ]),
         });
-        if (isBack(hybridChoice)) {
+        if (isBack(choice)) {
           step--;
           break;
         }
-        state.hybrid = hybridChoice === "yes";
-        if (state.hybrid) {
-          const alphaStr = await input({
-            message:
-              "Blend weight — hybridAlpha (0 = pure BM25, 1 = pure vector):",
-            default: "0.6",
-            validate: (v) => {
-              const n = parseFloat(v);
-              if (isNaN(n) || n < 0 || n > 1)
-                return "Enter a number between 0 and 1";
-              return true;
-            },
-          });
-          state.hybridAlpha = parseFloat(alphaStr);
-        }
+        state.installScope = choice;
         step++;
         break;
       }
 
-      // ── Step 7: confirmation ──
-      case 7: {
+      // ── Step 8: confirmation ──
+      case 8: {
         console.log("\n" + formatSummary(state as WizardState, registry));
         const confirm = await select({
           message: "Proceed with this configuration?",
@@ -528,6 +685,67 @@ export async function runInit(): Promise<void> {
   }
 
   const finalState = state as WizardState;
+  finalState.pluginVersions = {};
+
+  // ── Resolve and install plugins ──
+  const pkgs = getRequiredPackages(finalState, registry);
+  const configDir = dirname(resolve(finalState.outputPath));
+  const pluginDir =
+    finalState.installScope === "global"
+      ? getGlobalPluginDir()
+      : getLocalPluginDir(configDir);
+
+  if (pkgs.length > 0) {
+    console.log(`\nResolving plugin versions...`);
+
+    const versions = await Promise.all(pkgs.map(fetchLatestVersion));
+    const versionedPkgs = pkgs.map((pkg, i) => {
+      const ver = versions[i];
+      finalState.pluginVersions[pkg] = ver;
+      return ver === "latest" ? pkg : `${pkg}@${ver}`;
+    });
+
+    console.log(`Installing to ${pluginDir}...`);
+    const { cmd, args } = buildPluginPrefixInstallCommand(
+      versionedPkgs,
+      pluginDir,
+    );
+    try {
+      await runInstall(cmd, args);
+      console.log("\nPlugins installed successfully.");
+    } catch {
+      console.log(
+        `\nInstall failed. Run manually:\n  ${cmd} ${args.join(" ")}`,
+      );
+    }
+  }
+
+  // ── Agent plugin configuration ──
+  // Re-discover after install so plugins in the new plugin dir are found
+  const freshAgentPlugins = await discoverAgentPlugins(cwd);
+  const agentPluginsToRun = freshAgentPlugins.filter((p) =>
+    finalState.agents.includes(p.name),
+  );
+
+  for (const plugin of agentPluginsToRun) {
+    try {
+      const result = await runAgentPlugin(plugin, cwd);
+      const hookMsg = result.hooksWritten
+        ? "config written"
+        : "already up to date";
+      const mcpMsg =
+        result.mcpRegistered === true
+          ? "; MCP server registered"
+          : result.mcpRegistered === false
+            ? "; MCP server already registered"
+            : "";
+      console.log(`\n${plugin.label}: ${hookMsg}${mcpMsg}`);
+    } catch (err) {
+      console.log(
+        `\n${plugin.label} configuration failed: ${err instanceof Error ? err.message : String(err)}`,
+      );
+    }
+  }
 
   // ── Write config ──
   await rotateConfigBackups(finalState.outputPath);
@@ -577,111 +795,6 @@ export async function runInit(): Promise<void> {
     }
   } else {
     console.log("\nNo secrets required for this combination.");
-  }
-
-  // ── Auto-install ──
-  const pkgs = getRequiredPackages(finalState, registry);
-  if (pkgs.length > 0) {
-    const pm = await detectPackageManager(cwd);
-    const localCmd = buildInstallCommand(pm, pkgs);
-    const globalCmd = buildGlobalInstallCommand(pm, pkgs);
-    const installChoice = await select({
-      message: `Install ${pkgs.join(", ")} using ${pm}?`,
-      choices: [
-        {
-          name: "Yes, install in current folder (recommended)",
-          value: "local" as const,
-        },
-        { name: "Yes, install globally", value: "global" as const },
-        { name: "No, I'll install manually", value: "manual" as const },
-      ],
-    });
-    if (installChoice === "local" || installChoice === "global") {
-      const { cmd, args } = installChoice === "global" ? globalCmd : localCmd;
-      try {
-        await runInstall(cmd, args);
-        console.log("\nPackages installed successfully.");
-      } catch {
-        console.log(
-          `\nInstall failed. Run manually:\n  ${cmd} ${args.join(" ")}`,
-        );
-      }
-    } else {
-      console.log(
-        `\nRun manually:\n  ${localCmd.cmd} ${localCmd.args.join(" ")}`,
-      );
-    }
-  }
-
-  // ── Skills installation ──
-  const skillsPkgPath = resolveSkillsPackagePath();
-  if (skillsPkgPath !== null) {
-    const installSkills = await select({
-      message: "Install Virage AI agent skills?",
-      choices: [
-        {
-          name: "Yes — install/update to .agents/skills/virage/",
-          value: true,
-        },
-        { name: "No, skip", value: false },
-      ],
-    });
-    if (installSkills) {
-      try {
-        const result = await syncSkills(skillsPkgPath, cwd);
-        if (result.created.length > 0)
-          console.log(`\nSkills installed: ${result.created.length} new`);
-        if (result.updated.length > 0)
-          console.log(`Skills updated: ${result.updated.length}`);
-        if (result.deleted.length > 0)
-          console.log(`Skills removed: ${result.deleted.length}`);
-        if (
-          result.created.length === 0 &&
-          result.updated.length === 0 &&
-          result.deleted.length === 0
-        )
-          console.log("\nSkills already up to date.");
-      } catch (err) {
-        console.log(
-          `\nSkills install failed: ${err instanceof Error ? err.message : String(err)}`,
-        );
-        console.log("You can retry by running virage init again.");
-      }
-    }
-  }
-
-  // ── Agent plugin configuration ──
-  const agentPlugins = discoveredAgentPlugins.filter((p) =>
-    finalState.agents.length > 0 ? finalState.agents.includes(p.name) : false,
-  );
-  if (agentPlugins.length > 0) {
-    const selectedPlugins = await checkbox({
-      message: "Configure AI agent integration?",
-      choices: agentPlugins.map((p) => ({
-        name: p.label,
-        value: p,
-        checked: true,
-      })),
-    });
-    for (const plugin of selectedPlugins) {
-      try {
-        const result = await runAgentPlugin(plugin, cwd);
-        const hookMsg = result.hooksWritten
-          ? "config written"
-          : "already up to date";
-        const mcpMsg =
-          result.mcpRegistered === true
-            ? "; MCP server registered"
-            : result.mcpRegistered === false
-              ? "; MCP server already registered"
-              : "";
-        console.log(`\n${plugin.label}: ${hookMsg}${mcpMsg}`);
-      } catch (err) {
-        console.log(
-          `\n${plugin.label} configuration failed: ${err instanceof Error ? err.message : String(err)}`,
-        );
-      }
-    }
   }
 
   // ── Next steps ──
