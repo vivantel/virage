@@ -1,0 +1,89 @@
+{
+  "$schema": "https://unpkg.com/@vivantel/virage-core/schemas/virage.config.schema.json",
+  "chunking": {
+    "exclude": [
+      "**/*.a",
+      "**/*.class",
+      "**/*.generated.cs",
+      "**/*.lock",
+      "**/*.min.css",
+      "**/*.min.js",
+      "**/*.o",
+      "**/*.pb.cs",
+      "**/*.pb.go",
+      "**/*.pb.ts",
+      "**/.next/**",
+      "**/.turbo/**",
+      "**/CMakeFiles/**",
+      "**/bin/**",
+      "**/cmake-build-*/**",
+      "**/dist/**",
+      "**/node_modules/**",
+      "**/obj/**",
+      "**/out/**",
+      "**/package-lock.json",
+      "**/pnpm-lock.yaml",
+      "**/target/**",
+      "**/vendor/**",
+      "**/yarn.lock"
+    ],
+    "chunkers": [
+      {
+        "name": "markdown",
+        "patterns": [
+          "**/*.md",
+          "**/*.mdx"
+        ],
+        "strategy": "markdownHeaders"
+      },
+      {
+        "name": "typescript",
+        "patterns": [
+          "**/*.ts",
+          "**/*.tsx"
+        ],
+        "strategy": "codeChunkAst"
+      },
+      {
+        "name": "javascript",
+        "patterns": [
+          "**/*.js",
+          "**/*.jsx"
+        ],
+        "strategy": "codeChunkAst"
+      }
+    ]
+  },
+  "agents": [],
+  "embedder": {
+    "package": "@vivantel/virage-embedder-transformers",
+    "config": {
+      "model": "Xenova/all-MiniLM-L6-v2",
+      "dimensions": 384
+    }
+  },
+  "vectorStore": {
+    "package": "@vivantel/virage-store-lancedb",
+    "config": {
+      "uri": ".virage/lancedb"
+    }
+  },
+  "search": {
+    "reranker": {
+      "package": "@vivantel/virage-reranker-cross-encoder",
+      "config": {
+        "model": "Xenova/ms-marco-MiniLM-L-6-v2",
+        "topK": 5
+      }
+    },
+    "hybrid": true,
+    "hybridAlpha": 0.6
+  },
+  "pluginVersions": {
+    "@vivantel/virage-embedder-transformers": "latest",
+    "@vivantel/virage-store-lancedb": "latest",
+    "@vivantel/virage-code-chunk-chunker": "latest",
+    "@vivantel/virage-reranker-cross-encoder": "latest"
+  },
+  "installScope": "local"
+}
