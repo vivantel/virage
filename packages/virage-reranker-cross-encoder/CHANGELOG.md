@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.1.21](https://github.com/vivantel/virage/compare/virage-reranker-cross-encoder@v0.1.20...virage-reranker-cross-encoder@v0.1.21) (2026-06-20)
+
+
+### Bug Fixes
+
+* **cli,core,reranker:** Correct plugin spawn, reranker scoring, RRF normalization, and up-to-date messaging ([5f67d65](https://github.com/vivantel/virage/commit/5f67d65f693c78204cdd8498ae129ef3f8650c84))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * devDependencies
+    * @vivantel/virage-core bumped from 0.2.42 to 0.2.43
+  * peerDependencies
+    * @vivantel/virage-core bumped from * to 0.2.43
+
 ## [0.1.20](https://github.com/vivantel/virage/compare/virage-reranker-cross-encoder@v0.1.19...virage-reranker-cross-encoder@v0.1.20) (2026-06-20)
 
 
