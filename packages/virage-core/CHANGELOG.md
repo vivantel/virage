@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.36](https://github.com/vivantel/virage/compare/virage-core@v0.2.35...virage-core@v0.2.36) (2026-06-20)
+
+
+### Bug Fixes
+
+* **virage-core:** Resolve ESM-only plugins from plugin dirs by direct file URL ([b05dc32](https://github.com/vivantel/virage/commit/b05dc32efacb9d8453c60af540b28047de458c40))
+
 ## [0.2.35](https://github.com/vivantel/virage/compare/virage-core@v0.2.34...virage-core@v0.2.35) (2026-06-19)
 
 
