@@ -34,12 +34,16 @@ export function rrfMerge(
     if (!byId.has(r.id)) byId.set(r.id, r);
   }
 
-  const maxPossible = 1 / (RRF_K + 1);
+  // Normalize by the actual top score so the best result always shows ~1.0.
+  // Using the theoretical max (1/(K+1)) would only reach 1.0 for results that
+  // appear at rank 0 in both lists simultaneously — single-list results would
+  // cap at hybridAlpha (0.6) or (1-hybridAlpha) (0.4).
+  const maxScore = Math.max(...scores.values());
   return Array.from(scores.entries())
     .sort((a, b) => b[1] - a[1])
     .slice(0, topK)
     .map(([id, score]) => ({
       ...byId.get(id)!,
-      similarity: score / maxPossible,
+      similarity: maxScore > 0 ? score / maxScore : 0,
     }));
 }

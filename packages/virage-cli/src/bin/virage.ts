@@ -158,9 +158,15 @@ async function runOnce(options: {
           renderer.updateFileIndexed(done, total),
       },
     });
-    await orchestrator.run();
+    const result = await orchestrator.run();
     renderer.stop();
-    console.log(`${ansi.green}✨ RAG pipeline complete!${ansi.reset}`);
+    if (result.filesProcessed === 0 && result.filesDeleted === 0) {
+      console.log(
+        `${ansi.green}✨ Everything up to date — no files to process.${ansi.reset}`,
+      );
+    } else {
+      console.log(`${ansi.green}✨ RAG pipeline complete!${ansi.reset}`);
+    }
   } catch (err) {
     renderer.stop();
     throw err;

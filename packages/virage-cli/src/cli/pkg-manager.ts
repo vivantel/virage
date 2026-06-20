@@ -86,13 +86,13 @@ export async function fetchLatestVersion(pkg: string): Promise<string> {
 
 export function runInstall(cmd: string, args: string[]): Promise<void> {
   return new Promise((resolve, reject) => {
-    // On Windows, package manager CLIs are .cmd scripts — use the explicit
-    // extension instead of shell:true to avoid DEP0190 (args + shell = unsafe).
+    const isWin = process.platform === "win32";
+    // On Windows, .cmd wrapper scripts must be invoked through the shell so
+    // cmd.exe can interpret them correctly — without shell:true the process
+    // spawn silently fails or garbles paths with backslashes.
     const resolvedCmd =
-      process.platform === "win32" && !cmd.includes("/") && !cmd.includes("\\")
-        ? `${cmd}.cmd`
-        : cmd;
-    const proc = spawn(resolvedCmd, args, { stdio: "inherit" });
+      isWin && !cmd.includes("/") && !cmd.includes("\\") ? `${cmd}.cmd` : cmd;
+    const proc = spawn(resolvedCmd, args, { stdio: "inherit", shell: isWin });
     proc.on("close", (code) =>
       code === 0
         ? resolve()

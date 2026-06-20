@@ -95,7 +95,7 @@ export class Orchestrator {
     this.embeddingsFile = config.options?.embeddingsFile ?? defaultVirageDb();
   }
 
-  async run(): Promise<void> {
+  async run(): Promise<{ filesProcessed: number; filesDeleted: number }> {
     const opts = this.config.options ?? {};
     const logger = (opts.logger ?? new NullLogger()).withTag("orchestrator");
     const telemetry = opts.telemetry ? new TelemetryCollector() : null;
@@ -187,7 +187,7 @@ export class Orchestrator {
         !effectiveForce
       ) {
         logger.info("✨ No changes detected.");
-        return;
+        return { filesProcessed: 0, filesDeleted: 0 };
       }
 
       logger.info(
@@ -459,6 +459,11 @@ export class Orchestrator {
           deleted: deletedCount,
         });
       }
+
+      return {
+        filesProcessed: toProcess.length,
+        filesDeleted: toDelete.length,
+      };
     } catch (err) {
       telemetry?.finish();
 

@@ -53,16 +53,19 @@ describe("Orchestrator", () => {
   it("run: completes without error when no matching files exist", async () => {
     const orchestrator = new Orchestrator(makeConfig());
     // No files match "**/*.txt" in the test environment's temp context
-    // run() should log "No changes detected" and return cleanly
-    await expect(orchestrator.run()).resolves.toBeUndefined();
+    // run() should return a zero-count result and not throw
+    const result = await orchestrator.run();
+    expect(result.filesProcessed).toBe(0);
+    expect(result.filesDeleted).toBe(0);
   });
 
   it("run: uses force option from config", async () => {
     const config = makeConfig({ force: true });
     const orchestrator = new Orchestrator(config);
-    // Even with force=true, if no files match, it either processes 0 files
-    // or exits after chunk generation. Should not throw.
-    await expect(orchestrator.run()).resolves.toBeUndefined();
+    // Even with force=true, if no files match, it should not throw
+    const result = await orchestrator.run();
+    expect(result.filesProcessed).toBe(0);
+    expect(result.filesDeleted).toBe(0);
   });
 
   it("should use custom embeddingsFile from options", () => {

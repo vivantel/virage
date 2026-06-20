@@ -8,7 +8,12 @@ export interface CrossEncoderRerankerOptions {
 }
 
 // Minimal structural type matching text-classification pipeline's runtime batch behaviour
-type Classifier = { _call(inputs: unknown): Promise<unknown> };
+type Classifier = {
+  _call(
+    inputs: unknown,
+    opts?: { function_to_apply?: string },
+  ): Promise<unknown>;
+};
 
 export class CrossEncoderReranker implements Reranker {
   readonly name = "cross-encoder";
@@ -25,9 +30,9 @@ export class CrossEncoderReranker implements Reranker {
   private async getPipeline(): Promise<Classifier> {
     if (!this._pipeline) {
       const { pipeline } = await import("@huggingface/transformers");
-      this._pipeline = await pipeline("text-classification", this.modelId, {
+      this._pipeline = (await pipeline("text-classification", this.modelId, {
         dtype: "fp32",
-      });
+      })) as unknown as Classifier;
     }
     return this._pipeline!;
   }
@@ -45,27 +50,41 @@ export class CrossEncoderReranker implements Reranker {
       text: query,
       text_pair: c.content,
     }));
-    const outputs: unknown = await pipe._call(inputs);
+    // Request raw logits (no sigmoid/softmax) so scores are not saturated at 1.0
+    // for all inputs. The ms-marco cross-encoder produces logits in roughly [-10, 10];
+    // normalizing within the batch gives meaningful relative similarities.
+    const outputs: unknown = await pipe._call(inputs, {
+      function_to_apply: "none",
+    });
 
-    return candidates
-      .map((c, i) => {
-        const result = Array.isArray(outputs) ? outputs[i] : undefined;
-        const rawResult = Array.isArray(result) ? result[0] : result;
-        const typed = rawResult as
-          | { label?: string; score?: number }
-          | undefined;
-        let score: number | undefined;
-        if (typed?.score !== undefined) {
-          // For 2-class relevance models: LABEL_1 = relevant, LABEL_0 = not-relevant.
-          // The pipeline returns the top label; if LABEL_0 wins we invert to get relevance.
-          score = typed.label === "LABEL_0" ? 1 - typed.score : typed.score;
-        }
-        return {
-          ...c,
-          similarity: score ?? c.similarity,
-        };
-      })
-      .sort((a, b) => b.similarity - a.similarity)
-      .slice(0, k);
+    // Extract raw logit for each candidate
+    const indexed = candidates.map((c, i) => {
+      const result = Array.isArray(outputs) ? outputs[i] : undefined;
+      const raw = Array.isArray(result) ? result[0] : result;
+      const typed = raw as { score?: number } | undefined;
+      return { c, logit: typed?.score };
+    });
+
+    // If the pipeline returned no usable scores, preserve original order and similarities
+    if (!indexed.some((x) => x.logit !== undefined)) {
+      return candidates.slice(0, k).map((c) => ({ ...c }));
+    }
+
+    // Sort by logit descending (higher raw score = more relevant)
+    indexed.sort(
+      (a, b) => (b.logit ?? b.c.similarity) - (a.logit ?? a.c.similarity),
+    );
+    const top = indexed.slice(0, k);
+
+    // Min-max normalize logits to [0, 1] for display, preserving ranking order
+    const logits = top.map((x) => x.logit ?? x.c.similarity);
+    const min = Math.min(...logits);
+    const max = Math.max(...logits);
+    const range = max - min;
+
+    return top.map((x, i) => ({
+      ...x.c,
+      similarity: range > 1e-9 ? (logits[i] - min) / range : 1,
+    }));
   }
 }
