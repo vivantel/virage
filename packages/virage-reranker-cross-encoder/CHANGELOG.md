@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.16](https://github.com/vivantel/virage/compare/virage-reranker-cross-encoder@v0.1.15...virage-reranker-cross-encoder@v0.1.16) (2026-06-20)
+
+
+### Bug Fixes
+
+* **reranker-cross-encoder:** Use text-classification pipeline and remove any casts ([65b920f](https://github.com/vivantel/virage/commit/65b920f01d43ede197dea39f4ec99b2eea95285d))
+
 ## [0.1.15](https://github.com/vivantel/virage/compare/virage-reranker-cross-encoder@v0.1.14...virage-reranker-cross-encoder@v0.1.15) (2026-06-20)
 
 
