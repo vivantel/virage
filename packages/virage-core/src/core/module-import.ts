@@ -2,6 +2,7 @@ import { createRequire } from "node:module";
 import { pathToFileURL } from "node:url";
 import { join } from "node:path";
 import { homedir } from "node:os";
+import { readFileSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 
 type ErrWithCode = Error & { code?: string };
@@ -40,6 +41,49 @@ async function tryImportFrom(pkg: string, base: string): Promise<unknown> {
   return import(pathToFileURL(resolved).href);
 }
 
+// ESM-only packages (virage plugins) cannot be resolved with require.resolve
+// because they have no "require" export condition. Read the package.json directly
+// and construct the file URL from the "import" export condition.
+function resolvePluginEntryPath(pkg: string, pluginDir: string): string {
+  const pkgDir = join(pluginDir, "node_modules", ...pkg.split("/"));
+  let pkgJson: {
+    exports?: unknown;
+    main?: string;
+    module?: string;
+  };
+  try {
+    pkgJson = JSON.parse(readFileSync(join(pkgDir, "package.json"), "utf-8"));
+  } catch {
+    throw new Error(`Package ${pkg} not found in ${pluginDir}`);
+  }
+
+  const exp =
+    pkgJson.exports !== null && typeof pkgJson.exports === "object"
+      ? (pkgJson.exports as Record<string, unknown>)["."]
+      : pkgJson.exports;
+
+  let entryRel: string | undefined;
+  if (typeof exp === "string") {
+    entryRel = exp;
+  } else if (exp !== null && typeof exp === "object") {
+    const o = exp as Record<string, unknown>;
+    entryRel = (o["import"] ?? o["default"]) as string | undefined;
+  }
+
+  entryRel = entryRel ?? pkgJson.module ?? pkgJson.main;
+  if (!entryRel)
+    throw new Error(`No entry point found for ${pkg} in ${pluginDir}`);
+  return join(pkgDir, entryRel);
+}
+
+async function tryImportFromPluginDir(
+  pkg: string,
+  pluginDir: string,
+): Promise<unknown> {
+  const entryPath = resolvePluginEntryPath(pkg, pluginDir);
+  return import(pathToFileURL(entryPath).href);
+}
+
 /**
  * Dynamic import with fallback to plugin dirs, project root, and global npm.
  * Load priority: standard → local plugin dir → global plugin dir → project root → global npm.
@@ -54,14 +98,20 @@ export async function importPackage(pkg: string): Promise<unknown> {
 
   // 2. Local plugin dir — virage init installs here by default
   try {
-    return await tryImportFrom(pkg, join(process.cwd(), ".virage", "plugins"));
+    return await tryImportFromPluginDir(
+      pkg,
+      join(process.cwd(), ".virage", "plugins"),
+    );
   } catch {
     // continue
   }
 
   // 3. Global plugin dir — virage init global install
   try {
-    return await tryImportFrom(pkg, join(homedir(), ".virage", "plugins"));
+    return await tryImportFromPluginDir(
+      pkg,
+      join(homedir(), ".virage", "plugins"),
+    );
   } catch {
     // continue
   }
