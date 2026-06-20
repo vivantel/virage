@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.2.43](https://github.com/vivantel/virage/compare/virage-strategies@v0.2.42...virage-strategies@v0.2.43) (2026-06-20)
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * devDependencies
+    * @vivantel/virage-core bumped from 0.2.41 to 0.2.42
+  * peerDependencies
+    * @vivantel/virage-core bumped from * to 0.2.42
+
 ## [0.2.42](https://github.com/vivantel/virage/compare/virage-strategies@v0.2.41...virage-strategies@v0.2.42) (2026-06-20)
 
 
