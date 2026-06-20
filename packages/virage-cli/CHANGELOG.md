@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.1.70](https://github.com/vivantel/virage/compare/virage-cli@v0.1.69...virage-cli@v0.1.70) (2026-06-20)
+
+
+### Features
+
+* Incremental indexing, semaphore back pressure, keyboard nav, and UX fixes ([098a3d9](https://github.com/vivantel/virage/commit/098a3d93f151bef3ff74c78f5da0ec566723151b))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @vivantel/virage-core bumped from 0.2.39 to 0.2.40
+
 ## [0.1.69](https://github.com/vivantel/virage/compare/virage-cli@v0.1.68...virage-cli@v0.1.69) (2026-06-20)
 
 
