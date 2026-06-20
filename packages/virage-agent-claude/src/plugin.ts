@@ -81,7 +81,39 @@ export class ClaudeAgentPlugin extends BaseAgentPlugin {
     return { ...base, mcpRegistered };
   }
 
+  private isMcpEntryCurrent(
+    entry: { type?: string; command?: string; args?: string[] } | undefined,
+  ): boolean {
+    return (
+      entry?.type === "stdio" &&
+      entry?.command === "npx" &&
+      JSON.stringify(entry?.args) ===
+        JSON.stringify(["-y", "@vivantel/virage-agent-claude@latest"])
+    );
+  }
+
   private async mergeMcpServer(targetDir: string): Promise<boolean> {
+    // Check .mcp.json before invoking `claude mcp add` — if the entry is
+    // already current we have nothing to do and should return false.
+    // Note: `claude mcp add` may write extra fields (e.g. `"env": {}`) so
+    // we compare essential fields individually rather than full JSON equality.
+    const mcpPath = join(targetDir, ".mcp.json");
+    if (existsSync(mcpPath)) {
+      try {
+        const raw = await readFile(mcpPath, "utf-8");
+        const config = JSON.parse(raw) as McpConfig;
+        const hasStale = !!config.mcpServers?.["virage-agent"];
+        if (
+          this.isMcpEntryCurrent(config.mcpServers?.["virage"]) &&
+          !hasStale
+        ) {
+          return false;
+        }
+      } catch {
+        // Unparseable .mcp.json — fall through to re-register.
+      }
+    }
+
     try {
       await execFileAsync(
         "claude",
@@ -123,18 +155,15 @@ export class ClaudeAgentPlugin extends BaseAgentPlugin {
 
     if (!config.mcpServers) config.mcpServers = {};
 
-    const desired = {
+    const hasStale = !!config.mcpServers["virage-agent"];
+    if (this.isMcpEntryCurrent(config.mcpServers["virage"]) && !hasStale)
+      return false;
+
+    config.mcpServers["virage"] = {
       type: "stdio",
       command: "npx",
       args: ["-y", "@vivantel/virage-agent-claude@latest"],
     };
-    const alreadyCurrent =
-      JSON.stringify(config.mcpServers["virage"]) === JSON.stringify(desired);
-    const hasStale = !!config.mcpServers["virage-agent"];
-
-    if (alreadyCurrent && !hasStale) return false;
-
-    config.mcpServers["virage"] = desired;
     delete config.mcpServers["virage-agent"];
 
     await writeFile(mcpPath, JSON.stringify(config, null, 2) + "\n");
