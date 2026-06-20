@@ -455,7 +455,7 @@ export class VirageDb {
         const chunk = chunks[i];
         upsert.run(
           newHashes[i],
-          chunk.sourceFile,
+          sourceFile,
           chunk.commitHash,
           chunk.content,
           JSON.stringify(chunk.metadata),

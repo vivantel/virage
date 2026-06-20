@@ -23,8 +23,10 @@ function readConfigSummary(configPath: string): RawConfigSummary | null {
   try {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const raw = JSON.parse(readFileSync(configPath, "utf8")) as any;
-    const chunkerCount = Array.isArray(raw.chunking)
-      ? (raw.chunking as unknown[]).length
+    const chunkerCount = Array.isArray(
+      (raw.chunking as { chunkers?: unknown } | undefined)?.chunkers,
+    )
+      ? (raw.chunking as { chunkers: unknown[] }).chunkers.length
       : 0;
     const embedder =
       (raw.embedder?.package as string | undefined)?.split("/").pop() ??

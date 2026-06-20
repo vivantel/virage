@@ -1,4 +1,5 @@
-import { checkbox, input, select } from "@inquirer/prompts";
+import { input, select } from "@inquirer/prompts";
+import { checkboxWithBack, CHECKBOX_BACK } from "./checkbox-nav.js";
 import { existsSync } from "fs";
 import { readFile, rename, writeFile } from "fs/promises";
 import { dirname, resolve } from "path";
@@ -339,6 +340,8 @@ function generateJsonConfig(
     config.pluginVersions = state.pluginVersions;
   }
 
+  config.installScope = state.installScope;
+
   return JSON.stringify(config, null, 2) + "\n";
 }
 
@@ -446,7 +449,7 @@ export async function runInit(): Promise<void> {
       // ── Step 1: file types ──
       case 1: {
         if (detectedGroups.length > 0) {
-          const confirmed = await checkbox({
+          const confirmed = await checkboxWithBack({
             message: "Detected file types — select which to index:",
             choices: detectedGroups.map((g) => ({
               name: `${g.name} (${g.exts.join(", ")}) → ${g.strategyFn}`,
@@ -454,14 +457,7 @@ export async function runInit(): Promise<void> {
               checked: true,
             })),
           });
-          const nav = await select({
-            message: "Proceed or go back?",
-            choices: [
-              { name: "Confirm", value: "confirm" },
-              { name: "← Back", value: "back" },
-            ],
-          });
-          if (nav === "back") {
+          if (confirmed === CHECKBOX_BACK) {
             step--;
             break;
           }
@@ -472,21 +468,14 @@ export async function runInit(): Promise<void> {
           console.log(
             "No known file types detected. Choose strategies manually:",
           );
-          const chosen = await checkbox({
+          const chosen = await checkboxWithBack({
             message: "Which chunking strategies do you need?",
             choices: EXT_GROUPS.map((g) => ({
               name: `${g.name} (${g.strategyFn})`,
               value: g.name,
             })),
           });
-          const nav = await select({
-            message: "Proceed or go back?",
-            choices: [
-              { name: "Confirm", value: "confirm" },
-              { name: "← Back", value: "back" },
-            ],
-          });
-          if (nav === "back") {
+          if (chosen === CHECKBOX_BACK) {
             step--;
             break;
           }
@@ -511,21 +500,14 @@ export async function runInit(): Promise<void> {
             .map((p) => ({ name: p.label, value: p.name })),
         ];
 
-        const selected = await checkbox({
+        const selected = await checkboxWithBack({
           message: "Select coding agents to integrate:",
-          choices: agentItems.map((c) => ({
-            ...c,
-            checked: c.value === "claude-code",
+          choices: agentItems.map((a) => ({
+            ...a,
+            checked: a.value === "claude-code",
           })),
         });
-        const nav = await select({
-          message: "Proceed or go back?",
-          choices: [
-            { name: "Confirm", value: "confirm" },
-            { name: "← Back", value: "back" },
-          ],
-        });
-        if (nav === "back") {
+        if (selected === CHECKBOX_BACK) {
           step--;
           break;
         }

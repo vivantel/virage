@@ -96,6 +96,31 @@ export async function withConcurrency<T>(
   return results;
 }
 
+export class Semaphore {
+  private permits: number;
+  private readonly waiters: Array<() => void> = [];
+
+  constructor(initialPermits: number) {
+    this.permits = initialPermits;
+  }
+
+  async acquire(): Promise<void> {
+    if (this.permits > 0) {
+      this.permits--;
+      return;
+    }
+    await new Promise<void>((resolve) => this.waiters.push(resolve));
+  }
+
+  release(): void {
+    if (this.waiters.length > 0) {
+      this.waiters.shift()!();
+    } else {
+      this.permits++;
+    }
+  }
+}
+
 export function batchArray<T>(array: T[], batchSize: number): T[][] {
   const batches: T[][] = [];
   for (let i = 0; i < array.length; i += batchSize) {

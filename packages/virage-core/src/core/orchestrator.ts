@@ -17,7 +17,7 @@ import type { SourceRepository } from "../interfaces/source-repository.js";
 import type { Logger } from "../interfaces/logger.js";
 import { NullLogger } from "../logger/null-logger.js";
 import { availableParallelism } from "node:os";
-import { RetryOptions, withConcurrency } from "./utils.js";
+import { RetryOptions, Semaphore, withConcurrency } from "./utils.js";
 import { defaultVirageDb } from "./virage-defaults.js";
 import type { TelemetryConfig } from "../telemetry/types.js";
 import type { Reranker } from "../interfaces/reranker.js";
@@ -53,6 +53,8 @@ export interface RAGPipelineConfig {
     minEmbeddingBatchSize?: number;
     /** Minimum embedded-chunk queue size before triggering an upload batch. Default: 20. */
     minUploadingBatchSize?: number;
+    /** Max files whose chunks may be queued for embedding before chunk workers pause. Default: minEmbeddingBatchSize × 3. */
+    maxPendingFiles?: number;
     noBanner?: boolean;
     telemetry?: boolean;
     notifications?: { webhookUrl?: string };
@@ -64,6 +66,7 @@ export interface RAGPipelineConfig {
     onChunkProgress?: (done: number, total: number) => void;
     onEmbedProgress?: (done: number, total: number) => void;
     onUploadProgress?: (done: number, total: number) => void;
+    onFileComplete?: (done: number, total: number) => void;
   };
 }
 
@@ -277,6 +280,11 @@ export class Orchestrator {
       let chunksEmbedded = 0;
       const t2 = Date.now();
 
+      // Per-file upload completion tracking for "Files indexed" footer
+      const fileChunkCounts = new Map<string, number>();
+      const fileUploadedCounts = new Map<string, number>();
+      let filesIndexed = 0;
+
       const flushUpload = async (all: boolean) => {
         if (opts.skipUpload || opts.dryRun) return;
         const limit = all ? pendingUpload.length : minUploadBatch;
@@ -286,6 +294,15 @@ export class Orchestrator {
           uploadDone += ubatch.length;
           uploadedCount += ubatch.length;
           opts.onUploadProgress?.(uploadDone, sharedTotal);
+          for (const chunk of ubatch) {
+            if (!fileChunkCounts.has(chunk.sourceFile)) continue;
+            const prev = fileUploadedCounts.get(chunk.sourceFile) ?? 0;
+            const next = prev + 1;
+            fileUploadedCounts.set(chunk.sourceFile, next);
+            if (next >= (fileChunkCounts.get(chunk.sourceFile) ?? 0)) {
+              opts.onFileComplete?.(++filesIndexed, toProcess.length);
+            }
+          }
         }
       };
 
@@ -307,11 +324,12 @@ export class Orchestrator {
         }
       };
 
-      // Chunk files concurrently, streaming each file's chunks into embed/upload
-      // as soon as that file finishes — no waiting for all files to chunk first.
-      // A rolling serial chain serializes the embed/upload state mutations while
-      // chunk tasks themselves run in parallel.
+      // Chunk files concurrently, streaming each file's chunks into embed/upload.
+      // A Semaphore limits how many files' chunks can be queued ahead of embedding,
+      // creating real back pressure: chunk workers block when the embed queue is full.
       const chunkConcurrency = opts.chunkConcurrency ?? availableParallelism();
+      const maxPendingFiles = opts.maxPendingFiles ?? minEmbedBatch * 3;
+      const embedSemaphore = new Semaphore(maxPendingFiles);
       let filesStreamed = 0;
       let embedChain = Promise.resolve();
 
@@ -338,34 +356,47 @@ export class Orchestrator {
         }
         opts.onChunkProgress?.(++chunkDone, toProcess.length);
 
-        // Append to serial embed chain without blocking this chunk task,
-        // so the next file can start chunking immediately.
+        // Block when the embed queue is full — yields the event loop to embedChain.
+        await embedSemaphore.acquire();
+
         const capturedChunks = newChunks;
         embedChain = embedChain.then(async () => {
-          filesStreamed++;
-          db.replaceChunks(file, capturedChunks);
-          // Skip chunks whose embeddings were preserved (unchanged content)
-          const alreadyEmbedded = db.getEmbeddedContentHashes(file);
-          const chunksToEmbed = capturedChunks.filter(
-            (c) => !alreadyEmbedded.has(c.contentHash!),
-          );
-          pendingEmbed.push(...chunksToEmbed);
-          embedTotal += chunksToEmbed.length;
-          chunksGenerated += chunksToEmbed.length;
-
-          // Project a shared total using actual average chunks-per-file across
-          // fully-processed files; include carry-over pending work in the total.
-          if (chunksGenerated > 0) {
-            const avgChunksPerFile = chunksGenerated / filesStreamed;
-            const projectedNew = Math.round(
-              toProcess.length * avgChunksPerFile,
+          try {
+            filesStreamed++;
+            db.replaceChunks(file, capturedChunks);
+            const alreadyEmbedded = db.getEmbeddedContentHashes(file);
+            const chunksToEmbed = capturedChunks.filter(
+              (c) => !alreadyEmbedded.has(c.contentHash!),
             );
-            sharedTotal = initialPendingEmbed + Math.max(projectedNew, 1);
-            opts.onEmbedProgress?.(embedDone, sharedTotal);
-            opts.onUploadProgress?.(uploadDone, sharedTotal);
-          }
+            pendingEmbed.push(...chunksToEmbed);
+            embedTotal += chunksToEmbed.length;
+            chunksGenerated += chunksToEmbed.length;
 
-          await flushEmbed(false);
+            fileChunkCounts.set(file, chunksToEmbed.length);
+            if (chunksToEmbed.length === 0 || opts.skipUpload || opts.dryRun) {
+              opts.onFileComplete?.(++filesIndexed, toProcess.length);
+            }
+
+            if (chunksGenerated > 0) {
+              const avgChunksPerFile = chunksGenerated / filesStreamed;
+              const projectedNew = Math.round(
+                toProcess.length * avgChunksPerFile,
+              );
+              sharedTotal = initialPendingEmbed + Math.max(projectedNew, 1);
+              opts.onEmbedProgress?.(embedDone, sharedTotal);
+              opts.onUploadProgress?.(uploadDone, sharedTotal);
+            }
+
+            await flushEmbed(false);
+          } catch (err) {
+            logger.error(
+              `❌ Embed chain error for ${file}: ${
+                err instanceof Error ? err.message : String(err)
+              }`,
+            );
+          } finally {
+            embedSemaphore.release();
+          }
         });
       });
 

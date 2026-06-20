@@ -112,6 +112,11 @@
         "type": "string"
       }
     },
+    "installScope": {
+      "type": "string",
+      "enum": ["local", "global"],
+      "description": "Plugin installation scope chosen during virage init (local = .virage/plugins, global = ~/.virage/plugins)."
+    },
     "options": {
       "type": "object",
       "additionalProperties": false,
@@ -145,6 +150,11 @@
         "noBanner": {
           "type": "boolean",
           "description": "Suppress the startup banner. Can also be set via VIRAGE_NO_BANNER=1 environment variable."
+        },
+        "maxPendingFiles": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Max files whose chunks may be queued ahead of embedding before chunk workers pause. Default: minEmbeddingBatchSize × 3."
         },
         "telemetry": { "type": "boolean" },
         "notifications": {

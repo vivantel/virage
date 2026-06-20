@@ -151,6 +151,8 @@ async function runOnce(options: {
         onChunkProgress: (done, total) => renderer.updateChunk(done, total),
         onEmbedProgress: (done, total) => renderer.updateEmbed(done, total),
         onUploadProgress: (done, total) => renderer.updateUpload(done, total),
+        onFileComplete: (done, total) =>
+          renderer.updateFileIndexed(done, total),
       },
     });
     await orchestrator.run();

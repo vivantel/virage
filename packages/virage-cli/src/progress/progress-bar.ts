@@ -103,6 +103,9 @@ export class PipelineRenderer {
     upload: { value: 0, total: 0 },
   };
 
+  private filesDone = 0;
+  private filesTotal = 0;
+
   constructor() {
     if (process.stdout.isTTY) {
       process.stdout.write("\x1b[?25l"); // hide cursor
@@ -171,6 +174,10 @@ export class PipelineRenderer {
   }
 
   startPipeline(): void {
+    if (this.phase === "model" && this.modelTotal > 0) {
+      this.modelLoaded = this.modelTotal;
+      this.doRender();
+    }
     if (this.phase === "scanning" || this.phase === "model") {
       if (this.ephemeralLines > 0) process.stdout.write("\n");
     }
@@ -191,6 +198,12 @@ export class PipelineRenderer {
 
   updateUpload(value: number, total: number): void {
     this.bars.upload = { value, total };
+    this.dirty = true;
+  }
+
+  updateFileIndexed(done: number, total: number): void {
+    this.filesDone = done;
+    this.filesTotal = total;
     this.dirty = true;
   }
 
@@ -361,13 +374,14 @@ export class PipelineRenderer {
       this.buildBarRow(label, this.bars[key]),
     );
 
-    // Footer: files processed + elapsed + ETA
-    const { value: filesProcessed, total: filesTotal } = this.bars.chunk;
+    // Footer: files indexed (upload completion) + elapsed + ETA
+    const filesDone = this.filesDone;
+    const filesTotal = this.filesTotal || this.bars.chunk.total;
     const etaMs = this.calcPipelineEta(elapsed);
     const dim = ansi.dim;
     const rst = ansi.reset;
     const footer =
-      `${dim}Files processed:${rst} ${filesProcessed}/${filesTotal}` +
+      `${dim}Files indexed:${rst} ${filesDone}/${filesTotal}` +
       `  ${dim}│${rst}  ` +
       `${dim}Elapsed:${rst} ${fmtTime(elapsed / 1000)}` +
       `  ${dim}│${rst}  ` +
