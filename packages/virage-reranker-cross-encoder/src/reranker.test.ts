@@ -109,6 +109,7 @@ describe("CrossEncoderReranker", () => {
     expect(mockPipelineFactory).toHaveBeenCalledWith(
       "text-classification",
       "custom/model-v1",
+      { dtype: "fp32" },
     );
   });
 
