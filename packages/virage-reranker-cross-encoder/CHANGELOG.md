@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.15](https://github.com/vivantel/virage/compare/virage-reranker-cross-encoder@v0.1.14...virage-reranker-cross-encoder@v0.1.15) (2026-06-20)
+
+
+### Bug Fixes
+
+* **reranker-cross-encoder:** Use text-ranking pipeline and correct score extraction ([9041286](https://github.com/vivantel/virage/commit/9041286f66c187b8d24a01a3cb78c6c25aa0c0cc))
+
 ## [0.1.14](https://github.com/vivantel/virage/compare/virage-reranker-cross-encoder@v0.1.13...virage-reranker-cross-encoder@v0.1.14) (2026-06-20)
 
 
