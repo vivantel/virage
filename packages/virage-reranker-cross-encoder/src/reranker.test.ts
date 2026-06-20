@@ -38,10 +38,11 @@ describe("CrossEncoderReranker", () => {
       makeCandidate("b", "high relevance", 0.3),
       makeCandidate("c", "medium relevance", 0.5),
     ];
+    // LABEL_1 = relevant; higher score means more relevant
     mockCall.mockResolvedValue([
-      [{ label: "LABEL_0", score: 0.1 }],
-      [{ label: "LABEL_0", score: 0.9 }],
-      [{ label: "LABEL_0", score: 0.5 }],
+      [{ label: "LABEL_1", score: 0.1 }],
+      [{ label: "LABEL_1", score: 0.9 }],
+      [{ label: "LABEL_1", score: 0.5 }],
     ]);
 
     const result = await reranker.rerank("query", candidates);
@@ -51,7 +52,7 @@ describe("CrossEncoderReranker", () => {
   it("replaces similarity with pipeline score", async () => {
     const reranker = new CrossEncoderReranker();
     const candidates = [makeCandidate("x", "some content", 0.5)];
-    mockCall.mockResolvedValue([[{ label: "LABEL_0", score: 0.77 }]]);
+    mockCall.mockResolvedValue([[{ label: "LABEL_1", score: 0.77 }]]);
 
     const result = await reranker.rerank("query", candidates);
     expect(result[0].similarity).toBe(0.77);
