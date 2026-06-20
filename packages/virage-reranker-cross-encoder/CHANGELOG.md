@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.20](https://github.com/vivantel/virage/compare/virage-reranker-cross-encoder@v0.1.19...virage-reranker-cross-encoder@v0.1.20) (2026-06-20)
+
+
+### Bug Fixes
+
+* **reranker-cross-encoder:** Update tests to use LABEL_1 for relevant scores ([3eda4ff](https://github.com/vivantel/virage/commit/3eda4ffcaa8920f654e910662b145511f730e6bd))
+
 ## [0.1.19](https://github.com/vivantel/virage/compare/virage-reranker-cross-encoder@v0.1.18...virage-reranker-cross-encoder@v0.1.19) (2026-06-20)
 
 
