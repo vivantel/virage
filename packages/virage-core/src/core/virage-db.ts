@@ -177,6 +177,13 @@ CREATE TABLE IF NOT EXISTS telemetry_cache_stats (
 ) STRICT;
 `;
 
+const FILE_REVISIONS_DDL = `
+CREATE TABLE IF NOT EXISTS file_revisions (
+  source_file TEXT PRIMARY KEY,
+  file_revision TEXT NOT NULL
+) STRICT;
+`;
+
 const SEARCH_QUERIES_DDL = `
 CREATE TABLE IF NOT EXISTS search_queries (
   id TEXT PRIMARY KEY,
@@ -238,6 +245,7 @@ export class VirageDb {
     }
 
     this.db.exec(CHUNKS_DDL);
+    this.db.exec(FILE_REVISIONS_DDL);
     this.db.exec(EXPERIMENT_RUNS_DDL);
     this.db.exec(EVAL_DATASETS_DDL);
     this.db.exec(PIPELINE_RUNS_DDL);
@@ -413,13 +421,21 @@ export class VirageDb {
   /** Delete all chunks for a source file (called before re-chunking a changed file). */
   deleteBySourceFile(sourceFile: string): void {
     this.db.prepare("DELETE FROM chunks WHERE source_file = ?").run(sourceFile);
+    this.db
+      .prepare("DELETE FROM file_revisions WHERE source_file = ?")
+      .run(sourceFile);
   }
 
   /**
    * Atomically replace all chunks for a source file with a new set,
    * preserving existing embeddings for chunks whose content hasn't changed.
+   * fileRevision is the git blob SHA; required when chunks may be empty.
    */
-  replaceChunks(sourceFile: string, chunks: Chunk[]): void {
+  replaceChunks(
+    sourceFile: string,
+    chunks: Chunk[],
+    fileRevision?: string,
+  ): void {
     const newHashes = chunks.map((c) => chunkContentHash(c));
 
     // Delete chunks that are no longer present in this file.
@@ -463,6 +479,17 @@ export class VirageDb {
       }
     });
     txn();
+
+    const rev = fileRevision ?? chunks[0]?.commitHash;
+    if (rev) {
+      this.db
+        .prepare(
+          `INSERT INTO file_revisions (source_file, file_revision)
+           VALUES (?, ?)
+           ON CONFLICT(source_file) DO UPDATE SET file_revision = excluded.file_revision`,
+        )
+        .run(sourceFile, rev);
+    }
   }
 
   /** Content hashes of chunks for a file that already have embeddings. */
@@ -531,12 +558,21 @@ export class VirageDb {
   /** Returns a file → revision map for all files tracked in the DB. */
   getFileStates(): Map<string, string> {
     type Row = { source_file: string; file_revision: string };
-    const rows = this.db
+    // Seed from chunks (backward compat for DBs predating file_revisions table).
+    const fromChunks = this.db
       .prepare(
         "SELECT source_file, file_revision FROM chunks GROUP BY source_file",
       )
       .all() as Row[];
-    return new Map(rows.map((r) => [r.source_file, r.file_revision]));
+    const map = new Map(
+      fromChunks.map((r) => [r.source_file, r.file_revision]),
+    );
+    // file_revisions covers zero-chunk files that chunks table would miss.
+    const fromRevisions = this.db
+      .prepare("SELECT source_file, file_revision FROM file_revisions")
+      .all() as Row[];
+    for (const r of fromRevisions) map.set(r.source_file, r.file_revision);
+    return map;
   }
 
   // ── Preserved methods ──────────────────────────────────────────────────────

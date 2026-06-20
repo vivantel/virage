@@ -79,7 +79,7 @@ npm run build -w @vivantel/<pkg>       # build one package
 npm run build:with-dashboard -w @vivantel/virage-cli  # CLI build including dashboard UI
 virage init                            # interactive wizard: config, agents, embedder, vector store, re-ranker, hybrid search; installs all plugins to ~/.virage/plugins or $PROJECT_DIR/.virage/plugins
 virage update (up)                     # update virage plugins from plugin dirs + node_modules + re-run agent configure + sync skills
-virage query (q) "<text>"             # semantic search over the indexed knowledge base (--json, --top-k, --branch)
+virage query (q) "<text>"             # semantic search; prints search mode after banner (--json, --top-k, --branch, --hybrid, --rerank)
 virage install-hooks (hooks)           # install post-merge & post-checkout git hooks for auto-indexing
 virage dashboard (d) [--verbose]       # start local RAG monitoring dashboard
 virage eval (e) run                    # one-shot retrieval quality check
@@ -206,6 +206,7 @@ Hook: `.claude/settings.json` fires `npm run fix && npm run type-check` automati
 | ADR-030 | Semver ranges in peerDependencies for inter-package dependencies | Accepted |
 | ADR-031 | `chunking` config section with global exclude patterns | Accepted |
 | ADR-032 | Scanning/chunking perf + global model dir + GPU support | Accepted |
+| ADR-033 | `file_revisions` table for zero-chunk file tracking | Accepted |
 
 ---
 

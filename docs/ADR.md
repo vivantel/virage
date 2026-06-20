@@ -973,3 +973,38 @@ Default `chunkConcurrency` = `os.availableParallelism()` (Node 18.14+), which re
 - **−** Parallel chunking is a two-phase approach (chunk-all, then stream-embed). Minor memory increase: all chunk arrays for `chunkConcurrency` files are held in memory simultaneously before embed phase starts.
 - **−** `availableParallelism()` was added in Node 18.14; the call is guarded with a fallback to `os.cpus().length` for older patch versions.
 - **−** `"cuda"` device requires a specific `onnxruntime-node` binary — not included in the standard install. Wrong binary selection causes a runtime error at model-load time.
+
+---
+
+## ADR-033: `file_revisions` table for zero-chunk file tracking
+
+**Date:** 2026-06-20
+**Status:** Accepted
+
+### Context
+
+`getFileStates()` in `VirageDb` returns a `Map<filePath, gitBlobSha>` by querying `chunks GROUP BY source_file`. This means only files that produced at least one chunk are present in the map. Files that are valid and tracked (e.g. short config files, `vitest.config.ts`, `CLAUDE.md`) but yield zero chunks after processing are silently absent. On every subsequent `virage index` run, `getChangedFiles()` finds them absent from `previousState` and marks them as `🆕 New`, re-chunking them unconditionally even though their content hasn't changed.
+
+### Decision
+
+Add a dedicated `file_revisions` table to `virage.db`:
+
+```sql
+CREATE TABLE IF NOT EXISTS file_revisions (
+  source_file TEXT PRIMARY KEY,
+  file_revision TEXT NOT NULL
+) STRICT;
+```
+
+`replaceChunks(sourceFile, chunks, fileRevision?)` upserts into this table unconditionally — using the provided `fileRevision` (git blob SHA passed by the orchestrator) or falling back to `chunks[0].commitHash` for callers that predate the third argument. `deleteBySourceFile` deletes from both `chunks` and `file_revisions` to keep them in sync.
+
+`getFileStates()` seeds the result map from `chunks GROUP BY source_file` (backward compat for existing DBs) then overlays entries from `file_revisions`, which takes precedence and covers zero-chunk files.
+
+The orchestrator passes `info.commitHash` as the third argument so zero-chunk files (those whose content produces no usable chunks but are still valid tracked files) are recorded in `file_revisions` after processing.
+
+### Consequences
+
+- **+** Files that produce zero chunks are tracked after the first index run and not re-processed on subsequent runs.
+- **+** Backward compatible: existing DBs without `file_revisions` fall back to the `chunks` query; `CREATE TABLE IF NOT EXISTS` is idempotent.
+- **+** `replaceChunks` third parameter is optional — all existing call sites that don't pass it still work (they just don't benefit for zero-chunk files until migrated).
+- **−** Slightly more storage: one row per tracked file in `file_revisions` on top of existing `chunks` rows.

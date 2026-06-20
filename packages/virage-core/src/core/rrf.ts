@@ -34,8 +34,12 @@ export function rrfMerge(
     if (!byId.has(r.id)) byId.set(r.id, r);
   }
 
+  const maxPossible = 1 / (RRF_K + 1);
   return Array.from(scores.entries())
     .sort((a, b) => b[1] - a[1])
     .slice(0, topK)
-    .map(([id, score]) => ({ ...byId.get(id)!, similarity: score }));
+    .map(([id, score]) => ({
+      ...byId.get(id)!,
+      similarity: score / maxPossible,
+    }));
 }

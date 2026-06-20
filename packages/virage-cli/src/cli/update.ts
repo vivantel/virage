@@ -1,9 +1,10 @@
 import { checkbox } from "@inquirer/prompts";
-import { readFile, writeFile } from "fs/promises";
+import { mkdir, readFile, writeFile } from "fs/promises";
 import { existsSync } from "fs";
 import { join } from "path";
 import { execFile } from "child_process";
 import { promisify } from "util";
+import { ansi } from "../progress/progress-bar.js";
 import { discoverAgentPlugins, runAgentPlugin } from "./agent-plugin.js";
 import { resolveSkillsPackagePath, syncSkills } from "./skills.js";
 import {
@@ -339,31 +340,39 @@ export async function runUpdate(): Promise<void> {
     let updateFailed = false;
 
     if (localPluginPkgs.length > 0) {
+      const localPluginDir = getLocalPluginDir(cwd);
+      await mkdir(localPluginDir, { recursive: true });
       const { cmd, args } = buildPluginPrefixInstallCommand(
         localPluginPkgs,
-        getLocalPluginDir(cwd),
+        localPluginDir,
       );
       console.log(`\nRunning: ${cmd} ${args.join(" ")}`);
       try {
         await runInstall(cmd, args);
       } catch {
-        console.log("\nLocal plugin update failed. Try running manually:");
-        console.log(`  ${cmd} ${args.join(" ")}`);
+        console.error(
+          `${ansi.boldRed}\nLocal plugin update failed. Try running manually:${ansi.reset}`,
+        );
+        console.error(`  ${cmd} ${args.join(" ")}`);
         updateFailed = true;
       }
     }
 
     if (globalPluginPkgs.length > 0) {
+      const globalPluginDir = getGlobalPluginDir();
+      await mkdir(globalPluginDir, { recursive: true });
       const { cmd, args } = buildPluginPrefixInstallCommand(
         globalPluginPkgs,
-        getGlobalPluginDir(),
+        globalPluginDir,
       );
       console.log(`\nRunning: ${cmd} ${args.join(" ")}`);
       try {
         await runInstall(cmd, args);
       } catch {
-        console.log("\nGlobal plugin update failed. Try running manually:");
-        console.log(`  ${cmd} ${args.join(" ")}`);
+        console.error(
+          `${ansi.boldRed}\nGlobal plugin update failed. Try running manually:${ansi.reset}`,
+        );
+        console.error(`  ${cmd} ${args.join(" ")}`);
         updateFailed = true;
       }
     }

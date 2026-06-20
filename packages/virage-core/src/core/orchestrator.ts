@@ -351,7 +351,7 @@ export class Orchestrator {
         embedChain = embedChain.then(async () => {
           try {
             filesStreamed++;
-            db.replaceChunks(file, capturedChunks);
+            db.replaceChunks(file, capturedChunks, info?.commitHash);
             const alreadyEmbedded = db.getEmbeddedContentHashes(file);
             const chunksToEmbed = capturedChunks.filter(
               (c) => !alreadyEmbedded.has(c.contentHash!),

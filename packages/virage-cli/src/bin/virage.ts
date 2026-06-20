@@ -58,7 +58,10 @@ const argv = process.argv.flatMap((arg) =>
 const program = new Command();
 
 function handleError(error: unknown): never {
-  console.error("❌ Error:", error instanceof Error ? error.message : error);
+  console.error(
+    `${ansi.boldRed}❌ Error:${ansi.reset}`,
+    error instanceof Error ? error.message : error,
+  );
   if (error instanceof RagError && error.suggestion) {
     console.error("   💡", error.suggestion);
   }

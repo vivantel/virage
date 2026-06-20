@@ -88,7 +88,12 @@ export async function runQuery(
   }
 
   const sep = ansi.cyan + "─".repeat(60) + ansi.reset;
-  console.log(`\nTop ${results.length} result(s) for: "${queryText}"\n`);
+  const searchMode = useHybrid
+    ? `hybrid (alpha=${hybridAlpha ?? 0.6})`
+    : "vector";
+  const rerankerInfo = reranker ? ` · reranker: ${reranker.name}` : "";
+  console.log(`\nTop ${results.length} result(s) for: "${queryText}"`);
+  console.log(`${ansi.dim}Search: ${searchMode}${rerankerInfo}${ansi.reset}\n`);
   console.log(sep);
   for (let i = 0; i < results.length; i++) {
     const r = results[i];

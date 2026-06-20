@@ -6,7 +6,7 @@ import {
   SELECT_BACK,
 } from "./checkbox-nav.js";
 import { existsSync } from "fs";
-import { readFile, rename, writeFile } from "fs/promises";
+import { mkdir, readFile, rename, writeFile } from "fs/promises";
 import { dirname, relative, resolve } from "path";
 import {
   loadRegistry,
@@ -729,6 +729,7 @@ export async function runInit(): Promise<void> {
     });
 
     console.log(`Installing to ${pluginDir}...`);
+    await mkdir(pluginDir, { recursive: true });
     const { cmd, args } = buildPluginPrefixInstallCommand(
       versionedPkgs,
       pluginDir,

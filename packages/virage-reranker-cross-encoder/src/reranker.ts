@@ -50,10 +50,19 @@ export class CrossEncoderReranker implements Reranker {
     return candidates
       .map((c, i) => {
         const result = Array.isArray(outputs) ? outputs[i] : undefined;
-        const score = Array.isArray(result) ? result[0]?.score : result?.score;
+        const rawResult = Array.isArray(result) ? result[0] : result;
+        const typed = rawResult as
+          | { label?: string; score?: number }
+          | undefined;
+        let score: number | undefined;
+        if (typed?.score !== undefined) {
+          // For 2-class relevance models: LABEL_1 = relevant, LABEL_0 = not-relevant.
+          // The pipeline returns the top label; if LABEL_0 wins we invert to get relevance.
+          score = typed.label === "LABEL_0" ? 1 - typed.score : typed.score;
+        }
         return {
           ...c,
-          similarity: (score as number | undefined) ?? c.similarity,
+          similarity: score ?? c.similarity,
         };
       })
       .sort((a, b) => b.similarity - a.similarity)
