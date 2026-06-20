@@ -73,7 +73,11 @@ function validateJsonConfig(raw: unknown): asserts raw is JsonRagConfig {
   }
   const c = raw as Record<string, unknown>;
 
-  if (!c.chunking || typeof c.chunking !== "object" || Array.isArray(c.chunking)) {
+  if (
+    !c.chunking ||
+    typeof c.chunking !== "object" ||
+    Array.isArray(c.chunking)
+  ) {
     throw new ConfigError(
       '"chunking" must be an object with a "chunkers" array in virage.config.json',
     );
@@ -86,7 +90,9 @@ function validateJsonConfig(raw: unknown): asserts raw is JsonRagConfig {
     );
   }
   if (chunking.exclude !== undefined && !Array.isArray(chunking.exclude)) {
-    throw new ConfigError('"chunking.exclude" must be an array of glob strings');
+    throw new ConfigError(
+      '"chunking.exclude" must be an array of glob strings',
+    );
   }
   if (Array.isArray(chunking.exclude)) {
     for (let i = 0; i < chunking.exclude.length; i++) {
@@ -103,7 +109,9 @@ function validateJsonConfig(raw: unknown): asserts raw is JsonRagConfig {
       );
     }
     if (typeof ch.strategy !== "string") {
-      throw new ConfigError(`chunking.chunkers[${i}].strategy must be a string`);
+      throw new ConfigError(
+        `chunking.chunkers[${i}].strategy must be a string`,
+      );
     }
   }
 

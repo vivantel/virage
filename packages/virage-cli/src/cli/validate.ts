@@ -46,7 +46,11 @@ export async function runValidate(configPath: string): Promise<void> {
 
   const gitTracker = new GitTracker(
     config.chunkers,
-    new CliGitSourceRepository(process.cwd(), undefined, config.excludePatterns),
+    new CliGitSourceRepository(
+      process.cwd(),
+      undefined,
+      config.excludePatterns,
+    ),
     undefined,
     config.excludePatterns,
   );

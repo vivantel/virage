@@ -106,8 +106,8 @@ export class CliGitSourceRepository implements SourceRepository {
       const normalized = file.split(path.sep).join("/");
       const isDirty = dirtySet.has(normalized);
       const sha = isDirty
-        ? dirtyHashes.get(file) ?? treeMap.get(normalized)
-        : treeMap.get(normalized) ?? untrackedHashes.get(file);
+        ? (dirtyHashes.get(file) ?? treeMap.get(normalized))
+        : (treeMap.get(normalized) ?? untrackedHashes.get(file));
 
       if (sha) {
         result.set(file, sha);
