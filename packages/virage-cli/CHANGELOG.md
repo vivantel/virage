@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.1.69](https://github.com/vivantel/virage/compare/virage-cli@v0.1.68...virage-cli@v0.1.69) (2026-06-20)
+
+
+### Features
+
+* UX, back pressure, validate, and banner improvements ([ea2b239](https://github.com/vivantel/virage/commit/ea2b23973c8fc5933829bc75ea7f27b63500e847))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @vivantel/virage-core bumped from 0.2.38 to 0.2.39
+
 ## [0.1.68](https://github.com/vivantel/virage/compare/virage-cli@v0.1.67...virage-cli@v0.1.68) (2026-06-20)
 
 

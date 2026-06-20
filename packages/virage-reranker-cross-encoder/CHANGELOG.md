@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.1.13](https://github.com/vivantel/virage/compare/virage-reranker-cross-encoder@v0.1.12...virage-reranker-cross-encoder@v0.1.13) (2026-06-20)
+
+
+### Features
+
+* UX, back pressure, validate, and banner improvements ([ea2b239](https://github.com/vivantel/virage/commit/ea2b23973c8fc5933829bc75ea7f27b63500e847))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * devDependencies
+    * @vivantel/virage-core bumped from 0.2.38 to 0.2.39
+  * peerDependencies
+    * @vivantel/virage-core bumped from * to 0.2.39
+
 ## [0.1.12](https://github.com/vivantel/virage/compare/virage-reranker-cross-encoder@v0.1.11...virage-reranker-cross-encoder@v0.1.12) (2026-06-20)
 
 
