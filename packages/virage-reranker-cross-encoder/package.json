@@ -1,6 +1,6 @@
 {
   "name": "@vivantel/virage-reranker-cross-encoder",
-  "version": "0.1.22",
+  "version": "0.1.23",
   "description": "Local cross-encoder re-ranker for Virage (ONNX, no API key required)",
   "type": "module",
   "main": "dist/index.js",
@@ -46,7 +46,7 @@
     "@vivantel/virage-core": "*"
   },
   "devDependencies": {
-    "@vivantel/virage-core": "0.2.44",
+    "@vivantel/virage-core": "0.2.45",
     "@types/node": "^25.9.3",
     "typescript": "^6.0.3",
     "vitest": "^4.1.9"

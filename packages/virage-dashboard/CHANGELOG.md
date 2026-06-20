@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.20](https://github.com/vivantel/virage/compare/virage-dashboard@v0.1.19...virage-dashboard@v0.1.20) (2026-06-20)
+
+
+### Bug Fixes
+
+* **mcp:** Apply prettier formatting to searchConfig type ([939f477](https://github.com/vivantel/virage/commit/939f4776813e4daba1a4d65427d20da51ee311b7))
+
 ## [0.1.19](https://github.com/vivantel/virage/compare/virage-dashboard@v0.1.18...virage-dashboard@v0.1.19) (2026-06-18)
 
 
