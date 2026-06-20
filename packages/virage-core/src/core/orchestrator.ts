@@ -16,7 +16,8 @@ import {
 import type { SourceRepository } from "../interfaces/source-repository.js";
 import type { Logger } from "../interfaces/logger.js";
 import { NullLogger } from "../logger/null-logger.js";
-import { RetryOptions } from "./utils.js";
+import { availableParallelism } from "node:os";
+import { RetryOptions, withConcurrency } from "./utils.js";
 import { defaultVirageDb } from "./virage-defaults.js";
 import type { TelemetryConfig } from "../telemetry/types.js";
 import type { Reranker } from "../interfaces/reranker.js";
@@ -26,6 +27,7 @@ export interface RAGPipelineConfig {
   embedder: EmbeddingProvider;
   vectorStore: VectorStore;
   sourceRepository?: SourceRepository;
+  excludePatterns?: string[];
   telemetry?: TelemetryConfig;
   search?: {
     hybrid?: boolean;
@@ -44,6 +46,7 @@ export interface RAGPipelineConfig {
     maxBatchChars?: number;
     retry?: RetryOptions;
     concurrency?: number;
+    chunkConcurrency?: number;
     /** @deprecated Use minUploadingBatchSize instead. */
     minIngestionBatchSize?: number;
     /** Minimum pending-chunk queue size before triggering an embedding run. Default: 10. */
@@ -130,13 +133,15 @@ export class Orchestrator {
       // Git tracking
       logger.info("📂 Scanning for changes...");
       const t1 = Date.now();
+      const excludePatterns = this.config.excludePatterns ?? [];
       const source =
         this.config.sourceRepository ??
-        new CliGitSourceRepository(process.cwd(), opts.logger);
+        new CliGitSourceRepository(process.cwd(), opts.logger, excludePatterns);
       const gitTracker = new GitTracker(
         this.config.chunkers,
         source,
         opts.logger,
+        excludePatterns,
       );
       const [currentState, currentBranch] = await Promise.all([
         gitTracker.getCurrentState(opts.onScanProgress),
@@ -301,32 +306,39 @@ export class Orchestrator {
         }
       };
 
-      // Main streaming loop
-      for (const file of toProcess) {
+      // Phase 1: chunk all files concurrently then stream into embed/upload
+      const chunkConcurrency = opts.chunkConcurrency ?? availableParallelism();
+      const chunkTasks = toProcess.map((file) => async () => {
         const info = currentState.get(file);
-        if (!info) continue;
-
-        let newChunks: Chunk[] = [];
+        if (!info) return { file, chunks: [] as Chunk[] };
         try {
-          newChunks = await chunkProcessor.processFile(
+          const chunks = await chunkProcessor.processFile(
             file,
             info.commitHash,
             info.chunker,
           );
+          for (const chunk of chunks) {
+            chunk.metadata = { ...chunk.metadata, branch: currentBranch };
+          }
+          return { file, chunks };
         } catch (err) {
           logger.error(
             `❌ Chunking failed for ${file}: ${
               err instanceof Error ? err.message : String(err)
             }`,
           );
-          chunkDone++;
-          opts.onChunkProgress?.(chunkDone, toProcess.length);
-          continue;
+          return { file, chunks: [] as Chunk[] };
+        } finally {
+          opts.onChunkProgress?.(++chunkDone, toProcess.length);
         }
+      });
 
-        for (const chunk of newChunks) {
-          chunk.metadata = { ...chunk.metadata, branch: currentBranch };
-        }
+      const chunkResults = await withConcurrency(chunkTasks, chunkConcurrency);
+
+      // Phase 2: stream chunks into embed/upload pipeline
+      let filesStreamed = 0;
+      for (const { file, chunks: newChunks } of chunkResults) {
+        filesStreamed++;
         db.replaceChunks(file, newChunks);
         // Skip chunks whose embeddings were preserved (unchanged content)
         const alreadyEmbedded = db.getEmbeddedContentHashes(file);
@@ -336,13 +348,11 @@ export class Orchestrator {
         pendingEmbed.push(...chunksToEmbed);
         embedTotal += chunksToEmbed.length;
         chunksGenerated += chunksToEmbed.length;
-        chunkDone++;
-        opts.onChunkProgress?.(chunkDone, toProcess.length);
 
         // Project a shared total using actual average chunks-per-file across
         // fully-processed files; include carry-over pending work in the total.
-        if (chunkDone > 0) {
-          const avgChunksPerFile = chunksGenerated / chunkDone;
+        if (chunksGenerated > 0) {
+          const avgChunksPerFile = chunksGenerated / filesStreamed;
           const projectedNew = Math.round(toProcess.length * avgChunksPerFile);
           sharedTotal = initialPendingEmbed + Math.max(projectedNew, 1);
           opts.onEmbedProgress?.(embedDone, sharedTotal);

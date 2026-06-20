@@ -26,7 +26,11 @@ export function createEmbedder(
     model,
     dimensions:
       typeof config.dimensions === "number" ? config.dimensions : undefined,
-    device: config.device === "webgpu" ? "webgpu" : "cpu",
+    device: (["webgpu", "cuda"] as const).includes(
+      config.device as "webgpu" | "cuda",
+    )
+      ? (config.device as "webgpu" | "cuda")
+      : "cpu",
     cacheDir: typeof config.cacheDir === "string" ? config.cacheDir : undefined,
   };
 

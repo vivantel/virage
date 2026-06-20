@@ -2,7 +2,11 @@ import { checkbox, input, select } from "@inquirer/prompts";
 import { existsSync } from "fs";
 import { readFile, rename, writeFile } from "fs/promises";
 import { dirname, resolve } from "path";
-import { loadRegistry, getVirageDir } from "@vivantel/virage-core";
+import {
+  loadRegistry,
+  getVirageDir,
+  DEFAULT_EXCLUDE_PATTERNS,
+} from "@vivantel/virage-core";
 import type { PluginRegistry } from "@vivantel/virage-core";
 import {
   EXT_GROUPS,
@@ -250,6 +254,21 @@ const STRATEGY_FN_TO_JSON: Record<string, string> = {
   codeChunkStrategy: "codeChunkAst",
 };
 
+function buildExcludePatterns(groups: ExtGroup[]): string[] {
+  const patterns = new Set(DEFAULT_EXCLUDE_PATTERNS);
+  const groupNames = new Set(groups.map((g) => g.name));
+  if (groupNames.has("java")) {
+    patterns.add("**/target/**");
+    patterns.add("**/*.class");
+  }
+  if (groupNames.has("csharp")) {
+    patterns.add("**/bin/**");
+    patterns.add("**/obj/**");
+    patterns.add("**/*.generated.cs");
+  }
+  return [...patterns].sort();
+}
+
 function generateJsonConfig(
   state: WizardState,
   registry: PluginRegistry,
@@ -291,7 +310,10 @@ function generateJsonConfig(
   const config: Record<string, unknown> = {
     $schema:
       "https://unpkg.com/@vivantel/virage-core/schemas/virage.config.schema.json",
-    chunkers,
+    chunking: {
+      exclude: buildExcludePatterns(effectiveGroups),
+      chunkers,
+    },
     agents: state.agents,
     embedder: {
       package: embedderEntry.package,

@@ -103,10 +103,16 @@ All configuration lives in `virage.config.json`. The `$schema` field enables IDE
 ```json
 {
   "$schema": "https://unpkg.com/@vivantel/virage-core/schemas/virage.config.schema.json",
-  "chunkers": [
-    { "patterns": ["**/*.md"], "strategy": "markdownHeaders" },
-    { "patterns": ["src/**/*.ts"], "strategy": "codeChunkAst" }
-  ],
+  "chunking": {
+    "exclude": [
+      "**/vendor/**", "**/*.min.js", "**/*.min.css",
+      "**/*.lock", "**/dist/**", "**/target/**"
+    ],
+    "chunkers": [
+      { "patterns": ["**/*.md"], "strategy": "markdownHeaders" },
+      { "patterns": ["src/**/*.ts"], "strategy": "codeChunkAst" }
+    ]
+  },
   "agents": ["claude-code"],
   "embedder": {
     "package": "@vivantel/virage-embedder-transformers",
@@ -133,6 +139,8 @@ All configuration lives in `virage.config.json`. The `$schema` field enables IDE
   }
 }
 ```
+
+`chunking.exclude` accepts glob patterns excluded from all chunkers globally. `virage init` seeds this with ecosystem-specific defaults. Old configs with `chunkers` at the root are auto-normalized on load.
 
 ## Embedders
 

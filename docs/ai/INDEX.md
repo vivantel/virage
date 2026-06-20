@@ -168,7 +168,7 @@ Hook: `.claude/settings.json` fires `npm run fix && npm run type-check` automati
 | Import extensions | `.js` (required even for `.ts` files) |
 | TypeScript target | ES2022 |
 | Build output | `dist/` (gitignored) |
-| Config format | JSON (`.virage/config.json`) |
+| Config format | JSON (`virage.config.json`); `chunking.{exclude,chunkers}` structure; `${ENV_VAR}` expansion |
 
 **Pipeline stages** (in order):
 
@@ -204,6 +204,8 @@ Hook: `.claude/settings.json` fires `npm run fix && npm run type-check` automati
 | ADR-028 | Branch-aware RAG via metadata tagging | Accepted |
 | ADR-029 | No switch to Claude Code native subagents for Virage skills | Accepted |
 | ADR-030 | Semver ranges in peerDependencies for inter-package dependencies | Accepted |
+| ADR-031 | `chunking` config section with global exclude patterns | Accepted |
+| ADR-032 | Scanning/chunking perf + global model dir + GPU support | Accepted |
 
 ---
 

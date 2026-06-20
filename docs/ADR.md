@@ -883,3 +883,93 @@ The range constraint `>=X.Y.Z <X.(Y+1).0` (minor-locked for pre-1.0 packages) si
 - **+** Aligns with standard npm library conventions.
 - **−** Minor coordination cost: peerDep ranges must be updated when a package introduces a breaking change.
 - **−** `npm install` will warn about unmet peer dependencies if a consumer installs an incompatible version — this is intentional and informative.
+
+---
+
+## ADR-031: `chunking` config section with global exclude patterns
+
+**Date:** 2026-06-20
+**Status:** Accepted
+
+### Context
+
+The root-level `chunkers` array in `virage.config.json` had no mechanism for excluding files globally — every chunker had to embed exclusion logic into its own pattern list, leading to repetition. Common generated, minified, or dependency-managed files (lock files, `dist/`, `vendor/`, compiled artifacts) were indexed unnecessarily, wasting embedding calls and polluting search results.
+
+A related issue: `CliGitSourceRepository` included changed and pending files regardless of whether the file was otherwise configured to be skipped by `GitTracker`.
+
+### Decision
+
+Introduce a `chunking` wrapper object in the config schema that groups:
+- `chunkers` — the existing array of chunker definitions (now nested)
+- `exclude` — a new optional `string[]` of glob patterns excluded from all chunkers globally
+
+**Backward compatibility**: configs with `chunkers` at the root are promoted to `chunking.chunkers` at load time by `normalizeConfig()` — before JSON Schema validation runs — so no consumer migration is required.
+
+**Default exclude patterns** (written by `virage init`, exported as `DEFAULT_EXCLUDE_PATTERNS` from `virage-core`):
+- Node.js: `**/yarn.lock`, `**/package-lock.json`, `**/pnpm-lock.yaml`, `**/.next/**`, `**/.turbo/**`
+- .NET: `**/bin/**`, `**/obj/**`, `**/*.generated.cs`, `**/*.pb.cs`
+- Java: `**/target/**`, `**/*.class`
+- Go: `**/*.pb.go`
+- C/C++: `**/CMakeFiles/**`, `**/cmake-build-*/**`, `**/*.o`, `**/*.a`
+- Universal: `**/dist/**`, `**/out/**`, `**/vendor/**`, `**/*.min.js`, `**/*.min.css`, `**/*.lock`, `**/*.pb.ts`
+
+**Filtering is applied at two layers**:
+1. `GitTracker.getAllTrackedFiles()` merges `excludePatterns` into glob's `ignore` option for efficient directory pruning, then post-filters file-level patterns via `minimatch`.
+2. `CliGitSourceRepository.getChangedFilesSince()` and `getPendingChanges()` filter results through `isExcluded()` so excluded files never enter the pipeline as pending changes either.
+
+### Consequences
+
+- **+** Single canonical exclude list applies to all chunkers; no per-chunker repetition.
+- **+** `virage init` seeds sane defaults per ecosystem — new projects exclude common noise automatically.
+- **+** Directory-level pruning in glob avoids descending into `vendor/` or `target/`, cutting scan time for large repos.
+- **+** Full backward compatibility: old root-level `chunkers` configs load without changes.
+- **−** `normalizeConfig()` must stay in sync if new top-level chunking config fields are added.
+- **−** Schema keeps a deprecated optional `chunkers` at root (so the schema itself doesn't reject old configs before the runtime normalizer runs).
+
+---
+
+## ADR-032: Scanning and chunking performance + global model dir + GPU support
+
+**Date:** 2026-06-20
+**Status:** Accepted
+
+### Context
+
+Three independent performance and ergonomics problems were observed simultaneously:
+
+1. **Scanning speed**: `getFileRevisions()` in `CliGitSourceRepository` was sequential. Dirty files were already hashed in parallel via `Promise.all`, but untracked files (not in HEAD tree and not in `git status`) each spawned a sequential `git hash-object` subprocess inside the main loop — O(N) subprocess forks, one at a time. On repos with many untracked files this limited scanning to 20–30 files/sec.
+
+2. **Chunking throughput**: The `Orchestrator` ran file chunking (I/O + AST parsing) in a sequential `for...of` loop, keeping only one file in-flight at a time. Chunking is CPU/I/O-bound and embarrassingly parallel.
+
+3. **Model cache scatter**: `virage-embedder-transformers` defaulted to `~/.cache/huggingface/hub` and `virage-embedder-fastembed` defaulted to a project-local `.virage/models` path. Models downloaded to different locations per package, couldn't be shared, and cluttered unrelated directories.
+
+4. **Progress bar stuck at 99%**: `onProgress(final, final)` fired inside `_loadPipeline` immediately before the function returned. The render interval hadn't processed the 100% update yet when `onPreWarmDone()` switched the display phase, leaving the bar committed at 99%.
+
+5. **GPU support missing**: `virage-embedder-transformers` accepted `"cpu" | "webgpu"` but not `"cuda"`, despite `@huggingface/transformers` supporting `"cuda"` for `onnxruntime-node` GPU builds.
+
+### Decision
+
+**Scanning (parallel untracked file hashing):** Before the main `getFileRevisions()` loop, identify untracked files (not in `dirtySet`, not in `treeMap`), then hash all of them concurrently with `Promise.all([...map(file => git.raw(["hash-object", file]))])`. The main loop becomes pure `Map` lookups — no subprocess spawns.
+
+**Chunking concurrency:** Replace the sequential chunking loop with two phases:
+- Phase 1: `withConcurrency(chunkTasks, chunkConcurrency)` — chunk all pending files in parallel.
+- Phase 2: sequential embed/upload streaming over the collected results (streaming semantics preserved; embed batching not disrupted).
+
+Default `chunkConcurrency` = `os.availableParallelism()` (Node 18.14+), which returns the number of logical CPU threads available to the process. Configurable via `options.chunkConcurrency`.
+
+**Global model dir:** Add `getGlobalVirageDir(): string` to `virage-core` (`process.env["VIRAGE_GLOBAL_DIR"] ?? join(homedir(), ".virage")`). Both embedder packages default their model cache to `join(getGlobalVirageDir(), "models")` — i.e., `~/.virage/models`. Models are shared across projects and packages.
+
+**Progress bar fix:** After firing `onProgress(final, final)`, yield to the event loop with `await new Promise<void>(resolve => setImmediate(resolve))` so the render interval gets one tick before `_loadPipeline` returns. This guarantees the bar reaches 100% before the display phase transitions.
+
+**GPU support:** Widen `device` type in `TransformersEmbedder` to `"cpu" | "webgpu" | "cuda"`. The `createEmbedder` factory passes `"cuda"` through to `@huggingface/transformers` only when explicitly configured — requires `onnxruntime-node` with a GPU build.
+
+### Consequences
+
+- **+** Scanning throughput scales with `Promise.all` concurrency rather than being limited by sequential subprocess forks.
+- **+** Chunking throughput scales with CPU core count (measured target: ≥10× speedup over the sequential baseline on I/O-heavy repositories).
+- **+** Models shared across all virage projects at `~/.virage/models`; overridable per-deployment via `VIRAGE_GLOBAL_DIR`.
+- **+** Progress bar correctly reaches 100% before the pipeline summary is shown.
+- **+** CUDA GPU acceleration available for environments with the GPU `onnxruntime-node` build.
+- **−** Parallel chunking is a two-phase approach (chunk-all, then stream-embed). Minor memory increase: all chunk arrays for `chunkConcurrency` files are held in memory simultaneously before embed phase starts.
+- **−** `availableParallelism()` was added in Node 18.14; the call is guarded with a fallback to `os.cpus().length` for older patch versions.
+- **−** `"cuda"` device requires a specific `onnxruntime-node` binary — not included in the standard install. Wrong binary selection causes a runtime error at model-load time.

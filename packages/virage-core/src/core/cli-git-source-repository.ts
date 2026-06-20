@@ -1,4 +1,5 @@
 import { simpleGit, SimpleGit } from "simple-git";
+import { minimatch } from "minimatch";
 import path from "path";
 import type { Logger } from "../interfaces/logger.js";
 import { NullLogger } from "../logger/null-logger.js";
@@ -7,12 +8,20 @@ import type { SourceRepository } from "../interfaces/source-repository.js";
 export class CliGitSourceRepository implements SourceRepository {
   private readonly git: SimpleGit;
   private readonly logger: Logger;
+  private readonly excludePatterns: string[];
   readonly rootUri: string;
 
-  constructor(dir: string, logger?: Logger) {
+  constructor(dir: string, logger?: Logger, excludePatterns?: string[]) {
     this.rootUri = dir;
     this.git = simpleGit(dir);
     this.logger = (logger ?? new NullLogger()).withTag("git");
+    this.excludePatterns = excludePatterns ?? [];
+  }
+
+  private isExcluded(filePath: string): boolean {
+    if (this.excludePatterns.length === 0) return false;
+    const normalized = filePath.split(path.sep).join("/");
+    return this.excludePatterns.some((p) => minimatch(normalized, p));
   }
 
   async getCurrentRevision(): Promise<string> {
@@ -72,26 +81,33 @@ export class CliGitSourceRepository implements SourceRepository {
       );
     }
 
+    // Identify untracked files (not in HEAD tree, not dirty) and hash in parallel
+    const untrackedFiles = files.filter((f) => {
+      const normalized = f.split(path.sep).join("/");
+      return !dirtySet.has(normalized) && !treeMap.has(normalized);
+    });
+    const untrackedHashes = new Map<string, string>();
+    if (untrackedFiles.length > 0) {
+      await Promise.all(
+        untrackedFiles.map(async (file) => {
+          try {
+            const out = await this.git.raw(["hash-object", file]);
+            const sha = out.trim();
+            if (sha) untrackedHashes.set(file, sha);
+          } catch {
+            // ignore — file won't appear in result
+          }
+        }),
+      );
+    }
+
+    // Main loop: pure map lookups + progress reporting (no subprocess spawns)
     for (const file of files) {
       const normalized = file.split(path.sep).join("/");
       const isDirty = dirtySet.has(normalized);
-
-      let sha: string | undefined;
-      if (isDirty) {
-        sha = dirtyHashes.get(file) ?? treeMap.get(normalized);
-      } else {
-        sha = treeMap.get(normalized);
-      }
-
-      // Untracked files not in HEAD tree: hash the file content
-      if (!sha) {
-        try {
-          const out = await this.git.raw(["hash-object", file]);
-          sha = out.trim() || undefined;
-        } catch {
-          // ignore — file won't appear in result
-        }
-      }
+      const sha = isDirty
+        ? dirtyHashes.get(file) ?? treeMap.get(normalized)
+        : treeMap.get(normalized) ?? untrackedHashes.get(file);
 
       if (sha) {
         result.set(file, sha);
@@ -137,7 +153,11 @@ export class CliGitSourceRepository implements SourceRepository {
         else if (status === "D") deleted.push(filePath);
       }
 
-      return { added, modified, deleted };
+      return {
+        added: added.filter((f) => !this.isExcluded(f)),
+        modified: modified.filter((f) => !this.isExcluded(f)),
+        deleted: deleted.filter((f) => !this.isExcluded(f)),
+      };
     } catch {
       return null;
     }
@@ -155,7 +175,9 @@ export class CliGitSourceRepository implements SourceRepository {
   async getPendingChanges(): Promise<Set<string>> {
     try {
       const status = await this.git.status();
-      return new Set(status.files.map((f) => f.path));
+      return new Set(
+        status.files.map((f) => f.path).filter((p) => !this.isExcluded(p)),
+      );
     } catch {
       return new Set();
     }

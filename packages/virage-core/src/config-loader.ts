@@ -28,6 +28,11 @@ interface JsonChunkerConfig {
   strategyOptions?: StrategyOptions;
 }
 
+interface JsonChunkingConfig {
+  exclude?: string[];
+  chunkers: JsonChunkerConfig[];
+}
+
 interface JsonProviderConfig {
   package: string;
   config?: Record<string, unknown>;
@@ -40,7 +45,9 @@ interface JsonSearchConfig {
 }
 
 interface JsonRagConfig {
-  chunkers: JsonChunkerConfig[];
+  chunking: JsonChunkingConfig;
+  /** @deprecated Use chunking.chunkers. Supported for backward compatibility. */
+  chunkers?: JsonChunkerConfig[];
   embedder: JsonProviderConfig;
   vectorStore: JsonProviderConfig;
   source?: JsonProviderConfig;
@@ -53,26 +60,50 @@ interface JsonRagConfig {
 
 // ─── JSON config loading ──────────────────────────────────────────────────────
 
+function normalizeConfig(raw: Record<string, unknown>): void {
+  if (!raw.chunking && Array.isArray(raw.chunkers)) {
+    raw.chunking = { chunkers: raw.chunkers };
+    delete raw.chunkers;
+  }
+}
+
 function validateJsonConfig(raw: unknown): asserts raw is JsonRagConfig {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
     throw new ConfigError("virage.config.json must be a JSON object");
   }
   const c = raw as Record<string, unknown>;
 
-  if (!Array.isArray(c.chunkers) || c.chunkers.length === 0) {
+  if (!c.chunking || typeof c.chunking !== "object" || Array.isArray(c.chunking)) {
     throw new ConfigError(
-      '"chunkers" must be a non-empty array in virage.config.json',
+      '"chunking" must be an object with a "chunkers" array in virage.config.json',
     );
   }
-  for (let i = 0; i < c.chunkers.length; i++) {
-    const ch = c.chunkers[i] as Record<string, unknown>;
+  const chunking = c.chunking as Record<string, unknown>;
+
+  if (!Array.isArray(chunking.chunkers) || chunking.chunkers.length === 0) {
+    throw new ConfigError(
+      '"chunking.chunkers" must be a non-empty array in virage.config.json',
+    );
+  }
+  if (chunking.exclude !== undefined && !Array.isArray(chunking.exclude)) {
+    throw new ConfigError('"chunking.exclude" must be an array of glob strings');
+  }
+  if (Array.isArray(chunking.exclude)) {
+    for (let i = 0; i < chunking.exclude.length; i++) {
+      if (typeof chunking.exclude[i] !== "string") {
+        throw new ConfigError(`chunking.exclude[${i}] must be a string`);
+      }
+    }
+  }
+  for (let i = 0; i < (chunking.chunkers as unknown[]).length; i++) {
+    const ch = (chunking.chunkers as unknown[])[i] as Record<string, unknown>;
     if (!Array.isArray(ch.patterns) || ch.patterns.length === 0) {
       throw new ConfigError(
-        `chunkers[${i}].patterns must be a non-empty array`,
+        `chunking.chunkers[${i}].patterns must be a non-empty array`,
       );
     }
     if (typeof ch.strategy !== "string") {
-      throw new ConfigError(`chunkers[${i}].strategy must be a string`);
+      throw new ConfigError(`chunking.chunkers[${i}].strategy must be a string`);
     }
   }
 
@@ -149,11 +180,16 @@ async function loadJsonConfig(
     });
   }
 
+  if (raw && typeof raw === "object" && !Array.isArray(raw)) {
+    normalizeConfig(raw as Record<string, unknown>);
+  }
   validateJsonConfig(raw);
   const jsonConfig = raw as JsonRagConfig;
 
+  const excludePatterns = jsonConfig.chunking.exclude ?? [];
+
   const chunkers = await Promise.all(
-    jsonConfig.chunkers.map(async (ch) => {
+    jsonConfig.chunking.chunkers.map(async (ch) => {
       const strategy = await resolveStrategy(
         ch.strategy as BuiltinStrategyName,
         ch.strategyOptions,
@@ -221,6 +257,7 @@ async function loadJsonConfig(
     embedder,
     vectorStore,
     sourceRepository,
+    excludePatterns,
     telemetry: jsonConfig.telemetry,
     options: jsonConfig.options,
     search: {

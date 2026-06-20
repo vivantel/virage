@@ -42,8 +42,10 @@ export type { SearchQueryRow } from "./core/virage-db.js";
 // Defaults and constants
 export {
   getVirageDir,
+  getGlobalVirageDir,
   defaultVirageDb,
   IGNORED_DIRS,
+  DEFAULT_EXCLUDE_PATTERNS,
 } from "./core/virage-defaults.js";
 
 /**

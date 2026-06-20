@@ -49,12 +49,12 @@ Any ONNX-compatible model on the HuggingFace hub can be used.
 
 ## Options
 
-| Option       | Type                | Description                         |
-| ------------ | ------------------- | ----------------------------------- |
-| `model`      | `string`            | HuggingFace model ID (required)     |
-| `dimensions` | `number`            | Output dimensions (default: 384)    |
-| `device`     | `"cpu" \| "webgpu"` | Inference device (default: `"cpu"`) |
-| `cacheDir`   | `string`            | Local model cache directory         |
+| Option       | Type                           | Description                                                                                   |
+| ------------ | ------------------------------ | --------------------------------------------------------------------------------------------- |
+| `model`      | `string`                       | HuggingFace model ID (required)                                                               |
+| `dimensions` | `number`                       | Output dimensions (default: 384)                                                              |
+| `device`     | `"cpu" \| "webgpu" \| "cuda"` | Inference device (default: `"cpu"`). `"cuda"` requires `onnxruntime-node` with a GPU build.  |
+| `cacheDir`   | `string`                       | Local model cache directory (default: `~/.virage/models`, override with `VIRAGE_GLOBAL_DIR`) |
 
 ## First run
 

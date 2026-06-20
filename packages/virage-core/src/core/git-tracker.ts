@@ -12,16 +12,19 @@ export class GitTracker {
   private chunkers: FileChunker[];
   private allPatterns: string[];
   private logger: Logger;
+  private excludePatterns: string[];
 
   constructor(
     chunkers: FileChunker[],
     source: SourceRepository,
     logger?: Logger,
+    excludePatterns?: string[],
   ) {
     this.chunkers = chunkers;
     this.source = source;
     this.allPatterns = chunkers.flatMap((c) => c.patterns);
     this.logger = (logger ?? new NullLogger()).withTag("git");
+    this.excludePatterns = excludePatterns ?? [];
   }
 
   /** Returns the current git branch name, or "HEAD" when detached. */
@@ -48,13 +51,23 @@ export class GitTracker {
   }
 
   async getAllTrackedFiles(): Promise<string[]> {
-    const files = await glob(this.allPatterns, {
-      nodir: true,
-      ignore: [...IGNORED_DIRS].map((d) => `${d}/**`),
-    });
-    const unique = [...new Set(files)].sort();
+    const ignore = [
+      ...[...IGNORED_DIRS].map((d) => `${d}/**`),
+      ...this.excludePatterns,
+    ];
+    const files = await glob(this.allPatterns, { nodir: true, ignore });
+    const unique = [...new Set(files)]
+      .filter((f) => {
+        if (this.excludePatterns.length === 0) return true;
+        const normalized = f.split(path.sep).join("/");
+        return !this.excludePatterns.some((p) => minimatch(normalized, p));
+      })
+      .sort();
     this.logger.debug(
-      `Scanned ${unique.length} file(s) matching ${this.allPatterns.length} pattern(s)`,
+      `Scanned ${unique.length} file(s) matching ${this.allPatterns.length} pattern(s)` +
+        (this.excludePatterns.length > 0
+          ? ` (${this.excludePatterns.length} exclude pattern(s) applied)`
+          : ""),
     );
     return unique;
   }

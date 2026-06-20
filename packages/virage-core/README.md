@@ -23,10 +23,30 @@ npx virage         # run the pipeline
 
 Four pipeline stages run in sequence:
 
-1. **GitTracker** — finds files matching your chunker patterns and detects changes via commit hashes
-2. **ChunkProcessor** — splits each file into `Chunk[]` using your configured strategy
+1. **GitTracker** — finds files matching your chunker patterns, applies `exclude` glob filters, and detects changes via commit hashes
+2. **ChunkProcessor** — splits each file into `Chunk[]` using your configured strategy (runs files in parallel, concurrency = CPU core count by default)
 3. **EmbedderProcessor** — embeds chunks incrementally (skips unchanged content); detects model changes and auto-invalidates stale embeddings
 4. **Uploader** — syncs the vector store: deletes stale documents, upserts new ones
+
+## Config format
+
+Configuration lives in `virage.config.json`. The `chunking` section groups chunker definitions and global file exclusions:
+
+```json
+{
+  "chunking": {
+    "exclude": ["**/vendor/**", "**/*.min.js", "**/dist/**"],
+    "chunkers": [
+      { "patterns": ["**/*.md"], "strategy": "markdownHeaders" },
+      { "patterns": ["src/**/*.ts"], "strategy": "codeChunkAst" }
+    ]
+  }
+}
+```
+
+`chunking.exclude` accepts glob patterns (using `minimatch` semantics). Files matching any pattern are skipped at both the scanning and chunking stages. `virage init` seeds this list with ecosystem-specific defaults for Node.js, .NET, Java, Go, and C/C++.
+
+**Backward compatibility:** configs with a root-level `chunkers` array (pre-0.2.37) are automatically promoted to `chunking.chunkers` at load time — no manual migration needed.
 
 ## Provider interfaces
 

@@ -50,12 +50,12 @@ The inner model is initialized lazily on the first `embed()` call.
 
 ## Options
 
-| Option                 | Type      | Description                                             |
-| ---------------------- | --------- | ------------------------------------------------------- |
-| `model`                | `string`  | Model name (default: `"BAAI/bge-small-en-v1.5"`)        |
-| `dimensions`           | `number`  | Output dimensions (auto-detected from model if omitted) |
-| `cacheDir`             | `string`  | Local model cache directory                             |
-| `showDownloadProgress` | `boolean` | Show download progress bar (default: `false`)           |
+| Option                 | Type      | Description                                                                                   |
+| ---------------------- | --------- | --------------------------------------------------------------------------------------------- |
+| `model`                | `string`  | Model name (default: `"BAAI/bge-small-en-v1.5"`)                                             |
+| `dimensions`           | `number`  | Output dimensions (auto-detected from model if omitted)                                       |
+| `cacheDir`             | `string`  | Local model cache directory (default: `~/.virage/models`, override with `VIRAGE_GLOBAL_DIR`) |
+| `showDownloadProgress` | `boolean` | Show download progress bar (default: `false`)                                                 |
 
 ## License
 

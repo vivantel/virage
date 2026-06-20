@@ -61,10 +61,16 @@ All configuration lives in `virage.config.json`. The `$schema` field enables IDE
 ```json
 {
   "$schema": "https://unpkg.com/@vivantel/virage-core/schemas/virage.config.schema.json",
-  "chunkers": [
-    { "patterns": ["**/*.md"], "strategy": "markdownHeaders" },
-    { "patterns": ["src/**/*.ts", "src/**/*.tsx"], "strategy": "codeChunkAst" }
-  ],
+  "chunking": {
+    "exclude": [
+      "**/vendor/**", "**/*.min.js", "**/*.lock",
+      "**/dist/**", "**/node_modules/**"
+    ],
+    "chunkers": [
+      { "patterns": ["**/*.md"], "strategy": "markdownHeaders" },
+      { "patterns": ["src/**/*.ts", "src/**/*.tsx"], "strategy": "codeChunkAst" }
+    ]
+  },
   "agents": ["claude-code"],
   "embedder": {
     "package": "@vivantel/virage-embedder-fastembed",
@@ -90,6 +96,10 @@ All configuration lives in `virage.config.json`. The `$schema` field enables IDE
   }
 }
 ```
+
+The `chunking` section replaces the old root-level `chunkers` array. Old configs with `chunkers` at the root are automatically normalized at load time — no manual migration required. `virage init` always generates the new format.
+
+**`chunking.exclude`** accepts glob patterns applied to all chunkers before any file is processed. `virage init` seeds this with sensible per-ecosystem defaults (Node, Java, .NET, Go, C/C++). Per-chunker exclusions remain available as `ignorePatterns` inside each chunker entry.
 
 ## Built-in strategies
 
@@ -184,10 +194,14 @@ Optional post-retrieval re-rankers re-score the top-K candidates for higher prec
 
 Fine-tune indexing performance via the `options` block in `virage.config.json`:
 
-| Option        | Default | Effect                                           |
-| ------------- | ------- | ------------------------------------------------ |
-| `rateLimitMs` | `0`     | Milliseconds to wait between embedding API calls |
-| `batchSize`   | `100`   | Chunks sent per embedding request                |
+| Option              | Default          | Effect                                                           |
+| ------------------- | ---------------- | ---------------------------------------------------------------- |
+| `rateLimitMs`       | `0`              | Milliseconds to wait between embedding API calls                 |
+| `batchSize`         | `100`            | Chunks sent per embedding request                                |
+| `chunkConcurrency`  | CPU core count   | Number of files chunked in parallel (I/O + AST parsing)         |
+| `concurrency`       | `1`              | Parallel embedding requests (for remote embedders only)          |
+
+Local embedder models are cached in `~/.virage/models` (overridable with `VIRAGE_GLOBAL_DIR`).
 
 Use `--force` to discard the incremental cache and re-index everything from scratch.  
 Use `-v` / `-vv` / `-vvv` with `virage index` to increase log verbosity for debugging.

@@ -1,4 +1,5 @@
 import type { EmbeddingProvider, Logger } from "@vivantel/virage-core";
+import { getGlobalVirageDir } from "@vivantel/virage-core";
 import { mkdir } from "fs/promises";
 import path from "path";
 
@@ -70,7 +71,7 @@ export class FastEmbedEmbedder implements EmbeddingProvider {
     // not found". Apply whether or not cacheDir was explicitly configured —
     // Default falls back to $VIRAGE_DIR/models (or .virage/models).
     const effectiveCacheDir =
-      this.cacheDir ?? `${process.env["VIRAGE_DIR"] ?? ".virage"}/models`;
+      this.cacheDir ?? path.join(getGlobalVirageDir(), "models");
     const modelParent = path.dirname(this.model);
     if (modelParent !== ".") {
       await mkdir(path.join(effectiveCacheDir, modelParent), {

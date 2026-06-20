@@ -1,6 +1,6 @@
-import { homedir } from "node:os";
 import { join } from "node:path";
 import type { EmbeddingProvider, Logger } from "@vivantel/virage-core";
+import { getGlobalVirageDir } from "@vivantel/virage-core";
 
 export interface QuantizationOptions {
   /** Data type for model quantization. Reduces memory usage at small quality cost. */
@@ -13,7 +13,7 @@ export interface TransformersEmbedderOptions {
   model: string;
   /** Output vector dimensions. Auto-detected from the model if omitted. */
   dimensions?: number;
-  device?: "cpu" | "webgpu";
+  device?: "cpu" | "webgpu" | "cuda";
   /** Local directory for caching downloaded models. */
   cacheDir?: string;
   /** Optional quantization settings. Reduces RAM usage by 60-75%, speeds up inference. */
@@ -35,7 +35,7 @@ export class TransformersEmbedder implements EmbeddingProvider {
   readonly model: string;
   readonly preferredBatchSize = 32;
 
-  private readonly device: "cpu" | "webgpu";
+  private readonly device: "cpu" | "webgpu" | "cuda";
   private readonly cacheDir: string;
   private readonly quantization?: QuantizationOptions;
   private _pipelinePromise: Promise<Pipeline> | null = null;
@@ -45,10 +45,7 @@ export class TransformersEmbedder implements EmbeddingProvider {
     this.model = options.model;
     this.dimensions = options.dimensions ?? 384;
     this.device = options.device ?? "cpu";
-    // Default to the user's home directory so globally-installed packages
-    // (owned by root) don't try to write the model cache inside node_modules.
-    this.cacheDir =
-      options.cacheDir ?? join(homedir(), ".cache", "huggingface", "hub");
+    this.cacheDir = options.cacheDir ?? join(getGlobalVirageDir(), "models");
     this.quantization = options.quantization;
   }
 
@@ -129,6 +126,9 @@ export class TransformersEmbedder implements EmbeddingProvider {
       const sumTotal = [...fileTotals.values()].reduce((a, b) => a + b, 0);
       const final = sumTotal > 0 ? sumTotal : 1;
       onProgress(final, final);
+      // Yield to the event loop so the render interval can process the 100%
+      // update before the caller transitions the progress display.
+      await new Promise<void>((resolve) => setImmediate(resolve));
     }
 
     this.logger?.info(

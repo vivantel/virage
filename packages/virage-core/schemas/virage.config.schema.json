@@ -4,51 +4,35 @@
   "title": "Virage Pipeline Config",
   "description": "Declarative JSON configuration for @vivantel/virage-core",
   "type": "object",
-  "required": ["chunkers", "embedder", "vectorStore"],
+  "required": ["chunking", "embedder", "vectorStore"],
   "additionalProperties": false,
   "properties": {
     "$schema": {
       "type": "string"
     },
-    "chunkers": {
-      "type": "array",
-      "minItems": 1,
-      "items": {
-        "type": "object",
-        "required": ["patterns", "strategy"],
-        "additionalProperties": false,
-        "properties": {
-          "name": {
-            "type": "string",
-            "description": "Optional name for this chunker. Auto-derived from strategy and pattern if omitted."
-          },
-          "patterns": {
-            "type": "array",
-            "minItems": 1,
-            "items": { "type": "string" },
-            "description": "Glob patterns for files this chunker handles."
-          },
-          "ignorePatterns": {
-            "type": "array",
-            "items": { "type": "string" },
-            "description": "Glob patterns for files this chunker should skip."
-          },
-          "strategy": {
-            "type": "string",
-            "enum": ["markdownHeaders", "token", "wholeFile", "semantic", "codeChunkAst"],
-            "description": "Built-in strategy name."
-          },
-          "strategyOptions": {
-            "type": "object",
-            "description": "Optional options passed to the strategy factory.",
-            "properties": {
-              "maxTokens": { "type": "number" },
-              "overlap": { "type": "number" }
-            },
-            "additionalProperties": true
-          }
+    "chunking": {
+      "type": "object",
+      "required": ["chunkers"],
+      "additionalProperties": false,
+      "description": "Chunking configuration: global file exclusions and per-chunker rules.",
+      "properties": {
+        "exclude": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Glob patterns for files to exclude globally from all chunkers (e.g. '**/vendor/**', '**/*.min.js')."
+        },
+        "chunkers": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/chunkerItem" }
         }
       }
+    },
+    "chunkers": {
+      "$comment": "DEPRECATED: use chunking.chunkers instead. Kept here so old configs pass schema validation before the runtime normalizer runs.",
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/chunkerItem" }
     },
     "embedder": {
       "type": "object",
@@ -139,6 +123,10 @@
         "batchSize": { "type": "number" },
         "maxBatchChars": { "type": "number" },
         "concurrency": { "type": "number" },
+        "chunkConcurrency": {
+          "type": "number",
+          "description": "Number of files to chunk concurrently. Defaults to the number of logical CPU cores."
+        },
         "minIngestionBatchSize": {
           "type": "integer",
           "minimum": 1,
@@ -151,6 +139,54 @@
           "properties": {
             "webhookUrl": { "type": "string" }
           }
+        }
+      }
+    },
+    "source": {
+      "type": "object",
+      "required": ["package"],
+      "additionalProperties": false,
+      "description": "Optional custom source repository plugin.",
+      "properties": {
+        "package": { "type": "string" },
+        "config": { "type": "object", "additionalProperties": true }
+      }
+    }
+  },
+  "$defs": {
+    "chunkerItem": {
+      "type": "object",
+      "required": ["patterns", "strategy"],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Optional name for this chunker. Auto-derived from strategy and pattern if omitted."
+        },
+        "patterns": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string" },
+          "description": "Glob patterns for files this chunker handles."
+        },
+        "ignorePatterns": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Glob patterns for files this chunker should skip (per-chunker excludes)."
+        },
+        "strategy": {
+          "type": "string",
+          "enum": ["markdownHeaders", "token", "wholeFile", "semantic", "codeChunkAst"],
+          "description": "Built-in strategy name."
+        },
+        "strategyOptions": {
+          "type": "object",
+          "description": "Optional options passed to the strategy factory.",
+          "properties": {
+            "maxTokens": { "type": "number" },
+            "overlap": { "type": "number" }
+          },
+          "additionalProperties": true
         }
       }
     }
