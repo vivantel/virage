@@ -5,6 +5,11 @@ export interface CrossEncoderRerankerOptions {
   model?: string;
   /** Number of results to return after re-ranking. Defaults to 5. */
   topK?: number;
+  /**
+   * Minimum sigmoid-calibrated relevance score (0–1) to include in results.
+   * Results below this threshold are dropped. Default: 0 (no filtering).
+   */
+  minScore?: number;
 }
 
 // Minimal structural type matching text-classification pipeline's runtime batch behaviour
@@ -20,11 +25,13 @@ export class CrossEncoderReranker implements Reranker {
 
   private readonly modelId: string;
   private readonly defaultTopK: number;
+  private readonly minScore: number;
   private _pipeline: Classifier | null = null;
 
   constructor(options: CrossEncoderRerankerOptions = {}) {
     this.modelId = options.model ?? "Xenova/ms-marco-MiniLM-L-6-v2";
     this.defaultTopK = options.topK ?? 5;
+    this.minScore = options.minScore ?? 0;
   }
 
   private async getPipeline(): Promise<Classifier> {
@@ -76,15 +83,19 @@ export class CrossEncoderReranker implements Reranker {
     );
     const top = indexed.slice(0, k);
 
-    // Min-max normalize logits to [0, 1] for display, preserving ranking order
-    const logits = top.map((x) => x.logit ?? x.c.similarity);
-    const min = Math.min(...logits);
-    const max = Math.max(...logits);
-    const range = max - min;
+    // Apply sigmoid to convert raw logits to calibrated relevance probabilities.
+    // sigmoid(logit) ≈ P(relevant | query, doc) for ms-marco cross-encoders:
+    //   logit +8 → ~100%, logit +2 → ~88%, logit -2 → ~12%, logit -8 → ~0%
+    // This gives absolute scores so irrelevant queries don't saturate at 100%.
+    const sigmoid = (x: number) => 1 / (1 + Math.exp(-x));
 
-    return top.map((x, i) => ({
+    const scored = top.map((x) => ({
       ...x.c,
-      similarity: range > 1e-9 ? (logits[i] - min) / range : 1,
+      similarity: x.logit !== undefined ? sigmoid(x.logit) : x.c.similarity,
     }));
+
+    return this.minScore > 0
+      ? scored.filter((r) => r.similarity >= this.minScore)
+      : scored;
   }
 }

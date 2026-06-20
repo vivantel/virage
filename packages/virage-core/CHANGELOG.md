@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.45](https://github.com/vivantel/virage/compare/virage-core@v0.2.44...virage-core@v0.2.45) (2026-06-20)
+
+
+### Bug Fixes
+
+* **mcp:** Apply prettier formatting to searchConfig type ([939f477](https://github.com/vivantel/virage/commit/939f4776813e4daba1a4d65427d20da51ee311b7))
+
+## [0.2.44](https://github.com/vivantel/virage/compare/virage-core@v0.2.43...virage-core@v0.2.44) (2026-06-20)
+
+
+### Features
+
+* **reranker,core,cli,mcp:** Sigmoid score calibration and candidate oversampling ([9e896dc](https://github.com/vivantel/virage/commit/9e896dc7cd98f476127ab95d64f0cbde661ac7ef))
+
 ## [0.2.43](https://github.com/vivantel/virage/compare/virage-core@v0.2.42...virage-core@v0.2.43) (2026-06-20)
 
 

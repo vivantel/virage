@@ -33,6 +33,8 @@ export interface RAGPipelineConfig {
     hybrid?: boolean;
     hybridAlpha?: number;
     reranker?: Reranker;
+    /** Number of candidates to fetch per final result when a reranker is active. Default: 5. */
+    rerankOversample?: number;
   };
   options?: {
     /** @deprecated No longer used; chunks.json has been removed. */

@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.9](https://github.com/vivantel/virage/compare/virage-skills@v0.1.8...virage-skills@v0.1.9) (2026-06-20)
+
+
+### Bug Fixes
+
+* **mcp:** Apply prettier formatting to searchConfig type ([939f477](https://github.com/vivantel/virage/commit/939f4776813e4daba1a4d65427d20da51ee311b7))
+
 ## [0.1.8](https://github.com/vivantel/virage/compare/virage-skills@v0.1.7...virage-skills@v0.1.8) (2026-06-18)
 
 

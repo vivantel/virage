@@ -59,7 +59,7 @@ describe("CrossEncoderReranker", () => {
     expect(result.map((r) => r.id)).toEqual(["b", "c", "a"]);
   });
 
-  it("normalizes scores to [0, 1] via min-max within the batch", async () => {
+  it("calibrates scores via sigmoid so higher logit → higher similarity", async () => {
     const reranker = new CrossEncoderReranker();
     const candidates = [
       makeCandidate("a", "low", 0.8),
@@ -67,25 +67,55 @@ describe("CrossEncoderReranker", () => {
       makeCandidate("c", "mid", 0.5),
     ];
     mockCall.mockResolvedValue([
-      [{ score: 0.1 }], // a
-      [{ score: 0.9 }], // b
-      [{ score: 0.5 }], // c
+      [{ score: 0.1 }], // a: sigmoid(0.1) ≈ 0.525
+      [{ score: 0.9 }], // b: sigmoid(0.9) ≈ 0.711
+      [{ score: 0.5 }], // c: sigmoid(0.5) ≈ 0.622
     ]);
 
     const result = await reranker.rerank("query", candidates);
-    // b=top → 1.0, c=mid → (0.5-0.1)/(0.9-0.1)=0.5, a=bottom → 0
-    expect(result[0].similarity).toBeCloseTo(1.0);
-    expect(result[1].similarity).toBeCloseTo(0.5);
-    expect(result[2].similarity).toBeCloseTo(0.0);
+    // Order: b > c > a
+    expect(result[0].id).toBe("b");
+    expect(result[1].id).toBe("c");
+    expect(result[2].id).toBe("a");
+    // Scores are sigmoid-calibrated, not min-max normalized
+    expect(result[0].similarity).toBeCloseTo(1 / (1 + Math.exp(-0.9)), 5);
+    expect(result[1].similarity).toBeCloseTo(1 / (1 + Math.exp(-0.5)), 5);
+    expect(result[2].similarity).toBeCloseTo(1 / (1 + Math.exp(-0.1)), 5);
   });
 
-  it("single result gets similarity 1 (no range to normalize)", async () => {
+  it("single result gets sigmoid-calibrated similarity (not forced to 1)", async () => {
     const reranker = new CrossEncoderReranker();
     const candidates = [makeCandidate("x", "some content", 0.5)];
     mockCall.mockResolvedValue([[{ score: 7.3 }]]);
 
     const result = await reranker.rerank("query", candidates);
-    expect(result[0].similarity).toBe(1);
+    // sigmoid(7.3) ≈ 0.9993 — very high but not exactly 1
+    expect(result[0].similarity).toBeCloseTo(1 / (1 + Math.exp(-7.3)), 5);
+    expect(result[0].similarity).toBeGreaterThan(0.99);
+  });
+
+  it("assigns near-zero similarity to highly negative logit", async () => {
+    const reranker = new CrossEncoderReranker();
+    const candidates = [makeCandidate("x", "irrelevant content", 0.5)];
+    mockCall.mockResolvedValue([[{ score: -8 }]]);
+
+    const result = await reranker.rerank("query", candidates);
+    // sigmoid(-8) ≈ 0.000335 — clearly not relevant
+    expect(result[0].similarity).toBeLessThan(0.01);
+  });
+
+  it("filters results below minScore threshold", async () => {
+    const reranker = new CrossEncoderReranker({ minScore: 0.5 });
+    const candidates = [
+      makeCandidate("a", "relevant", 0.8),
+      makeCandidate("b", "irrelevant", 0.3),
+    ];
+    // sigmoid(2) ≈ 0.88, sigmoid(-2) ≈ 0.12 — only "a" passes minScore 0.5
+    mockCall.mockResolvedValue([[{ score: 2 }], [{ score: -2 }]]);
+
+    const result = await reranker.rerank("query", candidates);
+    expect(result).toHaveLength(1);
+    expect(result[0].id).toBe("a");
   });
 
   it("respects topK from constructor", async () => {

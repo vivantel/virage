@@ -37,13 +37,6 @@ export async function runQuery(
     ...(useHybrid ? { hybrid: true, hybridAlpha, queryText } : {}),
   };
 
-  let results: VectorSearchResult[] = await cfg.vectorStore.search(
-    queryEmbedding,
-    opts.topK,
-    undefined,
-    searchOptions,
-  );
-
   // Apply re-ranker from config, or bootstrap one if --rerank flag is set
   let reranker = cfg.search?.reranker;
   if (!reranker && opts.rerank) {
@@ -59,6 +52,16 @@ export async function runQuery(
       );
     }
   }
+
+  const oversample = cfg.search?.rerankOversample ?? 5;
+  const fetchTopK = reranker ? opts.topK * oversample : opts.topK;
+
+  let results: VectorSearchResult[] = await cfg.vectorStore.search(
+    queryEmbedding,
+    fetchTopK,
+    undefined,
+    searchOptions,
+  );
 
   if (reranker) {
     results = await reranker.rerank(queryText, results, opts.topK);
