@@ -1,6 +1,6 @@
 {
   "name": "@vivantel/virage-embedder-openai",
-  "version": "0.2.36",
+  "version": "0.2.37",
   "description": "OpenAI-compatible embedding provider for @vivantel/rag-core",
   "type": "module",
   "main": "dist/index.js",
@@ -50,7 +50,7 @@
     "@vivantel/virage-core": "*"
   },
   "devDependencies": {
-    "@vivantel/virage-core": "0.2.35",
+    "@vivantel/virage-core": "0.2.36",
     "@types/node": "^25.9.3",
     "typescript": "^6.0.3",
     "vitest": "^4.1.9"
