@@ -4,7 +4,7 @@ import { getGlobalVirageDir } from "@vivantel/virage-core";
 
 export interface QuantizationOptions {
   /** Data type for model quantization. Reduces memory usage at small quality cost. */
-  dtype: "int8" | "uint8" | "fp16" | "q4";
+  dtype: "fp32" | "int8" | "uint8" | "fp16" | "q4";
   threads?: number;
 }
 
@@ -115,7 +115,7 @@ export class TransformersEmbedder implements EmbeddingProvider {
 
     const pipe = (await pipeline("feature-extraction", this.model, {
       device: this.device,
-      ...(this.quantization ? { dtype: this.quantization.dtype } : {}),
+      dtype: this.quantization?.dtype ?? "fp32",
       ...(progressCallback ? { progress_callback: progressCallback } : {}),
     })) as unknown as Pipeline;
 

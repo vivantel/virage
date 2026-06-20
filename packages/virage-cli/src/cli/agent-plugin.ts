@@ -2,6 +2,7 @@ import { readFile, readdir } from "fs/promises";
 import { existsSync } from "fs";
 import { homedir } from "os";
 import { join, resolve } from "path";
+import { pathToFileURL } from "node:url";
 
 export interface AgentPluginMeta {
   name: string;
@@ -125,7 +126,11 @@ export async function runAgentPlugin(
   meta: AgentPluginMeta,
   targetDir: string,
 ): Promise<AgentConfigResult> {
-  const mod = (await import(meta.configurePath)) as {
+  const importSpecifier =
+    process.platform === "win32"
+      ? pathToFileURL(meta.configurePath).href
+      : meta.configurePath;
+  const mod = (await import(importSpecifier)) as {
     configure?: (dir: string) => Promise<AgentConfigResult>;
     default?: { configure?: (dir: string) => Promise<AgentConfigResult> };
   };

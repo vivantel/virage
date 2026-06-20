@@ -25,7 +25,9 @@ export class CrossEncoderReranker implements Reranker {
   private async getPipeline(): Promise<Classifier> {
     if (!this._pipeline) {
       const { pipeline } = await import("@huggingface/transformers");
-      this._pipeline = await pipeline("text-classification", this.modelId);
+      this._pipeline = await pipeline("text-classification", this.modelId, {
+        dtype: "fp32",
+      });
     }
     return this._pipeline!;
   }

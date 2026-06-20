@@ -280,9 +280,6 @@ export class Orchestrator {
       let chunksEmbedded = 0;
       const t2 = Date.now();
 
-      // Per-file upload completion tracking for "Files indexed" footer
-      const fileChunkCounts = new Map<string, number>();
-      const fileUploadedCounts = new Map<string, number>();
       let filesIndexed = 0;
 
       const flushUpload = async (all: boolean) => {
@@ -294,15 +291,6 @@ export class Orchestrator {
           uploadDone += ubatch.length;
           uploadedCount += ubatch.length;
           opts.onUploadProgress?.(uploadDone, sharedTotal);
-          for (const chunk of ubatch) {
-            if (!fileChunkCounts.has(chunk.sourceFile)) continue;
-            const prev = fileUploadedCounts.get(chunk.sourceFile) ?? 0;
-            const next = prev + 1;
-            fileUploadedCounts.set(chunk.sourceFile, next);
-            if (next >= (fileChunkCounts.get(chunk.sourceFile) ?? 0)) {
-              opts.onFileComplete?.(++filesIndexed, toProcess.length);
-            }
-          }
         }
       };
 
@@ -372,11 +360,6 @@ export class Orchestrator {
             embedTotal += chunksToEmbed.length;
             chunksGenerated += chunksToEmbed.length;
 
-            fileChunkCounts.set(file, chunksToEmbed.length);
-            if (chunksToEmbed.length === 0 || opts.skipUpload || opts.dryRun) {
-              opts.onFileComplete?.(++filesIndexed, toProcess.length);
-            }
-
             if (chunksGenerated > 0) {
               const avgChunksPerFile = chunksGenerated / filesStreamed;
               const projectedNew = Math.round(
@@ -388,6 +371,10 @@ export class Orchestrator {
             }
 
             await flushEmbed(false);
+            // Fire once per file after embedding is queued. embedChain runs
+            // sequentially with awaits between files so the renderer timer can
+            // render each increment, giving smooth 1/N → N/N progress.
+            opts.onFileComplete?.(++filesIndexed, toProcess.length);
           } catch (err) {
             logger.error(
               `❌ Embed chain error for ${file}: ${
@@ -457,8 +444,6 @@ export class Orchestrator {
           `   Would delete: ${toDelete.length + toProcess.length} source file(s)`,
         );
       }
-
-      logger.success("✨ RAG pipeline complete!");
 
       if (telemetry) {
         telemetry.finish();

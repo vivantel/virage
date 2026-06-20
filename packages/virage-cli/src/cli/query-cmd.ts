@@ -1,4 +1,5 @@
 import { loadConfig } from "@vivantel/virage-core";
+import { ansi } from "../progress/progress-bar.js";
 import type {
   VectorSearchResult,
   SearchOptions,
@@ -86,17 +87,22 @@ export async function runQuery(
     return;
   }
 
+  const sep = ansi.cyan + "─".repeat(60) + ansi.reset;
   console.log(`\nTop ${results.length} result(s) for: "${queryText}"\n`);
-  console.log("─".repeat(60));
+  console.log(sep);
   for (let i = 0; i < results.length; i++) {
     const r = results[i];
     const branch =
       typeof r.metadata.branch === "string" ? ` [${r.metadata.branch}]` : "";
-    console.log(`\n[${i + 1}] ${r.sourceFile ?? "unknown"}${branch}`);
-    console.log(`    similarity: ${(r.similarity * 100).toFixed(1)}%`);
+    console.log(
+      `\n${ansi.bold}${ansi.cyan}[${i + 1}] ${r.sourceFile ?? "unknown"}${branch}${ansi.reset}`,
+    );
+    console.log(
+      `    ${ansi.dim}similarity: ${(r.similarity * 100).toFixed(1)}%${ansi.reset}`,
+    );
     console.log(
       `\n${r.content.slice(0, 400)}${r.content.length > 400 ? "…" : ""}`,
     );
-    console.log("\n" + "─".repeat(60));
+    console.log("\n" + sep);
   }
 }

@@ -86,10 +86,13 @@ export async function fetchLatestVersion(pkg: string): Promise<string> {
 
 export function runInstall(cmd: string, args: string[]): Promise<void> {
   return new Promise((resolve, reject) => {
-    const proc = spawn(cmd, args, {
-      stdio: "inherit",
-      shell: process.platform === "win32",
-    });
+    // On Windows, package manager CLIs are .cmd scripts — use the explicit
+    // extension instead of shell:true to avoid DEP0190 (args + shell = unsafe).
+    const resolvedCmd =
+      process.platform === "win32" && !cmd.includes("/") && !cmd.includes("\\")
+        ? `${cmd}.cmd`
+        : cmd;
+    const proc = spawn(resolvedCmd, args, { stdio: "inherit" });
     proc.on("close", (code) =>
       code === 0
         ? resolve()

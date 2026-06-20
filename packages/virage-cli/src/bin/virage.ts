@@ -156,8 +156,11 @@ async function runOnce(options: {
       },
     });
     await orchestrator.run();
-  } finally {
     renderer.stop();
+    console.log(`${ansi.green}✨ RAG pipeline complete!${ansi.reset}`);
+  } catch (err) {
+    renderer.stop();
+    throw err;
   }
 }
 

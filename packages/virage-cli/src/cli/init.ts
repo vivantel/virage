@@ -1,8 +1,13 @@
 import { input, select } from "@inquirer/prompts";
-import { checkboxWithBack, CHECKBOX_BACK } from "./checkbox-nav.js";
+import {
+  checkboxWithBack,
+  CHECKBOX_BACK,
+  selectWithBack,
+  SELECT_BACK,
+} from "./checkbox-nav.js";
 import { existsSync } from "fs";
 import { readFile, rename, writeFile } from "fs/promises";
-import { dirname, resolve } from "path";
+import { dirname, relative, resolve } from "path";
 import {
   loadRegistry,
   getVirageDir,
@@ -110,10 +115,11 @@ function formatSummary(state: WizardState, registry: PluginRegistry): string {
     ? `Enabled (alpha=${state.hybridAlpha ?? 0.6})`
     : "Disabled";
 
+  const localDir = getLocalPluginDir(dirname(resolve(state.outputPath)));
   const scopeLabel =
     state.installScope === "global"
       ? `Global (~/.virage/plugins)`
-      : `Local (${getLocalPluginDir(dirname(resolve(state.outputPath)))})`;
+      : `Local (${relative(process.cwd(), localDir) || ".virage/plugins"})`;
 
   const width = 52;
   const labelWidth = 14;
@@ -518,14 +524,15 @@ export async function runInit(): Promise<void> {
 
       // ── Step 3: embedder selection ──
       case 3: {
-        const choice = await select({
+        const choice = await selectWithBack({
           message: "Which embedding provider?",
           default: "transformers",
-          choices: withBack(
-            registry.embedders.map((e) => ({ name: e.label, value: e.key })),
-          ),
+          choices: registry.embedders.map((e) => ({
+            name: e.label,
+            value: e.key,
+          })),
         });
-        if (isBack(choice)) {
+        if (choice === SELECT_BACK) {
           step--;
           break;
         }
@@ -536,14 +543,15 @@ export async function runInit(): Promise<void> {
 
       // ── Step 4: vector store selection ──
       case 4: {
-        const choice = await select({
+        const choice = await selectWithBack({
           message: "Which vector store?",
           default: "lancedb",
-          choices: withBack(
-            registry.stores.map((s) => ({ name: s.label, value: s.key })),
-          ),
+          choices: registry.stores.map((s) => ({
+            name: s.label,
+            value: s.key,
+          })),
         });
-        if (isBack(choice)) {
+        if (choice === SELECT_BACK) {
           step--;
           break;
         }
@@ -554,10 +562,10 @@ export async function runInit(): Promise<void> {
 
       // ── Step 5: re-ranker (optional) ──
       case 5: {
-        const choice = await select({
+        const choice = await selectWithBack({
           message: "Add a re-ranker? (optional — improves result precision)",
-          choices: withBack([
-            { name: "No re-ranker (skip)", value: "none" },
+          default: "cross-encoder",
+          choices: [
             {
               name: "Cross-encoder — local ONNX, no API key required",
               value: "cross-encoder",
@@ -566,9 +574,10 @@ export async function runInit(): Promise<void> {
               name: "LLM re-ranker — uses Anthropic API (claude-haiku-4-5)",
               value: "llm",
             },
-          ]),
+            { name: "No re-ranker (skip)", value: "none" },
+          ],
         });
-        if (isBack(choice)) {
+        if (choice === SELECT_BACK) {
           step--;
           break;
         }
@@ -586,20 +595,20 @@ export async function runInit(): Promise<void> {
         let step6Done = false;
 
         while (!step6Done && !backToStep5) {
-          const hybridChoice = await select({
+          const hybridChoice = await selectWithBack({
             message:
               "Enable hybrid search? (BM25 + vector fusion improves recall for keyword-heavy queries)",
             default: "yes",
-            choices: withBack([
+            choices: [
               {
                 name: "Yes — BM25 + vector hybrid (recommended)",
                 value: "yes",
               },
               { name: "No — pure vector search", value: "no" },
-            ]),
+            ],
           });
 
-          if (isBack(hybridChoice)) {
+          if (hybridChoice === SELECT_BACK) {
             backToStep5 = true;
             break;
           }
@@ -607,19 +616,19 @@ export async function runInit(): Promise<void> {
           state.hybrid = hybridChoice === "yes";
 
           if (state.hybrid) {
-            const alphaChoice = await select({
+            const alphaChoice = await selectWithBack({
               message:
                 "Blend weight — hybridAlpha (0 = pure BM25, 1 = pure vector):",
               default: "0.6",
-              choices: withBack([
+              choices: [
                 { name: "0.6 (recommended)", value: "0.6" },
                 { name: "0.3 (lean BM25)", value: "0.3" },
                 { name: "0.8 (lean vector)", value: "0.8" },
                 { name: "Enter custom value", value: "custom" },
-              ]),
+              ],
             });
 
-            if (isBack(alphaChoice)) {
+            if (alphaChoice === SELECT_BACK) {
               // Back within step 6 → re-run the yes/no prompt
               state.hybrid = undefined;
               state.hybridAlpha = undefined;
@@ -659,9 +668,9 @@ export async function runInit(): Promise<void> {
         const configDir = dirname(resolve(state.outputPath!));
         const localDir = getLocalPluginDir(configDir);
         const globalDir = getGlobalPluginDir();
-        const choice = await select({
+        const choice = await selectWithBack({
           message: "Where should virage plugins be installed?",
-          choices: withBack([
+          choices: [
             {
               name: `Local — ${localDir}`,
               value: "local" as const,
@@ -670,9 +679,9 @@ export async function runInit(): Promise<void> {
               name: `Global — ${globalDir}`,
               value: "global" as const,
             },
-          ]),
+          ],
         });
-        if (isBack(choice)) {
+        if (choice === SELECT_BACK) {
           step--;
           break;
         }
@@ -684,14 +693,11 @@ export async function runInit(): Promise<void> {
       // ── Step 8: confirmation ──
       case 8: {
         console.log("\n" + formatSummary(state as WizardState, registry));
-        const confirm = await select({
+        const confirm = await selectWithBack({
           message: "Proceed with this configuration?",
-          choices: [
-            { name: "✓ Confirm", value: "confirm" },
-            { name: "← Back", value: "back" },
-          ],
+          choices: [{ name: "✓ Confirm", value: "confirm" }],
         });
-        if (confirm === "back") {
+        if (confirm === SELECT_BACK) {
           step--;
           break;
         }

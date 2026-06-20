@@ -216,6 +216,7 @@ export class PipelineRenderer {
     if (isSingleLine) {
       if (this.ephemeralLines > 0) process.stdout.write("\n");
     } else {
+      this.lastPhaseStr = "";
       this.doRender();
     }
     this._restoreCursor?.();

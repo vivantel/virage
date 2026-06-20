@@ -241,3 +241,102 @@ export function checkboxWithBack<T>(
 ): Promise<T[] | CheckboxBack> {
   return makeCheckboxWithBack<T>()(config);
 }
+
+// ─── selectWithBack ───────────────────────────────────────────────────────────
+
+export const SELECT_BACK = "__select_back__" as const;
+export type SelectBack = typeof SELECT_BACK;
+
+export type SelectChoice<T> = {
+  name: string;
+  value: T;
+};
+
+export type SelectWithBackConfig<T> = {
+  message: string;
+  choices: ReadonlyArray<SelectChoice<T>>;
+  default?: T;
+  pageSize?: number;
+};
+
+const SELECT_HELP_KEYS: [string, string][] = [
+  ["↑↓", "navigate"],
+  ["⏎", "confirm"],
+  ["⌫", "back"],
+  ["⌃x", "exit"],
+];
+
+function makeSelectWithBack<T>() {
+  return createPrompt<T | SelectBack, SelectWithBackConfig<T>>((cfg, done) => {
+    const pageSize = cfg.pageSize ?? 7;
+    const choices = cfg.choices as SelectChoice<T>[];
+    const defaultIdx = Math.max(
+      0,
+      cfg.default !== undefined
+        ? choices.findIndex((ch) => ch.value === cfg.default)
+        : 0,
+    );
+    const [status, setStatus] = useState<"idle" | "done">("idle");
+    const [active, setActive] = useState(defaultIdx);
+
+    useKeypress((key: KeypressEvent) => {
+      if (isBackspaceKey(key)) {
+        setStatus("done");
+        done(SELECT_BACK);
+        return;
+      }
+      if (key.ctrl && key.name === "x") {
+        process.exit(0);
+      }
+      if (isEnterKey(key)) {
+        setStatus("done");
+        done(choices[active]!.value);
+        return;
+      }
+      if (isUpKey(key) || isDownKey(key)) {
+        const offset = isUpKey(key) ? -1 : 1;
+        setActive((active + offset + choices.length) % choices.length);
+      }
+    });
+
+    const msg = b(cfg.message);
+
+    if (status === "done") {
+      const answer = d(choices[active]?.name ?? "");
+      return `${g("✔")} ${msg} ${answer}`;
+    }
+
+    const items = choices.map((ch) => ({
+      value: ch.value,
+      name: ch.name,
+      short: ch.name,
+      checked: false,
+      disabled: false as const,
+    }));
+
+    const page = usePagination({
+      items,
+      active,
+      renderItem({ item, isActive }) {
+        const cursor = isActive ? c("❯") : " ";
+        const name = isActive ? c(item.name) : item.name;
+        return `${cursor} ${name}`;
+      },
+      pageSize,
+      loop: true,
+    });
+
+    const lines = [`? ${msg}`, page, formatHelpTip(SELECT_HELP_KEYS)]
+      .filter(Boolean)
+      .join("\n")
+      .trimEnd();
+
+    return `${lines}${cursorHide}`;
+  });
+}
+
+export function selectWithBack<T>(
+  config: SelectWithBackConfig<T>,
+): Promise<T | SelectBack> {
+  return makeSelectWithBack<T>()(config);
+}
