@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.1.68](https://github.com/vivantel/virage/compare/virage-cli@v0.1.67...virage-cli@v0.1.68) (2026-06-20)
+
+
+### Bug Fixes
+
+* Prettier formatting fixes after chunking/exclude changes ([640a168](https://github.com/vivantel/virage/commit/640a168d1c7a3b7ec716b353eb8074d65d9429b4))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @vivantel/virage-core bumped from 0.2.37 to 0.2.38
+
 ## [0.1.67](https://github.com/vivantel/virage/compare/virage-cli@v0.1.66...virage-cli@v0.1.67) (2026-06-20)
 
 

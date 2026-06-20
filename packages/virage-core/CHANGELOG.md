@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.38](https://github.com/vivantel/virage/compare/virage-core@v0.2.37...virage-core@v0.2.38) (2026-06-20)
+
+
+### Bug Fixes
+
+* Prettier formatting fixes after chunking/exclude changes ([640a168](https://github.com/vivantel/virage/commit/640a168d1c7a3b7ec716b353eb8074d65d9429b4))
+
 ## [0.2.37](https://github.com/vivantel/virage/compare/virage-core@v0.2.36...virage-core@v0.2.37) (2026-06-20)
 
 
