@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.1.17](https://github.com/vivantel/virage/compare/virage-reranker-cross-encoder@v0.1.16...virage-reranker-cross-encoder@v0.1.17) (2026-06-20)
+
+
+### Bug Fixes
+
+* **cli:** Resolve UX and correctness bugs across init/update/index/query ([3ee74b5](https://github.com/vivantel/virage/commit/3ee74b58d707f2050517fb860389c650a47584ae))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * devDependencies
+    * @vivantel/virage-core bumped from 0.2.40 to 0.2.41
+  * peerDependencies
+    * @vivantel/virage-core bumped from * to 0.2.41
+
 ## [0.1.16](https://github.com/vivantel/virage/compare/virage-reranker-cross-encoder@v0.1.15...virage-reranker-cross-encoder@v0.1.16) (2026-06-20)
 
 
