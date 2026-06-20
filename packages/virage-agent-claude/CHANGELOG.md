@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.25](https://github.com/vivantel/virage/compare/virage-agent-claude@v0.2.24...virage-agent-claude@v0.2.25) (2026-06-20)
+
+
+### Bug Fixes
+
+* **agent-claude:** Pre-check .mcp.json before calling claude mcp add ([b514cc0](https://github.com/vivantel/virage/commit/b514cc049d4173a720d3a075fe451fe7f0497cad))
+
 ## [0.2.24](https://github.com/vivantel/virage/compare/virage-agent-claude@v0.2.23...virage-agent-claude@v0.2.24) (2026-06-18)
 
 
