@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.46](https://github.com/vivantel/virage/compare/virage-core@v0.2.45...virage-core@v0.2.46) (2026-06-20)
+
+
+### Features
+
+* **cli:** Add --config to update/dashboard, consistent output, vector-store-first caching, query matrix script ([736475a](https://github.com/vivantel/virage/commit/736475a2d60dc88abccc07bf3574af6d20f7b613))
+
 ## [0.2.45](https://github.com/vivantel/virage/compare/virage-core@v0.2.44...virage-core@v0.2.45) (2026-06-20)
 
 

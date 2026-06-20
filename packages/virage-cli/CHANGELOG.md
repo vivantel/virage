@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.1.77](https://github.com/vivantel/virage/compare/virage-cli@v0.1.76...virage-cli@v0.1.77) (2026-06-20)
+
+
+### Features
+
+* **cli:** Add --config to update/dashboard, consistent output, vector-store-first caching, query matrix script ([736475a](https://github.com/vivantel/virage/commit/736475a2d60dc88abccc07bf3574af6d20f7b613))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @vivantel/virage-core bumped from 0.2.45 to 0.2.46
+
 ## [0.1.76](https://github.com/vivantel/virage/compare/virage-cli@v0.1.75...virage-cli@v0.1.76) (2026-06-20)
 
 
