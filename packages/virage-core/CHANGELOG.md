@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.37](https://github.com/vivantel/virage/compare/virage-core@v0.2.36...virage-core@v0.2.37) (2026-06-20)
+
+
+### Features
+
+* **virage-core:** Chunking exclude patterns, parallel scanning/chunking, global model dir, GPU support ([f91c1c8](https://github.com/vivantel/virage/commit/f91c1c8a4e0e27ddadf4228a45faf0a862bd3d88))
+
 ## [0.2.36](https://github.com/vivantel/virage/compare/virage-core@v0.2.35...virage-core@v0.2.36) (2026-06-20)
 
 
