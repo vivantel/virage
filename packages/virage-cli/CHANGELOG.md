@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.1.74](https://github.com/vivantel/virage/compare/virage-cli@v0.1.73...virage-cli@v0.1.74) (2026-06-20)
+
+
+### Features
+
+* **reranker,core,cli,mcp:** Sigmoid score calibration and candidate oversampling ([9e896dc](https://github.com/vivantel/virage/commit/9e896dc7cd98f476127ab95d64f0cbde661ac7ef))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @vivantel/virage-core bumped from 0.2.43 to 0.2.44
+
 ## [0.1.73](https://github.com/vivantel/virage/compare/virage-cli@v0.1.72...virage-cli@v0.1.73) (2026-06-20)
 
 

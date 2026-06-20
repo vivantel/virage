@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.1.22](https://github.com/vivantel/virage/compare/virage-reranker-cross-encoder@v0.1.21...virage-reranker-cross-encoder@v0.1.22) (2026-06-20)
+
+
+### Features
+
+* **reranker,core,cli,mcp:** Sigmoid score calibration and candidate oversampling ([9e896dc](https://github.com/vivantel/virage/commit/9e896dc7cd98f476127ab95d64f0cbde661ac7ef))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * devDependencies
+    * @vivantel/virage-core bumped from 0.2.43 to 0.2.44
+  * peerDependencies
+    * @vivantel/virage-core bumped from * to 0.2.44
+
 ## [0.1.21](https://github.com/vivantel/virage/compare/virage-reranker-cross-encoder@v0.1.20...virage-reranker-cross-encoder@v0.1.21) (2026-06-20)
 
 
