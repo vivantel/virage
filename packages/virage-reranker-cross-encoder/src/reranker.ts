@@ -24,7 +24,8 @@ export class CrossEncoderReranker implements Reranker {
   private async getPipeline(): Promise<any> {
     if (!this._pipeline) {
       const { pipeline } = await import("@huggingface/transformers");
-      this._pipeline = await pipeline("text-classification", this.modelId);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      this._pipeline = await (pipeline as any)("text-ranking", this.modelId);
     }
     return this._pipeline;
   }
@@ -43,15 +44,14 @@ export class CrossEncoderReranker implements Reranker {
       text_pair: c.content,
     }));
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const outputs: any[] = await pipe(inputs, { top_k: null });
+    const outputs: any = await pipe(inputs);
 
     return candidates
       .map((c, i) => ({
         ...c,
         similarity: Array.isArray(outputs)
-          ? // text-classification returns [{label, score}] per input; take the first entry's score
-            ((outputs[i] as { label: string; score: number }[] | undefined)?.[0]
-              ?.score ?? c.similarity)
+          ? ((outputs[i] as { score: number } | undefined)?.score ??
+            c.similarity)
           : c.similarity,
       }))
       .sort((a, b) => b.similarity - a.similarity)
