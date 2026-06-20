@@ -1,6 +1,6 @@
 {
   "name": "@vivantel/virage-store-qdrant",
-  "version": "0.2.44",
+  "version": "0.2.45",
   "description": "Qdrant vector store for @vivantel/rag-core (local and cloud)",
   "type": "module",
   "main": "dist/index.js",
@@ -53,7 +53,7 @@
   "devDependencies": {
     "@types/node": "^25.9.3",
     "@vitest/coverage-v8": "^4.1.8",
-    "@vivantel/virage-core": "0.2.43",
+    "@vivantel/virage-core": "0.2.44",
     "typescript": "^6.0.3",
     "vitest": "^4.1.9"
   },
