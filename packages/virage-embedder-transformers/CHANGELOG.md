@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.2.39](https://github.com/vivantel/virage/compare/virage-embedder-transformers@v0.2.38...virage-embedder-transformers@v0.2.39) (2026-06-20)
+
+
+### Features
+
+* **virage-core:** Chunking exclude patterns, parallel scanning/chunking, global model dir, GPU support ([f91c1c8](https://github.com/vivantel/virage/commit/f91c1c8a4e0e27ddadf4228a45faf0a862bd3d88))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * devDependencies
+    * @vivantel/virage-core bumped from 0.2.36 to 0.2.37
+  * peerDependencies
+    * @vivantel/virage-core bumped from * to 0.2.37
+
 ## [0.2.38](https://github.com/vivantel/virage/compare/virage-embedder-transformers@v0.2.37...virage-embedder-transformers@v0.2.38) (2026-06-20)
 
 

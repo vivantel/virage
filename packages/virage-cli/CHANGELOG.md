@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.1.67](https://github.com/vivantel/virage/compare/virage-cli@v0.1.66...virage-cli@v0.1.67) (2026-06-20)
+
+
+### Features
+
+* **virage-core:** Chunking exclude patterns, parallel scanning/chunking, global model dir, GPU support ([f91c1c8](https://github.com/vivantel/virage/commit/f91c1c8a4e0e27ddadf4228a45faf0a862bd3d88))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @vivantel/virage-core bumped from 0.2.36 to 0.2.37
+
 ## [0.1.66](https://github.com/vivantel/virage/compare/virage-cli@v0.1.65...virage-cli@v0.1.66) (2026-06-20)
 
 

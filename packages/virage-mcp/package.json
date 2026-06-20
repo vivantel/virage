@@ -1,6 +1,6 @@
 {
   "name": "@vivantel/virage-mcp",
-  "version": "0.1.30",
+  "version": "0.1.31",
   "type": "module",
   "description": "MCP stdio server for Virage RAG — search and inspect your index from AI assistants",
   "author": "Vivantel",
@@ -53,13 +53,13 @@
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.12.0",
     "zod": "^4.4.3",
-    "@vivantel/virage-core": "0.2.36"
+    "@vivantel/virage-core": "0.2.37"
   },
   "peerDependencies": {
     "@vivantel/virage-core": "*"
   },
   "devDependencies": {
-    "@vivantel/virage-core": "0.2.36",
+    "@vivantel/virage-core": "0.2.37",
     "@types/node": "^25.9.3",
     "rimraf": "^6.0.1",
     "typescript": "^6.0.3",
