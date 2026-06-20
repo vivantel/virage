@@ -3,8 +3,8 @@ import type { VectorSearchResult } from "@vivantel/virage-core";
 import { CrossEncoderReranker } from "./reranker.js";
 import { createReranker } from "./index.js";
 
-const mockPipelineFn = vi.fn();
-const mockPipelineFactory = vi.fn().mockResolvedValue(mockPipelineFn);
+const mockCall = vi.fn();
+const mockPipelineFactory = vi.fn().mockResolvedValue({ _call: mockCall });
 
 vi.mock("@huggingface/transformers", () => ({
   pipeline: mockPipelineFactory,
@@ -20,7 +20,7 @@ function makeCandidate(
 
 describe("CrossEncoderReranker", () => {
   beforeEach(() => {
-    mockPipelineFn.mockReset();
+    mockCall.mockReset();
     mockPipelineFactory.mockClear();
   });
 
@@ -28,7 +28,7 @@ describe("CrossEncoderReranker", () => {
     const reranker = new CrossEncoderReranker();
     const result = await reranker.rerank("some query", []);
     expect(result).toEqual([]);
-    expect(mockPipelineFn).not.toHaveBeenCalled();
+    expect(mockCall).not.toHaveBeenCalled();
   });
 
   it("reorders candidates by pipeline score descending", async () => {
@@ -38,10 +38,10 @@ describe("CrossEncoderReranker", () => {
       makeCandidate("b", "high relevance", 0.3),
       makeCandidate("c", "medium relevance", 0.5),
     ];
-    mockPipelineFn.mockResolvedValue([
-      { score: 0.1 },
-      { score: 0.9 },
-      { score: 0.5 },
+    mockCall.mockResolvedValue([
+      [{ label: "LABEL_0", score: 0.1 }],
+      [{ label: "LABEL_0", score: 0.9 }],
+      [{ label: "LABEL_0", score: 0.5 }],
     ]);
 
     const result = await reranker.rerank("query", candidates);
@@ -51,7 +51,7 @@ describe("CrossEncoderReranker", () => {
   it("replaces similarity with pipeline score", async () => {
     const reranker = new CrossEncoderReranker();
     const candidates = [makeCandidate("x", "some content", 0.5)];
-    mockPipelineFn.mockResolvedValue([{ score: 0.77 }]);
+    mockCall.mockResolvedValue([[{ label: "LABEL_0", score: 0.77 }]]);
 
     const result = await reranker.rerank("query", candidates);
     expect(result[0].similarity).toBe(0.77);
@@ -64,10 +64,10 @@ describe("CrossEncoderReranker", () => {
       makeCandidate("b", "b"),
       makeCandidate("c", "c"),
     ];
-    mockPipelineFn.mockResolvedValue([
-      { score: 0.9 },
-      { score: 0.8 },
-      { score: 0.7 },
+    mockCall.mockResolvedValue([
+      [{ label: "LABEL_0", score: 0.9 }],
+      [{ label: "LABEL_0", score: 0.8 }],
+      [{ label: "LABEL_0", score: 0.7 }],
     ]);
 
     const result = await reranker.rerank("query", candidates);
@@ -81,10 +81,10 @@ describe("CrossEncoderReranker", () => {
       makeCandidate("b", "b"),
       makeCandidate("c", "c"),
     ];
-    mockPipelineFn.mockResolvedValue([
-      { score: 0.9 },
-      { score: 0.8 },
-      { score: 0.7 },
+    mockCall.mockResolvedValue([
+      [{ label: "LABEL_0", score: 0.9 }],
+      [{ label: "LABEL_0", score: 0.8 }],
+      [{ label: "LABEL_0", score: 0.7 }],
     ]);
 
     const result = await reranker.rerank("query", candidates, 1);
@@ -93,7 +93,7 @@ describe("CrossEncoderReranker", () => {
 
   it("lazily initialises and caches the pipeline across calls", async () => {
     const reranker = new CrossEncoderReranker();
-    mockPipelineFn.mockResolvedValue([{ score: 0.5 }]);
+    mockCall.mockResolvedValue([[{ label: "LABEL_0", score: 0.5 }]]);
 
     await reranker.rerank("q1", [makeCandidate("a", "text")]);
     await reranker.rerank("q2", [makeCandidate("b", "text")]);
@@ -103,11 +103,11 @@ describe("CrossEncoderReranker", () => {
 
   it("forwards custom model to the pipeline factory", async () => {
     const reranker = new CrossEncoderReranker({ model: "custom/model-v1" });
-    mockPipelineFn.mockResolvedValue([{ score: 0.5 }]);
+    mockCall.mockResolvedValue([[{ label: "LABEL_0", score: 0.5 }]]);
 
     await reranker.rerank("q", [makeCandidate("a", "text")]);
     expect(mockPipelineFactory).toHaveBeenCalledWith(
-      "text-ranking",
+      "text-classification",
       "custom/model-v1",
     );
   });
@@ -115,7 +115,7 @@ describe("CrossEncoderReranker", () => {
   it("falls back to original similarity when pipeline output is not an array", async () => {
     const reranker = new CrossEncoderReranker();
     const candidates = [makeCandidate("a", "content", 0.42)];
-    mockPipelineFn.mockResolvedValue("unexpected non-array");
+    mockCall.mockResolvedValue("unexpected non-array");
 
     const result = await reranker.rerank("q", candidates);
     expect(result[0].similarity).toBe(0.42);

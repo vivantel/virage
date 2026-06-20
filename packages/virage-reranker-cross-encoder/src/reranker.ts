@@ -7,27 +7,27 @@ export interface CrossEncoderRerankerOptions {
   topK?: number;
 }
 
+// Minimal structural type matching text-classification pipeline's runtime batch behaviour
+type Classifier = { _call(inputs: unknown): Promise<unknown> };
+
 export class CrossEncoderReranker implements Reranker {
   readonly name = "cross-encoder";
 
   private readonly modelId: string;
   private readonly defaultTopK: number;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  private _pipeline: any = null;
+  private _pipeline: Classifier | null = null;
 
   constructor(options: CrossEncoderRerankerOptions = {}) {
     this.modelId = options.model ?? "Xenova/ms-marco-MiniLM-L-6-v2";
     this.defaultTopK = options.topK ?? 5;
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  private async getPipeline(): Promise<any> {
+  private async getPipeline(): Promise<Classifier> {
     if (!this._pipeline) {
       const { pipeline } = await import("@huggingface/transformers");
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      this._pipeline = await (pipeline as any)("text-ranking", this.modelId);
+      this._pipeline = await pipeline("text-classification", this.modelId);
     }
-    return this._pipeline;
+    return this._pipeline!;
   }
 
   async rerank(
@@ -43,17 +43,17 @@ export class CrossEncoderReranker implements Reranker {
       text: query,
       text_pair: c.content,
     }));
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const outputs: any = await pipe(inputs);
+    const outputs: unknown = await pipe._call(inputs);
 
     return candidates
-      .map((c, i) => ({
-        ...c,
-        similarity: Array.isArray(outputs)
-          ? ((outputs[i] as { score: number } | undefined)?.score ??
-            c.similarity)
-          : c.similarity,
-      }))
+      .map((c, i) => {
+        const result = Array.isArray(outputs) ? outputs[i] : undefined;
+        const score = Array.isArray(result) ? result[0]?.score : result?.score;
+        return {
+          ...c,
+          similarity: (score as number | undefined) ?? c.similarity,
+        };
+      })
       .sort((a, b) => b.similarity - a.similarity)
       .slice(0, k);
   }
