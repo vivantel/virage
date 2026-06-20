@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.1.10](https://github.com/vivantel/virage/compare/virage-agent-antigravity@v0.1.9...virage-agent-antigravity@v0.1.10) (2026-06-20)
+
+
+### Bug Fixes
+
+* **mcp:** Apply prettier formatting to searchConfig type ([939f477](https://github.com/vivantel/virage/commit/939f4776813e4daba1a4d65427d20da51ee311b7))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @vivantel/virage-agent-core bumped from 0.1.6 to 0.1.7
+    * @vivantel/virage-skills bumped from 0.1.8 to 0.1.9
+
 ## [0.1.9](https://github.com/vivantel/virage/compare/virage-agent-antigravity@v0.1.8...virage-agent-antigravity@v0.1.9) (2026-06-18)
 
 

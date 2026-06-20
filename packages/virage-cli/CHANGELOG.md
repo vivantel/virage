@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.1.76](https://github.com/vivantel/virage/compare/virage-cli@v0.1.75...virage-cli@v0.1.76) (2026-06-20)
+
+
+### Bug Fixes
+
+* **mcp:** Apply prettier formatting to searchConfig type ([939f477](https://github.com/vivantel/virage/commit/939f4776813e4daba1a4d65427d20da51ee311b7))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @vivantel/virage-agent-claude bumped from 0.2.25 to 0.2.26
+    * @vivantel/virage-core bumped from 0.2.44 to 0.2.45
+    * @vivantel/virage-skills bumped from 0.1.8 to 0.1.9
+
 ## [0.1.75](https://github.com/vivantel/virage/compare/virage-cli@v0.1.74...virage-cli@v0.1.75) (2026-06-20)
 
 
