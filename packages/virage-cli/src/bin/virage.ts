@@ -41,6 +41,7 @@ import {
   runTelemetryPreview,
   runTelemetryFlush,
 } from "../cli/telemetry.js";
+import { printBanner } from "../cli/banner.js";
 
 config({ quiet: true });
 
@@ -170,7 +171,14 @@ program
     (_, prev: number) => prev + 1,
     0,
   )
+  .option("--no-banner", "Suppress the startup banner")
   .action(() => program.outputHelp());
+
+program.hook("preAction", (_thisCommand, actionCommand) => {
+  const { banner } = program.opts<{ banner: boolean }>();
+  const { config } = actionCommand.opts<{ config?: string }>();
+  printBanner(config, !banner);
+});
 
 program
   .command("index")
@@ -200,8 +208,6 @@ program
         logger,
         verbosity: verbose,
       };
-
-      logger.info("🚀 Virage");
 
       try {
         await runOnce(runOptions);

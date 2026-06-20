@@ -186,3 +186,13 @@ All commands accept `-v` / `-vv` / `-vvv` (up to `-vvvvv`) to increase log verbo
 Most pipeline commands accept `-c, --config <path>` to specify a config file (default: `./virage.config.json`).
 
 `virage dashboard` additionally accepts `--port <n>` (default: 3000) and `--verbose` (log all HTTP requests).
+
+### Startup banner
+
+Virage prints a one-line banner (`Virage vX.Y.Z  N chunkers · embedder · store`) on startup. To suppress it:
+
+- **CLI flag:** `virage --no-banner <command>`
+- **Environment variable:** `VIRAGE_NO_BANNER=1 virage <command>`
+- **Config file:** set `"options": { "noBanner": true }` in `virage.config.json`
+
+The banner is automatically suppressed when stdout is not a TTY (piped output, CI, etc.).

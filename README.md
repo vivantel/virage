@@ -120,6 +120,7 @@ virage [options] [command]
 
 Options:
   -v, --verbose   Increase verbosity (stackable: -v, -vv, -vvv…)
+  --no-banner     Suppress the startup banner (also: VIRAGE_NO_BANNER=1)
   -h, --help      Display help
 
 Commands:

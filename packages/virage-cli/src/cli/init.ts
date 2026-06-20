@@ -446,20 +446,22 @@ export async function runInit(): Promise<void> {
       // ── Step 1: file types ──
       case 1: {
         if (detectedGroups.length > 0) {
-          const choices = withBack(
-            detectedGroups.map((g) => ({
-              name: `${g.name} (${g.exts.join(", ")}) → ${g.strategyFn}`,
-              value: g.name,
-            })),
-          );
           const confirmed = await checkbox({
             message: "Detected file types — select which to index:",
-            choices: choices.map((c) => ({
-              ...c,
-              checked: !isBack(c.value),
+            choices: detectedGroups.map((g) => ({
+              name: `${g.name} (${g.exts.join(", ")}) → ${g.strategyFn}`,
+              value: g.name,
+              checked: true,
             })),
           });
-          if (confirmed.includes(BACK_VALUE)) {
+          const nav = await select({
+            message: "Proceed or go back?",
+            choices: [
+              { name: "Confirm", value: "confirm" },
+              { name: "← Back", value: "back" },
+            ],
+          });
+          if (nav === "back") {
             step--;
             break;
           }
@@ -470,17 +472,21 @@ export async function runInit(): Promise<void> {
           console.log(
             "No known file types detected. Choose strategies manually:",
           );
-          const choices = withBack(
-            EXT_GROUPS.map((g) => ({
+          const chosen = await checkbox({
+            message: "Which chunking strategies do you need?",
+            choices: EXT_GROUPS.map((g) => ({
               name: `${g.name} (${g.strategyFn})`,
               value: g.name,
             })),
-          );
-          const chosen = await checkbox({
-            message: "Which chunking strategies do you need?",
-            choices,
           });
-          if (chosen.includes(BACK_VALUE)) {
+          const nav = await select({
+            message: "Proceed or go back?",
+            choices: [
+              { name: "Confirm", value: "confirm" },
+              { name: "← Back", value: "back" },
+            ],
+          });
+          if (nav === "back") {
             step--;
             break;
           }
@@ -495,7 +501,7 @@ export async function runInit(): Promise<void> {
         const discoveredMap = new Map(
           discoveredAgentPlugins.map((p) => [p.name, p]),
         );
-        const agentChoices = withBack([
+        const agentItems = [
           ...KNOWN_AGENTS.map((a) => ({
             name: discoveredMap.get(a.name)?.label ?? a.label,
             value: a.name,
@@ -503,20 +509,27 @@ export async function runInit(): Promise<void> {
           ...discoveredAgentPlugins
             .filter((p) => !KNOWN_AGENTS.some((a) => a.name === p.name))
             .map((p) => ({ name: p.label, value: p.name })),
-        ]);
+        ];
 
         const selected = await checkbox({
           message: "Select coding agents to integrate:",
-          choices: agentChoices.map((c) => ({
+          choices: agentItems.map((c) => ({
             ...c,
-            checked: !isBack(c.value) && c.value === "claude-code",
+            checked: c.value === "claude-code",
           })),
         });
-        if (selected.includes(BACK_VALUE)) {
+        const nav = await select({
+          message: "Proceed or go back?",
+          choices: [
+            { name: "Confirm", value: "confirm" },
+            { name: "← Back", value: "back" },
+          ],
+        });
+        if (nav === "back") {
           step--;
           break;
         }
-        state.agents = selected.filter((v) => !isBack(v)) as string[];
+        state.agents = selected as string[];
         step++;
         break;
       }

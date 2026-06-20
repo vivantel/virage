@@ -25,6 +25,7 @@ export const DEFAULT_EXCLUDE_PATTERNS: string[] = [
   // Vendored code
   "**/vendor/**",
   // Node.js / JS frameworks
+  "**/node_modules/**",
   "**/.turbo/**",
   "**/.next/**",
   "**/dist/**",

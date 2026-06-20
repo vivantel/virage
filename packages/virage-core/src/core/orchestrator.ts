@@ -53,6 +53,7 @@ export interface RAGPipelineConfig {
     minEmbeddingBatchSize?: number;
     /** Minimum embedded-chunk queue size before triggering an upload batch. Default: 20. */
     minUploadingBatchSize?: number;
+    noBanner?: boolean;
     telemetry?: boolean;
     notifications?: { webhookUrl?: string };
     logger?: Logger;
@@ -306,61 +307,71 @@ export class Orchestrator {
         }
       };
 
-      // Phase 1: chunk all files concurrently then stream into embed/upload
+      // Chunk files concurrently, streaming each file's chunks into embed/upload
+      // as soon as that file finishes — no waiting for all files to chunk first.
+      // A rolling serial chain serializes the embed/upload state mutations while
+      // chunk tasks themselves run in parallel.
       const chunkConcurrency = opts.chunkConcurrency ?? availableParallelism();
+      let filesStreamed = 0;
+      let embedChain = Promise.resolve();
+
       const chunkTasks = toProcess.map((file) => async () => {
         const info = currentState.get(file);
-        if (!info) return { file, chunks: [] as Chunk[] };
-        try {
-          const chunks = await chunkProcessor.processFile(
-            file,
-            info.commitHash,
-            info.chunker,
-          );
-          for (const chunk of chunks) {
-            chunk.metadata = { ...chunk.metadata, branch: currentBranch };
+        let newChunks: Chunk[] = [];
+        if (info) {
+          try {
+            newChunks = await chunkProcessor.processFile(
+              file,
+              info.commitHash,
+              info.chunker,
+            );
+            for (const chunk of newChunks) {
+              chunk.metadata = { ...chunk.metadata, branch: currentBranch };
+            }
+          } catch (err) {
+            logger.error(
+              `❌ Chunking failed for ${file}: ${
+                err instanceof Error ? err.message : String(err)
+              }`,
+            );
           }
-          return { file, chunks };
-        } catch (err) {
-          logger.error(
-            `❌ Chunking failed for ${file}: ${
-              err instanceof Error ? err.message : String(err)
-            }`,
-          );
-          return { file, chunks: [] as Chunk[] };
-        } finally {
-          opts.onChunkProgress?.(++chunkDone, toProcess.length);
         }
+        opts.onChunkProgress?.(++chunkDone, toProcess.length);
+
+        // Append to serial embed chain without blocking this chunk task,
+        // so the next file can start chunking immediately.
+        const capturedChunks = newChunks;
+        embedChain = embedChain.then(async () => {
+          filesStreamed++;
+          db.replaceChunks(file, capturedChunks);
+          // Skip chunks whose embeddings were preserved (unchanged content)
+          const alreadyEmbedded = db.getEmbeddedContentHashes(file);
+          const chunksToEmbed = capturedChunks.filter(
+            (c) => !alreadyEmbedded.has(c.contentHash!),
+          );
+          pendingEmbed.push(...chunksToEmbed);
+          embedTotal += chunksToEmbed.length;
+          chunksGenerated += chunksToEmbed.length;
+
+          // Project a shared total using actual average chunks-per-file across
+          // fully-processed files; include carry-over pending work in the total.
+          if (chunksGenerated > 0) {
+            const avgChunksPerFile = chunksGenerated / filesStreamed;
+            const projectedNew = Math.round(
+              toProcess.length * avgChunksPerFile,
+            );
+            sharedTotal = initialPendingEmbed + Math.max(projectedNew, 1);
+            opts.onEmbedProgress?.(embedDone, sharedTotal);
+            opts.onUploadProgress?.(uploadDone, sharedTotal);
+          }
+
+          await flushEmbed(false);
+        });
       });
 
-      const chunkResults = await withConcurrency(chunkTasks, chunkConcurrency);
-
-      // Phase 2: stream chunks into embed/upload pipeline
-      let filesStreamed = 0;
-      for (const { file, chunks: newChunks } of chunkResults) {
-        filesStreamed++;
-        db.replaceChunks(file, newChunks);
-        // Skip chunks whose embeddings were preserved (unchanged content)
-        const alreadyEmbedded = db.getEmbeddedContentHashes(file);
-        const chunksToEmbed = newChunks.filter(
-          (c) => !alreadyEmbedded.has(c.contentHash!),
-        );
-        pendingEmbed.push(...chunksToEmbed);
-        embedTotal += chunksToEmbed.length;
-        chunksGenerated += chunksToEmbed.length;
-
-        // Project a shared total using actual average chunks-per-file across
-        // fully-processed files; include carry-over pending work in the total.
-        if (chunksGenerated > 0) {
-          const avgChunksPerFile = chunksGenerated / filesStreamed;
-          const projectedNew = Math.round(toProcess.length * avgChunksPerFile);
-          sharedTotal = initialPendingEmbed + Math.max(projectedNew, 1);
-          opts.onEmbedProgress?.(embedDone, sharedTotal);
-          opts.onUploadProgress?.(uploadDone, sharedTotal);
-        }
-
-        await flushEmbed(false);
-      }
+      await withConcurrency(chunkTasks, chunkConcurrency);
+      // Wait for any in-flight embed/upload work that started during chunking
+      await embedChain;
 
       const chunkDuration = Date.now() - t2;
       telemetry?.recordChunking({

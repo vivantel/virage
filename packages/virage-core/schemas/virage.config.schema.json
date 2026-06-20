@@ -130,7 +130,21 @@
         "minIngestionBatchSize": {
           "type": "integer",
           "minimum": 1,
-          "description": "Upload embeddings to the vector store mid-run when pending count reaches this threshold."
+          "description": "Deprecated. Use minUploadingBatchSize instead."
+        },
+        "minEmbeddingBatchSize": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Minimum pending-chunk queue size before triggering an embedding run. Default: 10."
+        },
+        "minUploadingBatchSize": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Minimum embedded-chunk queue size before triggering an upload batch. Default: 20."
+        },
+        "noBanner": {
+          "type": "boolean",
+          "description": "Suppress the startup banner. Can also be set via VIRAGE_NO_BANNER=1 environment variable."
         },
         "telemetry": { "type": "boolean" },
         "notifications": {

@@ -61,7 +61,7 @@ export class CliGitSourceRepository implements SourceRepository {
     let done = 0;
 
     // Process dirty files with hash-object to get accurate content hash;
-    // clean committed files use the blob SHA from the tree (zero extra subprocesses).
+    // report progress as each hash resolves so the scanning bar animates.
     const dirtyFiles = files.filter((f) =>
       dirtySet.has(f.split(path.sep).join("/")),
     );
@@ -77,11 +77,13 @@ export class CliGitSourceRepository implements SourceRepository {
           } catch {
             // leave out of dirtyHashes — will fall back to tree SHA below
           }
+          onProgress?.(++done, files.length);
         }),
       );
     }
 
-    // Identify untracked files (not in HEAD tree, not dirty) and hash in parallel
+    // Identify untracked files (not in HEAD tree, not dirty) and hash in parallel;
+    // report progress as each hash resolves.
     const untrackedFiles = files.filter((f) => {
       const normalized = f.split(path.sep).join("/");
       return !dirtySet.has(normalized) && !treeMap.has(normalized);
@@ -97,11 +99,15 @@ export class CliGitSourceRepository implements SourceRepository {
           } catch {
             // ignore — file won't appear in result
           }
+          onProgress?.(++done, files.length);
         }),
       );
     }
 
-    // Main loop: pure map lookups + progress reporting (no subprocess spawns)
+    // Main loop: pure map lookups for clean committed files + populate result.
+    // Progress for dirty/untracked was already reported above; only count clean files here.
+    const dirtyFileSet = new Set(dirtyFiles);
+    const untrackedFileSet = new Set(untrackedFiles);
     for (const file of files) {
       const normalized = file.split(path.sep).join("/");
       const isDirty = dirtySet.has(normalized);
@@ -114,7 +120,10 @@ export class CliGitSourceRepository implements SourceRepository {
         this.logger.trace(`Revision for ${file}: ${sha.slice(0, 8)}`);
       }
 
-      onProgress?.(++done, files.length);
+      // Report progress for clean committed files (dirty/untracked already counted)
+      if (!dirtyFileSet.has(file) && !untrackedFileSet.has(file)) {
+        onProgress?.(++done, files.length);
+      }
     }
 
     return result;

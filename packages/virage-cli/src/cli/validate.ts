@@ -4,6 +4,7 @@ import {
   GitTracker,
   CliGitSourceRepository,
   ConfigError,
+  IGNORED_DIRS,
 } from "@vivantel/virage-core";
 import { detectFileExtensions } from "./file-detect.js";
 
@@ -30,8 +31,16 @@ export async function runValidate(configPath: string): Promise<void> {
   console.log("\n📂 Scanning files...\n");
   let hasWarnings = false;
 
+  const excludeIgnore = [
+    ...[...IGNORED_DIRS].map((d) => `${d}/**`),
+    ...(config.excludePatterns ?? []),
+  ];
+
   for (const chunker of config.chunkers) {
-    const files = await glob(chunker.patterns, { nodir: true });
+    const files = await glob(chunker.patterns, {
+      nodir: true,
+      ignore: excludeIgnore,
+    });
     const unique = [...new Set(files)];
     const patternsDisplay = chunker.patterns.join(", ");
     console.log(`  Chunker: ${chunker.name} (patterns: ${patternsDisplay})`);

@@ -315,7 +315,7 @@ export async function runUpdate(): Promise<void> {
           ? `${s.name}  (${s.current}, latest unknown)`
           : `${s.name}  (${s.current}, up to date)`,
       value: s.name,
-      checked: s.outdated,
+      checked: true,
     })),
   });
 
