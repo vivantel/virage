@@ -629,6 +629,15 @@ export class VirageDb {
       .run(...contentHashes);
   }
 
+  /** Remove staging rows after successful upload — SQLite is a pure staging buffer. */
+  deleteChunks(contentHashes: string[]): void {
+    if (contentHashes.length === 0) return;
+    const placeholders = contentHashes.map(() => "?").join(", ");
+    this.db
+      .prepare(`DELETE FROM chunks WHERE content_hash IN (${placeholders})`)
+      .run(...contentHashes);
+  }
+
   /** Count of embedded chunks not yet uploaded. */
   pendingCount(): number {
     const row = this.db

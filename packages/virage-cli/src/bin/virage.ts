@@ -283,9 +283,10 @@ program
   .description(
     "Update virage ecosystem packages (embedders, chunkers, agent plugins)",
   )
-  .action(async () => {
+  .option("-c, --config <path>", "Path to config file", "./virage.config.json")
+  .action(async (opts: { config: string }) => {
     try {
-      await runUpdate();
+      await runUpdate(opts.config);
     } catch (error) {
       if ((error as NodeJS.ErrnoException).name === "ExitPromptError") {
         console.log("\nCancelled.");
@@ -545,13 +546,15 @@ program
   .command("dashboard")
   .alias("d")
   .description("Start a local RAG monitoring dashboard")
+  .option("-c, --config <path>", "Path to config file")
   .option("--port <n>", "Port to serve on", (v) => parseInt(v, 10), 3000)
   .option("--verbose", "Enable detailed request logging")
-  .action(async (opts: { port: number; verbose: boolean }) => {
+  .action(async (opts: { config?: string; port: number; verbose: boolean }) => {
     try {
       await runDashboard({
         port: opts.port,
         dbPath: defaultVirageDb(),
+        configPath: opts.config,
         verbose: opts.verbose ?? false,
       });
     } catch (error) {

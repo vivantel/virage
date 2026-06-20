@@ -4,7 +4,7 @@ import { existsSync } from "fs";
 import { join } from "path";
 import { execFile } from "child_process";
 import { promisify } from "util";
-import { ansi } from "../progress/progress-bar.js";
+import { out } from "../output.js";
 import { discoverAgentPlugins, runAgentPlugin } from "./agent-plugin.js";
 import { resolveSkillsPackagePath, syncSkills } from "./skills.js";
 import {
@@ -71,8 +71,9 @@ async function readNodeModulePackageJson(
   }
 }
 
-async function readVirageConfig(cwd: string): Promise<VirageConfig | null> {
-  const configPath = join(cwd, "virage.config.json");
+async function readVirageConfig(
+  configPath: string,
+): Promise<VirageConfig | null> {
   if (!existsSync(configPath)) return null;
   try {
     const raw = await readFile(configPath, "utf-8");
@@ -84,6 +85,7 @@ async function readVirageConfig(cwd: string): Promise<VirageConfig | null> {
 
 async function discoverViragePackages(
   cwd: string,
+  configPath: string,
   isGlobal: boolean,
 ): Promise<string[]> {
   const candidates = new Set<string>();
@@ -93,7 +95,7 @@ async function discoverViragePackages(
   candidates.add("@vivantel/virage-skills");
 
   // Config-first: read virage.config.json to discover required packages
-  const virageConfig = await readVirageConfig(cwd);
+  const virageConfig = await readVirageConfig(configPath);
   if (virageConfig) {
     if (virageConfig.embedder?.package) {
       candidates.add(virageConfig.embedder.package);
@@ -235,31 +237,30 @@ interface PackageStatus {
   location: "local-plugin" | "global-plugin" | "node_modules" | "global-npm";
 }
 
-export async function runUpdate(): Promise<void> {
+export async function runUpdate(configPath: string): Promise<void> {
   const cwd = process.cwd();
 
   const hasPackageJson = existsSync(join(cwd, "package.json"));
-  const hasVirageConfig = existsSync(join(cwd, "virage.config.json"));
+  const hasVirageConfig = existsSync(configPath);
 
   if (!hasPackageJson && !hasVirageConfig) {
-    console.log(
-      "\nNo virage.config.json found in current directory.\n" +
-        "Run `virage init` first to configure your project.\n",
-    );
+    out.warn(`No config file found at ${configPath}.`);
+    out.dim("Run `virage init` first to configure your project.");
+    console.log();
     return;
   }
 
   const isGlobal = !hasPackageJson;
   if (isGlobal) {
-    console.log(
-      "\n(No package.json found — treating as standalone project, will install globally.)\n",
+    out.dim(
+      "(No package.json found — treating as standalone project, will install globally.)",
     );
   }
 
-  console.log("\nVirage Update\n");
-  console.log("Discovering virage ecosystem packages...");
+  out.section("Virage Update");
+  out.dim("Discovering virage ecosystem packages...");
 
-  const packageNames = await discoverViragePackages(cwd, isGlobal);
+  const packageNames = await discoverViragePackages(cwd, configPath, isGlobal);
 
   // Fetch current and latest versions in parallel
   const statuses = await Promise.all(
@@ -285,24 +286,26 @@ export async function runUpdate(): Promise<void> {
   const unknownLatest = statuses.filter((s) => s.latest === "unknown");
 
   if (outdated.length === 0) {
-    console.log("\nAll virage packages are up to date.\n");
+    out.success("All virage packages are up to date.");
+    console.log();
   } else {
-    console.log(`\nFound ${outdated.length} outdated package(s):`);
+    out.info(`\nFound ${outdated.length} outdated package(s):`);
     for (const s of outdated) {
-      console.log(`  ${s.name}: ${s.current} → ${s.latest}`);
+      out.dim(`  ${s.name}: ${s.current} → ${s.latest}`);
     }
   }
   if (unknownLatest.length > 0) {
-    console.log(
-      `\nCould not fetch latest version for ${unknownLatest.length} package(s) (registry unreachable?):`,
+    out.warn(
+      `Could not fetch latest version for ${unknownLatest.length} package(s) (registry unreachable?):`,
     );
     for (const s of unknownLatest) {
-      console.log(`  ${s.name}: ${s.current}`);
+      out.dim(`  ${s.name}: ${s.current}`);
     }
   }
 
   if (statuses.length === 0) {
-    console.log("\nNo virage packages to update.\n");
+    out.warn("No virage packages to update.");
+    console.log();
     return;
   }
 
@@ -346,14 +349,12 @@ export async function runUpdate(): Promise<void> {
         localPluginPkgs,
         localPluginDir,
       );
-      console.log(`\nRunning: ${cmd} ${args.join(" ")}`);
+      out.dim(`\nRunning: ${cmd} ${args.join(" ")}`);
       try {
         await runInstall(cmd, args);
       } catch {
-        console.error(
-          `${ansi.boldRed}\nLocal plugin update failed. Try running manually:${ansi.reset}`,
-        );
-        console.error(`  ${cmd} ${args.join(" ")}`);
+        out.error("Local plugin update failed. Try running manually:");
+        out.dim(`  ${cmd} ${args.join(" ")}`);
         updateFailed = true;
       }
     }
@@ -365,14 +366,12 @@ export async function runUpdate(): Promise<void> {
         globalPluginPkgs,
         globalPluginDir,
       );
-      console.log(`\nRunning: ${cmd} ${args.join(" ")}`);
+      out.dim(`\nRunning: ${cmd} ${args.join(" ")}`);
       try {
         await runInstall(cmd, args);
       } catch {
-        console.error(
-          `${ansi.boldRed}\nGlobal plugin update failed. Try running manually:${ansi.reset}`,
-        );
-        console.error(`  ${cmd} ${args.join(" ")}`);
+        out.error("Global plugin update failed. Try running manually:");
+        out.dim(`  ${cmd} ${args.join(" ")}`);
         updateFailed = true;
       }
     }
@@ -381,21 +380,20 @@ export async function runUpdate(): Promise<void> {
       const { cmd, args } = isGlobal
         ? buildGlobalInstallCommand(pm, nodeModulesPkgs)
         : buildInstallCommand(pm, nodeModulesPkgs);
-      console.log(`\nRunning: ${cmd} ${args.join(" ")}`);
+      out.dim(`\nRunning: ${cmd} ${args.join(" ")}`);
       try {
         await runInstall(cmd, args);
       } catch {
-        console.log("\nUpdate failed. Try running manually:");
-        console.log(`  ${cmd} ${args.join(" ")}`);
+        out.error("Update failed. Try running manually:");
+        out.dim(`  ${cmd} ${args.join(" ")}`);
         updateFailed = true;
       }
     }
 
     if (!updateFailed) {
-      console.log("\nPackages updated successfully.");
+      out.success("Packages updated successfully.");
 
-      // Rewrite pluginVersions in virage.config.json for plugin-dir packages
-      const configPath = join(cwd, "virage.config.json");
+      // Rewrite pluginVersions in virage config for plugin-dir packages
       if (existsSync(configPath)) {
         try {
           const raw = await readFile(configPath, "utf-8");
@@ -422,7 +420,7 @@ export async function runUpdate(): Promise<void> {
   // Always re-run agent plugin configure() to sync plugin-config files
   const agentPlugins = await discoverAgentPlugins(cwd);
   if (agentPlugins.length > 0) {
-    console.log("\nSyncing agent plugin configs...");
+    out.dim("\nSyncing agent plugin configs...");
     for (const plugin of agentPlugins) {
       try {
         const result = await runAgentPlugin(plugin, cwd);
@@ -435,9 +433,9 @@ export async function runUpdate(): Promise<void> {
             : result.mcpRegistered === false
               ? "; MCP server already registered"
               : "";
-        console.log(`  ${plugin.label}: ${msg}${mcpMsg}`);
+        out.dim(`  ${plugin.label}: ${msg}${mcpMsg}`);
       } catch (err) {
-        console.log(
+        out.warn(
           `  ${plugin.label} failed: ${err instanceof Error ? err.message : String(err)}`,
         );
       }
@@ -447,27 +445,28 @@ export async function runUpdate(): Promise<void> {
   // Auto-sync skills if available — no interactive prompt needed
   const skillsPkgPath = resolveSkillsPackagePath();
   if (skillsPkgPath !== null) {
-    console.log("\nSyncing Virage AI agent skills...");
+    out.dim("\nSyncing Virage AI agent skills...");
     try {
       const result = await syncSkills(skillsPkgPath, cwd);
       if (result.created.length > 0)
-        console.log(`  Skills installed: ${result.created.length} new`);
+        out.dim(`  Skills installed: ${result.created.length} new`);
       if (result.updated.length > 0)
-        console.log(`  Skills updated: ${result.updated.length}`);
+        out.dim(`  Skills updated: ${result.updated.length}`);
       if (result.deleted.length > 0)
-        console.log(`  Skills removed: ${result.deleted.length}`);
+        out.dim(`  Skills removed: ${result.deleted.length}`);
       if (
         result.created.length === 0 &&
         result.updated.length === 0 &&
         result.deleted.length === 0
       )
-        console.log("  Already up to date.");
+        out.dim("  Already up to date.");
     } catch (err) {
-      console.log(
+      out.warn(
         `  Skills sync failed: ${err instanceof Error ? err.message : String(err)}`,
       );
     }
   }
 
-  console.log("\nDone.\n");
+  out.success("Done.");
+  console.log();
 }

@@ -1,4 +1,5 @@
 import { VirageDb } from "@vivantel/virage-core";
+import { out } from "../output.js";
 
 interface ChunkEntry {
   content: string;
@@ -30,9 +31,8 @@ export async function runChunksReport(dbPath: string): Promise<void> {
   db.close();
 
   if (chunks.length === 0) {
-    console.error(
-      `❌ No chunks found in "${dbPath}".\n` +
-        `   Run the pipeline first to generate chunks.`,
+    out.error(
+      `No chunks found in "${dbPath}". Run the pipeline first to generate chunks.`,
     );
     process.exit(1);
   }
@@ -46,8 +46,8 @@ export async function runChunksReport(dbPath: string): Promise<void> {
     byStrategy.set(strategy, group);
   }
 
-  console.log(`\n📊 Chunk Cohesion Report (${chunks.length} total chunks)`);
-  console.log("─".repeat(60));
+  out.section(`📊 Chunk Cohesion Report (${chunks.length} total chunks)`);
+  out.sep("─", 60);
 
   for (const [strategy, group] of byStrategy) {
     const sizes = group.map((c) => c.content.length);
@@ -62,5 +62,6 @@ export async function runChunksReport(dbPath: string): Promise<void> {
     console.log(`    💡 ${suggestion}`);
   }
 
-  console.log("\n" + "─".repeat(60));
+  console.log();
+  out.sep("─", 60);
 }

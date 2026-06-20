@@ -7,18 +7,20 @@ import {
   IGNORED_DIRS,
 } from "@vivantel/virage-core";
 import { detectFileExtensions } from "./file-detect.js";
+import { out } from "../output.js";
 
 export async function runValidate(configPath: string): Promise<void> {
   const cwd = process.cwd();
-  console.log(`\n🔍 Validating RAG config: ${configPath}\n`);
+  out.section(`🔍 Validating RAG config: ${configPath}`);
+  console.log();
 
   let config;
   try {
     process.stdout.write("📦 Loading config... ");
     config = await loadConfig(configPath);
-    console.log("✅");
+    out.success("done");
   } catch (err) {
-    console.log("❌");
+    out.error("failed");
     throw new ConfigError(
       `Failed to load config: ${err instanceof Error ? err.message : String(err)}`,
       {
@@ -28,7 +30,8 @@ export async function runValidate(configPath: string): Promise<void> {
     );
   }
 
-  console.log("\n📂 Scanning files...\n");
+  out.section("📂 Scanning files...");
+  console.log();
   let hasWarnings = false;
 
   const excludeIgnore = [
@@ -43,14 +46,15 @@ export async function runValidate(configPath: string): Promise<void> {
     });
     const unique = [...new Set(files)];
     const patternsDisplay = chunker.patterns.join(", ");
-    console.log(`  Chunker: ${chunker.name} (patterns: ${patternsDisplay})`);
+    out.dim(`  Chunker: ${chunker.name} (patterns: ${patternsDisplay})`);
 
     if (unique.length === 0) {
-      console.log(`  ⚠️  No files matched — check your patterns\n`);
+      out.warn(`  No files matched — check your patterns`);
       hasWarnings = true;
     } else {
-      console.log(`  ✅ Found ${unique.length} matching file(s)\n`);
+      out.success(`  Found ${unique.length} matching file(s)`);
     }
+    console.log();
   }
 
   const gitTracker = new GitTracker(
@@ -64,23 +68,23 @@ export async function runValidate(configPath: string): Promise<void> {
     config.excludePatterns,
   );
   const allFiles = await gitTracker.getAllTrackedFiles();
-  console.log(
+  out.dim(
     `  Total: ${allFiles.length} file(s) tracked across ${config.chunkers.length} chunker(s)`,
   );
 
-  console.log("\n🔌 Checking vector store...");
+  out.section("🔌 Checking vector store...");
   try {
     await config.vectorStore.initialize();
-    console.log("  ✅ Vector store connected");
+    out.success("  Vector store connected");
   } catch {
-    console.log("  ⚠️  Could not connect — check credentials");
+    out.warn("  Could not connect — check credentials");
     hasWarnings = true;
   }
 
-  console.log("\n📁 Checking file type coverage...");
+  out.section("📁 Checking file type coverage...");
   const detectedGroups = await detectFileExtensions(cwd);
   if (detectedGroups.length === 0) {
-    console.log("  ℹ️  No known file types detected in project");
+    out.dim("  No known file types detected in project");
   } else {
     const allPatterns = config.chunkers.flatMap((c) => c.patterns);
     for (const group of detectedGroups) {
@@ -88,19 +92,20 @@ export async function runValidate(configPath: string): Promise<void> {
         allPatterns.some((p) => p.includes(`*${ext}`) || p.includes(`${ext}`)),
       );
       if (covered) {
-        console.log(`  ✅ ${group.name} (${group.exts.join(", ")}) — covered`);
+        out.success(`  ${group.name} (${group.exts.join(", ")}) — covered`);
       } else {
-        console.log(
-          `  ⚠️  ${group.name} (${group.exts.join(", ")}) — not covered by any chunker`,
+        out.warn(
+          `  ${group.name} (${group.exts.join(", ")}) — not covered by any chunker`,
         );
         hasWarnings = true;
       }
     }
   }
 
+  console.log();
   if (hasWarnings) {
-    console.log("\n⚠️  Config loaded with warnings.");
+    out.warn("Config loaded with warnings.");
   } else {
-    console.log("\n✅ Config is valid!");
+    out.success("Config is valid!");
   }
 }

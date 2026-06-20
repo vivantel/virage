@@ -204,12 +204,9 @@ export class Uploader {
       },
       this.logger,
     );
-    // Mark ALL hashes (including the deduped ones) so they don't re-queue.
+    // Delete staging rows for ALL hashes (including deduped ones) — SQLite is a pure buffer.
     const hashes = chunks.map((e) => contentHash(e));
-    db.markUploaded(hashes);
-    for (const hash of hashes) {
-      db.clearEmbedding(hash);
-    }
+    db.deleteChunks(hashes);
   }
 
   async uploadPending(
@@ -235,7 +232,7 @@ export class Uploader {
         },
         this.logger,
       );
-      db.markUploaded(batch.map((e) => contentHash(e)));
+      db.deleteChunks(batch.map((e) => contentHash(e)));
       uploaded += batch.length;
       onProgress?.(uploaded, pending.length);
     }
@@ -293,7 +290,7 @@ export class Uploader {
           },
           this.logger,
         );
-        db.markUploaded(batch.map((e) => contentHash(e)));
+        db.deleteChunks(batch.map((e) => contentHash(e)));
         uploaded += batch.length;
         onProgress?.(uploaded, toUpload.length);
         const batchNum = Math.floor(i / batchSize) + 1;

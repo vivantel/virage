@@ -7,7 +7,7 @@ import express, {
 import { WebSocketServer, type WebSocket } from "ws";
 import { readFile, writeFile, mkdir } from "fs/promises";
 import { existsSync } from "fs";
-import { join, resolve, basename } from "path";
+import { join, resolve, basename, dirname } from "path";
 import { homedir } from "os";
 import { fileURLToPath } from "url";
 import {
@@ -27,6 +27,7 @@ import {
 export interface DashboardOptions {
   port: number;
   dbPath: string;
+  configPath?: string;
   verbose?: boolean;
 }
 
@@ -34,6 +35,7 @@ export interface ProjectEntry {
   label: string;
   rootPath: string;
   virageDb: string;
+  configPath?: string;
   lastUsed: number;
 }
 
@@ -56,15 +58,20 @@ const HAS_UI = existsSync(join(UI_DIR, "index.html"));
 
 function projectFromRoot(
   rootPath: string,
-  overrides?: { virageDb?: string },
+  overrides?: { virageDb?: string; configPath?: string },
 ): ProjectEntry {
   const abs = resolve(rootPath);
   return {
     label: basename(abs),
     rootPath: abs,
     virageDb: overrides?.virageDb ?? join(abs, ".virage", "virage.db"),
+    configPath: overrides?.configPath,
     lastUsed: Date.now(),
   };
+}
+
+function getProjectConfigPath(project: ProjectEntry): string {
+  return project.configPath ?? join(project.rootPath, "virage.config.json");
 }
 
 async function loadRecentProjects(): Promise<ProjectsState> {
@@ -216,11 +223,11 @@ async function handleWsOperation(ws: WebSocket, msg: Record<string, unknown>) {
     return;
   }
 
-  const configPath = join(active.rootPath, "virage.config.json");
+  const configPath = getProjectConfigPath(active);
   if (!existsSync(configPath)) {
     safeSend(ws, {
       type: "error",
-      message: `virage.config.json not found in ${active.rootPath}`,
+      message: `Config not found: ${configPath}`,
     });
     return;
   }
@@ -358,9 +365,12 @@ export async function runDashboard(opts: DashboardOptions): Promise<void> {
   // Single-operation guard for WebSocket pipeline runs — scoped per server instance
   let wsOperationRunning = false;
 
-  const startupRoot = resolve(process.cwd());
+  const startupRoot = opts.configPath
+    ? resolve(dirname(opts.configPath))
+    : resolve(process.cwd());
   const startupProject = projectFromRoot(startupRoot, {
     virageDb: dbAbs,
+    configPath: opts.configPath ? resolve(opts.configPath) : undefined,
   });
 
   const loaded = await loadRecentProjects();
@@ -530,9 +540,12 @@ export async function runDashboard(opts: DashboardOptions): Promise<void> {
       res.json({ status: "unknown", message: "No active project" });
       return;
     }
-    const configPath = join(active.rootPath, "virage.config.json");
+    const configPath = getProjectConfigPath(active);
     if (!existsSync(configPath)) {
-      res.json({ status: "unknown", message: "virage.config.json not found" });
+      res.json({
+        status: "unknown",
+        message: `Config not found: ${configPath}`,
+      });
       return;
     }
     try {
@@ -561,11 +574,9 @@ export async function runDashboard(opts: DashboardOptions): Promise<void> {
       res.status(503).json({ error: "No active project" });
       return;
     }
-    const configPath = join(active.rootPath, "virage.config.json");
+    const configPath = getProjectConfigPath(active);
     if (!existsSync(configPath)) {
-      res
-        .status(422)
-        .json({ error: `virage.config.json not found in ${active.rootPath}` });
+      res.status(422).json({ error: `Config not found: ${configPath}` });
       return;
     }
     try {

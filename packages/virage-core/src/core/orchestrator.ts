@@ -136,6 +136,10 @@ export class Orchestrator {
         }
       }
 
+      // Initialize vector store early — its current state is the authoritative
+      // record of what is indexed, replacing SQLite's file_revisions for change detection.
+      await this.config.vectorStore.initialize();
+
       // Git tracking
       logger.info("📂 Scanning for changes...");
       const t1 = Date.now();
@@ -149,14 +153,17 @@ export class Orchestrator {
         opts.logger,
         excludePatterns,
       );
-      const [currentState, currentBranch] = await Promise.all([
-        gitTracker.getCurrentState(opts.onScanProgress),
-        gitTracker.getCurrentBranch(),
-      ]);
+      const [currentState, currentBranch, vectorStoreState] = await Promise.all(
+        [
+          gitTracker.getCurrentState(opts.onScanProgress),
+          gitTracker.getCurrentBranch(),
+          this.config.vectorStore.getCurrentState(),
+        ],
+      );
 
       const previousState = effectiveForce
         ? new Map<string, string>()
-        : db.getFileStates();
+        : vectorStoreState;
 
       const { toProcess, toDelete } = await gitTracker.getChangedFiles(
         previousState,

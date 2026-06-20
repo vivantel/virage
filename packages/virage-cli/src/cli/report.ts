@@ -1,5 +1,6 @@
 import { VirageDb, defaultVirageDb } from "@vivantel/virage-core";
 import type { PipelineRunData } from "@vivantel/virage-core";
+import { out } from "../output.js";
 
 function percentile(sorted: number[], p: number): number {
   if (sorted.length === 0) return 0;
@@ -22,15 +23,14 @@ export async function runReport(
     records = db.listPipelineRuns();
     db.close();
   } catch {
-    console.error(
-      `❌ Could not read virage.db at "${dbPath}".\n` +
-        `   Run the pipeline first to generate telemetry.`,
+    out.error(
+      `Could not read virage.db at "${dbPath}". Run the pipeline first to generate telemetry.`,
     );
     process.exit(1);
   }
 
   if (records.length === 0) {
-    console.log("ℹ️  No pipeline runs found in virage.db.");
+    out.dim("No pipeline runs found in virage.db.");
     return;
   }
 
@@ -38,8 +38,8 @@ export async function runReport(
   records.sort((a, b) => a.runAt.localeCompare(b.runAt));
   const latest = records[records.length - 1];
 
-  console.log(`\n📊 Observability Report (${records.length} runs)`);
-  console.log("─".repeat(50));
+  out.section(`📊 Observability Report (${records.length} runs)`);
+  out.sep();
   console.log(`  Latest run        : ${latest.runAt}`);
   console.log(`  Total duration    : ${fmt(latest.durationMs)}`);
 
@@ -97,5 +97,5 @@ export async function runReport(
     console.log(`  Slowest run       : ${fmt(Math.max(...durations))}`);
   }
 
-  console.log("─".repeat(50));
+  out.sep();
 }
