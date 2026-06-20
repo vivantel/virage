@@ -17,7 +17,11 @@ export interface McpContext {
   lastSearchId?: string;
   feedbackArmed?: boolean;
   reranker?: Reranker;
-  searchConfig?: { hybrid?: boolean; hybridAlpha?: number; rerankOversample?: number };
+  searchConfig?: {
+    hybrid?: boolean;
+    hybridAlpha?: number;
+    rerankOversample?: number;
+  };
 }
 
 export async function handleSearch(
