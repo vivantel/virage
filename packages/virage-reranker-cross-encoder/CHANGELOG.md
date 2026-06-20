@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.18](https://github.com/vivantel/virage/compare/virage-reranker-cross-encoder@v0.1.17...virage-reranker-cross-encoder@v0.1.18) (2026-06-20)
+
+
+### Bug Fixes
+
+* **reranker-cross-encoder:** Update test to expect dtype option passed to pipeline ([b66065f](https://github.com/vivantel/virage/commit/b66065f71ef07d0b2ef657349006a9ca6318162b))
+
 ## [0.1.17](https://github.com/vivantel/virage/compare/virage-reranker-cross-encoder@v0.1.16...virage-reranker-cross-encoder@v0.1.17) (2026-06-20)
 
 
