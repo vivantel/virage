@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.2.43](https://github.com/vivantel/virage/compare/virage-embedder-transformers@v0.2.42...virage-embedder-transformers@v0.2.43) (2026-06-20)
+
+
+### Bug Fixes
+
+* **cli:** Resolve UX and correctness bugs across init/update/index/query ([3ee74b5](https://github.com/vivantel/virage/commit/3ee74b58d707f2050517fb860389c650a47584ae))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * devDependencies
+    * @vivantel/virage-core bumped from 0.2.40 to 0.2.41
+  * peerDependencies
+    * @vivantel/virage-core bumped from * to 0.2.41
+
 ## [0.2.42](https://github.com/vivantel/virage/compare/virage-embedder-transformers@v0.2.41...virage-embedder-transformers@v0.2.42) (2026-06-20)
 
 

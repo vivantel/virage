@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.1.71](https://github.com/vivantel/virage/compare/virage-cli@v0.1.70...virage-cli@v0.1.71) (2026-06-20)
+
+
+### Bug Fixes
+
+* **cli:** Resolve UX and correctness bugs across init/update/index/query ([3ee74b5](https://github.com/vivantel/virage/commit/3ee74b58d707f2050517fb860389c650a47584ae))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @vivantel/virage-core bumped from 0.2.40 to 0.2.41
+
 ## [0.1.70](https://github.com/vivantel/virage/compare/virage-cli@v0.1.69...virage-cli@v0.1.70) (2026-06-20)
 
 
