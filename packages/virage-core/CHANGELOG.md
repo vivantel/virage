@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.39](https://github.com/vivantel/virage/compare/virage-core@v0.2.38...virage-core@v0.2.39) (2026-06-20)
+
+
+### Features
+
+* UX, back pressure, validate, and banner improvements ([ea2b239](https://github.com/vivantel/virage/commit/ea2b23973c8fc5933829bc75ea7f27b63500e847))
+
 ## [0.2.38](https://github.com/vivantel/virage/compare/virage-core@v0.2.37...virage-core@v0.2.38) (2026-06-20)
 
 
