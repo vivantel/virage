@@ -105,28 +105,30 @@ Add `--format json` for CI integration (fail the build if estimated cost exceeds
 
 ### ~~4. Re-ranking layer~~ ✓ Shipped
 
-After ANN retrieval returns top-20 candidates, a re-ranker scores each (query, chunk) pair more precisely and returns the final top-K. Two modes:
+The pipeline fetches `topK × rerankOversample` candidates (default: 5×) from the vector store, then a re-ranker scores each (query, chunk) pair with a cross-encoder and returns the final top-K. Scores are calibrated via sigmoid so they represent P(relevant | query, chunk) in absolute terms — irrelevant queries return near-zero scores rather than inflated 100% values.
 
 **Mode A — lightweight cross-encoder (local)**
 
 ```json
 {
   "search": {
+    "rerankOversample": 5,
     "reranker": {
       "package": "@vivantel/virage-reranker-cross-encoder",
-      "config": { "model": "cross-encoder/ms-marco-MiniLM-L-6-v2", "topK": 5 }
+      "config": { "model": "Xenova/ms-marco-MiniLM-L-6-v2", "topK": 5, "minScore": 0.1 }
     }
   }
 }
 ```
 
-Ships as `@vivantel/virage-reranker-cross-encoder`. ONNX model, runs locally, no API key. Adds ~50–150ms latency. Justified when precision of top-5 matters more than speed.
+Ships as `@vivantel/virage-reranker-cross-encoder`. ONNX model, runs locally, no API key. Adds ~50–150ms latency. `minScore` (0–1) filters out results below the sigmoid-calibrated relevance threshold.
 
 **Mode B — LLM judge (cloud)**
 
 ```json
 {
   "search": {
+    "rerankOversample": 5,
     "reranker": {
       "package": "@vivantel/virage-reranker-llm",
       "config": { "model": "claude-haiku-4-5", "topK": 5 }

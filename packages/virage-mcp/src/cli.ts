@@ -48,7 +48,11 @@ const ctx = {
   session,
   reranker: cfg.search?.reranker,
   searchConfig: cfg.search
-    ? { hybrid: cfg.search.hybrid, hybridAlpha: cfg.search.hybridAlpha }
+    ? {
+        hybrid: cfg.search.hybrid,
+        hybridAlpha: cfg.search.hybridAlpha,
+        rerankOversample: cfg.search.rerankOversample,
+      }
     : undefined,
 };
 const server = createMcpServer(ctx, telemetryConfig);

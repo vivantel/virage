@@ -17,7 +17,7 @@ export interface McpContext {
   lastSearchId?: string;
   feedbackArmed?: boolean;
   reranker?: Reranker;
-  searchConfig?: { hybrid?: boolean; hybridAlpha?: number };
+  searchConfig?: { hybrid?: boolean; hybridAlpha?: number; rerankOversample?: number };
 }
 
 export async function handleSearch(
@@ -41,10 +41,14 @@ export async function handleSearch(
   const useHybrid = args.hybrid ?? ctx.searchConfig?.hybrid ?? false;
   const hybridAlpha = args.hybrid_alpha ?? ctx.searchConfig?.hybridAlpha;
 
+  const finalTopK = args.top_k ?? 5;
+  const oversample = ctx.searchConfig?.rerankOversample ?? 5;
+  const fetchTopK = ctx.reranker ? finalTopK * oversample : finalTopK;
+
   const t1 = Date.now();
   let results = await ctx.vectorStore.search(
     embedding,
-    args.top_k ?? 5,
+    fetchTopK,
     args.collection,
     {
       alpha: args.alpha,
@@ -58,7 +62,7 @@ export async function handleSearch(
 
   const reranked = ctx.reranker != null;
   if (ctx.reranker) {
-    results = await ctx.reranker.rerank(args.query, results, args.top_k ?? 5);
+    results = await ctx.reranker.rerank(args.query, results, finalTopK);
   }
 
   const totalMs = Date.now() - t0;

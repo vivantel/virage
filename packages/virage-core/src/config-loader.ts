@@ -42,6 +42,7 @@ interface JsonSearchConfig {
   hybrid?: boolean;
   hybridAlpha?: number;
   reranker?: JsonProviderConfig;
+  rerankOversample?: number;
 }
 
 interface JsonRagConfig {
@@ -272,6 +273,7 @@ async function loadJsonConfig(
       hybrid: jsonConfig.search?.hybrid,
       hybridAlpha: jsonConfig.search?.hybridAlpha,
       reranker,
+      rerankOversample: jsonConfig.search?.rerankOversample,
     },
   };
 }
