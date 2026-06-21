@@ -1,9 +1,10 @@
 import { createRequire } from "node:module";
 import { pathToFileURL } from "node:url";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import { homedir } from "node:os";
 import { readFileSync } from "node:fs";
 import { execFileSync } from "node:child_process";
+import { getVirageDir } from "./virage-defaults.js";
 
 type ErrWithCode = Error & { code?: string };
 
@@ -96,11 +97,13 @@ export async function importPackage(pkg: string): Promise<unknown> {
     if (!isModuleNotFound(err)) throw err;
   }
 
-  // 2. Local plugin dir — virage init installs here by default
+  // 2. Local plugin dir — virage init installs here by default.
+  //    Uses getVirageDir() so VIRAGE_DIR env-var can override the base dir
+  //    (used by the eval suite runner for plugin version isolation).
   try {
     return await tryImportFromPluginDir(
       pkg,
-      join(process.cwd(), ".virage", "plugins"),
+      resolve(process.cwd(), getVirageDir(), "plugins"),
     );
   } catch {
     // continue

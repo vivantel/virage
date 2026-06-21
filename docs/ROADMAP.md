@@ -16,7 +16,7 @@
 | **Pluggable-everything architecture** | Clean `FileChunker`, `EmbeddingProvider`, `VectorStore` interfaces. Swap embedders or stores without touching the pipeline. This is the right abstraction. |
 | **Local-first option** | LanceDB (file-based) + FastEmbed/Transformers (no API key) = zero infrastructure, zero ongoing cost, suitable for private codebases. |
 | **MCP integration** | Exposing the knowledge base via Model Context Protocol is the correct integration point for AI tools. Read-only by design. |
-| **Evaluation infrastructure** | `virage evaluate`, experiment tracking with bootstrap significance testing, RAGAS metrics — this is more mature than most comparable tools. |
+| **Evaluation infrastructure** | `virage eval run` / `virage eval-suite run`, experiment tracking with bootstrap significance testing, RAGAS metrics, declarative multi-config eval suites with HTTPS DB archives — this is more mature than most comparable tools. |
 | **Skills system** | Summary-then-full loading pattern keeps token overhead under 150 tokens until the agent commits to a skill. |
 
 **Current gaps**
@@ -342,7 +342,7 @@ Every significant retrieval change should be validated against the existing eval
 
 | Metric | Target | Notes |
 |---|---|---|
-| MRR@10 | ≥ 0.72 (currently ~0.65) | Hybrid search is expected to move this the most |
+| MRR@10 | ≥ 0.72 (currently ~0.48*) | *15-query golden dataset, vector-only; run `virage eval-suite run` for reproducible measurement |
 | Precision@5 | ≥ 0.70 | |
 | Hit rate@5 | ≥ 0.85 | |
 | Search latency p95 | ≤ 50ms | Without re-ranking; ≤ 250ms with cross-encoder |

@@ -87,6 +87,8 @@ virage eval generate (gen)             # generate eval dataset from indexed chun
 virage eval save --name <n>            # run evaluation and save results for comparison
 virage eval list                       # list saved evaluation runs
 virage eval compare --baseline --candidate  # bootstrap significance test between two runs
+virage eval-suite (es) run --suite eval/suite.json  # multi-config/multi-db eval suite (downloads DB archives, compares all variants)
+virage pack --output ./archive.tar.gz  # pack LanceDB dir as a shareable .tar.gz for eval-suite
 ```
 
 ### CLI alias quick-reference
@@ -105,6 +107,7 @@ virage eval compare --baseline --candidate  # bootstrap significance test betwee
 | `read-skill-summary` | `skill` |
 | `eval` | `e` |
 | `eval generate` | `eval gen` / `e gen` |
+| `eval-suite` | `es` |
 
 ---
 

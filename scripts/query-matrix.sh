@@ -4,7 +4,7 @@
 #
 # Usage:  ./scripts/query-matrix.sh [--top-k N] [--virage-bin path/to/virage]
 #
-# Requirements:  jq, virage CLI on PATH (or pass --virage-bin)
+# Requirements:  jq, sha256sum, virage CLI on PATH (or pass --virage-bin)
 
 set -euo pipefail
 
@@ -14,6 +14,7 @@ TOP_K=5
 # Default: prefer local dist build over globally installed binary
 _LOCAL_DIST="node $(dirname "$0")/../packages/virage-cli/dist/bin/virage.js"
 VIRAGE_BIN="${VIRAGE_BIN:-$_LOCAL_DIST}"
+PLUGIN_CACHE_BASE=".virage/eval-plugin-cache"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -22,6 +23,32 @@ while [[ $# -gt 0 ]]; do
     *) echo "Unknown flag: $1"; exit 1 ;;
   esac
 done
+
+# ─── Plugin env setup ─────────────────────────────────────────────────────────
+# Sets VIRAGE_DIR to a stable per-config dir with pinned plugins installed.
+# No-op when the config declares no pluginVersions.
+
+setup_eval_env_for_config() {
+  local config="$1"
+  local packages
+  packages=$(jq -r '.pluginVersions // {} | to_entries[] | "\(.key)@\(.value)"' "$config" 2>/dev/null | sort || true)
+  if [[ -z "$packages" ]]; then
+    return 0
+  fi
+
+  local key
+  key=$(echo "$packages" | sha256sum | cut -c1-16)
+  local plugin_dir="${PLUGIN_CACHE_BASE}/${key}"
+
+  if [[ ! -d "${plugin_dir}/node_modules" ]]; then
+    printf "  Installing plugins for %s → %s\n" "$config" "$plugin_dir"
+    mkdir -p "$plugin_dir"
+    # shellcheck disable=SC2086
+    npm install --prefix "$plugin_dir" $packages
+  fi
+
+  export VIRAGE_DIR="$plugin_dir"
+}
 
 # ─── Matrix definition ───────────────────────────────────────────────────────
 
@@ -86,11 +113,18 @@ printf "${DIM}%s${RESET}\n" "$(printf '─%.0s' {1..90})"
 declare -A results   # config → (query → result_json)
 declare -A rel_sims  # config → relevant-query max_sim (populated first, used for separation check)
 
+ORIG_VIRAGE_DIR_QM="${VIRAGE_DIR:-}"
+
 for CONFIG in "${CONFIGS[@]}"; do
   if [[ ! -f "$CONFIG" ]]; then
     printf "  ${YELLOW}⚠ Config not found: %s (skipping)${RESET}\n" "$CONFIG"
     continue
   fi
+
+  # Install pinned plugins and set VIRAGE_DIR for this config
+  unset VIRAGE_DIR
+  [[ -n "$ORIG_VIRAGE_DIR_QM" ]] && export VIRAGE_DIR="$ORIG_VIRAGE_DIR_QM"
+  setup_eval_env_for_config "$CONFIG"
 
   SHORT_CONFIG="${CONFIG#virage.config.}"  # strip prefix for display
   SHORT_CONFIG="${SHORT_CONFIG%.json}"
@@ -150,6 +184,10 @@ for CONFIG in "${CONFIGS[@]}"; do
 done
 
 printf "${DIM}%s${RESET}\n\n" "$(printf '─%.0s' {1..90})"
+
+# Restore VIRAGE_DIR
+unset VIRAGE_DIR
+[[ -n "$ORIG_VIRAGE_DIR_QM" ]] && export VIRAGE_DIR="$ORIG_VIRAGE_DIR_QM"
 
 # ─── Findings ────────────────────────────────────────────────────────────────
 

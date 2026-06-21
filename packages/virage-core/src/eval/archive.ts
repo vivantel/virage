@@ -129,3 +129,52 @@ export async function downloadAndExtract(
 
   return { dir: extractDir, cached: false };
 }
+
+/**
+ * Like `downloadAndExtract` but extracts directly into `destDir` (no URL-hash
+ * subdirectory). The caller is responsible for content-addressing `destDir`.
+ * Returns whether the extraction was skipped because `destDir` already existed.
+ */
+export async function downloadAndExtractTo(
+  url: string,
+  destDir: string,
+  sha256?: string,
+  noCache = false,
+): Promise<{ cached: boolean }> {
+  if (!noCache && (await exists(destDir))) {
+    return { cached: true };
+  }
+
+  const parentDir = join(destDir, "..");
+  await mkdir(parentDir, { recursive: true });
+
+  const tmpDlDir = await mkdtemp(join(tmpdir(), "virage-dl-"));
+  const tmpArchive = join(tmpDlDir, "archive.tar.gz");
+
+  try {
+    const actualSha256 = await downloadToFile(url, tmpArchive);
+
+    if (sha256 && actualSha256 !== sha256.toLowerCase()) {
+      throw new Error(
+        `SHA-256 mismatch for ${url}\n  expected: ${sha256}\n  got:      ${actualSha256}`,
+      );
+    }
+
+    const tmpExtract = `${destDir}.tmp`;
+    await mkdir(tmpExtract, { recursive: true });
+    try {
+      await extractTarGz(tmpArchive, tmpExtract);
+      if (noCache && (await exists(destDir))) {
+        await rm(destDir, { recursive: true, force: true });
+      }
+      await rename(tmpExtract, destDir);
+    } catch (err) {
+      await rm(tmpExtract, { recursive: true, force: true });
+      throw err;
+    }
+  } finally {
+    await rm(tmpDlDir, { recursive: true, force: true });
+  }
+
+  return { cached: false };
+}

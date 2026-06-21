@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { readFile, writeFile, unlink, mkdtemp } from "fs/promises";
 import { tmpdir } from "os";
 import { join, resolve } from "path";
@@ -9,8 +10,22 @@ import { EvalRunner } from "./runner.js";
 import { ExperimentStore, makeRunId } from "./experiment-store.js";
 import { bootstrapPairedTest } from "./statistics.js";
 import type { StatTestResult } from "./statistics.js";
-import { downloadAndExtract } from "./archive.js";
+import { downloadAndExtractTo } from "./archive.js";
+import { ensurePluginsInstalled } from "./plugin-install.js";
 import type { VirageDb } from "../core/virage-db.js";
+
+type RawRecord = Record<string, unknown>;
+
+interface ConfigFields {
+  topK?: unknown;
+  embedderPackage?: unknown;
+  embedderModel?: unknown;
+  vectorStorePackage?: unknown;
+  searchHybrid?: unknown;
+  searchHybridAlpha?: unknown;
+  rerankerPackage?: unknown;
+  pluginVersions?: unknown;
+}
 
 export interface SuiteVariantResult {
   name: string;
@@ -19,6 +34,8 @@ export interface SuiteVariantResult {
   runId: string;
   /** Comparison against baseline (absent for the baseline variant itself) */
   comparison?: StatTestResult;
+  /** Extracted config params for display in comparison output */
+  configFields: ConfigFields;
 }
 
 export interface SuiteResult {
@@ -35,6 +52,81 @@ export interface SuiteRunOptions {
   silent?: boolean;
   /** Re-download archives even if cached */
   noCache?: boolean;
+}
+
+function extractConfigFields(rawConfig: RawRecord, topK: number): ConfigFields {
+  return {
+    topK,
+    embedderPackage: (rawConfig.embedder as RawRecord | undefined)?.package,
+    embedderModel: (
+      (rawConfig.embedder as RawRecord | undefined)?.config as
+        | RawRecord
+        | undefined
+    )?.model,
+    vectorStorePackage: (rawConfig.vectorStore as RawRecord | undefined)
+      ?.package,
+    searchHybrid: (rawConfig.search as RawRecord | undefined)?.hybrid ?? false,
+    searchHybridAlpha: (rawConfig.search as RawRecord | undefined)?.hybridAlpha,
+    rerankerPackage: (
+      (rawConfig.search as RawRecord | undefined)?.reranker as
+        | RawRecord
+        | undefined
+    )?.package,
+    pluginVersions: rawConfig.pluginVersions,
+  };
+}
+
+function printConfigParams(
+  results: SuiteVariantResult[],
+  log: (msg: string) => void,
+): void {
+  const fields: Array<keyof ConfigFields> = [
+    "embedderPackage",
+    "embedderModel",
+    "vectorStorePackage",
+    "topK",
+    "searchHybrid",
+    "searchHybridAlpha",
+    "rerankerPackage",
+  ];
+  const labels: Record<string, string> = {
+    embedderPackage: "embedder",
+    embedderModel: "model",
+    vectorStorePackage: "store",
+    topK: "top-k",
+    searchHybrid: "hybrid",
+    searchHybridAlpha: "hybridAlpha",
+    rerankerPackage: "reranker",
+  };
+
+  const sharedLines: string[] = [];
+  const differsLines: string[] = [];
+
+  for (const field of fields) {
+    const vals = results.map((r) => String(r.configFields[field] ?? "none"));
+    const unique = new Set(vals);
+    const label = (labels[field] ?? field).padEnd(14);
+    if (unique.size === 1) {
+      if (vals[0] !== "undefined" && vals[0] !== "none") {
+        sharedLines.push(`      ${label} ${vals[0]}`);
+      }
+    } else {
+      const pairs = results
+        .map((r) => `${r.name}=${String(r.configFields[field] ?? "none")}`)
+        .join(", ");
+      differsLines.push(`      ${label} ${pairs}`);
+    }
+  }
+
+  log("  Config parameters:");
+  if (sharedLines.length > 0) {
+    log("    shared");
+    for (const line of sharedLines) log(line);
+  }
+  if (differsLines.length > 0) {
+    log("    differs");
+    for (const line of differsLines) log(line);
+  }
 }
 
 export async function runSuite(
@@ -57,28 +149,9 @@ export async function runSuite(
   );
   log("");
 
-  // ── Step 1: download and extract all unique databases ──────────────────────
-
   const cacheDir = resolve(suiteDir, suite.cacheDir ?? ".virage/eval-cache");
 
-  log("  Downloading archives...");
-  const dbPaths: Record<string, string> = {};
-
-  for (const [dbId, spec] of Object.entries(suite.databases)) {
-    const { dir, cached } = await downloadAndExtract(
-      spec.url,
-      cacheDir,
-      spec.sha256,
-      noCache,
-    );
-    dbPaths[dbId] = dir;
-    log(`    ✓ ${dbId}${cached ? "  (cached)" : "  (downloaded)"}`);
-  }
-
-  log("");
   log("  Running variants...");
-
-  // ── Step 2: run eval for each variant ─────────────────────────────────────
 
   const store = new ExperimentStore(db);
   const results: SuiteVariantResult[] = [];
@@ -89,29 +162,54 @@ export async function runSuite(
       continue;
     }
 
-    const dbPath = dbPaths[variant.database];
-    if (!dbPath) {
+    const spec = suite.databases[variant.database];
+    if (!spec) {
       throw new Error(
         `Variant "${variant.name}" references unknown database "${variant.database}"`,
       );
     }
 
     const variantConfigPath = resolve(suiteDir, variant.config);
-
-    // Patch vectorStore.config.uri in a temp config file so that the suite
-    // runner can point each variant at its specific pre-built archive without
-    // modifying the source config files.
     const rawConfig = JSON.parse(
       await readFile(variantConfigPath, "utf-8"),
-    ) as Record<string, unknown>;
+    ) as RawRecord;
 
-    const vectorStore = rawConfig.vectorStore as
-      | Record<string, unknown>
-      | undefined;
+    // Collect plugin versions declared in the config file
+    const pluginVersions =
+      (rawConfig.pluginVersions as Record<string, string> | undefined) ?? {};
+    const sortedPlugins = Object.entries(pluginVersions)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([k, v]) => `${k}@${v}`);
+
+    // Stable content-addressed dir: keyed by (database URL + plugin versions).
+    // Variants sharing the same DB archive and plugin versions reuse one dir.
+    const runKey = createHash("sha256")
+      .update(spec.url + sortedPlugins.join(","))
+      .digest("hex")
+      .slice(0, 16);
+    const evalRunDir = join(cacheDir, "runs", runKey);
+    const lancedbDir = join(evalRunDir, "lancedb");
+    const pluginDir = join(evalRunDir, "plugins");
+
+    // Extract DB archive into evalRunDir/lancedb (idempotent)
+    const { cached: dbCached } = await downloadAndExtractTo(
+      spec.url,
+      lancedbDir,
+      spec.sha256,
+      noCache,
+    );
+
+    // Install pinned plugins into evalRunDir/plugins (idempotent)
+    if (sortedPlugins.length > 0) {
+      await ensurePluginsInstalled(pluginVersions, pluginDir);
+    }
+
+    // Patch vectorStore.config.uri to point at the extracted DB
+    const vectorStore = rawConfig.vectorStore as RawRecord | undefined;
     if (vectorStore) {
       vectorStore.config = {
-        ...(vectorStore.config as Record<string, unknown> | undefined),
-        uri: dbPath,
+        ...(vectorStore.config as RawRecord | undefined),
+        uri: lancedbDir,
       };
     }
 
@@ -119,16 +217,30 @@ export async function runSuite(
     const tmpConfigPath = join(tmpDir, "config.json");
     await writeFile(tmpConfigPath, JSON.stringify(rawConfig));
 
+    // Set VIRAGE_DIR so importPackage() picks up plugins from evalRunDir/plugins
+    const prevVirageDir = process.env["VIRAGE_DIR"];
+    if (sortedPlugins.length > 0) {
+      process.env["VIRAGE_DIR"] = evalRunDir;
+    }
+
     let cfg;
     try {
       cfg = await loadConfig(tmpConfigPath);
     } finally {
+      if (sortedPlugins.length > 0) {
+        if (prevVirageDir !== undefined) {
+          process.env["VIRAGE_DIR"] = prevVirageDir;
+        } else {
+          delete process.env["VIRAGE_DIR"];
+        }
+      }
       await unlink(tmpConfigPath);
-      // tmpDir cleanup (best-effort)
       await import("fs/promises")
         .then((m) => m.rm(tmpDir, { recursive: true, force: true }))
         .catch(() => {});
     }
+
+    const configFields = extractConfigFields(rawConfig, topK);
 
     await cfg.vectorStore.initialize();
     try {
@@ -148,6 +260,7 @@ export async function runSuite(
           configFile: variant.config,
           database: variant.database,
           suiteDataset: suite.dataset,
+          ...configFields,
         },
         evalResult,
         perQueryRrScores,
@@ -158,17 +271,29 @@ export async function runSuite(
       const mrrPct = (evalResult.mrr * 100).toFixed(1);
       const p5Pct = (evalResult.precisionAt5 * 100).toFixed(1);
       const hr5Pct = (evalResult.hitRateAt5 * 100).toFixed(1);
+      const dbStatus = dbCached ? "cached" : "downloaded";
       log(
-        `    ✓ ${variant.name.padEnd(24)} MRR=${mrrPct.padStart(5)}%  P@5=${p5Pct.padStart(5)}%  HR@5=${hr5Pct.padStart(5)}%${isBaseline ? "  [baseline]" : ""}`,
+        `    ✓ ${variant.name.padEnd(24)} MRR=${mrrPct.padStart(5)}%  P@5=${p5Pct.padStart(5)}%  HR@5=${hr5Pct.padStart(5)}%  [${dbStatus}]${isBaseline ? "  [baseline]" : ""}`,
       );
 
-      results.push({ name: variant.name, evalResult, perQueryRrScores, runId });
+      results.push({
+        name: variant.name,
+        evalResult,
+        perQueryRrScores,
+        runId,
+        configFields,
+      });
     } finally {
       await cfg.vectorStore.close?.();
     }
   }
 
-  // ── Step 3: bootstrap comparisons vs baseline ──────────────────────────────
+  // ── Config params header ───────────────────────────────────────────────────
+
+  log("");
+  printConfigParams(results, log);
+
+  // ── Bootstrap comparisons vs baseline ─────────────────────────────────────
 
   const baselineResult = results.find((r) => r.name === suite.baseline);
   if (!baselineResult) {
@@ -206,7 +331,7 @@ export async function runSuite(
     );
   }
 
-  // ── Step 4: CI gate ────────────────────────────────────────────────────────
+  // ── CI gate ────────────────────────────────────────────────────────────────
 
   let ciPassed = true;
   if (suite.ciGate) {

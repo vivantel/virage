@@ -116,7 +116,8 @@ export {
 } from "./eval/metrics.js";
 export { bootstrapPairedTest } from "./eval/statistics.js";
 export type { StatTestResult } from "./eval/statistics.js";
-export { downloadAndExtract } from "./eval/archive.js";
+export { downloadAndExtract, downloadAndExtractTo } from "./eval/archive.js";
+export { ensurePluginsInstalled } from "./eval/plugin-install.js";
 export { runSuite } from "./eval/suite-runner.js";
 export type {
   SuiteVariantResult,
