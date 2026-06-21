@@ -118,7 +118,10 @@ export class LanceDBVectorStore implements VectorStore {
     }
     this.logger?.debug(`Table "${this.tableName}" ready (${this.dimensions}d)`);
 
-    // Create FTS index for hybrid search (idempotent — silently skipped if exists)
+    // Create FTS index for hybrid search.
+    // When opening a pre-built archive the index already exists and createIndex
+    // throws — probe listIndices() to detect that case so ftsIndexCreated is set
+    // correctly even when the store is initialised from a downloaded archive.
     try {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       await (this.table as any).createIndex("content", {
@@ -127,7 +130,25 @@ export class LanceDBVectorStore implements VectorStore {
       this.ftsIndexCreated = true;
       this.logger?.debug("FTS index created on 'content'");
     } catch {
-      this.ftsIndexCreated = false;
+      // createIndex throws when the index already exists; check the index list
+      // to distinguish "already there" from a genuine failure.
+      try {
+        const indices: Array<{ name?: string; indexType?: string }> =
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          await (this.table as any).listIndices();
+        this.ftsIndexCreated = indices.some(
+          (i) =>
+            i.indexType?.toUpperCase() === "FTS" ||
+            i.name?.toLowerCase().includes("content"),
+        );
+      } catch {
+        this.ftsIndexCreated = false;
+      }
+      this.logger?.debug(
+        this.ftsIndexCreated
+          ? "FTS index already exists on 'content'"
+          : "FTS index not available",
+      );
     }
 
     const metaSchema = new Schema([
