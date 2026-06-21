@@ -60,6 +60,346 @@
     {
       "query": "ADR architecture decision accepted status",
       "expectedContent": ["**Status:** Accepted"]
+    },
+    {
+      "query": "ESM TypeScript NodeNext module resolution decision",
+      "expectedContent": ["ADR-001"]
+    },
+    {
+      "query": "four stage pipeline GitTracker EmbedderProcessor Uploader",
+      "expectedContent": ["ADR-002"]
+    },
+    {
+      "query": "consumer implemented provider interface plugin contract",
+      "expectedContent": ["ADR-003"]
+    },
+    {
+      "query": "chunking strategy composition createChunker factory helper",
+      "expectedContent": ["ADR-006"]
+    },
+    {
+      "query": "monorepo per-package CI independent versioning",
+      "expectedContent": ["ADR-008"]
+    },
+    {
+      "query": "rag config gitignored CI JSON tracked virage",
+      "expectedContent": ["ADR-009"]
+    },
+    {
+      "query": "telemetry opt-in non-intrusive pipeline concern",
+      "expectedContent": ["ADR-010"]
+    },
+    {
+      "query": "JSON config environment variable dollar-sign interpolation",
+      "expectedContent": ["ADR-011"]
+    },
+    {
+      "query": "embedding dimension mismatch automatic full re-embed",
+      "expectedContent": ["ADR-012"]
+    },
+    {
+      "query": "postgres pgvector canonical production vector store",
+      "expectedContent": ["ADR-015"]
+    },
+    {
+      "query": "release-please conventional commits automated npm publish",
+      "expectedContent": ["ADR-016"]
+    },
+    {
+      "query": "logger abstraction verbosity consola stackable levels",
+      "expectedContent": ["ADR-017"]
+    },
+    {
+      "query": "SQLite embeddings intermediate storage replaces JSON",
+      "expectedContent": ["ADR-021"]
+    },
+    {
+      "query": "partial upload mid-run batch intermediate callback",
+      "expectedContent": ["ADR-022"]
+    },
+    {
+      "query": "branch-aware RAG per-file dirty detection metadata",
+      "expectedContent": ["ADR-028"]
+    },
+    {
+      "query": "file revisions table zero-chunk file tracking",
+      "expectedContent": ["ADR-033"]
+    },
+    {
+      "query": "main orchestrator RAG pipeline stages execution",
+      "expectedContent": ["Orchestrator"]
+    },
+    {
+      "query": "git change tracking dirty files incremental detection",
+      "expectedContent": ["GitTracker"]
+    },
+    {
+      "query": "document chunking pipeline processor file input",
+      "expectedContent": ["ChunkProcessor"]
+    },
+    {
+      "query": "embedding generation pipeline processor batch embed",
+      "expectedContent": ["EmbedderProcessor"]
+    },
+    {
+      "query": "vector store upload batch pipeline stage upsert",
+      "expectedContent": ["Uploader"]
+    },
+    {
+      "query": "pipeline run performance save stages telemetry",
+      "expectedContent": ["savePipelineRun"]
+    },
+    {
+      "query": "telemetry data collector pipeline session runs",
+      "expectedContent": ["TelemetryCollector"]
+    },
+    {
+      "query": "token-based chunking maxTokens overlap sliding window",
+      "expectedContent": ["TokenStrategyOptions"]
+    },
+    {
+      "query": "whole file single chunk no splitting strategy",
+      "expectedContent": ["wholeFileStrategy"]
+    },
+    {
+      "query": "AST code chunk scope entities context preservation",
+      "expectedContent": ["codeChunkStrategy"]
+    },
+    {
+      "query": "chunk information density coherence quality metrics",
+      "expectedContent": ["informationDensity"]
+    },
+    {
+      "query": "built-in chunking strategy names constant list",
+      "expectedContent": ["BUILTIN_STRATEGY_NAMES"]
+    },
+    {
+      "query": "Chroma vector store collection embedding management",
+      "expectedContent": ["ChromaVectorStore"]
+    },
+    {
+      "query": "Qdrant vector store HTTP gRPC client options",
+      "expectedContent": ["QdrantVectorStore"]
+    },
+    {
+      "query": "Postgres pgvector HNSW IVFFlat index configuration",
+      "expectedContent": ["PostgresVectorStore"]
+    },
+    {
+      "query": "HNSW index M ef-construction neighbor graph parameters",
+      "expectedContent": ["HNSWParams"]
+    },
+    {
+      "query": "IVFFlat nlist probes index parameters postgres",
+      "expectedContent": ["IVFFlatParams"]
+    },
+    {
+      "query": "dead tuple fraction vacuum reindex postgres maintenance",
+      "expectedContent": ["deadTupleFraction"]
+    },
+    {
+      "query": "vector store meta read write version tracking",
+      "expectedContent": ["readMeta"]
+    },
+    {
+      "query": "OpenAI compatible embedder Azure Ollama endpoint",
+      "expectedContent": ["OpenAICompatibleEmbedder"]
+    },
+    {
+      "query": "FastEmbed ONNX local embedder fast inference",
+      "expectedContent": ["FastEmbedEmbedder"]
+    },
+    {
+      "query": "semantic cache embedding similarity threshold dedup",
+      "expectedContent": ["SemanticCache"]
+    },
+    {
+      "query": "cosine similarity vector dot product calculation",
+      "expectedContent": ["cosineSimilarity"]
+    },
+    {
+      "query": "embedding outlier detection z-score fraction quality",
+      "expectedContent": ["outlierFraction"]
+    },
+    {
+      "query": "embedder batch streaming parallel input interface",
+      "expectedContent": ["embedBatch"]
+    },
+    {
+      "query": "LLM reranker language model relevance options",
+      "expectedContent": ["LlmRerankerOptions"]
+    },
+    {
+      "query": "cross-encoder reranker model options configuration",
+      "expectedContent": ["CrossEncoderRerankerOptions"]
+    },
+    {
+      "query": "embedder pre-warm model loading progress warmup",
+      "expectedContent": ["preWarm"]
+    },
+    {
+      "query": "sigmoid calibration oversampling cross-encoder ADR",
+      "expectedContent": ["ADR-034"]
+    },
+    {
+      "query": "RAGAS evaluation faithfulness answer relevance context",
+      "expectedContent": ["RAGASRunner"]
+    },
+    {
+      "query": "faithfulness LLM judge generated answer grounding",
+      "expectedContent": ["faithfulness"]
+    },
+    {
+      "query": "RAGAS result answer relevance context recall fields",
+      "expectedContent": ["RAGASResult"]
+    },
+    {
+      "query": "ecosystem cross-package quality evaluation assessment",
+      "expectedContent": ["EcosystemEvaluator"]
+    },
+    {
+      "query": "skill routing evaluation accuracy query classification",
+      "expectedContent": ["SkillRoutingEvaluator"]
+    },
+    {
+      "query": "adaptive tuning search parameters evaluation feedback",
+      "expectedContent": ["runAdaptiveTuning"]
+    },
+    {
+      "query": "generate golden eval dataset queries from codebase",
+      "expectedContent": ["generateEvalDataset"]
+    },
+    {
+      "query": "eval suite variant result statistical comparison",
+      "expectedContent": ["SuiteVariantResult"]
+    },
+    {
+      "query": "eval runner search config hybrid reranker options",
+      "expectedContent": ["EvalRunnerSearchConfig"]
+    },
+    {
+      "query": "base agent plugin abstract vendor implementation",
+      "expectedContent": ["BaseAgentPlugin"]
+    },
+    {
+      "query": "Claude agent plugin Anthropic token usage tracking",
+      "expectedContent": ["ClaudeAgentPlugin"]
+    },
+    {
+      "query": "pre-tool-use hook decision allow deny ask defer",
+      "expectedContent": ["PreToolUseDecision"]
+    },
+    {
+      "query": "agent hook configuration command HTTP MCP types",
+      "expectedContent": ["AgentHooksConfig"]
+    },
+    {
+      "query": "agent stop decision block continue hook output",
+      "expectedContent": ["AgentStopDecision"]
+    },
+    {
+      "query": "universal agent hook ADR vendor plugins package",
+      "expectedContent": ["ADR-025"]
+    },
+    {
+      "query": "MCP server factory create virage search tools",
+      "expectedContent": ["createMcpServer"]
+    },
+    {
+      "query": "MCP search handler vector retrieval context query",
+      "expectedContent": ["handleSearch"]
+    },
+    {
+      "query": "MCP list chunks get chunk by source file",
+      "expectedContent": ["handleListChunks"]
+    },
+    {
+      "query": "RAG feedback collection MCP tool endpoint",
+      "expectedContent": ["handleRagFeedback"]
+    },
+    {
+      "query": "console logger colorful output verbosity implementation",
+      "expectedContent": ["ConsolaLogger"]
+    },
+    {
+      "query": "create logger factory verbosity level CLI",
+      "expectedContent": ["createLogger"]
+    },
+    {
+      "query": "WebSocket message format real-time dashboard data",
+      "expectedContent": ["WsMessage"]
+    },
+    {
+      "query": "React hook WebSocket connection dashboard component",
+      "expectedContent": ["useWebSocket"]
+    },
+    {
+      "query": "CLI query command search vector store results",
+      "expectedContent": ["runQuery"]
+    },
+    {
+      "query": "CLI experiment compare runs baseline significance",
+      "expectedContent": ["runExperimentCompare"]
+    },
+    {
+      "query": "vector store statistics report CLI command",
+      "expectedContent": ["runStoreStats"]
+    },
+    {
+      "query": "auto-detect config file virage project root",
+      "expectedContent": ["autoDetectConfig"]
+    },
+    {
+      "query": "default global exclude glob file scan patterns",
+      "expectedContent": ["DEFAULT_EXCLUDE_PATTERNS"]
+    },
+    {
+      "query": "ignored directories node_modules git dist build list",
+      "expectedContent": ["IGNORED_DIRS"]
+    },
+    {
+      "query": "eval suite database spec URL archive sha256",
+      "expectedContent": ["DatabaseSpec"]
+    },
+    {
+      "query": "eval suite variant config search database override",
+      "expectedContent": ["EvalVariant"]
+    },
+    {
+      "query": "RAG pipeline base error class hierarchy",
+      "expectedContent": ["RagError"]
+    },
+    {
+      "query": "config error invalid format schema validation",
+      "expectedContent": ["ConfigError"]
+    },
+    {
+      "query": "chunk error file processing chunking failure",
+      "expectedContent": ["ChunkError"]
+    },
+    {
+      "query": "embed error embedding generation API failure",
+      "expectedContent": ["EmbedError"]
+    },
+    {
+      "query": "content hash SHA-256 idempotent chunk fingerprint",
+      "expectedContent": ["computeContentHash"]
+    },
+    {
+      "query": "retry utility exponential backoff transient error",
+      "expectedContent": ["withRetry"]
+    },
+    {
+      "query": "batch array split fixed size parallel processing",
+      "expectedContent": ["batchArray"]
+    },
+    {
+      "query": "discover external plugins load registry npm packages",
+      "expectedContent": ["discoverPlugins"]
+    },
+    {
+      "query": "isomorphic git source repository browser compatible",
+      "expectedContent": ["IsomorphicGitSourceRepository"]
     }
   ]
 }
