@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.52](https://github.com/vivantel/virage/compare/virage-core@v0.2.51...virage-core@v0.2.52) (2026-06-21)
+
+
+### Bug Fixes
+
+* **eval:** Ignore npm stdout in spawnSync to prevent buffer overflow ([fe22c66](https://github.com/vivantel/virage/commit/fe22c661fad46a20e39fc1cc2e318b4c19668b4d))
+
 ## [0.2.51](https://github.com/vivantel/virage/compare/virage-core@v0.2.50...virage-core@v0.2.51) (2026-06-21)
 
 

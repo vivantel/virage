@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.2.53](https://github.com/vivantel/virage/compare/virage-embedder-openai@v0.2.52...virage-embedder-openai@v0.2.53) (2026-06-21)
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * devDependencies
+    * @vivantel/virage-core bumped from 0.2.51 to 0.2.52
+  * peerDependencies
+    * @vivantel/virage-core bumped from * to 0.2.52
+
 ## [0.2.52](https://github.com/vivantel/virage/compare/virage-embedder-openai@v0.2.51...virage-embedder-openai@v0.2.52) (2026-06-21)
 
 
