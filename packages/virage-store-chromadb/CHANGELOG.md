@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.2.49](https://github.com/vivantel/virage/compare/virage-store-chromadb@v0.2.48...virage-store-chromadb@v0.2.49) (2026-06-21)
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * devDependencies
+    * @vivantel/virage-core bumped from 0.2.46 to 0.2.47
+  * peerDependencies
+    * @vivantel/virage-core bumped from * to 0.2.47
+
 ## [0.2.48](https://github.com/vivantel/virage/compare/virage-store-chromadb@v0.2.47...virage-store-chromadb@v0.2.48) (2026-06-20)
 
 

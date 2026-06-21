@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.1.78](https://github.com/vivantel/virage/compare/virage-cli@v0.1.77...virage-cli@v0.1.78) (2026-06-21)
+
+
+### Features
+
+* **eval:** Multi-config eval-suite runner, golden dataset, and eval-matrix script ([0ffb07c](https://github.com/vivantel/virage/commit/0ffb07c2a3a9c6e21919a3ebd3ada4a99dd4cf47))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @vivantel/virage-core bumped from 0.2.46 to 0.2.47
+
 ## [0.1.77](https://github.com/vivantel/virage/compare/virage-cli@v0.1.76...virage-cli@v0.1.77) (2026-06-20)
 
 

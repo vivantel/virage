@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.2.49](https://github.com/vivantel/virage/compare/virage-store-lancedb@v0.2.48...virage-store-lancedb@v0.2.49) (2026-06-21)
+
+
+### Bug Fixes
+
+* Cross-encoder v4 API, hybrid FTS index creation, query-matrix bc parsing ([79bd05f](https://github.com/vivantel/virage/commit/79bd05f5b4ac75cb91e56cb509ec65e73f70117e))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * devDependencies
+    * @vivantel/virage-core bumped from 0.2.46 to 0.2.47
+  * peerDependencies
+    * @vivantel/virage-core bumped from * to 0.2.47
+
 ## [0.2.48](https://github.com/vivantel/virage/compare/virage-store-lancedb@v0.2.47...virage-store-lancedb@v0.2.48) (2026-06-20)
 
 
