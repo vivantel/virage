@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.50](https://github.com/vivantel/virage/compare/virage-core@v0.2.49...virage-core@v0.2.50) (2026-06-21)
+
+
+### Bug Fixes
+
+* **eval:** Pass search config to EvalRunner so variants actually differ ([c86b224](https://github.com/vivantel/virage/commit/c86b224203763329fc3c4fab94e9db47669be21a))
+
 ## [0.2.49](https://github.com/vivantel/virage/compare/virage-core@v0.2.48...virage-core@v0.2.49) (2026-06-21)
 
 
