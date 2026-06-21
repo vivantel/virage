@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.48](https://github.com/vivantel/virage/compare/virage-core@v0.2.47...virage-core@v0.2.48) (2026-06-21)
+
+
+### Bug Fixes
+
+* **eval:** Fix terminated error, refactor suite.json with filesets, add CLI self-update ([da78c29](https://github.com/vivantel/virage/commit/da78c291853a0108e80acef438d6d2734a799b7b))
+
 ## [0.2.47](https://github.com/vivantel/virage/compare/virage-core@v0.2.46...virage-core@v0.2.47) (2026-06-21)
 
 
