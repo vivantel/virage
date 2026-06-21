@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.1.82](https://github.com/vivantel/virage/compare/virage-cli@v0.1.81...virage-cli@v0.1.82) (2026-06-21)
+
+
+### Features
+
+* **eval:** Incremental verbosity for eval-suite run (-v … -vvvv) ([4c0e5c1](https://github.com/vivantel/virage/commit/4c0e5c1bcddeb467a31a96c758674da8769b1b5b))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @vivantel/virage-core bumped from 0.2.50 to 0.2.51
+
 ## [0.1.81](https://github.com/vivantel/virage/compare/virage-cli@v0.1.80...virage-cli@v0.1.81) (2026-06-21)
 
 
