@@ -42,7 +42,11 @@ QUERIES=(
 # Quality thresholds
 RELEVANT_MIN_COUNT=1
 RELEVANT_MIN_SIM=0.70
-IRRELEVANT_MAX_SIM=0.50
+# Minimum gap between relevant-query sim and irrelevant-query sim for the same
+# config. Using a separation check instead of an absolute max-sim threshold
+# because RRF normalises all scores to ~1.0 for the top result, making absolute
+# thresholds meaningless for hybrid modes.
+MIN_SEPARATION=0.15
 
 # ─── ANSI helpers ────────────────────────────────────────────────────────────
 
@@ -79,7 +83,8 @@ printf "${DIM}top-k=%d  virage=%s${RESET}\n\n" "$TOP_K" "$VIRAGE_BIN"
 printf "${BOLD}%-46s %-12s %-8s %-10s %-6s${RESET}\n" "Config" "Query" "Expected" "Max sim" "Result"
 printf "${DIM}%s${RESET}\n" "$(printf '─%.0s' {1..90})"
 
-declare -A results  # config → (query → result_json)
+declare -A results   # config → (query → result_json)
+declare -A rel_sims  # config → relevant-query max_sim (populated first, used for separation check)
 
 for CONFIG in "${CONFIGS[@]}"; do
   if [[ ! -f "$CONFIG" ]]; then
@@ -109,14 +114,18 @@ for CONFIG in "${CONFIGS[@]}"; do
 
     # Quality gate
     if [[ "$EXPECTED" == "relevant" ]]; then
+      rel_sims["$CONFIG"]="$MAX_SIM"
       if (( COUNT >= RELEVANT_MIN_COUNT )) && \
          [[ $(echo "$MAX_SIM >= $RELEVANT_MIN_SIM" | bc -l) == 1 ]]; then
         STATUS="pass"
       else
         STATUS="fail"
       fi
-    else  # irrelevant
-      if [[ $(echo "$MAX_SIM < $IRRELEVANT_MAX_SIM" | bc -l) == 1 ]]; then
+    else  # irrelevant — separation check (RRF normalises all scores, so absolute
+          # thresholds are meaningless for hybrid; separation is score-mode-agnostic)
+      REL_SIM="${rel_sims[$CONFIG]:-0}"
+      SEPARATION=$(echo "$REL_SIM - $MAX_SIM" | bc -l | awk '{printf "%.10f", $1}')
+      if [[ $(echo "$SEPARATION >= $MIN_SEPARATION" | bc -l) == 1 ]]; then
         STATUS="pass"
       else
         STATUS="fail"
@@ -251,24 +260,29 @@ compare_configs \
   "virage.config.vector.json:::embedding layer" \
   "hybrid" "vector"
 
-# Check noise floor
+# Separation check: configs where relevant_sim - irrelevant_sim < MIN_SEPARATION
 NOISY=0
 for CONFIG in "${CONFIGS[@]}"; do
   [[ ! -f "$CONFIG" ]] && continue
-  KEY="${CONFIG}:::electricity battlestar"
-  if [[ -v "results[$KEY]" ]]; then
-    SIM=$(echo "${results[$KEY]}" | jq -r '.max_sim' | awk '{printf "%.10f", $1}')
-    if [[ $(echo "$SIM >= $IRRELEVANT_MAX_SIM" | bc -l) == 1 ]]; then
+  REL_KEY="${CONFIG}:::embedding layer"
+  IRR_KEY="${CONFIG}:::electricity battlestar"
+  if [[ -v "results[$REL_KEY]" && -v "results[$IRR_KEY]" ]]; then
+    REL_S=$(echo "${results[$REL_KEY]}" | jq -r '.max_sim' | awk '{printf "%.10f", $1}')
+    IRR_S=$(echo "${results[$IRR_KEY]}" | jq -r '.max_sim' | awk '{printf "%.10f", $1}')
+    SEP=$(echo "$REL_S - $IRR_S" | bc -l | awk '{printf "%.10f", $1}')
+    if [[ $(echo "$SEP < $MIN_SEPARATION" | bc -l) == 1 ]]; then
       NOISY=$((NOISY + 1))
     fi
   fi
 done
 
 if (( NOISY > 0 )); then
-  printf "  ${RED}✗${RESET} %d config(s) return high-similarity results for the noise query\n" "$NOISY"
+  printf "  ${RED}✗${RESET} %d config(s) have insufficient relevance separation (< %.0f%% gap)\n" \
+    "$NOISY" "$(echo "$MIN_SEPARATION * 100" | bc -l)"
   printf "    ${DIM}→ Consider raising min_score threshold or tightening hybridAlpha${RESET}\n"
 else
-  printf "  ${GREEN}✓${RESET} All configs correctly return low similarity for irrelevant queries\n"
+  printf "  ${GREEN}✓${RESET} All configs have sufficient relevance separation (≥ %.0f%% gap)\n" \
+    "$(echo "$MIN_SEPARATION * 100" | bc -l)"
 fi
 
 echo ""

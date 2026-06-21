@@ -116,6 +116,13 @@ export {
 } from "./eval/metrics.js";
 export { bootstrapPairedTest } from "./eval/statistics.js";
 export type { StatTestResult } from "./eval/statistics.js";
+export { downloadAndExtract } from "./eval/archive.js";
+export { runSuite } from "./eval/suite-runner.js";
+export type {
+  SuiteVariantResult,
+  SuiteResult,
+  SuiteRunOptions,
+} from "./eval/suite-runner.js";
 export { loadEvalDataset, saveEvalDataset } from "./eval/dataset-io.js";
 export {
   EcosystemEvaluator,

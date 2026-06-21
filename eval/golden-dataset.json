@@ -1,0 +1,65 @@
+{
+  "version": "1",
+  "queries": [
+    {
+      "query": "embedding layer incremental skip content hash",
+      "expectedContent": ["ADR-005"]
+    },
+    {
+      "query": "reciprocal rank fusion hybrid alpha BM25 vector",
+      "expectedContent": ["rrfMerge"]
+    },
+    {
+      "query": "cross-encoder reranker sigmoid logit ms-marco",
+      "expectedContent": ["AutoModelForSequenceClassification"]
+    },
+    {
+      "query": "FTS full-text search BM25 createIndex lancedb",
+      "expectedContent": ["ftsIndexCreated"]
+    },
+    {
+      "query": "markdown header chunking strategy",
+      "expectedContent": ["markdownHeaders"]
+    },
+    {
+      "query": "embedder transformer normalize pooling mean",
+      "expectedContent": ["normalize"]
+    },
+    {
+      "query": "vector store upsert cosine distance lancedb",
+      "expectedContent": ["distanceType"]
+    },
+    {
+      "query": "eval runner MRR precision recall hitrate",
+      "expectedContent": ["computeEvalResult"]
+    },
+    {
+      "query": "bootstrap significance test p-value confidence interval",
+      "expectedContent": ["bootstrapPairedTest"]
+    },
+    {
+      "query": "experiment run save compare virage db",
+      "expectedContent": ["ExperimentStore"]
+    },
+    {
+      "query": "virage config schema embedder dimensions vector store",
+      "expectedContent": ["vectorStore"]
+    },
+    {
+      "query": "react dashboard monitoring virage pipeline",
+      "expectedContent": ["virage-dashboard"]
+    },
+    {
+      "query": "git commit hash incremental indexing skip unchanged",
+      "expectedContent": ["commitHash"]
+    },
+    {
+      "query": "query performance p99 latency slow queries",
+      "expectedContent": ["p99LatencyMs"]
+    },
+    {
+      "query": "ADR architecture decision accepted status",
+      "expectedContent": ["**Status:** Accepted"]
+    }
+  ]
+}

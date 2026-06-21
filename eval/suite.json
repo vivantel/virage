@@ -1,0 +1,40 @@
+{
+  "version": "1",
+  "dataset": "golden-dataset.json",
+  "topK": 10,
+  "baseline": "vector",
+  "ciGate": { "mrr": 0.35 },
+  "cacheDir": "../.virage/eval-cache",
+  "databases": {
+    "minilm-384-ast": {
+      "url": "https://github.com/vivantel/virage/releases/download/eval-db/minilm-384-ast.tar.gz",
+      "description": "all-MiniLM-L6-v2 384d, AST+Markdown chunking, virage master branch"
+    }
+  },
+  "variants": [
+    {
+      "name": "vector",
+      "config": "../virage.config.vector.json",
+      "database": "minilm-384-ast",
+      "description": "Pure vector search (cosine)"
+    },
+    {
+      "name": "hybrid",
+      "config": "../virage.config.hybrid.json",
+      "database": "minilm-384-ast",
+      "description": "Hybrid BM25 + vector via RRF (alpha=0.6)"
+    },
+    {
+      "name": "vector-cross-encoder",
+      "config": "../virage.config.vector.cross-encoder.json",
+      "database": "minilm-384-ast",
+      "description": "Vector search re-ranked by ms-marco cross-encoder"
+    },
+    {
+      "name": "hybrid-cross-encoder",
+      "config": "../virage.config.hybrid.cross-encoder.json",
+      "database": "minilm-384-ast",
+      "description": "Hybrid search re-ranked by ms-marco cross-encoder"
+    }
+  ]
+}

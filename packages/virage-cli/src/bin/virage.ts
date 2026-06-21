@@ -33,6 +33,8 @@ import { runDashboard } from "../cli/dashboard.js";
 import { runCheck } from "../cli/check.js";
 import { runQuery } from "../cli/query-cmd.js";
 import { runInstallHooks } from "../cli/install-hooks.js";
+import { runEvalSuite } from "../cli/eval-suite.js";
+import { runPack } from "../cli/pack.js";
 import {
   runTelemetryStatus,
   runTelemetryOn,
@@ -507,6 +509,65 @@ evalCmd
         baseline: opts.baseline,
         candidate: opts.candidate,
       });
+    } catch (error) {
+      handleError(error);
+    }
+  });
+
+const evalSuiteCmd = program
+  .command("eval-suite")
+  .description(
+    "Multi-config evaluation suite: download pre-built archives and compare search strategies",
+  )
+  .action(function () {
+    this.help();
+  });
+
+evalSuiteCmd
+  .command("run")
+  .description(
+    "Run a multi-config eval suite from a declarative suite.json config",
+  )
+  .requiredOption("--suite <path>", "Path to eval suite config JSON")
+  .option("--ci", "Exit with code 1 if the CI quality gate fails", false)
+  .option("--json", "Output raw JSON results", false)
+  .option("--no-cache", "Re-download archives even if already cached")
+  .action(
+    async (cmdOpts: {
+      suite: string;
+      ci: boolean;
+      json: boolean;
+      cache: boolean; // commander inverts --no-cache → cache = false
+    }) => {
+      try {
+        await runEvalSuite({
+          suite: cmdOpts.suite,
+          ci: cmdOpts.ci,
+          json: cmdOpts.json,
+          noCache: !cmdOpts.cache,
+        });
+      } catch (error) {
+        handleError(error);
+      }
+    },
+  );
+
+program
+  .command("pack")
+  .description(
+    "Pack the LanceDB index into a .tar.gz archive for sharing via eval suites",
+  )
+  .requiredOption(
+    "--output <path>",
+    "Output archive path (e.g. ./archive.tar.gz)",
+  )
+  .option(
+    "--database <path>",
+    "Path to the LanceDB directory to pack (default: .virage/lancedb)",
+  )
+  .action(async (cmdOpts: { output: string; database?: string }) => {
+    try {
+      await runPack({ output: cmdOpts.output, database: cmdOpts.database });
     } catch (error) {
       handleError(error);
     }
