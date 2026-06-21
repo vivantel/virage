@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.47](https://github.com/vivantel/virage/compare/virage-core@v0.2.46...virage-core@v0.2.47) (2026-06-21)
+
+
+### Features
+
+* **eval:** Multi-config eval-suite runner, golden dataset, and eval-matrix script ([0ffb07c](https://github.com/vivantel/virage/commit/0ffb07c2a3a9c6e21919a3ebd3ada4a99dd4cf47))
+* **eval:** Plugin version isolation, config params output, eval roadmap ([ee137b7](https://github.com/vivantel/virage/commit/ee137b740667fca2b95427ccd19cf15a43e6c7a8))
+
 ## [0.2.46](https://github.com/vivantel/virage/compare/virage-core@v0.2.45...virage-core@v0.2.46) (2026-06-20)
 
 
