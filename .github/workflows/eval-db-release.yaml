@@ -58,6 +58,24 @@ jobs:
             @vivantel/virage-store-lancedb@latest \
             @vivantel/virage-code-chunk-chunker@latest
 
+      - name: Capture installed plugin versions
+        id: plugins
+        run: |
+          VERSIONS=$(node -e "
+            const { readdirSync, readFileSync } = require('fs');
+            const { join } = require('path');
+            const dir = './virage-runner/node_modules/@vivantel';
+            const versions = {};
+            for (const pkg of readdirSync(dir)) {
+              try {
+                const p = JSON.parse(readFileSync(join(dir, pkg, 'package.json'), 'utf8'));
+                versions['@vivantel/' + pkg] = p.version;
+              } catch {}
+            }
+            process.stdout.write(JSON.stringify(versions));
+          ")
+          echo "versions=${VERSIONS}" >> "$GITHUB_OUTPUT"
+
       - name: Restore model cache
         uses: actions/cache/restore@v5
         with:
@@ -78,32 +96,7 @@ jobs:
         id: pack
         env:
           VIRAGE_BIN: ./virage-runner/node_modules/.bin/virage
-        run: |
-          node - << 'SCRIPT'
-          const { execSync } = require('child_process');
-          const { readFileSync, appendFileSync } = require('fs');
-
-          const matrix = JSON.parse(readFileSync('.virage/build-matrix.json', 'utf8'));
-          const virage = process.env.VIRAGE_BIN;
-          const digests = {};
-
-          for (const item of matrix) {
-            console.log(`\n=== Indexing DB: ${item.dbNames.join(', ')} (hash=${item.hash}) ===`);
-            execSync(`${virage} index --config ${item.tempConfig}`, { stdio: 'inherit' });
-
-            for (const dbName of item.dbNames) {
-              const tarball = `${dbName}.tar.gz`;
-              console.log(`\nPacking ${tarball}...`);
-              execSync(`${virage} pack --output ${tarball} --database ${item.lancedbPath}`, { stdio: 'inherit' });
-              const sha = execSync(`sha256sum ${tarball}`).toString().trim().split(/\s+/)[0];
-              digests[dbName] = sha;
-              console.log(`sha256: ${sha}`);
-            }
-          }
-
-          appendFileSync(process.env.GITHUB_OUTPUT, `digests=${JSON.stringify(digests)}\n`);
-          console.log('\nAll databases built and packed.');
-          SCRIPT
+        run: node scripts/run-eval-build.mjs
 
       - name: Save model cache
         if: always()
@@ -138,10 +131,11 @@ jobs:
             --notes "Pre-built indexed eval databases for master@$(git rev-parse --short HEAD)." \
             *.tar.gz
 
-      - name: Update eval/suite.json with new URLs and digests
+      - name: Update eval/suite.json with new URLs, digests, and plugin versions
         env:
           RELEASE_TAG: ${{ steps.tag.outputs.tag }}
           DIGESTS: ${{ steps.pack.outputs.digests }}
+          PLUGIN_VERSIONS: ${{ steps.plugins.outputs.versions }}
           GITHUB_REPOSITORY: ${{ github.repository }}
         run: node scripts/update-suite-urls.mjs
 

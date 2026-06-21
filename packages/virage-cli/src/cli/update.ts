@@ -442,6 +442,38 @@ export async function runUpdate(configPath: string): Promise<void> {
     }
   }
 
+  // Self-update @vivantel/virage-cli in global npm if globally installed
+  try {
+    const { stdout: listOut } = await execFileAsync(
+      "npm",
+      ["list", "-g", "--depth=0", "--json"],
+      { timeout: 10_000 },
+    );
+    const listed = JSON.parse(listOut) as {
+      dependencies?: Record<string, { version?: string }>;
+    };
+    const cliEntry = listed.dependencies?.["@vivantel/virage-cli"];
+    if (cliEntry) {
+      const currentCliVersion = cliEntry.version ?? "unknown";
+      const latestCliVersion = await getLatestVersion("@vivantel/virage-cli");
+      if (latestCliVersion && currentCliVersion !== latestCliVersion) {
+        out.dim(
+          `\nUpdating @vivantel/virage-cli: ${currentCliVersion} → ${latestCliVersion}`,
+        );
+        await runInstall("npm", [
+          "install",
+          "-g",
+          "@vivantel/virage-cli@latest",
+        ]);
+        out.dim("  CLI updated. New version active on next invocation.");
+      } else {
+        out.dim("\n@vivantel/virage-cli is up to date.");
+      }
+    }
+  } catch {
+    // Non-fatal: CLI self-update is best-effort
+  }
+
   // Auto-sync skills if available — no interactive prompt needed
   const skillsPkgPath = resolveSkillsPackagePath();
   if (skillsPkgPath !== null) {

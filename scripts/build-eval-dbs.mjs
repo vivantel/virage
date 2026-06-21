@@ -1,40 +1,45 @@
 #!/usr/bin/env node
-// Reads eval/suite.json, groups variant configs by index signature, and produces
-// a build matrix: one entry per distinct (embedder + chunker) combination.
+// Reads eval/suite.json, detects distinct indexing databases by signature,
+// generates temp configs with unique LanceDB URIs, and outputs a build matrix.
 //
 // Outputs:
-//   .virage/build-matrix.json       — consumed by the workflow build step
-//   .virage/eval-configs/config-*.json — temp configs with unique LanceDB URIs
+//   .virage/build-matrix.json       — consumed by run-eval-build.mjs
+//   .virage/eval-configs/config-*.json — temp indexing configs
 //   GITHUB_OUTPUT matrix= / count=  — set when running in CI
 
 import { readFileSync, writeFileSync, mkdirSync, appendFileSync } from 'fs';
 import { createHash } from 'crypto';
-import { resolve } from 'path';
 
 const suite = JSON.parse(readFileSync('eval/suite.json', 'utf8'));
 
-function resolveVariantConfig(configPath) {
-  // Paths in suite.json are relative to the eval/ directory
-  return resolve('eval', configPath);
+// Resolve the effective chunking config for a database using suite-level
+// filesets (immutable) and merging suite + db chunker strategy maps.
+function generateChunking(suite, db) {
+  const effectiveChunkers = { ...(suite.chunkers ?? {}), ...(db.chunkers ?? {}) };
+  const chunkers = Object.entries(effectiveChunkers).map(([filesetName, strategy]) => {
+    const fileset = suite.filesets?.[filesetName];
+    if (!fileset) throw new Error(`Unknown fileset "${filesetName}" referenced in chunkers`);
+    return {
+      name: filesetName,
+      patterns: fileset.include,
+      ignorePatterns: fileset.exclude ?? [],
+      strategy,
+    };
+  });
+  return { exclude: suite.exclude ?? [], chunkers };
 }
 
-// Only fields that affect stored vector content are part of the signature.
-// search.hybrid, search.reranker, and agents are query-time and excluded.
-function indexSignature(config) {
-  const rawChunkers = config.chunking?.chunkers ?? config.chunkers ?? [];
-  const chunkers = rawChunkers
-    .map((c) => ({
-      strategy: c.strategy,
-      patterns: [...(c.patterns ?? [])].sort(),
-      ignorePatterns: [...(c.ignorePatterns ?? [])].sort(),
-    }))
-    .sort((a, b) => a.strategy.localeCompare(b.strategy));
-
+// Compute an indexing signature: only fields that affect stored vector content.
+// search/reranker/agents are query-time and excluded.
+function indexSignature(suite, db) {
+  const chunking = generateChunking(suite, db);
   return {
-    embedderPackage: config.embedder.package,
-    model: config.embedder.config.model,
-    dimensions: config.embedder.config.dimensions ?? null,
-    chunkers,
+    embedderPackage: db.embedder?.package ?? null,
+    model: db.embedder?.config?.model ?? null,
+    dimensions: db.embedder?.config?.dimensions ?? null,
+    chunkers: chunking.chunkers
+      .map((c) => ({ strategy: c.strategy, patterns: [...c.patterns].sort() }))
+      .sort((a, b) => a.strategy.localeCompare(b.strategy)),
   };
 }
 
@@ -42,55 +47,48 @@ function signatureHash(sig) {
   return createHash('sha256').update(JSON.stringify(sig)).digest('hex').slice(0, 8);
 }
 
-// Map each database name to the first variant config that references it
-const dbToConfigPath = new Map();
-for (const variant of suite.variants) {
-  if (!dbToConfigPath.has(variant.database)) {
-    dbToConfigPath.set(variant.database, variant.config);
-  }
+// Validate that all databases have embedder + vectorStore (required for config generation)
+for (const [dbName, db] of Object.entries(suite.databases)) {
+  if (!db.embedder) throw new Error(`Database "${dbName}" is missing "embedder"`);
+  if (!db.vectorStore) throw new Error(`Database "${dbName}" is missing "vectorStore"`);
 }
 
-// Group database names by their index signature hash
-const sigGroups = new Map(); // hash → { sig, hash, dbNames, representativeConfig }
-for (const [dbName, configPath] of dbToConfigPath) {
-  const absPath = resolveVariantConfig(configPath);
-  const config = JSON.parse(readFileSync(absPath, 'utf8'));
-  const sig = indexSignature(config);
+// Group database names by index signature hash
+const sigGroups = new Map(); // hash → { sig, hash, dbNames, representativeDb }
+for (const [dbName, db] of Object.entries(suite.databases)) {
+  const sig = indexSignature(suite, db);
   const hash = signatureHash(sig);
 
   if (!sigGroups.has(hash)) {
-    sigGroups.set(hash, { sig, hash, dbNames: [], representativeConfig: config });
+    sigGroups.set(hash, { sig, hash, dbNames: [], representativeDb: db });
   }
   sigGroups.get(hash).dbNames.push(dbName);
 }
 
-// Generate temp config files — one per distinct signature, with a unique LanceDB URI
+// Generate temp indexing config files — one per distinct signature
 mkdirSync('.virage/eval-configs', { recursive: true });
 
 const matrix = [];
 
-for (const { hash, sig, dbNames, representativeConfig } of sigGroups.values()) {
+for (const { hash, sig, dbNames, representativeDb: db } of sigGroups.values()) {
   const lancedbPath = `.virage/lancedb-${hash}`;
   const tempConfigPath = `.virage/eval-configs/config-${hash}.json`;
 
-  // Build a minimal indexing-only config: strip search/agents/pluginVersions,
-  // override the LanceDB URI, and pin the shared model cache directory.
-  const chunkingSection =
-    representativeConfig.chunking ?? { chunkers: representativeConfig.chunkers };
+  const chunking = generateChunking(suite, db);
 
   const tempConfig = {
-    chunking: chunkingSection,
+    chunking,
     embedder: {
-      ...representativeConfig.embedder,
+      ...db.embedder,
       config: {
-        ...representativeConfig.embedder.config,
+        ...db.embedder.config,
         cacheDir: '.virage/model-cache',
       },
     },
     vectorStore: {
-      ...representativeConfig.vectorStore,
+      ...db.vectorStore,
       config: {
-        ...representativeConfig.vectorStore.config,
+        ...db.vectorStore.config,
         uri: lancedbPath,
       },
     },

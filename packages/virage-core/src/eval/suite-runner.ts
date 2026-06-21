@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { readFile, writeFile, unlink, mkdtemp } from "fs/promises";
 import { tmpdir } from "os";
 import { join, resolve } from "path";
-import type { EvalSuite } from "../interfaces/suite.js";
+import type { EvalSuite, EvalVariant } from "../interfaces/suite.js";
 import type { EvalResult, ExperimentRun } from "../interfaces/quality.js";
 import { loadConfig } from "../config-loader.js";
 import { loadEvalDataset } from "./dataset-io.js";
@@ -129,6 +129,46 @@ function printConfigParams(
   }
 }
 
+function buildRawConfigFromSuite(
+  suite: EvalSuite,
+  variant: EvalVariant,
+): RawRecord {
+  const db = suite.databases[variant.database];
+  if (!db.embedder || !db.vectorStore) {
+    throw new Error(
+      `Database "${variant.database}" is missing "embedder" or "vectorStore" — required when variant.config is absent`,
+    );
+  }
+
+  const effectiveChunkers = {
+    ...(suite.chunkers ?? {}),
+    ...(db.chunkers ?? {}),
+  };
+  const chunkerEntries = Object.entries(effectiveChunkers).map(
+    ([filesetName, strategy]) => {
+      const fileset = suite.filesets?.[filesetName];
+      if (!fileset)
+        throw new Error(
+          `Unknown fileset "${filesetName}" referenced in chunkers`,
+        );
+      return {
+        name: filesetName,
+        patterns: fileset.include,
+        ignorePatterns: fileset.exclude ?? [],
+        strategy,
+      };
+    },
+  );
+
+  return {
+    chunking: { exclude: suite.exclude ?? [], chunkers: chunkerEntries },
+    embedder: db.embedder,
+    vectorStore: db.vectorStore,
+    ...(variant.search ? { search: variant.search } : {}),
+    ...(db.pluginVersions ? { pluginVersions: db.pluginVersions } : {}),
+  };
+}
+
 export async function runSuite(
   suite: EvalSuite,
   suiteDir: string,
@@ -169,12 +209,17 @@ export async function runSuite(
       );
     }
 
-    const variantConfigPath = resolve(suiteDir, variant.config);
-    const rawConfig = JSON.parse(
-      await readFile(variantConfigPath, "utf-8"),
-    ) as RawRecord;
+    let rawConfig: RawRecord;
+    if (variant.config) {
+      const variantConfigPath = resolve(suiteDir, variant.config);
+      rawConfig = JSON.parse(
+        await readFile(variantConfigPath, "utf-8"),
+      ) as RawRecord;
+    } else {
+      rawConfig = buildRawConfigFromSuite(suite, variant);
+    }
 
-    // Collect plugin versions declared in the config file
+    // Collect plugin versions declared in the config (or captured in the DB spec)
     const pluginVersions =
       (rawConfig.pluginVersions as Record<string, string> | undefined) ?? {};
     const sortedPlugins = Object.entries(pluginVersions)
@@ -257,7 +302,7 @@ export async function runSuite(
         name: `suite:${variant.name}`,
         timestamp: new Date().toISOString(),
         config: {
-          configFile: variant.config,
+          configFile: variant.config ?? `suite:${variant.database}`,
           database: variant.database,
           suiteDataset: suite.dataset,
           ...configFields,

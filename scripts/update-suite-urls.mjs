@@ -1,15 +1,18 @@
 #!/usr/bin/env node
-// Patches eval/suite.json with new GitHub release download URLs and SHA-256 digests.
+// Patches eval/suite.json with new GitHub release download URLs, SHA-256 digests,
+// and captured plugin versions.
 //
 // Reads from environment variables (safe for JSON values in CI):
 //   RELEASE_TAG          — e.g. eval-db-2026-06-21-abc1234
 //   DIGESTS              — JSON object mapping dbName → sha256 hex string
+//   PLUGIN_VERSIONS      — JSON object mapping package → version (optional)
 //   GITHUB_REPOSITORY    — e.g. vivantel/virage (defaults to vivantel/virage)
 
 import { readFileSync, writeFileSync } from 'fs';
 
 const tag = process.env.RELEASE_TAG;
 const digests = JSON.parse(process.env.DIGESTS ?? '{}');
+const pluginVersions = JSON.parse(process.env.PLUGIN_VERSIONS ?? '{}');
 const repo = process.env.GITHUB_REPOSITORY ?? 'vivantel/virage';
 
 if (!tag) {
@@ -27,12 +30,11 @@ for (const [dbName, dbEntry] of Object.entries(suite.databases)) {
   suite.databases[dbName] = {
     ...dbEntry,
     url,
-    ...(digests[dbName] ? { digest: `sha256:${digests[dbName]}` } : {}),
+    ...(digests[dbName] ? { sha256: digests[dbName] } : {}),
+    ...(Object.keys(pluginVersions).length > 0 ? { pluginVersions } : {}),
   };
   console.log(`  ${dbName}: ${url}`);
-  if (digests[dbName]) {
-    console.log(`    digest: sha256:${digests[dbName]}`);
-  }
+  if (digests[dbName]) console.log(`    sha256: ${digests[dbName]}`);
 }
 
 writeFileSync('eval/suite.json', JSON.stringify(suite, null, 2) + '\n');
