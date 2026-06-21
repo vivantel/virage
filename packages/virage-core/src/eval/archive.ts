@@ -5,6 +5,7 @@ import { tmpdir } from "os";
 import { join } from "path";
 import https from "https";
 import http from "http";
+import type { Logger } from "../interfaces/logger.js";
 
 async function exists(p: string): Promise<boolean> {
   try {
@@ -140,10 +141,14 @@ export async function downloadAndExtractTo(
   destDir: string,
   sha256?: string,
   noCache = false,
+  logger?: Logger,
 ): Promise<{ cached: boolean }> {
   if (!noCache && (await exists(destDir))) {
+    logger?.verbose(`Archive cached: ${destDir}`);
     return { cached: true };
   }
+
+  logger?.verbose(`Downloading archive: ${url}`);
 
   const parentDir = join(destDir, "..");
   await mkdir(parentDir, { recursive: true });
@@ -159,6 +164,7 @@ export async function downloadAndExtractTo(
         `SHA-256 mismatch for ${url}\n  expected: ${sha256}\n  got:      ${actualSha256}`,
       );
     }
+    logger?.debug(`SHA-256 verified (${actualSha256.slice(0, 8)}...)`);
 
     const tmpExtract = `${destDir}.tmp`;
     await mkdir(tmpExtract, { recursive: true });

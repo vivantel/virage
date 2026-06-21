@@ -30,7 +30,7 @@ export class EvalRunner {
   ) {}
 
   async run(
-    onProgress?: (completed: number, total: number) => void,
+    onProgress?: (completed: number, total: number, query: string) => void,
   ): Promise<EvalRunResult> {
     const queryResults: Array<{
       retrievedIds: string[];
@@ -97,7 +97,7 @@ export class EvalRunner {
       }
 
       queryResults.push({ retrievedIds, relevantIds });
-      onProgress?.(qi + 1, this.dataset.queries.length);
+      onProgress?.(qi + 1, this.dataset.queries.length, evalQuery.query);
     }
 
     const evalResult = computeEvalResult(queryResults);

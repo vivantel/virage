@@ -3,12 +3,14 @@ import { dirname, resolve } from "path";
 import { VirageDb, defaultVirageDb } from "@vivantel/virage-core";
 import type { EvalSuite } from "@vivantel/virage-core";
 import { runSuite } from "@vivantel/virage-core";
+import { createLogger } from "../logger/index.js";
 
 export interface EvalSuiteRunOptions {
   suite: string;
   ci: boolean;
   json: boolean;
   noCache: boolean;
+  verbose: number;
 }
 
 export async function runEvalSuite(opts: EvalSuiteRunOptions): Promise<void> {
@@ -46,11 +48,14 @@ export async function runEvalSuite(opts: EvalSuiteRunOptions): Promise<void> {
   );
   console.log("");
 
+  const logger = createLogger(opts.verbose);
   const db = new VirageDb(defaultVirageDb());
   let result;
   try {
     result = await runSuite(suite, suiteDir, db, {
       noCache: opts.noCache,
+      logger,
+      verbosity: opts.verbose,
     });
   } finally {
     db.close();

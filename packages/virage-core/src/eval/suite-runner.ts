@@ -13,6 +13,8 @@ import type { StatTestResult } from "./statistics.js";
 import { downloadAndExtractTo } from "./archive.js";
 import { ensurePluginsInstalled } from "./plugin-install.js";
 import type { VirageDb } from "../core/virage-db.js";
+import type { Logger } from "../interfaces/logger.js";
+import { NullLogger } from "../logger/null-logger.js";
 
 type RawRecord = Record<string, unknown>;
 
@@ -52,6 +54,10 @@ export interface SuiteRunOptions {
   silent?: boolean;
   /** Re-download archives even if cached */
   noCache?: boolean;
+  /** Logger for verbose/debug/trace output controlled by -v flags */
+  logger?: Logger;
+  /** Numeric verbosity level (0 = default, 1 = -v, 2 = -vv, …) */
+  verbosity?: number;
 }
 
 function extractConfigFields(rawConfig: RawRecord, topK: number): ConfigFields {
@@ -175,7 +181,8 @@ export async function runSuite(
   db: VirageDb,
   opts: SuiteRunOptions = {},
 ): Promise<SuiteResult> {
-  const { silent = false, noCache = false } = opts;
+  const { silent = false, noCache = false, verbosity = 0 } = opts;
+  const logger = opts.logger ?? new NullLogger();
   const log = silent
     ? () => {}
     : (msg: string) => process.stdout.write(msg + "\n");
@@ -242,11 +249,16 @@ export async function runSuite(
       lancedbDir,
       spec.sha256,
       noCache,
+      logger,
     );
 
     // Install pinned plugins into evalRunDir/plugins (idempotent)
     if (sortedPlugins.length > 0) {
-      await ensurePluginsInstalled(pluginVersions, pluginDir);
+      logger.verbose(
+        `Installing ${sortedPlugins.length} plugin(s): ${sortedPlugins.join(", ")}`,
+      );
+      await ensurePluginsInstalled(pluginVersions, pluginDir, verbosity >= 4);
+      logger.verbose(`Plugins ready`);
     }
 
     // Patch vectorStore.config.uri to point at the extracted DB
@@ -287,6 +299,12 @@ export async function runSuite(
 
     const configFields = extractConfigFields(rawConfig, topK);
 
+    logger.debug(
+      `Variant "${variant.name}": hybrid=${String(configFields.searchHybrid ?? false)}, ` +
+        `alpha=${String(configFields.searchHybridAlpha ?? "none")}, ` +
+        `reranker=${String(configFields.rerankerPackage ?? "none")}`,
+    );
+
     await cfg.vectorStore.initialize();
     try {
       const runner = new EvalRunner(
@@ -296,7 +314,9 @@ export async function runSuite(
         topK,
         cfg.search,
       );
-      const { evalResult, perQueryRrScores } = await runner.run();
+      const onProgress = (done: number, total: number, query: string) =>
+        logger.trace(`[${done}/${total}] "${query}"`);
+      const { evalResult, perQueryRrScores } = await runner.run(onProgress);
 
       const run: ExperimentRun = {
         id: makeRunId(`suite-${variant.name}`),

@@ -540,11 +540,13 @@ evalSuiteCmd
       cache: boolean; // commander inverts --no-cache → cache = false
     }) => {
       try {
+        const verbose = program.opts<{ verbose: number }>().verbose;
         await runEvalSuite({
           suite: cmdOpts.suite,
           ci: cmdOpts.ci,
           json: cmdOpts.json,
           noCache: !cmdOpts.cache,
+          verbose,
         });
       } catch (error) {
         handleError(error);
