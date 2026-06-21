@@ -1,0 +1,158 @@
+name: Release Eval Databases
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - '**/*.md'
+      - '**/*.ts'
+      - '**/*.json'
+      - '!**/package-lock.json'
+      - '!**/pnpm-lock.yaml'
+      - '!**/yarn.lock'
+      - '!**/dist/**'
+      - '!**/node_modules/**'
+      - '!**/vendor/**'
+      - '!**/out/**'
+      - '!eval/suite.json'
+  workflow_dispatch:
+
+# Queue runs rather than cancelling — a run that already called `gh release create`
+# but hasn't committed suite.json yet must not be interrupted.
+concurrency:
+  group: eval-db-release
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  build-eval-dbs:
+    name: Build and release eval databases
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          # PAT required so the suite.json auto-commit can push to master
+          token: ${{ secrets.RELEASE_TOKEN }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 'lts/*'
+
+      - name: Detect distinct databases
+        id: detect
+        run: node scripts/build-eval-dbs.mjs
+        # Writes .virage/build-matrix.json and sets GITHUB_OUTPUT:
+        #   matrix=<json array>   count=<n>
+
+      - name: Install Virage packages
+        run: |
+          npm install --prefix ./virage-runner \
+            @vivantel/virage-cli@latest \
+            @vivantel/virage-embedder-transformers@latest \
+            @vivantel/virage-store-lancedb@latest \
+            @vivantel/virage-code-chunk-chunker@latest
+
+      - name: Restore model cache
+        uses: actions/cache/restore@v5
+        with:
+          path: .virage/model-cache
+          key: eval-db-models-${{ github.sha }}
+          restore-keys: eval-db-models-
+
+      - name: Restore LanceDB cache
+        uses: actions/cache/restore@v5
+        with:
+          path: |
+            .virage/lancedb-*
+            .virage/virage.db
+          key: eval-db-lancedb-${{ github.sha }}
+          restore-keys: eval-db-lancedb-
+
+      - name: Build and pack databases
+        id: pack
+        env:
+          VIRAGE_BIN: ./virage-runner/node_modules/.bin/virage
+        run: |
+          node - << 'SCRIPT'
+          const { execSync } = require('child_process');
+          const { readFileSync, appendFileSync } = require('fs');
+
+          const matrix = JSON.parse(readFileSync('.virage/build-matrix.json', 'utf8'));
+          const virage = process.env.VIRAGE_BIN;
+          const digests = {};
+
+          for (const item of matrix) {
+            console.log(`\n=== Indexing DB: ${item.dbNames.join(', ')} (hash=${item.hash}) ===`);
+            execSync(`${virage} index --config ${item.tempConfig}`, { stdio: 'inherit' });
+
+            for (const dbName of item.dbNames) {
+              const tarball = `${dbName}.tar.gz`;
+              console.log(`\nPacking ${tarball}...`);
+              execSync(`${virage} pack --output ${tarball} --database ${item.lancedbPath}`, { stdio: 'inherit' });
+              const sha = execSync(`sha256sum ${tarball}`).toString().trim().split(/\s+/)[0];
+              digests[dbName] = sha;
+              console.log(`sha256: ${sha}`);
+            }
+          }
+
+          appendFileSync(process.env.GITHUB_OUTPUT, `digests=${JSON.stringify(digests)}\n`);
+          console.log('\nAll databases built and packed.');
+          SCRIPT
+
+      - name: Save model cache
+        if: always()
+        uses: actions/cache/save@v5
+        with:
+          path: .virage/model-cache
+          key: eval-db-models-${{ github.sha }}
+
+      - name: Save LanceDB cache
+        if: always()
+        uses: actions/cache/save@v5
+        with:
+          path: |
+            .virage/lancedb-*
+            .virage/virage.db
+          key: eval-db-lancedb-${{ github.sha }}
+
+      - name: Determine release tag
+        id: tag
+        run: |
+          TAG="eval-db-$(date -u +%Y-%m-%d)-$(git rev-parse --short HEAD)"
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+          echo "Release tag: ${TAG}"
+
+      - name: Create GitHub release and upload assets
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${{ steps.tag.outputs.tag }}"
+          gh release create "${TAG}" \
+            --title "Eval DB ${TAG}" \
+            --notes "Pre-built indexed eval databases for master@$(git rev-parse --short HEAD)." \
+            *.tar.gz
+
+      - name: Update eval/suite.json with new URLs and digests
+        env:
+          RELEASE_TAG: ${{ steps.tag.outputs.tag }}
+          DIGESTS: ${{ steps.pack.outputs.digests }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: node scripts/update-suite-urls.mjs
+
+      - name: Commit updated suite.json
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add eval/suite.json
+          if git diff --cached --quiet; then
+            echo "No changes to eval/suite.json, skipping commit."
+            exit 0
+          fi
+          git commit -m "chore(eval): update eval-db URLs to ${{ steps.tag.outputs.tag }} [skip ci]"
+          git push
