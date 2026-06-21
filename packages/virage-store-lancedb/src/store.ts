@@ -121,7 +121,9 @@ export class LanceDBVectorStore implements VectorStore {
     // Create FTS index for hybrid search (idempotent — silently skipped if exists)
     try {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      await (this.table as any).createFtsIndex(["content"], { replace: false });
+      await (this.table as any).createIndex("content", {
+        config: lancedb.Index.fts(),
+      });
       this.ftsIndexCreated = true;
       this.logger?.debug("FTS index created on 'content'");
     } catch {

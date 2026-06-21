@@ -40,7 +40,7 @@
     "directory": "packages/virage-reranker-cross-encoder"
   },
   "dependencies": {
-    "@huggingface/transformers": "^3.0.0"
+    "@huggingface/transformers": "^4.0.0"
   },
   "peerDependencies": {
     "@vivantel/virage-core": "*"

@@ -102,9 +102,10 @@ for CONFIG in "${CONFIGS[@]}"; do
     END_MS=$(($(date +%s%3N)))
     ELAPSED_MS=$((END_MS - START_MS))
 
-    # Parse with jq
+    # Parse with jq — normalize to fixed-point so bc can handle near-zero values
+    # that jq may emit in scientific notation (e.g. 5.96e-8)
     COUNT=$(echo "$RAW_JSON" | jq 'length')
-    MAX_SIM=$(echo "$RAW_JSON" | jq '[.[].similarity] | if length == 0 then 0 else max end')
+    MAX_SIM=$(echo "$RAW_JSON" | jq '[.[].similarity] | if length == 0 then 0 else max end' | awk '{printf "%.10f", $1}')
 
     # Quality gate
     if [[ "$EXPECTED" == "relevant" ]]; then
@@ -211,7 +212,7 @@ get_sim() {
   local val
   val="${results[$key]:-}"
   if [[ -z "$val" ]]; then echo "0"; return; fi
-  echo "$val" | jq -r '.max_sim // 0'
+  echo "$val" | jq -r '.max_sim // 0' | awk '{printf "%.10f", $1}'
 }
 
 compare_configs() {
@@ -256,7 +257,7 @@ for CONFIG in "${CONFIGS[@]}"; do
   [[ ! -f "$CONFIG" ]] && continue
   KEY="${CONFIG}:::electricity battlestar"
   if [[ -v "results[$KEY]" ]]; then
-    SIM=$(echo "${results[$KEY]}" | jq -r '.max_sim')
+    SIM=$(echo "${results[$KEY]}" | jq -r '.max_sim' | awk '{printf "%.10f", $1}')
     if [[ $(echo "$SIM >= $IRRELEVANT_MAX_SIM" | bc -l) == 1 ]]; then
       NOISY=$((NOISY + 1))
     fi
