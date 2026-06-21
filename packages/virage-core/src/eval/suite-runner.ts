@@ -294,6 +294,7 @@ export async function runSuite(
         cfg.embedder,
         dataset,
         topK,
+        cfg.search,
       );
       const { evalResult, perQueryRrScores } = await runner.run();
 

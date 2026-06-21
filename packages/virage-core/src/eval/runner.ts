@@ -1,4 +1,9 @@
-import type { EmbeddingProvider, VectorStore } from "../interfaces/index.js";
+import type {
+  EmbeddingProvider,
+  VectorStore,
+  SearchOptions,
+} from "../interfaces/index.js";
+import type { Reranker } from "../interfaces/reranker.js";
 import type { EvalDataset, EvalResult } from "../interfaces/quality.js";
 import { computeEvalResult, reciprocalRank } from "./metrics.js";
 
@@ -8,12 +13,20 @@ export interface EvalRunResult {
   perQueryRrScores: number[];
 }
 
+export interface EvalRunnerSearchConfig {
+  hybrid?: boolean;
+  hybridAlpha?: number;
+  reranker?: Reranker;
+  rerankOversample?: number;
+}
+
 export class EvalRunner {
   constructor(
     private readonly store: VectorStore,
     private readonly embedder: EmbeddingProvider,
     private readonly dataset: EvalDataset,
     private readonly topK = 10,
+    private readonly searchConfig?: EvalRunnerSearchConfig,
   ) {}
 
   async run(
@@ -24,10 +37,37 @@ export class EvalRunner {
       relevantIds: Set<string>;
     }> = [];
 
+    const oversample = this.searchConfig?.rerankOversample ?? 5;
+    const fetchTopK = this.searchConfig?.reranker
+      ? this.topK * oversample
+      : this.topK;
+
     for (let qi = 0; qi < this.dataset.queries.length; qi++) {
       const evalQuery = this.dataset.queries[qi];
       const embedding = await this.embedder.embed(evalQuery.query);
-      const searchResults = await this.store.search(embedding, this.topK);
+
+      const searchOptions: SearchOptions = this.searchConfig?.hybrid
+        ? {
+            hybrid: true,
+            hybridAlpha: this.searchConfig.hybridAlpha,
+            queryText: evalQuery.query,
+          }
+        : {};
+
+      let searchResults = await this.store.search(
+        embedding,
+        fetchTopK,
+        undefined,
+        searchOptions,
+      );
+
+      if (this.searchConfig?.reranker) {
+        searchResults = await this.searchConfig.reranker.rerank(
+          evalQuery.query,
+          searchResults,
+          this.topK,
+        );
+      }
 
       const relevantIds = new Set<string>();
 
