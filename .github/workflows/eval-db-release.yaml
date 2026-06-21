@@ -149,4 +149,5 @@ jobs:
             exit 0
           fi
           git commit -m "chore(eval): update eval-db URLs to ${{ steps.tag.outputs.tag }} [skip ci]"
+          git pull --rebase origin master
           git push
