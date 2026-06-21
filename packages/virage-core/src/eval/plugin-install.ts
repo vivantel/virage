@@ -21,7 +21,13 @@ export async function ensurePluginsInstalled(
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([pkg, version]) => `${pkg}@${version}`);
 
-  execFileSync("npm", ["install", "--prefix", pluginDir, ...packages], {
-    stdio: "inherit",
-  });
+  const isWin = process.platform === "win32";
+  execFileSync(
+    isWin ? "npm.cmd" : "npm",
+    ["install", "--prefix", pluginDir, ...packages],
+    {
+      stdio: "inherit",
+      shell: isWin,
+    },
+  );
 }

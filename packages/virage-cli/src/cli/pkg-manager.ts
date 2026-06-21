@@ -74,10 +74,16 @@ export function buildPluginPrefixInstallCommand(
 
 export async function fetchLatestVersion(pkg: string): Promise<string> {
   try {
-    const version = execFileSync("npm", ["view", pkg, "version"], {
-      encoding: "utf-8",
-      stdio: ["pipe", "pipe", "pipe"],
-    }).trim();
+    const isWin = process.platform === "win32";
+    const version = execFileSync(
+      isWin ? "npm.cmd" : "npm",
+      ["view", pkg, "version"],
+      {
+        encoding: "utf-8",
+        stdio: ["pipe", "pipe", "pipe"],
+        shell: isWin,
+      },
+    ).trim();
     return version;
   } catch {
     return "latest";

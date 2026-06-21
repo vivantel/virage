@@ -18,6 +18,8 @@ import {
 } from "./pkg-manager.js";
 
 const execFileAsync = promisify(execFile);
+const isWin = process.platform === "win32";
+const npmBin = isWin ? "npm.cmd" : "npm";
 
 interface PackageJson {
   name?: string;
@@ -148,9 +150,9 @@ async function discoverViragePackages(
 async function getLatestVersion(packageName: string): Promise<string | null> {
   try {
     const { stdout } = await execFileAsync(
-      "npm",
+      npmBin,
       ["view", packageName, "version", "--json", "--prefer-online"],
-      { timeout: 10_000 },
+      { timeout: 10_000, shell: isWin },
     );
     return (JSON.parse(stdout.trim()) as string).trim();
   } catch {
@@ -197,9 +199,9 @@ async function getCurrentVersion(
   // Fallback: query npm for the installed version (works for global installs)
   try {
     const { stdout } = await execFileAsync(
-      "npm",
+      npmBin,
       ["list", packageName, "--json", "--depth=0"],
-      { timeout: 10_000 },
+      { timeout: 10_000, shell: isWin },
     );
     const parsed = JSON.parse(stdout) as {
       dependencies?: Record<string, { version?: string }>;
@@ -445,9 +447,9 @@ export async function runUpdate(configPath: string): Promise<void> {
   // Self-update @vivantel/virage-cli in global npm if globally installed
   try {
     const { stdout: listOut } = await execFileAsync(
-      "npm",
+      npmBin,
       ["list", "-g", "--depth=0", "--json"],
-      { timeout: 10_000 },
+      { timeout: 10_000, shell: isWin },
     );
     const listed = JSON.parse(listOut) as {
       dependencies?: Record<string, { version?: string }>;

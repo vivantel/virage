@@ -24,9 +24,11 @@ let _globalNpmRoot: string | undefined;
 function globalNpmRoot(): string | undefined {
   if (_globalNpmRoot !== undefined) return _globalNpmRoot || undefined;
   try {
-    _globalNpmRoot = execFileSync("npm", ["root", "-g"], {
+    const isWin = process.platform === "win32";
+    _globalNpmRoot = execFileSync(isWin ? "npm.cmd" : "npm", ["root", "-g"], {
       encoding: "utf-8",
       stdio: ["pipe", "pipe", "pipe"],
+      shell: isWin,
     }).trim();
   } catch {
     _globalNpmRoot = "";
