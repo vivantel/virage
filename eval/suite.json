@@ -95,6 +95,7 @@
         "@vivantel/virage-code-chunk-chunker": "0.1.36",
         "@vivantel/virage-core": "0.2.51",
         "@vivantel/virage-embedder-transformers": "0.2.53",
+        "@vivantel/virage-reranker-cross-encoder": "0.1.28",
         "@vivantel/virage-skills": "0.1.9",
         "@vivantel/virage-store-lancedb": "0.2.53"
       }
