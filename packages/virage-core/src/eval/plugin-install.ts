@@ -27,13 +27,16 @@ export async function ensurePluginsInstalled(
     .map(([pkg, version]) => `${pkg}@${version}`);
 
   const isWin = process.platform === "win32";
+  // When suppressing output, ignore stdout (large) to avoid spawnSync buffer
+  // overflow; pipe stderr so errors can be included in thrown messages.
+  const stdio = showOutput
+    ? ("inherit" as const)
+    : (["pipe", "ignore", "pipe"] as ["pipe", "ignore", "pipe"]);
+
   const result = spawnSync(
     isWin ? "npm.cmd" : "npm",
     ["install", "--prefix", pluginDir, ...packages],
-    {
-      stdio: showOutput ? "inherit" : "pipe",
-      shell: isWin,
-    },
+    { stdio, shell: isWin },
   );
 
   if (result.status !== 0) {
