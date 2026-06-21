@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.2.53](https://github.com/vivantel/virage/compare/virage-store-lancedb@v0.2.52...virage-store-lancedb@v0.2.53) (2026-06-21)
+
+
+### Bug Fixes
+
+* **eval:** Detect existing FTS index and pin reranker in pluginVersions ([2e23be9](https://github.com/vivantel/virage/commit/2e23be996720f10a91c600969cda3802da11b113))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * devDependencies
+    * @vivantel/virage-core bumped from 0.2.50 to 0.2.51
+  * peerDependencies
+    * @vivantel/virage-core bumped from * to 0.2.51
+
 ## [0.2.52](https://github.com/vivantel/virage/compare/virage-store-lancedb@v0.2.51...virage-store-lancedb@v0.2.52) (2026-06-21)
 
 
