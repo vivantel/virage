@@ -131,23 +131,30 @@ jobs:
             --notes "Pre-built indexed eval databases for master@$(git rev-parse --short HEAD)." \
             *.tar.gz
 
-      - name: Update eval/suite.json with new URLs, digests, and plugin versions
+      - name: Update suite.json and commit
         env:
           RELEASE_TAG: ${{ steps.tag.outputs.tag }}
           DIGESTS: ${{ steps.pack.outputs.digests }}
           PLUGIN_VERSIONS: ${{ steps.plugins.outputs.versions }}
           GITHUB_REPOSITORY: ${{ github.repository }}
-        run: node scripts/update-suite-urls.mjs
-
-      - name: Commit updated suite.json
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add eval/suite.json
-          if git diff --cached --quiet; then
-            echo "No changes to eval/suite.json, skipping commit."
-            exit 0
-          fi
-          git commit -m "chore(eval): update eval-db URLs to ${{ steps.tag.outputs.tag }} [skip ci]"
-          git pull --rebase origin master
-          git push
+          # Retry loop: always re-apply the update on top of the latest master so
+          # concurrent pushes (release-please, prior run) never cause a rebase conflict.
+          for attempt in 1 2 3; do
+            git fetch origin master
+            git reset --hard origin/master
+            node scripts/update-suite-urls.mjs
+            git add eval/suite.json
+            if git diff --cached --quiet; then
+              echo "No changes to eval/suite.json, skipping commit."
+              exit 0
+            fi
+            git commit -m "chore(eval): update eval-db URLs to ${{ steps.tag.outputs.tag }} [skip ci]"
+            git push && exit 0
+            echo "Push attempt ${attempt} failed, retrying..."
+            git reset HEAD~1
+          done
+          echo "Failed to push suite.json after 3 attempts."
+          exit 1
