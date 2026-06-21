@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.49](https://github.com/vivantel/virage/compare/virage-core@v0.2.48...virage-core@v0.2.49) (2026-06-21)
+
+
+### Bug Fixes
+
+* Resolve npm ENOENT on Windows by using npm.cmd + shell:true ([7ad0c98](https://github.com/vivantel/virage/commit/7ad0c98f959df977b0b7faf050e8c8ae3258fba7))
+
 ## [0.2.48](https://github.com/vivantel/virage/compare/virage-core@v0.2.47...virage-core@v0.2.48) (2026-06-21)
 
 
