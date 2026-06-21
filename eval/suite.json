@@ -3,7 +3,9 @@
   "dataset": "golden-dataset.json",
   "topK": 10,
   "baseline": "vector",
-  "ciGate": { "mrr": 0.35 },
+  "ciGate": {
+    "mrr": 0.35
+  },
   "cacheDir": "../.virage/eval-cache",
   "exclude": [
     "**/*.a",
@@ -28,16 +30,42 @@
   ],
   "filesets": {
     "md": {
-      "include": ["**/*.md", "**/*.mdx"],
-      "exclude": ["**/node_modules/**", "**/vendor/**", "**/dist/**", "**/out/**", "CHANGELOG.md"]
+      "include": [
+        "**/*.md",
+        "**/*.mdx"
+      ],
+      "exclude": [
+        "**/node_modules/**",
+        "**/vendor/**",
+        "**/dist/**",
+        "**/out/**",
+        "CHANGELOG.md"
+      ]
     },
     "ts": {
-      "include": ["**/*.ts", "**/*.tsx"],
-      "exclude": ["**/node_modules/**", "**/vendor/**", "**/dist/**", "**/out/**", "**/*.d.ts"]
+      "include": [
+        "**/*.ts",
+        "**/*.tsx"
+      ],
+      "exclude": [
+        "**/node_modules/**",
+        "**/vendor/**",
+        "**/dist/**",
+        "**/out/**",
+        "**/*.d.ts"
+      ]
     },
     "js": {
-      "include": ["**/*.js", "**/*.jsx"],
-      "exclude": ["**/node_modules/**", "**/vendor/**", "**/dist/**", "**/out/**"]
+      "include": [
+        "**/*.js",
+        "**/*.jsx"
+      ],
+      "exclude": [
+        "**/node_modules/**",
+        "**/vendor/**",
+        "**/dist/**",
+        "**/out/**"
+      ]
     }
   },
   "chunkers": {
@@ -47,14 +75,28 @@
   },
   "databases": {
     "minilm-384-ast": {
-      "url": "https://github.com/vivantel/virage/releases/download/eval-db/minilm-384-ast.tar.gz",
+      "url": "https://github.com/vivantel/virage/releases/download/eval-db-2026-06-21-82b3391/minilm-384-ast.tar.gz",
       "description": "all-MiniLM-L6-v2 384d, AST+Markdown chunking, virage master branch",
       "embedder": {
         "package": "@vivantel/virage-embedder-transformers",
-        "config": { "model": "Xenova/all-MiniLM-L6-v2", "dimensions": 384 }
+        "config": {
+          "model": "Xenova/all-MiniLM-L6-v2",
+          "dimensions": 384
+        }
       },
       "vectorStore": {
         "package": "@vivantel/virage-store-lancedb"
+      },
+      "sha256": "19b34ce9008242a09869cbec54594cb8f474343853e421ff49eaf189e0471e4a",
+      "pluginVersions": {
+        "@vivantel/virage-agent-claude": "0.2.26",
+        "@vivantel/virage-agent-core": "0.1.7",
+        "@vivantel/virage-cli": "0.1.78",
+        "@vivantel/virage-code-chunk-chunker": "0.1.32",
+        "@vivantel/virage-core": "0.2.47",
+        "@vivantel/virage-embedder-transformers": "0.2.49",
+        "@vivantel/virage-skills": "0.1.9",
+        "@vivantel/virage-store-lancedb": "0.2.49"
       }
     }
   },
@@ -68,7 +110,10 @@
       "name": "hybrid",
       "database": "minilm-384-ast",
       "description": "Hybrid BM25 + vector via RRF (alpha=0.6)",
-      "search": { "hybrid": true, "hybridAlpha": 0.6 }
+      "search": {
+        "hybrid": true,
+        "hybridAlpha": 0.6
+      }
     },
     {
       "name": "vector-cross-encoder",
@@ -77,7 +122,10 @@
       "search": {
         "reranker": {
           "package": "@vivantel/virage-reranker-cross-encoder",
-          "config": { "model": "Xenova/ms-marco-MiniLM-L-6-v2", "topK": 5 }
+          "config": {
+            "model": "Xenova/ms-marco-MiniLM-L-6-v2",
+            "topK": 5
+          }
         }
       }
     },
@@ -90,7 +138,10 @@
         "hybridAlpha": 0.6,
         "reranker": {
           "package": "@vivantel/virage-reranker-cross-encoder",
-          "config": { "model": "Xenova/ms-marco-MiniLM-L-6-v2", "topK": 5 }
+          "config": {
+            "model": "Xenova/ms-marco-MiniLM-L-6-v2",
+            "topK": 5
+          }
         }
       }
     }
