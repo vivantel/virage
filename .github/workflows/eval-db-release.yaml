@@ -56,7 +56,8 @@ jobs:
             @vivantel/virage-cli@latest \
             @vivantel/virage-embedder-transformers@latest \
             @vivantel/virage-store-lancedb@latest \
-            @vivantel/virage-code-chunk-chunker@latest
+            @vivantel/virage-code-chunk-chunker@latest \
+            @vivantel/virage-reranker-cross-encoder@latest
 
       - name: Capture installed plugin versions
         id: plugins
