@@ -62,7 +62,7 @@
     "@eslint/js": "^10.0.1",
     "@supabase/supabase-js": "^2.108.2",
     "@types/better-sqlite3": "^7.6.0",
-    "@types/node": "^25.9.3",
+    "@types/node": "^26.0.0",
     "@types/tar": "^6.1.13",
     "eslint": "^10.5.0",
     "prettier": "^3.8.4",
