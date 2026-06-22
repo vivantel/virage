@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.86](https://github.com/vivantel/virage/compare/virage-cli@v0.1.85...virage-cli@v0.1.86) (2026-06-22)
+
+
+### Bug Fixes
+
+* **cli:** Restore suggestedIndexes output in runStorePerf; route out.warn to console.warn ([2f9492c](https://github.com/vivantel/virage/commit/2f9492c17a7184f19a6ef0deef33a90ea7f17aab))
+
 ## [0.1.85](https://github.com/vivantel/virage/compare/virage-cli@v0.1.84...virage-cli@v0.1.85) (2026-06-22)
 
 
