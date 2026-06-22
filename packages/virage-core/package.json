@@ -63,7 +63,6 @@
     "@supabase/supabase-js": "^2.108.2",
     "@types/better-sqlite3": "^7.6.0",
     "@types/node": "^25.9.3",
-    "@types/tar": "^7.0.87",
     "eslint": "^10.5.0",
     "prettier": "^3.8.4",
     "rimraf": "^6.0.1",
