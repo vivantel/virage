@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.1.87](https://github.com/vivantel/virage/compare/virage-cli@v0.1.86...virage-cli@v0.1.87) (2026-06-22)
+
+
+### Bug Fixes
+
+* **deps:** Add tar@^7.5.16 to virage-cli; drop @types/tar from virage-core ([6683106](https://github.com/vivantel/virage/commit/66831067eb9ff06a16b48ec735e8a167dfdeb871))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @vivantel/virage-core bumped from 0.2.54 to 0.2.55
+
 ## [0.1.86](https://github.com/vivantel/virage/compare/virage-cli@v0.1.85...virage-cli@v0.1.86) (2026-06-22)
 
 
