@@ -145,6 +145,124 @@
           }
         }
       }
+    },
+    {
+      "name": "hybrid-ce-os10",
+      "database": "minilm-384-ast",
+      "description": "Hybrid + cross-encoder, rerankOversample=10 (100 candidates)",
+      "search": {
+        "hybrid": true,
+        "hybridAlpha": 0.6,
+        "rerankOversample": 10,
+        "reranker": {
+          "package": "@vivantel/virage-reranker-cross-encoder",
+          "config": {
+            "model": "Xenova/ms-marco-MiniLM-L-6-v2",
+            "topK": 5
+          }
+        }
+      }
+    },
+    {
+      "name": "hybrid-ce-os15",
+      "database": "minilm-384-ast",
+      "description": "Hybrid + cross-encoder, rerankOversample=15 (150 candidates)",
+      "search": {
+        "hybrid": true,
+        "hybridAlpha": 0.6,
+        "rerankOversample": 15,
+        "reranker": {
+          "package": "@vivantel/virage-reranker-cross-encoder",
+          "config": {
+            "model": "Xenova/ms-marco-MiniLM-L-6-v2",
+            "topK": 5
+          }
+        }
+      }
+    },
+    {
+      "name": "hybrid-ce-a030",
+      "database": "minilm-384-ast",
+      "description": "Hybrid + cross-encoder, hybridAlpha=0.3 (70% BM25, 30% vector)",
+      "search": {
+        "hybrid": true,
+        "hybridAlpha": 0.3,
+        "reranker": {
+          "package": "@vivantel/virage-reranker-cross-encoder",
+          "config": {
+            "model": "Xenova/ms-marco-MiniLM-L-6-v2",
+            "topK": 5
+          }
+        }
+      }
+    },
+    {
+      "name": "hybrid-ce-a050",
+      "database": "minilm-384-ast",
+      "description": "Hybrid + cross-encoder, hybridAlpha=0.5 (50/50 blend)",
+      "search": {
+        "hybrid": true,
+        "hybridAlpha": 0.5,
+        "reranker": {
+          "package": "@vivantel/virage-reranker-cross-encoder",
+          "config": {
+            "model": "Xenova/ms-marco-MiniLM-L-6-v2",
+            "topK": 5
+          }
+        }
+      }
+    },
+    {
+      "name": "hybrid-ce-a070",
+      "database": "minilm-384-ast",
+      "description": "Hybrid + cross-encoder, hybridAlpha=0.7 (70% vector, 30% BM25)",
+      "search": {
+        "hybrid": true,
+        "hybridAlpha": 0.7,
+        "reranker": {
+          "package": "@vivantel/virage-reranker-cross-encoder",
+          "config": {
+            "model": "Xenova/ms-marco-MiniLM-L-6-v2",
+            "topK": 5
+          }
+        }
+      }
+    },
+    {
+      "name": "hybrid-ce-ms01",
+      "database": "minilm-384-ast",
+      "description": "Hybrid + cross-encoder, minScore=0.1 (filter low-confidence), oversample=10",
+      "search": {
+        "hybrid": true,
+        "hybridAlpha": 0.6,
+        "rerankOversample": 10,
+        "reranker": {
+          "package": "@vivantel/virage-reranker-cross-encoder",
+          "config": {
+            "model": "Xenova/ms-marco-MiniLM-L-6-v2",
+            "topK": 5,
+            "minScore": 0.1
+          }
+        }
+      }
+    },
+    {
+      "name": "hybrid-ce-ms03",
+      "database": "minilm-384-ast",
+      "description": "Hybrid + cross-encoder, minScore=0.3 (aggressive filter), oversample=10",
+      "search": {
+        "hybrid": true,
+        "hybridAlpha": 0.6,
+        "rerankOversample": 10,
+        "reranker": {
+          "package": "@vivantel/virage-reranker-cross-encoder",
+          "config": {
+            "model": "Xenova/ms-marco-MiniLM-L-6-v2",
+            "topK": 5,
+            "minScore": 0.3
+          }
+        }
+      }
     }
   ]
 }
