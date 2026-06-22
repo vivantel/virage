@@ -45,7 +45,7 @@
     "directory": "packages/virage-store-postgres"
   },
   "dependencies": {
-    "pg": "^8.0.0",
+    "pg": "^8.22.0",
     "pgvector": "^0.3.0"
   },
   "peerDependencies": {
