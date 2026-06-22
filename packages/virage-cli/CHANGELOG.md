@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.1.85](https://github.com/vivantel/virage/compare/virage-cli@v0.1.84...virage-cli@v0.1.85) (2026-06-22)
+
+
+### Features
+
+* **cli:** Unified verbosity-aware output system with spinner and telemetry ([4d4ff69](https://github.com/vivantel/virage/commit/4d4ff696088576cb41622be6d09b209056fb168c))
+
+
+### Bug Fixes
+
+* **cli:** Use out.divider with cyan color in query-cmd; add color param to divider() ([c93baf8](https://github.com/vivantel/virage/commit/c93baf820f415f84a9da2633eee5b9bcf5dd95d9))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @vivantel/virage-core bumped from 0.2.53 to 0.2.54
+
 ## [0.1.84](https://github.com/vivantel/virage/compare/virage-cli@v0.1.83...virage-cli@v0.1.84) (2026-06-22)
 
 
