@@ -9,6 +9,8 @@ import {
   DEFAULT_TELEMETRY_CONFIG,
   type TelemetryConfig,
 } from "@vivantel/virage-core";
+import { createOut } from "../output.js";
+import { withSpinner } from "../spinner.js";
 
 const CONFIG_FILE = "./virage.config.json";
 
@@ -47,38 +49,44 @@ function getTelemetryConfig(cfg: Record<string, unknown>): TelemetryConfig {
   };
 }
 
-export async function runTelemetryStatus(): Promise<void> {
+export async function runTelemetryStatus(verbosity = 0): Promise<void> {
+  const out = createOut(verbosity);
   const cfg = await readConfig();
   const tel = getTelemetryConfig(cfg);
 
-  console.log("\n📊 Telemetry Status");
-  console.log("─".repeat(40));
-  console.log(`  Enabled     : ${tel.enabled ? "✅ yes" : "❌ no"}`);
-  console.log(
+  out.section("📊 Telemetry Status");
+  out.info(`  Enabled     : ${tel.enabled ? "✅ yes" : "❌ no"}`);
+  out.info(
     `  Tier 1      : ${tel.tiers.implicit ? "✅ on" : "❌ off"} (search quality signals)`,
   );
-  console.log(
+  out.info(
     `  Tier 2      : ${tel.tiers.explicit_feedback.enabled ? "✅ on" : "❌ off"} (rag_feedback tool)`,
   );
+
   if (tel.endpoint) {
-    console.log(`  Endpoint    : ${tel.endpoint}`);
-    // Quick health check
-    try {
-      const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), 5000);
-      const res = await fetch(tel.endpoint, {
-        method: "HEAD",
-        signal: controller.signal,
-      });
-      clearTimeout(timer);
-      console.log(
-        `  Endpoint    : ${res.ok ? "✅ reachable" : "⚠️  returned " + String(res.status)}`,
-      );
-    } catch {
-      console.log("  Endpoint    : ⚠️  unreachable (5s timeout)");
-    }
+    out.info(`  Endpoint    : ${tel.endpoint}`);
+    const reachable = await withSpinner(
+      "Checking endpoint",
+      async () => {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 5000);
+        try {
+          const res = await fetch(tel.endpoint!, {
+            method: "HEAD",
+            signal: controller.signal,
+          });
+          clearTimeout(timer);
+          return res.ok ? "✅ reachable" : `⚠️  returned ${String(res.status)}`;
+        } catch {
+          clearTimeout(timer);
+          return "⚠️  unreachable (5s timeout)";
+        }
+      },
+      500,
+    );
+    out.info(`  Endpoint    : ${reachable}`);
   } else {
-    console.log("  Endpoint    : not configured (local-only)");
+    out.info("  Endpoint    : not configured (local-only)");
   }
 
   const dbPath = defaultVirageDb();
@@ -88,26 +96,31 @@ export async function runTelemetryStatus(): Promise<void> {
       const bufferBytes = db.getTelemetryBufferSizeBytes();
       const unflushed = db.getUnflushedSessions().length;
       db.close();
-      console.log(`  Buffer size : ~${(bufferBytes / 1024).toFixed(1)} KB`);
-      console.log(`  Unflushed   : ${unflushed} session(s)`);
+      out.info(`  Buffer size : ~${(bufferBytes / 1024).toFixed(1)} KB`);
+      out.info(`  Unflushed   : ${unflushed} session(s)`);
     } catch {
-      console.log("  Buffer size : (could not open DB)");
+      out.dim("  Buffer size : (could not open DB)");
     }
   } else {
-    console.log("  Buffer size : (no DB yet)");
+    out.dim("  Buffer size : (no DB yet)");
   }
-  console.log("─".repeat(40));
+  out.divider();
 }
 
-export async function runTelemetryOn(): Promise<void> {
+export async function runTelemetryOn(verbosity = 0): Promise<void> {
+  const out = createOut(verbosity);
   const cfg = await readConfig();
   const existing = (cfg["telemetry"] as Record<string, unknown>) ?? {};
   cfg["telemetry"] = { ...existing, enabled: true };
   await writeConfig(cfg);
-  console.log("✅ Telemetry enabled. Run 'virage telemetry status' to verify.");
+  out.success("Telemetry enabled. Run 'virage telemetry status' to verify.");
 }
 
-export async function runTelemetryOff(opts: { tiers?: string }): Promise<void> {
+export async function runTelemetryOff(
+  opts: { tiers?: string },
+  verbosity = 0,
+): Promise<void> {
+  const out = createOut(verbosity);
   const cfg = await readConfig();
   const existing = (cfg["telemetry"] as Record<string, unknown>) ?? {};
 
@@ -122,35 +135,35 @@ export async function runTelemetryOff(opts: { tiers?: string }): Promise<void> {
       },
     };
     await writeConfig(cfg);
-    console.log("✅ Tier 2 (rag_feedback) disabled.");
+    out.success("Tier 2 (rag_feedback) disabled.");
     return;
   }
 
   cfg["telemetry"] = { ...existing, enabled: false };
   await writeConfig(cfg);
 
-  // Clear buffered telemetry
   const dbPath = defaultVirageDb();
   if (existsSync(dbPath)) {
     try {
       const db = new VirageDb(dbPath);
       db.clearTelemetryData();
       db.close();
-      console.log("🗑️  Local telemetry buffer cleared.");
+      out.info("Local telemetry buffer cleared.");
     } catch {
-      console.warn("⚠️  Could not clear telemetry buffer (DB open elsewhere?)");
+      out.warn("Could not clear telemetry buffer (DB open elsewhere?)");
     }
   }
-  console.log("✅ Telemetry disabled.");
+  out.success("Telemetry disabled.");
 }
 
 const COMMUNITY_ENDPOINT = "https://telemetry.virage.vivantel.dev/ingest";
 
-export async function runTelemetryInit(): Promise<void> {
+export async function runTelemetryInit(verbosity = 0): Promise<void> {
+  const out = createOut(verbosity);
   const cfg = await readConfig();
   const existing = getTelemetryConfig(cfg);
 
-  console.log("\n🔧 Telemetry setup\n");
+  out.section("🔧 Telemetry setup");
 
   const endpointChoice = await select({
     message: "Telemetry endpoint:",
@@ -228,11 +241,11 @@ export async function runTelemetryInit(): Promise<void> {
 
   cfg["telemetry"] = updated;
   await writeConfig(cfg);
-  console.log(`\n✅ Telemetry configured in ${resolve(CONFIG_FILE)}`);
+  out.success(`Telemetry configured in ${resolve(CONFIG_FILE)}`);
 
   if (enableTier2) {
-    console.log(
-      "\nℹ️  Tier 2 disclosure: Claude will call rag_feedback on " +
+    out.info(
+      "\nTier 2 disclosure: Claude will call rag_feedback on " +
         `~${Math.round(samplingRate * 100)}% of searches.\n` +
         "   Always-on for anomalies (0 results or >10 results).\n" +
         `   Capped at 20 calls/session (~${updated.tiers.explicit_feedback.max_token_budget_percent}% of token budget).\n`,
@@ -240,10 +253,11 @@ export async function runTelemetryInit(): Promise<void> {
   }
 }
 
-export async function runTelemetryPreview(): Promise<void> {
+export async function runTelemetryPreview(verbosity = 0): Promise<void> {
+  const out = createOut(verbosity);
   const dbPath = defaultVirageDb();
   if (!existsSync(dbPath)) {
-    console.log("ℹ️  No virage.db found. Run the MCP server first.");
+    out.info("No virage.db found. Run the MCP server first.");
     return;
   }
 
@@ -254,29 +268,32 @@ export async function runTelemetryPreview(): Promise<void> {
   try {
     const unflushed = db.getUnflushedSessions();
     if (unflushed.length === 0) {
-      console.log("ℹ️  No unflushed sessions to preview.");
+      out.info("No unflushed sessions to preview.");
       return;
     }
     const latest = unflushed[unflushed.length - 1];
     const flusher = new TelemetryFlusher(db, tel);
     const payload = flusher.buildSessionSummaryPayload(latest.id);
+    // Raw JSON output — intentional console.log for machine-readable stdout
     console.log(JSON.stringify(payload, null, 2));
   } finally {
     db.close();
   }
 }
 
-export async function runTelemetryFlush(opts: {
-  dryRun: boolean;
-}): Promise<void> {
+export async function runTelemetryFlush(
+  opts: { dryRun: boolean },
+  verbosity = 0,
+): Promise<void> {
+  const out = createOut(verbosity);
   if (opts.dryRun) {
-    await runTelemetryPreview();
+    await runTelemetryPreview(verbosity);
     return;
   }
 
   const dbPath = defaultVirageDb();
   if (!existsSync(dbPath)) {
-    console.log("ℹ️  No virage.db found. Nothing to flush.");
+    out.info("No virage.db found. Nothing to flush.");
     return;
   }
 
@@ -284,9 +301,7 @@ export async function runTelemetryFlush(opts: {
   const tel = getTelemetryConfig(cfg);
 
   if (!tel.endpoint) {
-    console.log(
-      "ℹ️  No endpoint configured. Use 'virage telemetry init' to set one.",
-    );
+    out.info("No endpoint configured. Use 'virage telemetry init' to set one.");
     return;
   }
 
@@ -294,19 +309,22 @@ export async function runTelemetryFlush(opts: {
   try {
     const unflushed = db.getUnflushedSessions();
     if (unflushed.length === 0) {
-      console.log("ℹ️  Nothing to flush.");
+      out.info("Nothing to flush.");
       return;
     }
     const flusher = new TelemetryFlusher(db, tel);
     let succeeded = 0;
     for (const session of unflushed) {
-      const ok = await flusher.flush(session.id);
+      const ok = await withSpinner(
+        `Flushing session ${session.id.slice(0, 8)}`,
+        () => flusher.flush(session.id),
+      );
       if (ok) succeeded++;
     }
-    console.log(`✅ Flushed ${succeeded}/${unflushed.length} session(s).`);
+    out.success(`Flushed ${succeeded}/${unflushed.length} session(s).`);
     if (succeeded < unflushed.length) {
-      console.warn(
-        `⚠️  ${unflushed.length - succeeded} session(s) failed — will retry on next MCP start.`,
+      out.warn(
+        `${unflushed.length - succeeded} session(s) failed — will retry on next MCP start.`,
       );
     }
   } finally {

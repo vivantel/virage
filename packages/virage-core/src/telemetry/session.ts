@@ -148,6 +148,31 @@ export class TelemetrySession {
     });
   }
 
+  recordCliCommand(
+    command: string,
+    durationMs: number,
+    success: boolean,
+  ): void {
+    if (!this.config.enabled || !this.config.tiers.implicit) return;
+    this.db.insertTelemetryLatency({
+      session_id: this.id,
+      occurred_at: new Date().toISOString(),
+      phase: `cli.${command}`,
+      duration_ms: Math.round(durationMs),
+      flushed: 0,
+    });
+    if (!success) {
+      this.db.insertTelemetryError({
+        session_id: this.id,
+        occurred_at: new Date().toISOString(),
+        error_type: `cli.${command}`,
+        retry_count: 0,
+        recovered: 0,
+        flushed: 0,
+      });
+    }
+  }
+
   recordCacheStats(fileHitRate: number, semanticHitRate: number): void {
     if (!this.config.enabled || !this.config.tiers.implicit) return;
     this.db.insertTelemetryCacheStats({

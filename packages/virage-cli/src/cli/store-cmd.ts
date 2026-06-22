@@ -1,87 +1,95 @@
 import { loadConfig } from "@vivantel/virage-core";
 import type { VectorStore } from "@vivantel/virage-core";
+import { createOut } from "../output.js";
+import { withSpinner } from "../spinner.js";
 
 export interface StoreStatsOptions {
   config: string;
+  verbosity: number;
 }
 
 export interface StorePerfOptions {
   config: string;
   timeframeHours: number;
+  verbosity: number;
 }
 
 export async function runStoreStats(opts: StoreStatsOptions): Promise<void> {
-  console.log("📂 Loading config...");
-  const cfg = await loadConfig(opts.config);
+  const out = createOut(opts.verbosity);
+  const cfg = await withSpinner("Loading config", () =>
+    loadConfig(opts.config),
+  );
 
   const store: VectorStore = cfg.vectorStore;
 
   if (!store.getIndexStats) {
-    console.error(
-      `❌ The configured vector store "${store.name}" does not support index stats.`,
+    out.error(
+      `The configured vector store "${store.name}" does not support index stats.`,
     );
     process.exit(1);
   }
 
-  console.log("🔍 Fetching index stats...");
-  await store.initialize();
-  const stats = await store.getIndexStats();
+  const stats = await withSpinner("Fetching index stats", async () => {
+    await store.initialize();
+    return store.getIndexStats!();
+  });
 
-  console.log("\n📊 Vector Index Stats");
-  console.log("─".repeat(40));
-  console.log(`  Total vectors     : ${stats.totalVectors.toLocaleString()}`);
-  console.log(`  Index type        : ${stats.indexType}`);
-  console.log(
+  out.section("📊 Vector Index Stats");
+  out.info(`  Total vectors     : ${stats.totalVectors.toLocaleString()}`);
+  out.info(`  Index type        : ${stats.indexType}`);
+  out.info(
     `  ANN recall@10     : ${stats.annRecallAt10 >= 0 ? (stats.annRecallAt10 * 100).toFixed(1) + "%" : "N/A"}`,
   );
-  console.log(
+  out.info(
     `  Index age         : ${stats.indexAgeHours >= 0 ? stats.indexAgeHours + " hours" : "unknown"}`,
   );
-  console.log(
+  out.info(
     `  Dead tuple frac.  : ${(stats.deadTupleFraction * 100).toFixed(1)}%`,
   );
-  console.log("\n💡 Suggestions:");
+  out.divider();
+  out.info("Suggestions:");
   for (const s of stats.suggestions) {
-    console.log(`   • ${s}`);
+    out.info(`   • ${s}`);
   }
-  console.log("─".repeat(40));
+  out.divider();
 }
 
 export async function runStorePerf(opts: StorePerfOptions): Promise<void> {
-  console.log("📂 Loading config...");
-  const cfg = await loadConfig(opts.config);
+  const out = createOut(opts.verbosity);
+  const cfg = await withSpinner("Loading config", () =>
+    loadConfig(opts.config),
+  );
 
   const store: VectorStore = cfg.vectorStore;
 
   if (!store.getQueryPerfReport) {
-    console.error(
-      `❌ The configured vector store "${store.name}" does not support query performance reports.`,
+    out.error(
+      `The configured vector store "${store.name}" does not support query performance reports.`,
     );
     process.exit(1);
   }
 
-  console.log(`🔍 Fetching query perf for last ${opts.timeframeHours}h...`);
-  await store.initialize();
-  const report = await store.getQueryPerfReport(opts.timeframeHours);
+  const report = await withSpinner(
+    `Fetching query perf for last ${opts.timeframeHours}h`,
+    async () => {
+      await store.initialize();
+      return store.getQueryPerfReport!(opts.timeframeHours);
+    },
+  );
 
-  console.log("\n📊 Query Performance Report");
-  console.log("─".repeat(40));
-  console.log(`  Timeframe         : last ${report.timeframeHours}h`);
-  console.log(
+  out.section("📊 Query Performance Report");
+  out.info(`  Timeframe         : last ${report.timeframeHours}h`);
+  out.info(
     `  p50 latency       : ${report.p50LatencyMs >= 0 ? report.p50LatencyMs + " ms" : "N/A"}`,
   );
-  console.log(
+  out.info(
     `  p95 latency       : ${report.p95LatencyMs >= 0 ? report.p95LatencyMs + " ms" : "N/A"}`,
   );
-  console.log(
+  out.info(
     `  p99 latency       : ${report.p99LatencyMs >= 0 ? report.p99LatencyMs + " ms" : "N/A"}`,
   );
-  console.log(
+  out.info(
     `  Slow queries      : ${report.slowQueryCount >= 0 ? report.slowQueryCount : "N/A"}`,
   );
-  console.log("\n💡 Suggestions:");
-  for (const s of report.suggestedIndexes) {
-    console.log(`   • ${s}`);
-  }
-  console.log("─".repeat(40));
+  out.divider();
 }

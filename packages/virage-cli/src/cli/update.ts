@@ -4,7 +4,7 @@ import { existsSync } from "fs";
 import { join } from "path";
 import { execFile } from "child_process";
 import { promisify } from "util";
-import { out } from "../output.js";
+import { createOut } from "../output.js";
 import { discoverAgentPlugins, runAgentPlugin } from "./agent-plugin.js";
 import { resolveSkillsPackagePath, syncSkills } from "./skills.js";
 import {
@@ -239,7 +239,11 @@ interface PackageStatus {
   location: "local-plugin" | "global-plugin" | "node_modules" | "global-npm";
 }
 
-export async function runUpdate(configPath: string): Promise<void> {
+export async function runUpdate(
+  configPath: string,
+  verbosity = 0,
+): Promise<void> {
+  const out = createOut(verbosity);
   const cwd = process.cwd();
 
   const hasPackageJson = existsSync(join(cwd, "package.json"));
@@ -248,7 +252,6 @@ export async function runUpdate(configPath: string): Promise<void> {
   if (!hasPackageJson && !hasVirageConfig) {
     out.warn(`No config file found at ${configPath}.`);
     out.dim("Run `virage init` first to configure your project.");
-    console.log();
     return;
   }
 
@@ -289,7 +292,6 @@ export async function runUpdate(configPath: string): Promise<void> {
 
   if (outdated.length === 0) {
     out.success("All virage packages are up to date.");
-    console.log();
   } else {
     out.info(`\nFound ${outdated.length} outdated package(s):`);
     for (const s of outdated) {
@@ -307,7 +309,6 @@ export async function runUpdate(configPath: string): Promise<void> {
 
   if (statuses.length === 0) {
     out.warn("No virage packages to update.");
-    console.log();
     return;
   }
 
@@ -502,5 +503,4 @@ export async function runUpdate(configPath: string): Promise<void> {
   }
 
   out.success("Done.");
-  console.log();
 }

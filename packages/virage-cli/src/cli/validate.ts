@@ -7,20 +7,21 @@ import {
   IGNORED_DIRS,
 } from "@vivantel/virage-core";
 import { detectFileExtensions } from "./file-detect.js";
-import { out } from "../output.js";
+import { createOut } from "../output.js";
+import { withSpinner } from "../spinner.js";
 
-export async function runValidate(configPath: string): Promise<void> {
+export async function runValidate(
+  configPath: string,
+  verbosity = 0,
+): Promise<void> {
+  const out = createOut(verbosity);
   const cwd = process.cwd();
   out.section(`🔍 Validating RAG config: ${configPath}`);
-  console.log();
 
   let config;
   try {
-    process.stdout.write("📦 Loading config... ");
-    config = await loadConfig(configPath);
-    out.success("done");
+    config = await withSpinner("Loading config", () => loadConfig(configPath));
   } catch (err) {
-    out.error("failed");
     throw new ConfigError(
       `Failed to load config: ${err instanceof Error ? err.message : String(err)}`,
       {
@@ -30,8 +31,7 @@ export async function runValidate(configPath: string): Promise<void> {
     );
   }
 
-  out.section("📂 Scanning files...");
-  console.log();
+  out.section("📂 Scanning files");
   let hasWarnings = false;
 
   const excludeIgnore = [
@@ -54,7 +54,6 @@ export async function runValidate(configPath: string): Promise<void> {
     } else {
       out.success(`  Found ${unique.length} matching file(s)`);
     }
-    console.log();
   }
 
   const gitTracker = new GitTracker(
@@ -72,16 +71,16 @@ export async function runValidate(configPath: string): Promise<void> {
     `  Total: ${allFiles.length} file(s) tracked across ${config.chunkers.length} chunker(s)`,
   );
 
-  out.section("🔌 Checking vector store...");
+  out.section("🔌 Checking vector store");
   try {
-    await config.vectorStore.initialize();
+    await withSpinner("Connecting", () => config.vectorStore.initialize());
     out.success("  Vector store connected");
   } catch {
     out.warn("  Could not connect — check credentials");
     hasWarnings = true;
   }
 
-  out.section("📁 Checking file type coverage...");
+  out.section("📁 Checking file type coverage");
   const detectedGroups = await detectFileExtensions(cwd);
   if (detectedGroups.length === 0) {
     out.dim("  No known file types detected in project");
@@ -102,7 +101,6 @@ export async function runValidate(configPath: string): Promise<void> {
     }
   }
 
-  console.log();
   if (hasWarnings) {
     out.warn("Config loaded with warnings.");
   } else {

@@ -1,6 +1,6 @@
 import { VirageDb, defaultVirageDb } from "@vivantel/virage-core";
 import type { PipelineRunData } from "@vivantel/virage-core";
-import { out } from "../output.js";
+import { createOut } from "../output.js";
 
 function percentile(sorted: number[], p: number): number {
   if (sorted.length === 0) return 0;
@@ -15,7 +15,9 @@ function fmt(ms: number): string {
 
 export async function runReport(
   dbPath: string = defaultVirageDb(),
+  verbosity = 0,
 ): Promise<void> {
+  const out = createOut(verbosity);
   let db: VirageDb;
   let records: PipelineRunData[];
   try {
@@ -34,29 +36,27 @@ export async function runReport(
     return;
   }
 
-  // Sort by runAt
   records.sort((a, b) => a.runAt.localeCompare(b.runAt));
   const latest = records[records.length - 1];
 
   out.section(`📊 Observability Report (${records.length} runs)`);
-  out.sep();
-  console.log(`  Latest run        : ${latest.runAt}`);
-  console.log(`  Total duration    : ${fmt(latest.durationMs)}`);
+  out.info(`  Latest run        : ${latest.runAt}`);
+  out.info(`  Total duration    : ${fmt(latest.durationMs)}`);
 
   const s = latest.stages;
   if (s.gitTracking) {
-    console.log(`\n  Git tracking      : ${fmt(s.gitTracking.durationMs)}`);
-    console.log(`    Files scanned   : ${s.gitTracking.filesScanned}`);
-    console.log(`    To process      : ${s.gitTracking.toProcess}`);
-    console.log(`    To delete       : ${s.gitTracking.toDelete}`);
+    out.info(`\n  Git tracking      : ${fmt(s.gitTracking.durationMs)}`);
+    out.info(`    Files scanned   : ${s.gitTracking.filesScanned}`);
+    out.info(`    To process      : ${s.gitTracking.toProcess}`);
+    out.info(`    To delete       : ${s.gitTracking.toDelete}`);
   }
 
   if (s.chunking) {
-    console.log(`\n  Chunking          : ${fmt(s.chunking.durationMs)}`);
-    console.log(`    Files processed : ${s.chunking.filesProcessed}`);
-    console.log(`    Chunks generated: ${s.chunking.chunksGenerated}`);
+    out.info(`\n  Chunking          : ${fmt(s.chunking.durationMs)}`);
+    out.info(`    Files processed : ${s.chunking.filesProcessed}`);
+    out.info(`    Chunks generated: ${s.chunking.chunksGenerated}`);
     if (s.chunking.errors > 0) {
-      console.log(`    Errors          : ${s.chunking.errors}`);
+      out.warn(`    Errors          : ${s.chunking.errors}`);
     }
   }
 
@@ -64,38 +64,37 @@ export async function runReport(
     const e = s.embedding;
     const total = e.chunksEmbedded + e.chunksSkipped;
     const hitRate = total > 0 ? e.chunksSkipped / total : 0;
-    console.log(`\n  Embedding         : ${fmt(e.durationMs)}`);
-    console.log(`    Chunks embedded : ${e.chunksEmbedded}`);
-    console.log(
+    out.info(`\n  Embedding         : ${fmt(e.durationMs)}`);
+    out.info(`    Chunks embedded : ${e.chunksEmbedded}`);
+    out.info(
       `    Chunks skipped  : ${e.chunksSkipped} (cache hit rate: ${(hitRate * 100).toFixed(1)}%)`,
     );
 
     if (e.rateLimitEvents !== undefined && e.rateLimitEvents > 0) {
-      console.log(`    Rate limit events: ${e.rateLimitEvents}`);
+      out.warn(`    Rate limit events: ${e.rateLimitEvents}`);
     }
 
     if (e.latencySamples && e.latencySamples.length > 0) {
       const sorted = [...e.latencySamples].sort((a, b) => a - b);
-      console.log(`    API latency p50 : ${fmt(percentile(sorted, 50))}`);
-      console.log(`    API latency p95 : ${fmt(percentile(sorted, 95))}`);
-      console.log(`    API latency p99 : ${fmt(percentile(sorted, 99))}`);
+      out.info(`    API latency p50 : ${fmt(percentile(sorted, 50))}`);
+      out.info(`    API latency p95 : ${fmt(percentile(sorted, 95))}`);
+      out.info(`    API latency p99 : ${fmt(percentile(sorted, 99))}`);
     }
   }
 
   if (s.upload) {
-    console.log(`\n  Upload            : ${fmt(s.upload.durationMs)}`);
-    console.log(`    Uploaded        : ${s.upload.uploaded}`);
-    console.log(`    Deleted         : ${s.upload.deleted}`);
+    out.info(`\n  Upload            : ${fmt(s.upload.durationMs)}`);
+    out.info(`    Uploaded        : ${s.upload.uploaded}`);
+    out.info(`    Deleted         : ${s.upload.deleted}`);
   }
 
-  // Trend across all runs
   if (records.length > 1) {
     const durations = records.map((r) => r.durationMs);
     const avgDuration = durations.reduce((s, v) => s + v, 0) / durations.length;
-    console.log(`\n  Average run time  : ${fmt(Math.round(avgDuration))}`);
-    console.log(`  Fastest run       : ${fmt(Math.min(...durations))}`);
-    console.log(`  Slowest run       : ${fmt(Math.max(...durations))}`);
+    out.info(`\n  Average run time  : ${fmt(Math.round(avgDuration))}`);
+    out.info(`  Fastest run       : ${fmt(Math.min(...durations))}`);
+    out.info(`  Slowest run       : ${fmt(Math.max(...durations))}`);
   }
 
-  out.sep();
+  out.divider();
 }

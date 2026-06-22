@@ -1,18 +1,24 @@
 import { loadConfig } from "@vivantel/virage-core";
+import { createOut } from "../output.js";
+import { withSpinner } from "../spinner.js";
 
 export interface CheckOptions {
   config: string;
+  verbosity: number;
 }
 
 export async function runCheck(opts: CheckOptions): Promise<void> {
+  const out = createOut(opts.verbosity);
   const cfg = await loadConfig(opts.config);
-  await cfg.vectorStore.initialize();
 
-  const stored = await cfg.vectorStore.readMeta?.();
+  const stored = await withSpinner("Reading index metadata", async () => {
+    await cfg.vectorStore.initialize();
+    return cfg.vectorStore.readMeta?.();
+  });
 
   if (!stored) {
-    console.log(
-      "⚠️  No embedder metadata found in the index.\n" +
+    out.warn(
+      "No embedder metadata found in the index.\n" +
         "   This index was built before virage check was available, or the index is empty.\n" +
         "   Run `virage index` to write metadata.",
     );
@@ -24,32 +30,31 @@ export async function runCheck(opts: CheckOptions): Promise<void> {
   const modelMismatch =
     stored.model && cfg.embedder.model && stored.model !== cfg.embedder.model;
 
-  console.log("\n📋 Index metadata");
-  console.log("─".repeat(50));
-  console.log(`  Provider   : ${stored.providerName}`);
-  console.log(`  Model      : ${stored.model ?? "(unknown)"}`);
-  console.log(`  Dimensions : ${stored.dimensions}`);
+  out.section("📋 Index metadata");
+  out.info(`  Provider   : ${stored.providerName}`);
+  out.info(`  Model      : ${stored.model ?? "(unknown)"}`);
+  out.info(`  Dimensions : ${stored.dimensions}`);
   if (stored.distanceMetric) {
-    console.log(`  Distance   : ${stored.distanceMetric}`);
+    out.info(`  Distance   : ${stored.distanceMetric}`);
   }
-  console.log(`  Built at   : ${builtAt}`);
-  console.log("─".repeat(50));
+  out.info(`  Built at   : ${builtAt}`);
+  out.divider();
 
   if (dimMismatch || modelMismatch) {
-    console.log("\n❌ Mismatch with current config:");
+    out.error("Mismatch with current config:");
     if (dimMismatch) {
-      console.log(
+      out.info(
         `   Index dims  : ${stored.dimensions} → config dims: ${cfg.embedder.dimensions}`,
       );
     }
     if (modelMismatch) {
-      console.log(
+      out.info(
         `   Index model : ${stored.model} → config model: ${cfg.embedder.model}`,
       );
     }
-    console.log("\n   Fix: run `virage index --force` to rebuild the index.");
+    out.info("   Fix: run `virage index --force` to rebuild the index.");
     process.exitCode = 1;
   } else {
-    console.log("\n✅ Index is compatible with the current embedder config.");
+    out.success("Index is compatible with the current embedder config.");
   }
 }

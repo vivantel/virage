@@ -12,7 +12,10 @@ import {
 } from "@vivantel/virage-core";
 import type { Logger } from "@vivantel/virage-core";
 import { createLogger } from "../logger/index.js";
-import { PipelineRenderer, ansi } from "../progress/progress-bar.js";
+import { PipelineRenderer } from "../progress/progress-bar.js";
+import { ansi } from "../ansi.js";
+import { createOut } from "../output.js";
+import { CliTelemetry } from "../cli-telemetry.js";
 import { runInit } from "../cli/init.js";
 import { runUpdate } from "../cli/update.js";
 import { runUsage } from "../cli/usage.js";
@@ -60,12 +63,9 @@ const argv = process.argv.flatMap((arg) =>
 const program = new Command();
 
 function handleError(error: unknown): never {
-  console.error(
-    `${ansi.boldRed}❌ Error:${ansi.reset}`,
-    error instanceof Error ? error.message : error,
-  );
+  createOut(0).error(error instanceof Error ? error.message : String(error));
   if (error instanceof RagError && error.suggestion) {
-    console.error("   💡", error.suggestion);
+    console.error(`   💡 ${error.suggestion}`);
   }
   process.exit(1);
 }
@@ -225,9 +225,14 @@ program
         verbosity: verbose,
       };
 
+      const t0 = Date.now();
+      const tel = await CliTelemetry.fromConfigPath(cmdOpts.config);
+      tel.start();
       try {
         await runOnce(runOptions);
+        tel.record("index", Date.now() - t0, true);
       } catch (error) {
+        tel.record("index", Date.now() - t0, false);
         handleError(error);
       }
 
@@ -268,11 +273,12 @@ program
   .command("init")
   .description("Generate a virage.config.json template interactively")
   .action(async () => {
+    const verbose = program.opts<{ verbose: number }>().verbose;
     try {
-      await runInit();
+      await runInit(verbose);
     } catch (error) {
       if ((error as NodeJS.ErrnoException).name === "ExitPromptError") {
-        console.log("\nCancelled.");
+        createOut(0).dim("\nCancelled.");
         process.exit(0);
       }
       handleError(error);
@@ -287,11 +293,12 @@ program
   )
   .option("-c, --config <path>", "Path to config file", "./virage.config.json")
   .action(async (opts: { config: string }) => {
+    const verbose = program.opts<{ verbose: number }>().verbose;
     try {
-      await runUpdate(opts.config);
+      await runUpdate(opts.config, verbose);
     } catch (error) {
       if ((error as NodeJS.ErrnoException).name === "ExitPromptError") {
-        console.log("\nCancelled.");
+        createOut(0).dim("\nCancelled.");
         process.exit(0);
       }
       handleError(error);
@@ -333,9 +340,15 @@ program
   )
   .option("-c, --config <path>", "Path to config file", "./virage.config.json")
   .action(async (opts: { config: string }) => {
+    const verbose = program.opts<{ verbose: number }>().verbose;
+    const t0 = Date.now();
+    const tel = await CliTelemetry.fromConfigPath(opts.config);
+    tel.start();
     try {
-      await runCheck({ config: opts.config });
+      await runCheck({ config: opts.config, verbosity: verbose });
+      tel.record("check", Date.now() - t0, true);
     } catch (error) {
+      tel.record("check", Date.now() - t0, false);
       handleError(error);
     }
   });
@@ -346,9 +359,15 @@ program
   .description("Validate config without running the pipeline")
   .option("-c, --config <path>", "Path to config file", "./virage.config.json")
   .action(async (opts: { config: string }) => {
+    const verbose = program.opts<{ verbose: number }>().verbose;
+    const t0 = Date.now();
+    const tel = await CliTelemetry.fromConfigPath(opts.config);
+    tel.start();
     try {
-      await runValidate(opts.config);
+      await runValidate(opts.config, verbose);
+      tel.record("validate", Date.now() - t0, true);
     } catch (error) {
+      tel.record("validate", Date.now() - t0, false);
       handleError(error);
     }
   });
@@ -358,8 +377,9 @@ program
   .alias("r")
   .description("Show observability report from pipeline runs")
   .action(async () => {
+    const verbose = program.opts<{ verbose: number }>().verbose;
     try {
-      await runReport();
+      await runReport(undefined, verbose);
     } catch (error) {
       handleError(error);
     }
@@ -405,6 +425,10 @@ evalCmd
       ci: boolean;
       suite: string;
     }) => {
+      const verbose = program.opts<{ verbose: number }>().verbose;
+      const t0 = Date.now();
+      const tel = await CliTelemetry.fromConfigPath(opts.config);
+      tel.start();
       try {
         await runEvaluate({
           config: opts.config,
@@ -413,8 +437,11 @@ evalCmd
           thresholdMrr: opts.thresholdMrr,
           ci: opts.ci ?? false,
           suite: opts.suite === "ecosystem" ? "ecosystem" : undefined,
+          verbosity: verbose,
         });
+        tel.record("eval.run", Date.now() - t0, true);
       } catch (error) {
+        tel.record("eval.run", Date.now() - t0, false);
         handleError(error);
       }
     },
@@ -474,11 +501,13 @@ evalCmd
     `${getVirageDir()}/eval-dataset.json`,
   )
   .action(async (opts: { name: string; config: string; dataset: string }) => {
+    const verbose = program.opts<{ verbose: number }>().verbose;
     try {
       await runExperimentRun({
         name: opts.name,
         config: opts.config,
         dataset: opts.dataset,
+        verbosity: verbose,
       });
     } catch (error) {
       handleError(error);
@@ -489,8 +518,9 @@ evalCmd
   .command("list")
   .description("List saved evaluation runs")
   .action(async () => {
+    const verbose = program.opts<{ verbose: number }>().verbose;
     try {
-      await runExperimentList();
+      await runExperimentList(verbose);
     } catch (error) {
       handleError(error);
     }
@@ -504,10 +534,12 @@ evalCmd
   .requiredOption("--baseline <id>", "Baseline run name or id")
   .requiredOption("--candidate <id>", "Candidate run name or id")
   .action(async (opts: { baseline: string; candidate: string }) => {
+    const verbose = program.opts<{ verbose: number }>().verbose;
     try {
       await runExperimentCompare({
         baseline: opts.baseline,
         candidate: opts.candidate,
+        verbosity: verbose,
       });
     } catch (error) {
       handleError(error);
@@ -568,8 +600,13 @@ program
     "Path to the LanceDB directory to pack (default: .virage/lancedb)",
   )
   .action(async (cmdOpts: { output: string; database?: string }) => {
+    const verbose = program.opts<{ verbose: number }>().verbose;
     try {
-      await runPack({ output: cmdOpts.output, database: cmdOpts.database });
+      await runPack({
+        output: cmdOpts.output,
+        database: cmdOpts.database,
+        verbosity: verbose,
+      });
     } catch (error) {
       handleError(error);
     }
@@ -582,11 +619,13 @@ viz
   .option("--output <path>", "Output HTML file", "umap.html")
   .option("--projection <type>", "Projection type: umap or tsne", "umap")
   .action(async (opts: { output: string; projection: string }) => {
+    const verbose = program.opts<{ verbose: number }>().verbose;
     try {
       await runVizEmbeddings({
         dbPath: defaultVirageDb(),
         output: opts.output,
         projection: opts.projection as "umap" | "tsne",
+        verbosity: verbose,
       });
     } catch (error) {
       handleError(error);
@@ -598,8 +637,9 @@ chunks
   .command("report")
   .description("Show chunk cohesion report")
   .action(async () => {
+    const verbose = program.opts<{ verbose: number }>().verbose;
     try {
-      await runChunksReport(defaultVirageDb());
+      await runChunksReport(defaultVirageDb(), verbose);
     } catch (error) {
       handleError(error);
     }
@@ -642,11 +682,13 @@ benchmark
   .option("--samples <n>", "Number of latency samples", parseInt, 20)
   .option("--warmup <n>", "Number of warm-up runs", parseInt, 3)
   .action(async (opts: { config: string; samples: number; warmup: number }) => {
+    const verbose = program.opts<{ verbose: number }>().verbose;
     try {
       await runBenchmarkEmbedder({
         config: opts.config,
         samples: opts.samples,
         warmup: opts.warmup,
+        verbosity: verbose,
       });
     } catch (error) {
       handleError(error);
@@ -660,8 +702,9 @@ store
   .description("Show vector index quality metrics")
   .option("-c, --config <path>", "Path to config file", "./virage.config.json")
   .action(async (opts: { config: string }) => {
+    const verbose = program.opts<{ verbose: number }>().verbose;
     try {
-      await runStoreStats({ config: opts.config });
+      await runStoreStats({ config: opts.config, verbosity: verbose });
     } catch (error) {
       handleError(error);
     }
@@ -673,10 +716,12 @@ store
   .option("-c, --config <path>", "Path to config file", "./virage.config.json")
   .option("--timeframe <hours>", "Timeframe in hours", parseInt, 24)
   .action(async (opts: { config: string; timeframe: number }) => {
+    const verbose = program.opts<{ verbose: number }>().verbose;
     try {
       await runStorePerf({
         config: opts.config,
         timeframeHours: opts.timeframe,
+        verbosity: verbose,
       });
     } catch (error) {
       handleError(error);
@@ -691,8 +736,9 @@ telemetry
   .command("status")
   .description("Show telemetry status, buffer size, and endpoint health")
   .action(async () => {
+    const verbose = program.opts<{ verbose: number }>().verbose;
     try {
-      await runTelemetryStatus();
+      await runTelemetryStatus(verbose);
     } catch (error) {
       handleError(error);
     }
@@ -702,8 +748,9 @@ telemetry
   .command("on")
   .description("Enable telemetry collection")
   .action(async () => {
+    const verbose = program.opts<{ verbose: number }>().verbose;
     try {
-      await runTelemetryOn();
+      await runTelemetryOn(verbose);
     } catch (error) {
       handleError(error);
     }
@@ -717,11 +764,12 @@ telemetry
     "Disable only a specific tier (e.g. explicit_feedback)",
   )
   .action(async (opts: { tiers?: string }) => {
+    const verbose = program.opts<{ verbose: number }>().verbose;
     try {
-      await runTelemetryOff({ tiers: opts.tiers });
+      await runTelemetryOff({ tiers: opts.tiers }, verbose);
     } catch (error) {
       if ((error as NodeJS.ErrnoException).name === "ExitPromptError") {
-        console.log("\nCancelled.");
+        createOut(0).dim("\nCancelled.");
         process.exit(0);
       }
       handleError(error);
@@ -732,11 +780,12 @@ telemetry
   .command("init")
   .description("Interactive telemetry configuration wizard")
   .action(async () => {
+    const verbose = program.opts<{ verbose: number }>().verbose;
     try {
-      await runTelemetryInit();
+      await runTelemetryInit(verbose);
     } catch (error) {
       if ((error as NodeJS.ErrnoException).name === "ExitPromptError") {
-        console.log("\nCancelled.");
+        createOut(0).dim("\nCancelled.");
         process.exit(0);
       }
       handleError(error);
@@ -749,8 +798,9 @@ telemetry
     "Preview the telemetry payload that would be sent (no transmission)",
   )
   .action(async () => {
+    const verbose = program.opts<{ verbose: number }>().verbose;
     try {
-      await runTelemetryPreview();
+      await runTelemetryPreview(verbose);
     } catch (error) {
       handleError(error);
     }
@@ -761,8 +811,9 @@ telemetry
   .description("Flush buffered telemetry to the configured endpoint")
   .option("--dry-run", "Preview payload without transmitting", false)
   .action(async (opts: { dryRun: boolean }) => {
+    const verbose = program.opts<{ verbose: number }>().verbose;
     try {
-      await runTelemetryFlush({ dryRun: opts.dryRun });
+      await runTelemetryFlush({ dryRun: opts.dryRun }, verbose);
     } catch (error) {
       handleError(error);
     }
@@ -810,6 +861,10 @@ program
         rerank: boolean;
       },
     ) => {
+      const verbose = program.opts<{ verbose: number }>().verbose;
+      const t0 = Date.now();
+      const tel = await CliTelemetry.fromConfigPath(cmdOpts.config);
+      tel.start();
       try {
         await runQuery(queryText, {
           config: cmdOpts.config,
@@ -819,8 +874,11 @@ program
           hybrid: cmdOpts.hybrid || undefined,
           hybridAlpha: cmdOpts.hybridAlpha,
           rerank: cmdOpts.rerank || undefined,
+          verbosity: verbose,
         });
+        tel.record("query", Date.now() - t0, true);
       } catch (error) {
+        tel.record("query", Date.now() - t0, false);
         handleError(error);
       }
     },
@@ -835,10 +893,12 @@ program
   .option("--uninstall", "Remove Virage-added hooks", false)
   .option("--git-dir <path>", "Path to .git directory (defaults to ./.git)")
   .action(async (cmdOpts: { uninstall: boolean; gitDir?: string }) => {
+    const verbose = program.opts<{ verbose: number }>().verbose;
     try {
       await runInstallHooks({
         uninstall: cmdOpts.uninstall,
         gitDir: cmdOpts.gitDir,
+        verbosity: verbose,
       });
     } catch (error) {
       handleError(error);

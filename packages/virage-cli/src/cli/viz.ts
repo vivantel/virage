@@ -1,11 +1,14 @@
 import { writeFile } from "fs/promises";
 import { extname } from "path";
 import { VirageDb } from "@vivantel/virage-core";
+import { createOut } from "../output.js";
+import { withSpinner } from "../spinner.js";
 
 export interface VizEmbeddingsOptions {
   dbPath: string;
   output: string;
   projection: "umap" | "tsne";
+  verbosity?: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -69,20 +72,20 @@ function pca2d(vectors: number[][], iterations = 100): Array<[number, number]> {
 export async function runVizEmbeddings(
   opts: VizEmbeddingsOptions,
 ): Promise<void> {
-  console.log(`📂 Reading embeddings from "${opts.dbPath}"...`);
+  const out = createOut(opts.verbosity ?? 0);
+  out.info(`Reading embeddings from "${opts.dbPath}"...`);
 
   const db = new VirageDb(opts.dbPath);
   const chunks = db.getAll();
   db.close();
 
   if (chunks.length === 0) {
-    console.error("❌ No embeddings found.");
+    out.error("No embeddings found.");
     process.exit(1);
   }
 
-  console.log(`   Found ${chunks.length} embeddings`);
+  out.dim(`   Found ${chunks.length} embeddings`);
 
-  // Try umap-js if installed; fall back to PCA
   let points: Array<[number, number]>;
 
   if (opts.projection === "umap") {
@@ -94,20 +97,23 @@ export async function runVizEmbeddings(
           fitAsync: (data: number[][]) => Promise<number[][]>;
         };
       };
-      console.log("🗺️  Computing UMAP projection...");
-      const umap = new UMAP({ nComponents: 2, nNeighbors: 15, minDist: 0.1 });
-      const result = await umap.fitAsync(chunks.map((c) => c.embedding));
-      points = result.map((p: number[]) => [p[0], p[1]] as [number, number]);
+      points = await withSpinner("Computing UMAP projection", async () => {
+        const umap = new UMAP({ nComponents: 2, nNeighbors: 15, minDist: 0.1 });
+        const result = await umap.fitAsync(chunks.map((c) => c.embedding));
+        return result.map((p: number[]) => [p[0], p[1]] as [number, number]);
+      });
     } catch {
-      console.log("   umap-js not installed — falling back to PCA projection");
-      points = pca2d(chunks.map((c) => c.embedding));
+      out.dim("   umap-js not installed — falling back to PCA projection");
+      points = await withSpinner("Computing PCA projection", async () =>
+        pca2d(chunks.map((c) => c.embedding)),
+      );
     }
   } else {
-    console.log("🗺️  Computing PCA projection...");
-    points = pca2d(chunks.map((c) => c.embedding));
+    points = await withSpinner("Computing PCA projection", async () =>
+      pca2d(chunks.map((c) => c.embedding)),
+    );
   }
 
-  // Build plot data
   const plotData = chunks.map((c, i) => ({
     x: points[i][0],
     y: points[i][1],
@@ -118,7 +124,7 @@ export async function runVizEmbeddings(
 
   const html = buildHtml(plotData, opts.dbPath, opts.projection);
   await writeFile(opts.output, html, "utf-8");
-  console.log(`✅ Visualization saved to "${opts.output}"`);
+  out.success(`Visualization saved to "${opts.output}"`);
 }
 
 interface PlotPoint {

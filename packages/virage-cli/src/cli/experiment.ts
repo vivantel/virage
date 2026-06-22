@@ -9,32 +9,40 @@ import {
   defaultVirageDb,
 } from "@vivantel/virage-core";
 import { createProgressBar } from "../progress/progress-bar.js";
+import { createOut } from "../output.js";
+import { withSpinner } from "../spinner.js";
 import type { ExperimentRun } from "@vivantel/virage-core";
 
 export interface ExperimentRunOptions {
   name: string;
   config: string;
   dataset: string;
+  verbosity?: number;
 }
 
 export interface ExperimentCompareOptions {
   baseline: string;
   candidate: string;
+  verbosity?: number;
 }
 
 export async function runExperimentRun(
   opts: ExperimentRunOptions,
 ): Promise<void> {
-  console.log(`🧪 Experiment: "${opts.name}"`);
-  console.log("📂 Loading config...");
-  const cfg = await loadConfig(opts.config);
+  const out = createOut(opts.verbosity ?? 0);
+  out.section(`🧪 Experiment: "${opts.name}"`);
 
-  console.log(`📋 Loading eval dataset from "${opts.dataset}"...`);
+  const cfg = await withSpinner("Loading config", () =>
+    loadConfig(opts.config),
+  );
+  out.info(`Loading eval dataset from "${opts.dataset}"...`);
   const dataset = await loadEvalDataset(opts.dataset);
 
-  await cfg.vectorStore.initialize();
+  await withSpinner("Initializing vector store", () =>
+    cfg.vectorStore.initialize(),
+  );
 
-  console.log("🔍 Running evaluation...");
+  out.info("Running evaluation...");
   const runner = new EvalRunner(cfg.vectorStore, cfg.embedder, dataset);
   const evalBar = createProgressBar("Evaluating", dataset.queries.length);
   let evalResult, perQueryRrScores;
@@ -46,10 +54,11 @@ export async function runExperimentRun(
     evalBar.stop();
   }
 
-  console.log(`\n  MRR: ${evalResult.mrr.toFixed(4)}`);
-  console.log(`  Precision@5: ${(evalResult.precisionAt5 * 100).toFixed(1)}%`);
-  console.log(`  Recall@10: ${(evalResult.recallAt10 * 100).toFixed(1)}%`);
-  console.log(`  HitRate@5: ${(evalResult.hitRateAt5 * 100).toFixed(1)}%`);
+  out.divider();
+  out.info(`  MRR: ${evalResult.mrr.toFixed(4)}`);
+  out.info(`  Precision@5: ${(evalResult.precisionAt5 * 100).toFixed(1)}%`);
+  out.info(`  Recall@10: ${(evalResult.recallAt10 * 100).toFixed(1)}%`);
+  out.info(`  HitRate@5: ${(evalResult.hitRateAt5 * 100).toFixed(1)}%`);
 
   const db = new VirageDb(defaultVirageDb());
   try {
@@ -62,15 +71,15 @@ export async function runExperimentRun(
       evalResult,
       perQueryRrScores,
     };
-
     const runId = await store.save(run);
-    console.log(`\n💾 Experiment "${runId}" saved to virage.db`);
+    out.success(`Experiment "${runId}" saved to virage.db`);
   } finally {
     db.close();
   }
 }
 
-export async function runExperimentList(): Promise<void> {
+export async function runExperimentList(verbosity = 0): Promise<void> {
+  const out = createOut(verbosity);
   const db = new VirageDb(defaultVirageDb());
   let runs;
   try {
@@ -81,72 +90,70 @@ export async function runExperimentList(): Promise<void> {
   }
 
   if (runs.length === 0) {
-    console.log(
+    out.info(
       "No experiment runs found. Use `virage experiment run` to create one.",
     );
     return;
   }
 
-  console.log("\n📋 Experiment Runs");
-  console.log("─".repeat(80));
-  console.log(
+  out.section("📋 Experiment Runs");
+  out.info(
     `  ${"ID".padEnd(35)} ${"NAME".padEnd(20)} ${"TIMESTAMP".padEnd(20)} MRR`,
   );
-  console.log("─".repeat(80));
+  out.divider("─", 80);
 
-  // newest-first
   const sorted = [...runs].sort(
     (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
   );
 
   for (const run of sorted) {
     const ts = run.timestamp.slice(0, 19).replace("T", " ");
-    console.log(
+    out.info(
       `  ${run.id.padEnd(35)} ${run.name.padEnd(20)} ${ts.padEnd(20)} ${run.evalResult.mrr.toFixed(4)}`,
     );
   }
 
-  console.log("─".repeat(80));
-  console.log(`  ${runs.length} run(s) total`);
+  out.divider("─", 80);
+  out.dim(`  ${runs.length} run(s) total`);
 }
 
 export async function runExperimentCompare(
   opts: ExperimentCompareOptions,
 ): Promise<void> {
+  const out = createOut(opts.verbosity ?? 0);
   const db = new VirageDb(defaultVirageDb());
   let baseline, candidate;
   try {
     const store = new ExperimentStore(db);
-    console.log(`📂 Loading experiment runs...`);
+    out.info("Loading experiment runs...");
     baseline = await store.load(opts.baseline);
     candidate = await store.load(opts.candidate);
   } finally {
     db.close();
   }
 
-  console.log(`\n📊 Comparing experiments`);
-  console.log("─".repeat(50));
-  console.log(
+  out.section("📊 Comparing experiments");
+  out.info(
     `  Baseline  : ${baseline.id} (MRR: ${baseline.evalResult.mrr.toFixed(4)})`,
   );
-  console.log(
+  out.info(
     `  Candidate : ${candidate.id} (MRR: ${candidate.evalResult.mrr.toFixed(4)})`,
   );
 
   if (!baseline.perQueryRrScores || !candidate.perQueryRrScores) {
     const delta = candidate.evalResult.mrr - baseline.evalResult.mrr;
-    console.log("─".repeat(50));
-    console.log(`  MRR delta  : ${delta >= 0 ? "+" : ""}${delta.toFixed(4)}`);
-    console.log(
-      `  ℹ️  Per-query scores unavailable. Re-run experiments to get bootstrap test.`,
+    out.divider();
+    out.info(`  MRR delta  : ${delta >= 0 ? "+" : ""}${delta.toFixed(4)}`);
+    out.dim(
+      "  Per-query scores unavailable. Re-run experiments to get bootstrap test.",
     );
-    console.log("─".repeat(50));
+    out.divider();
     return;
   }
 
   if (baseline.perQueryRrScores.length !== candidate.perQueryRrScores.length) {
-    console.warn(
-      `⚠️  Query count mismatch (${baseline.perQueryRrScores.length} vs ` +
+    out.warn(
+      `Query count mismatch (${baseline.perQueryRrScores.length} vs ` +
         `${candidate.perQueryRrScores.length}). Using shorter set.`,
     );
   }
@@ -157,7 +164,7 @@ export async function runExperimentCompare(
   );
 
   if (n < 2) {
-    console.log("\n⚠️  Cannot run statistical test: need at least 2 queries.");
+    out.warn("Cannot run statistical test: need at least 2 queries.");
     return;
   }
 
@@ -166,23 +173,21 @@ export async function runExperimentCompare(
     candidate.perQueryRrScores.slice(0, n),
   );
 
-  const verdictEmoji =
+  const verdict =
     stat.recommendation === "accept"
       ? "✅"
       : stat.recommendation === "reject"
         ? "❌"
         : "⚠️ ";
 
-  console.log("─".repeat(50));
-  console.log(
+  out.divider();
+  out.info(
     `  MRR delta  : ${stat.mrrDelta >= 0 ? "+" : ""}${stat.mrrDelta.toFixed(4)}`,
   );
-  console.log(`  p-value    : ${stat.pValue.toFixed(4)}`);
-  console.log(
+  out.info(`  p-value    : ${stat.pValue.toFixed(4)}`);
+  out.info(
     `  95% CI     : [${stat.confidenceInterval95[0].toFixed(4)}, ${stat.confidenceInterval95[1].toFixed(4)}]`,
   );
-  console.log(
-    `  Verdict    : ${verdictEmoji} ${stat.recommendation.toUpperCase()}`,
-  );
-  console.log("─".repeat(50));
+  out.info(`  Verdict    : ${verdict} ${stat.recommendation.toUpperCase()}`);
+  out.divider();
 }

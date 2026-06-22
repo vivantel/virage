@@ -40,13 +40,11 @@ export async function runEvalSuite(opts: EvalSuiteRunOptions): Promise<void> {
     );
   }
 
-  console.log("");
-  console.log(`Virage Eval Suite`);
-  console.log(`  suite: ${opts.suite}`);
-  console.log(
-    `  ${activeVariants.length} variant(s)  baseline: ${suite.baseline}`,
-  );
-  console.log("");
+  const { createOut } = await import("../output.js");
+  const out = createOut(opts.verbose);
+  out.section("Virage Eval Suite");
+  out.dim(`  suite: ${opts.suite}`);
+  out.dim(`  ${activeVariants.length} variant(s)  baseline: ${suite.baseline}`);
 
   const logger = createLogger(opts.verbose);
   const db = new VirageDb(defaultVirageDb());
@@ -62,11 +60,10 @@ export async function runEvalSuite(opts: EvalSuiteRunOptions): Promise<void> {
   }
 
   if (opts.json) {
+    // Raw JSON output — intentional console.log for machine-readable stdout
     console.log(JSON.stringify(result, null, 2));
     return;
   }
-
-  console.log("");
 
   if (!result.ciPassed && opts.ci) {
     process.exit(1);

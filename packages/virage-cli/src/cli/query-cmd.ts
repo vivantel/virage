@@ -1,5 +1,7 @@
 import { loadConfig } from "@vivantel/virage-core";
-import { ansi } from "../progress/progress-bar.js";
+import { ansi } from "../ansi.js";
+import { createOut } from "../output.js";
+import { withSpinner } from "../spinner.js";
 import type {
   VectorSearchResult,
   SearchOptions,
@@ -14,28 +16,15 @@ export interface QueryOptions {
   hybrid?: boolean;
   hybridAlpha?: number;
   rerank?: boolean;
+  verbosity: number;
 }
 
 export async function runQuery(
   queryText: string,
   opts: QueryOptions,
 ): Promise<void> {
+  const out = createOut(opts.verbosity);
   const cfg = await loadConfig(opts.config);
-
-  await cfg.vectorStore.initialize();
-  const queryEmbedding = await cfg.embedder.embed(queryText);
-
-  const filter: Record<string, unknown> | undefined = opts.branch
-    ? { branch: opts.branch }
-    : undefined;
-
-  const useHybrid = opts.hybrid ?? cfg.search?.hybrid ?? false;
-  const hybridAlpha = opts.hybridAlpha ?? cfg.search?.hybridAlpha;
-
-  const searchOptions: SearchOptions = {
-    ...(filter ? { filter } : {}),
-    ...(useHybrid ? { hybrid: true, hybridAlpha, queryText } : {}),
-  };
 
   // Apply re-ranker from config, or bootstrap one if --rerank flag is set
   let reranker = cfg.search?.reranker;
@@ -47,29 +36,48 @@ export async function runQuery(
       };
       reranker = mod.createReranker({});
     } catch {
-      console.error(
+      out.error(
         "Install @vivantel/virage-reranker-cross-encoder to use --rerank:\n  npm install @vivantel/virage-reranker-cross-encoder",
       );
     }
   }
 
+  const filter: Record<string, unknown> | undefined = opts.branch
+    ? { branch: opts.branch }
+    : undefined;
+  const useHybrid = opts.hybrid ?? cfg.search?.hybrid ?? false;
+  const hybridAlpha = opts.hybridAlpha ?? cfg.search?.hybridAlpha;
+  const searchOptions: SearchOptions = {
+    ...(filter ? { filter } : {}),
+    ...(useHybrid ? { hybrid: true, hybridAlpha, queryText } : {}),
+  };
   const oversample = cfg.search?.rerankOversample ?? 5;
   const fetchTopK = reranker ? opts.topK * oversample : opts.topK;
 
-  let results: VectorSearchResult[] = await cfg.vectorStore.search(
-    queryEmbedding,
-    fetchTopK,
-    undefined,
-    searchOptions,
+  let results: VectorSearchResult[] = await withSpinner(
+    "Searching",
+    async () => {
+      await cfg.vectorStore.initialize();
+      const queryEmbedding = await cfg.embedder.embed(queryText);
+      return cfg.vectorStore.search(
+        queryEmbedding,
+        fetchTopK,
+        undefined,
+        searchOptions,
+      );
+    },
   );
 
   if (reranker) {
-    results = await reranker.rerank(queryText, results, opts.topK);
+    results = await withSpinner("Re-ranking", () =>
+      reranker!.rerank(queryText, results, opts.topK),
+    );
   }
 
   await cfg.vectorStore.close?.();
 
   if (opts.json) {
+    // Raw JSON output — intentional console.log for machine-readable stdout
     console.log(
       JSON.stringify(
         results.map((r) => ({
@@ -86,7 +94,7 @@ export async function runQuery(
   }
 
   if (results.length === 0) {
-    console.log("No results found.");
+    out.info("No results found.");
     return;
   }
 
@@ -95,8 +103,8 @@ export async function runQuery(
     ? `hybrid (alpha=${hybridAlpha ?? 0.6})`
     : "vector";
   const rerankerInfo = reranker ? ` · reranker: ${reranker.name}` : "";
-  console.log(`\nTop ${results.length} result(s) for: "${queryText}"`);
-  console.log(`${ansi.dim}Search: ${searchMode}${rerankerInfo}${ansi.reset}\n`);
+  out.info(`\nTop ${results.length} result(s) for: "${queryText}"`);
+  out.dim(`Search: ${searchMode}${rerankerInfo}`);
   console.log(sep);
   for (let i = 0; i < results.length; i++) {
     const r = results[i];

@@ -20,6 +20,7 @@ import {
   detectFileExtensions,
 } from "./file-detect.js";
 import { discoverAgentPlugins, runAgentPlugin } from "./agent-plugin.js";
+import { createOut } from "../output.js";
 import {
   getLocalPluginDir,
   getGlobalPluginDir,
@@ -394,11 +395,12 @@ async function writeEnvVars(
 
 // ─── Main wizard ──────────────────────────────────────────────────────────────
 
-export async function runInit(): Promise<void> {
-  console.log("\nVirage Config Generator\n");
+export async function runInit(verbosity = 0): Promise<void> {
+  const out = createOut(verbosity);
+  out.section("Virage Config Generator");
 
   const cwd = process.cwd();
-  console.log("Scanning project for file types...");
+  out.info("Scanning project for file types...");
   const detectedGroups = await detectFileExtensions(cwd);
 
   const registry = await loadRegistry(cwd);
@@ -423,7 +425,7 @@ export async function runInit(): Promise<void> {
           ]),
         });
         if (isExit(pathChoice)) {
-          console.log("\nExiting.");
+          out.dim("Exiting.");
           return;
         }
 
@@ -471,9 +473,7 @@ export async function runInit(): Promise<void> {
             confirmed.includes(g.name),
           );
         } else {
-          console.log(
-            "No known file types detected. Choose strategies manually:",
-          );
+          out.info("No known file types detected. Choose strategies manually:");
           const chosen = await checkboxWithBack({
             message: "Which chunking strategies do you need?",
             choices: EXT_GROUPS.map((g) => ({
@@ -692,7 +692,7 @@ export async function runInit(): Promise<void> {
 
       // ── Step 8: confirmation ──
       case 8: {
-        console.log("\n" + formatSummary(state as WizardState, registry));
+        out.info("\n" + formatSummary(state as WizardState, registry));
         const confirm = await selectWithBack({
           message: "Proceed with this configuration?",
           choices: [{ name: "✓ Confirm", value: "confirm" }],
@@ -719,7 +719,7 @@ export async function runInit(): Promise<void> {
       : getLocalPluginDir(configDir);
 
   if (pkgs.length > 0) {
-    console.log(`\nResolving plugin versions...`);
+    out.info("Resolving plugin versions...");
 
     const versions = await Promise.all(pkgs.map(fetchLatestVersion));
     const versionedPkgs = pkgs.map((pkg, i) => {
@@ -728,7 +728,7 @@ export async function runInit(): Promise<void> {
       return ver === "latest" ? pkg : `${pkg}@${ver}`;
     });
 
-    console.log(`Installing to ${pluginDir}...`);
+    out.info(`Installing to ${pluginDir}...`);
     await mkdir(pluginDir, { recursive: true });
     const { cmd, args } = buildPluginPrefixInstallCommand(
       versionedPkgs,
@@ -736,11 +736,9 @@ export async function runInit(): Promise<void> {
     );
     try {
       await runInstall(cmd, args);
-      console.log("\nPlugins installed successfully.");
+      out.success("Plugins installed successfully.");
     } catch {
-      console.log(
-        `\nInstall failed. Run manually:\n  ${cmd} ${args.join(" ")}`,
-      );
+      out.error(`Install failed. Run manually:\n  ${cmd} ${args.join(" ")}`);
     }
   }
 
@@ -763,10 +761,10 @@ export async function runInit(): Promise<void> {
           : result.mcpRegistered === false
             ? "; MCP server already registered"
             : "";
-      console.log(`\n${plugin.label}: ${hookMsg}${mcpMsg}`);
+      out.success(`${plugin.label}: ${hookMsg}${mcpMsg}`);
     } catch (err) {
-      console.log(
-        `\n${plugin.label} configuration failed: ${err instanceof Error ? err.message : String(err)}`,
+      out.warn(
+        `${plugin.label} configuration failed: ${err instanceof Error ? err.message : String(err)}`,
       );
     }
   }
@@ -775,7 +773,7 @@ export async function runInit(): Promise<void> {
   await rotateConfigBackups(finalState.outputPath);
   const configContent = generateJsonConfig(finalState, registry);
   await writeFile(finalState.outputPath, configContent, "utf-8");
-  console.log(`\nCreated ${finalState.outputPath}`);
+  out.success(`Created ${finalState.outputPath}`);
 
   // ── Secrets step ──
   const embedderEntry = registry.embedders.find(
@@ -790,7 +788,7 @@ export async function runInit(): Promise<void> {
   ];
 
   if (requiredVars.length > 0) {
-    console.log("\nThis configuration requires the following secrets:");
+    out.info("This configuration requires the following secrets:");
     const envValues: Record<string, string> = {};
 
     for (const varName of requiredVars) {
@@ -807,31 +805,28 @@ export async function runInit(): Promise<void> {
       const envPath = "./.env";
       const { written, skipped } = await writeEnvVars(envPath, envValues);
       if (written.length > 0) {
-        console.log(`\nWrote to ${envPath}: ${written.join(", ")}`);
+        out.success(`Wrote to ${envPath}: ${written.join(", ")}`);
       }
       if (skipped.length > 0) {
-        console.log(`Already defined (skipped): ${skipped.join(", ")}`);
+        out.dim(`Already defined (skipped): ${skipped.join(", ")}`);
       }
     } else {
-      console.log(
-        "\nNo secrets entered — add them to your .env file manually.",
-      );
+      out.dim("No secrets entered — add them to your .env file manually.");
     }
   } else {
-    console.log("\nNo secrets required for this combination.");
+    out.dim("No secrets required for this combination.");
   }
 
-  // ── Next steps ──
-  console.log("\nNext steps:");
+  out.section("Next steps");
   let nextStep = 1;
   if (finalState.vectorStore === "qdrant") {
-    console.log(
+    out.info(
       `  ${nextStep++}. Qdrant local: docker run -p 6333:6333 qdrant/qdrant`,
     );
-    console.log(
+    out.dim(
       `     Set QDRANT_URL=http://localhost:6333 (local) or your cluster URL (cloud).`,
     );
   }
-  console.log(`  ${nextStep++}. Run \`virage validate\` to check the config`);
-  console.log(`  ${nextStep}. Run \`virage\` to start indexing\n`);
+  out.info(`  ${nextStep++}. Run \`virage validate\` to check the config`);
+  out.info(`  ${nextStep}. Run \`virage\` to start indexing`);
 }

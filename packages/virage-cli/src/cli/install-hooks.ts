@@ -1,6 +1,7 @@
 import { existsSync } from "fs";
 import { readFile, writeFile, unlink, chmod } from "fs/promises";
 import { join } from "path";
+import { createOut } from "../output.js";
 
 const HOOKS = ["post-merge", "post-checkout"] as const;
 
@@ -14,6 +15,7 @@ const VIRAGE_MARKER = "# Added by virage install-hooks";
 export interface InstallHooksOptions {
   uninstall?: boolean;
   gitDir?: string;
+  verbosity?: number;
 }
 
 function findGitHooksDir(opts: InstallHooksOptions): string {
@@ -68,36 +70,43 @@ async function uninstallHook(
 export async function runInstallHooks(
   opts: InstallHooksOptions,
 ): Promise<void> {
+  const out = createOut(opts.verbosity ?? 0);
   const hooksDir = findGitHooksDir(opts);
 
   if (!existsSync(hooksDir)) {
-    console.error(`❌ Git hooks directory not found: ${hooksDir}`);
-    console.error("   Run this command from the root of a git repository.");
+    out.error(`Git hooks directory not found: ${hooksDir}`);
+    out.error("   Run this command from the root of a git repository.");
     process.exit(1);
   }
 
   if (opts.uninstall) {
-    console.log("🗑️  Removing Virage git hooks...");
+    out.section("Removing Virage git hooks");
     for (const hook of HOOKS) {
       const result = await uninstallHook(hooksDir, hook);
-      const icon =
-        result === "skipped" ? "⏭️ " : result === "removed" ? "🗑️ " : "✏️ ";
-      console.log(`  ${icon} ${hook}: ${result}`);
+      if (result === "skipped") {
+        out.dim(`  ${hook}: skipped`);
+      } else if (result === "removed") {
+        out.success(`  ${hook}: removed`);
+      } else {
+        out.success(`  ${hook}: cleaned`);
+      }
     }
-    console.log("✨ Done.");
+    out.success("Done.");
     return;
   }
 
-  console.log("🪝 Installing Virage git hooks...");
+  out.section("Installing Virage git hooks");
   for (const hook of HOOKS) {
     const result = await installHook(hooksDir, hook);
-    const icon =
-      result === "skipped" ? "⏭️ " : result === "installed" ? "✅" : "✏️ ";
-    console.log(`  ${icon} ${hook}: ${result}`);
+    if (result === "skipped") {
+      out.dim(`  ${hook}: already present`);
+    } else {
+      out.success(`  ${hook}: ${result}`);
+    }
   }
 
-  console.log(
-    "\n✨ Hooks installed! Virage will auto-index after git pull and branch switches.",
+  out.success(
+    "Hooks installed! Virage will auto-index after git pull and branch switches.",
   );
-  console.log("   To remove: virage install-hooks --uninstall");
+  out.dim("   To remove: virage install-hooks --uninstall");
 }
