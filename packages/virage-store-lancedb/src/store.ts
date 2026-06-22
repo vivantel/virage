@@ -297,8 +297,7 @@ export class LanceDBVectorStore implements VectorStore {
     try {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const rows = await (this.table as any)
-        .search(queryText)
-        .queryType("fts")
+        .search(queryText, "fts")
         .limit(fetchLimit)
         .toArray();
       return (rows as Record<string, unknown>[]).map((row) => ({
