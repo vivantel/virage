@@ -17,7 +17,7 @@ export interface Out {
 export function createOut(verbosity: number): Out {
   return {
     error: (msg) => console.error(`${ansi.boldRed}✕ ${msg}${ansi.reset}`),
-    warn: (msg) => console.log(`${ansi.yellow}⚠ ${msg}${ansi.reset}`),
+    warn: (msg) => console.warn(`${ansi.yellow}⚠ ${msg}${ansi.reset}`),
     success: (msg) => console.log(`${ansi.green}✓ ${msg}${ansi.reset}`),
     info: (msg) => console.log(msg),
     dim: (msg) => console.log(`${ansi.dim}${msg}${ansi.reset}`),

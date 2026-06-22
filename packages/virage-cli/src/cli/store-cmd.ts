@@ -91,5 +91,9 @@ export async function runStorePerf(opts: StorePerfOptions): Promise<void> {
   out.info(
     `  Slow queries      : ${report.slowQueryCount >= 0 ? report.slowQueryCount : "N/A"}`,
   );
+  if (report.suggestedIndexes.length > 0) {
+    out.divider();
+    for (const s of report.suggestedIndexes) out.info(`  ${s}`);
+  }
   out.divider();
 }
