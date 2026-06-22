@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.2.56](https://github.com/vivantel/virage/compare/virage-store-lancedb@v0.2.55...virage-store-lancedb@v0.2.56) (2026-06-22)
+
+
+### Bug Fixes
+
+* `.search(text, "fts")`. ([6a23019](https://github.com/vivantel/virage/commit/6a2301950baf4058f6d74c94d3b94b42463f1517))
+* **store-lancedb:** Use correct LanceDB 0.30 FTS search API ([6a23019](https://github.com/vivantel/virage/commit/6a2301950baf4058f6d74c94d3b94b42463f1517))
+
 ## [0.2.55](https://github.com/vivantel/virage/compare/virage-store-lancedb@v0.2.54...virage-store-lancedb@v0.2.55) (2026-06-22)
 
 
