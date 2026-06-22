@@ -36,7 +36,10 @@ export async function ensurePluginsInstalled(
   const result = spawnSync(
     isWin ? "npm.cmd" : "npm",
     ["install", "--prefix", pluginDir, ...packages],
-    { stdio, shell: isWin },
+    // maxBuffer: 50 MB — npm emits many deprecation warnings to stderr when
+    // installing a large plugin set, which overflows the 1 MB default and
+    // kills the process (status=null) before installation completes.
+    { stdio, shell: isWin, maxBuffer: 50 * 1024 * 1024 },
   );
 
   if (result.status !== 0) {
