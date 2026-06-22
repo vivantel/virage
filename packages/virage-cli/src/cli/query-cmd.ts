@@ -98,14 +98,13 @@ export async function runQuery(
     return;
   }
 
-  const sep = ansi.cyan + "─".repeat(60) + ansi.reset;
   const searchMode = useHybrid
     ? `hybrid (alpha=${hybridAlpha ?? 0.6})`
     : "vector";
   const rerankerInfo = reranker ? ` · reranker: ${reranker.name}` : "";
   out.info(`\nTop ${results.length} result(s) for: "${queryText}"`);
   out.dim(`Search: ${searchMode}${rerankerInfo}`);
-  console.log(sep);
+  out.divider("─", 60, ansi.cyan);
   for (let i = 0; i < results.length; i++) {
     const r = results[i];
     const branch =
@@ -119,6 +118,6 @@ export async function runQuery(
     console.log(
       `\n${r.content.slice(0, 400)}${r.content.length > 400 ? "…" : ""}`,
     );
-    console.log("\n" + sep);
+    out.divider("─", 60, ansi.cyan);
   }
 }

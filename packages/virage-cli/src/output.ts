@@ -11,7 +11,7 @@ export interface Out {
   verbose(msg: string): void;
   debug(msg: string): void;
   section(label: string): void;
-  divider(char?: string, width?: number): void;
+  divider(char?: string, width?: number, color?: string): void;
 }
 
 export function createOut(verbosity: number): Out {
@@ -34,8 +34,8 @@ export function createOut(verbosity: number): Out {
       console.log(`${ansi.bold}${ansi.cyan} ${label}${ansi.reset}`);
       console.log(line);
     },
-    divider: (char = "─", width = DIVIDER_WIDTH) =>
-      console.log(`${ansi.dim}${char.repeat(width)}${ansi.reset}`),
+    divider: (char = "─", width = DIVIDER_WIDTH, color = ansi.dim) =>
+      console.log(`${color}${char.repeat(width)}${ansi.reset}`),
   };
 }
 
