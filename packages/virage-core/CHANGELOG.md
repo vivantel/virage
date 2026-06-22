@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.55](https://github.com/vivantel/virage/compare/virage-core@v0.2.54...virage-core@v0.2.55) (2026-06-22)
+
+
+### Bug Fixes
+
+* **deps:** Add tar@^7.5.16 to virage-cli; drop @types/tar from virage-core ([6683106](https://github.com/vivantel/virage/commit/66831067eb9ff06a16b48ec735e8a167dfdeb871))
+
 ## [0.2.54](https://github.com/vivantel/virage/compare/virage-core@v0.2.53...virage-core@v0.2.54) (2026-06-22)
 
 
