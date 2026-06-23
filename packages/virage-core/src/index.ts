@@ -88,6 +88,7 @@ export type {
 } from "./telemetry/index.js";
 export {
   DEFAULT_TELEMETRY_CONFIG,
+  COMMUNITY_TELEMETRY_ENDPOINT,
   MISSING_CATEGORY_VALUES,
   TelemetrySession,
   TelemetryFlusher,

@@ -1,3 +1,4 @@
+import { existsSync } from "fs";
 import { VirageDb } from "@vivantel/virage-core";
 import { createOut } from "../output.js";
 
@@ -30,13 +31,21 @@ export async function runChunksReport(
   verbosity = 0,
 ): Promise<void> {
   const out = createOut(verbosity);
+
+  if (!existsSync(dbPath)) {
+    out.error(
+      `No virage database found at "${dbPath}". Run 'virage index' to build the index.`,
+    );
+    process.exit(1);
+  }
+
   const db = new VirageDb(dbPath);
   const chunks = db.getAllChunks();
   db.close();
 
   if (chunks.length === 0) {
     out.error(
-      `No chunks found in "${dbPath}". Run the pipeline first to generate chunks.`,
+      `No chunks found in "${dbPath}". Run 'virage index' to populate the database.`,
     );
     process.exit(1);
   }

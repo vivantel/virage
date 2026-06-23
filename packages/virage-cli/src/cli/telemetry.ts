@@ -7,6 +7,7 @@ import {
   defaultVirageDb,
   TelemetryFlusher,
   DEFAULT_TELEMETRY_CONFIG,
+  COMMUNITY_TELEMETRY_ENDPOINT,
   type TelemetryConfig,
 } from "@vivantel/virage-core";
 import { createOut } from "../output.js";
@@ -156,7 +157,7 @@ export async function runTelemetryOff(
   out.success("Telemetry disabled.");
 }
 
-const COMMUNITY_ENDPOINT = "https://telemetry.virage.vivantel.dev/ingest";
+const COMMUNITY_ENDPOINT = COMMUNITY_TELEMETRY_ENDPOINT;
 
 export async function runTelemetryInit(verbosity = 0): Promise<void> {
   const out = createOut(verbosity);

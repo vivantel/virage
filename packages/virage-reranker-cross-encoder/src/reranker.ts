@@ -15,8 +15,12 @@ export interface CrossEncoderRerankerOptions {
 // Minimal structural types for the low-level HuggingFace transformers API
 type Tokenizer = {
   (
-    text: string,
-    opts: { text_pair: string; padding: boolean; truncation: boolean },
+    text: string | string[],
+    opts: {
+      text_pair: string | string[];
+      padding: boolean;
+      truncation: boolean;
+    },
   ): unknown;
 };
 
@@ -70,20 +74,22 @@ export class CrossEncoderReranker implements Reranker {
     const { tokenizer, model } = await this.load();
     const sigmoid = (x: number) => 1 / (1 + Math.exp(-x));
 
-    // Score each candidate independently — ms-marco cross-encoders output a
-    // single relevance logit per (query, document) pair.
-    const scored = await Promise.all(
-      candidates.map(async (c) => {
-        const inputs = tokenizer(query, {
-          text_pair: c.content,
-          padding: true,
-          truncation: true,
-        });
-        const output = await model(inputs);
-        const logit = (output.logits.data as Float32Array)[0];
-        return { c, similarity: sigmoid(logit) };
-      }),
-    );
+    // Batch all (query, document) pairs into a single forward pass.
+    // ms-marco cross-encoders return one logit per pair; batching reduces
+    // N ONNX inference calls to 1 with no effect on scores.
+    const queries = candidates.map(() => query);
+    const docs = candidates.map((c) => c.content);
+    const inputs = tokenizer(queries, {
+      text_pair: docs,
+      padding: true,
+      truncation: true,
+    });
+    const output = await model(inputs);
+    const logits = output.logits.data as Float32Array;
+    const scored = candidates.map((c, i) => ({
+      c,
+      similarity: sigmoid(logits[i]!),
+    }));
 
     scored.sort((a, b) => b.similarity - a.similarity);
     const top = scored

@@ -117,7 +117,7 @@
       }
     },
     {
-      "name": "vector-cross-encoder",
+      "name": "vector-ce",
       "database": "minilm-384-ast",
       "description": "Vector search re-ranked by ms-marco cross-encoder",
       "search": {
@@ -131,7 +131,7 @@
       }
     },
     {
-      "name": "hybrid-cross-encoder",
+      "name": "hybrid-ce",
       "database": "minilm-384-ast",
       "description": "Hybrid search re-ranked by ms-marco cross-encoder",
       "search": {

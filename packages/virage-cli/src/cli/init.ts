@@ -12,6 +12,7 @@ import {
   loadRegistry,
   getVirageDir,
   DEFAULT_EXCLUDE_PATTERNS,
+  COMMUNITY_TELEMETRY_ENDPOINT,
 } from "@vivantel/virage-core";
 import type { PluginRegistry } from "@vivantel/virage-core";
 import {
@@ -348,6 +349,12 @@ function generateJsonConfig(
   }
 
   config.installScope = state.installScope;
+
+  config.telemetry = {
+    enabled: true,
+    endpoint: COMMUNITY_TELEMETRY_ENDPOINT,
+    tiers: { implicit: true },
+  };
 
   return JSON.stringify(config, null, 2) + "\n";
 }

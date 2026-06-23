@@ -54,13 +54,16 @@ export async function runEvalSuite(opts: EvalSuiteRunOptions): Promise<void> {
       noCache: opts.noCache,
       logger,
       verbosity: opts.verbose,
+      onLog: (msg) => out.info(msg),
+      onVariantBegin: (name) => out.dim(`  ▶ ${name}...`),
+      onVariantComplete: (name) => out.success(`  ✓ ${name}`),
     });
   } finally {
     db.close();
   }
 
   if (opts.json) {
-    // Raw JSON output — intentional console.log for machine-readable stdout
+    // Raw JSON output — intentional console.log for machine-readable stdout (guardrail exception)
     console.log(JSON.stringify(result, null, 2));
     return;
   }

@@ -109,13 +109,11 @@ export async function runQuery(
     const r = results[i];
     const branch =
       typeof r.metadata.branch === "string" ? ` [${r.metadata.branch}]` : "";
-    console.log(
+    out.info(
       `\n${ansi.bold}${ansi.cyan}[${i + 1}] ${r.sourceFile ?? "unknown"}${branch}${ansi.reset}`,
     );
-    console.log(
-      `    ${ansi.dim}similarity: ${(r.similarity * 100).toFixed(1)}%${ansi.reset}`,
-    );
-    console.log(
+    out.dim(`    similarity: ${(r.similarity * 100).toFixed(1)}%`);
+    out.info(
       `\n${r.content.slice(0, 400)}${r.content.length > 400 ? "…" : ""}`,
     );
     out.divider("─", 60, ansi.cyan);

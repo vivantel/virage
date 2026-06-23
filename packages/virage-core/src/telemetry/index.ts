@@ -15,6 +15,7 @@ export {
   type ResultCountBucket,
   type MissingCategory,
   DEFAULT_TELEMETRY_CONFIG,
+  COMMUNITY_TELEMETRY_ENDPOINT,
   resultCountBucket,
   normalizeMissingCategory,
   MISSING_CATEGORY_VALUES,

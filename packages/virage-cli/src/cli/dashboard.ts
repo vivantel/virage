@@ -1,4 +1,5 @@
 import { createHash, randomUUID } from "crypto";
+import { createOut } from "../output.js";
 import express, {
   type Request,
   type Response,
@@ -355,12 +356,13 @@ async function handleWsOperation(ws: WebSocket, msg: Record<string, unknown>) {
 // ─── Main entry point ──────────────────────────────────────────────────────────
 
 export async function runDashboard(opts: DashboardOptions): Promise<void> {
+  const out = createOut(opts.verbose ? 1 : 0);
   // Startup diagnostics
   const uiStatus = HAS_UI ? "found" : "NOT FOUND";
-  console.log(`  Dashboard UI : ${UI_DIR}  [${uiStatus}]`);
+  out.info(`  Dashboard UI : ${UI_DIR}  [${uiStatus}]`);
   const dbAbs = resolve(opts.dbPath);
   const dbStatus = existsSync(dbAbs) ? "found" : "not indexed yet";
-  console.log(`  Database     : ${dbAbs}  [${dbStatus}]`);
+  out.info(`  Database     : ${dbAbs}  [${dbStatus}]`);
 
   // Single-operation guard for WebSocket pipeline runs — scoped per server instance
   let wsOperationRunning = false;
@@ -394,11 +396,9 @@ export async function runDashboard(opts: DashboardOptions): Promise<void> {
     res.on("finish", () => {
       const line = `  ${req.method} ${req.path} → ${res.statusCode}`;
       if (opts.verbose) {
-        console.log(
-          `${line}  (${res.getHeader("content-length") ?? "-"} bytes)`,
-        );
+        out.dim(`${line}  (${res.getHeader("content-length") ?? "-"} bytes)`);
       } else if (res.statusCode >= 400) {
-        console.log(line);
+        out.warn(line);
       }
     });
     next();
@@ -865,13 +865,11 @@ export async function runDashboard(opts: DashboardOptions): Promise<void> {
   // ─── Start server + attach WebSocket ────────────────────────────────────────
 
   const server = app.listen(opts.port, () => {
-    console.log(`\n🚀 RAG Dashboard running at http://localhost:${opts.port}`);
+    out.success(`\nRAG Dashboard running at http://localhost:${opts.port}`);
     if (!HAS_UI) {
-      console.log(
-        "   ⚠️  UI not built — open browser to see build instructions",
-      );
+      out.warn("UI not built — open browser to see build instructions");
     }
-    console.log("   Press Ctrl+C to stop\n");
+    out.dim("Press Ctrl+C to stop\n");
   });
 
   const wss = new WebSocketServer({ server, path: "/ws" });

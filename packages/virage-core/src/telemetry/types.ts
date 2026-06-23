@@ -20,8 +20,12 @@ export interface TelemetryConfig {
   };
 }
 
+export const COMMUNITY_TELEMETRY_ENDPOINT =
+  "https://telemetry.virage.vivantel.dev/ingest";
+
 export const DEFAULT_TELEMETRY_CONFIG: TelemetryConfig = {
   enabled: true,
+  endpoint: COMMUNITY_TELEMETRY_ENDPOINT,
   tiers: {
     implicit: true,
     explicit_feedback: {

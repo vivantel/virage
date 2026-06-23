@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
-import { readFile, writeFile, unlink, mkdtemp } from "fs/promises";
+import { readFile, writeFile, mkdir, unlink, mkdtemp, rm } from "fs/promises";
+import { existsSync } from "fs";
 import { tmpdir } from "os";
 import { join, resolve } from "path";
 import type { EvalSuite, EvalVariant } from "../interfaces/suite.js";
@@ -58,6 +59,12 @@ export interface SuiteRunOptions {
   logger?: Logger;
   /** Numeric verbosity level (0 = default, 1 = -v, 2 = -vv, …) */
   verbosity?: number;
+  /** Override the default process.stdout.write log sink */
+  onLog?: (msg: string) => void;
+  /** Called just before each variant begins download + evaluation */
+  onVariantBegin?: (name: string) => void;
+  /** Called immediately after a variant's evaluation completes */
+  onVariantComplete?: (name: string) => void;
 }
 
 function extractConfigFields(rawConfig: RawRecord, topK: number): ConfigFields {
@@ -175,6 +182,12 @@ function buildRawConfigFromSuite(
   };
 }
 
+interface ProgressFile {
+  fingerprint: string;
+  completedAt: Record<string, string>;
+  results: SuiteVariantResult[];
+}
+
 export async function runSuite(
   suite: EvalSuite,
   suiteDir: string,
@@ -185,7 +198,9 @@ export async function runSuite(
   const logger = opts.logger ?? new NullLogger();
   const log = silent
     ? () => {}
-    : (msg: string) => process.stdout.write(msg + "\n");
+    : opts.onLog
+      ? (msg: string) => opts.onLog!(msg)
+      : (msg: string) => process.stdout.write(msg + "\n");
 
   const topK = suite.topK ?? 10;
   const datasetPath = resolve(suiteDir, suite.dataset);
@@ -198,15 +213,58 @@ export async function runSuite(
 
   const cacheDir = resolve(suiteDir, suite.cacheDir ?? ".virage/eval-cache");
 
+  // ── Idempotency: fingerprint suite config + dataset, resume if possible ──────
+  const datasetContent = await readFile(datasetPath, "utf-8");
+  const suiteFingerprint = createHash("sha256")
+    .update(JSON.stringify(suite))
+    .update(datasetContent)
+    .digest("hex")
+    .slice(0, 16);
+  const progressPath = join(cacheDir, `progress-${suiteFingerprint}.json`);
+
+  let completedAt: Record<string, string> = {};
+  const results: SuiteVariantResult[] = [];
+
+  if (!noCache && existsSync(progressPath)) {
+    try {
+      const saved = JSON.parse(
+        await readFile(progressPath, "utf-8"),
+      ) as ProgressFile;
+      if (saved.fingerprint === suiteFingerprint) {
+        completedAt = saved.completedAt;
+        results.push(...saved.results);
+        if (Object.keys(completedAt).length > 0) {
+          log(
+            `  Resuming — ${Object.keys(completedAt).length} variant(s) already complete`,
+          );
+        }
+      }
+    } catch {
+      // Corrupt progress file — start fresh
+    }
+  }
+
   log("  Running variants...");
 
   const store = new ExperimentStore(db);
-  const results: SuiteVariantResult[] = [];
 
   for (const variant of suite.variants) {
     if (variant.skip) {
       log(`    – ${variant.name}  (skipped)`);
       continue;
+    }
+
+    if (completedAt[variant.name]) {
+      const existing = results.find((r) => r.name === variant.name);
+      if (existing) {
+        const mrrPct = (existing.evalResult.mrr * 100).toFixed(1);
+        const p5Pct = (existing.evalResult.precisionAt5 * 100).toFixed(1);
+        const hr5Pct = (existing.evalResult.hitRateAt5 * 100).toFixed(1);
+        log(
+          `    ✓ ${variant.name.padEnd(24)} MRR=${mrrPct.padStart(5)}%  P@5=${p5Pct.padStart(5)}%  HR@5=${hr5Pct.padStart(5)}%  [cached]`,
+        );
+        continue;
+      }
     }
 
     const spec = suite.databases[variant.database];
@@ -242,6 +300,8 @@ export async function runSuite(
     const evalRunDir = join(cacheDir, "runs", runKey);
     const lancedbDir = join(evalRunDir, "lancedb");
     const pluginDir = join(evalRunDir, "plugins");
+
+    opts.onVariantBegin?.(variant.name);
 
     // Extract DB archive into evalRunDir/lancedb (idempotent)
     const { cached: dbCached } = await downloadAndExtractTo(
@@ -349,6 +409,19 @@ export async function runSuite(
         runId,
         configFields,
       });
+
+      opts.onVariantComplete?.(variant.name);
+
+      // Persist progress so an interrupted run can resume
+      completedAt[variant.name] = new Date().toISOString();
+      const progress: ProgressFile = {
+        fingerprint: suiteFingerprint,
+        completedAt,
+        results,
+      };
+      await mkdir(cacheDir, { recursive: true })
+        .then(() => writeFile(progressPath, JSON.stringify(progress), "utf-8"))
+        .catch(() => {});
     } finally {
       await cfg.vectorStore.close?.();
     }
@@ -412,6 +485,11 @@ export async function runSuite(
         `  ❌ CI gate FAILED: baseline MRR ${baselineResult.evalResult.mrr.toFixed(4)} < ${suite.ciGate.mrr}`,
       );
     }
+  }
+
+  // All variants complete — clean up progress file
+  if (existsSync(progressPath)) {
+    await rm(progressPath, { force: true }).catch(() => {});
   }
 
   return { variants: results, baseline: baselineResult, ciPassed };
