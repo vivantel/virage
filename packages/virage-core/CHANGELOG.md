@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.56](https://github.com/vivantel/virage/compare/virage-core@v0.2.55...virage-core@v0.2.56) (2026-06-23)
+
+
+### Bug Fixes
+
+* **cli:** Eval reliability, logging guardrails, cross-encoder batch inference ([27a0811](https://github.com/vivantel/virage/commit/27a08114200719a37cb30ec617cb051e394b9a47))
+
 ## [0.2.55](https://github.com/vivantel/virage/compare/virage-core@v0.2.54...virage-core@v0.2.55) (2026-06-22)
 
 

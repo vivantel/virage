@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.1.88](https://github.com/vivantel/virage/compare/virage-cli@v0.1.87...virage-cli@v0.1.88) (2026-06-23)
+
+
+### Bug Fixes
+
+* **cli:** Eval reliability, logging guardrails, cross-encoder batch inference ([27a0811](https://github.com/vivantel/virage/commit/27a08114200719a37cb30ec617cb051e394b9a47))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @vivantel/virage-core bumped from 0.2.55 to 0.2.56
+
 ## [0.1.87](https://github.com/vivantel/virage/compare/virage-cli@v0.1.86...virage-cli@v0.1.87) (2026-06-22)
 
 
