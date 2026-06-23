@@ -38,13 +38,13 @@ describe("CrossEncoderReranker", () => {
     expect(mockModelCall).not.toHaveBeenCalled();
   });
 
-  it("tokenizes each candidate as a query/document pair", async () => {
+  it("tokenizes all candidates as a batched query/document pair", async () => {
     const reranker = new CrossEncoderReranker();
     mockModelCall.mockResolvedValue({ logits: { data: [5.2] } });
 
     await reranker.rerank("my query", [makeCandidate("a", "some text")]);
-    expect(mockTokenize).toHaveBeenCalledWith("my query", {
-      text_pair: "some text",
+    expect(mockTokenize).toHaveBeenCalledWith(["my query"], {
+      text_pair: ["some text"],
       padding: true,
       truncation: true,
     });
@@ -57,11 +57,10 @@ describe("CrossEncoderReranker", () => {
       makeCandidate("b", "high relevance", 0.3),
       makeCandidate("c", "medium relevance", 0.5),
     ];
-    // Raw logits (not sigmoid/softmax) — higher = more relevant
-    mockModelCall
-      .mockResolvedValueOnce({ logits: { data: [-3.0] } }) // a: not relevant
-      .mockResolvedValueOnce({ logits: { data: [8.5] } }) // b: highly relevant
-      .mockResolvedValueOnce({ logits: { data: [2.1] } }); // c: somewhat relevant
+    // Single batched call returns all logits in candidate order
+    mockModelCall.mockResolvedValueOnce({
+      logits: { data: [-3.0, 8.5, 2.1] }, // a: not relevant, b: highly relevant, c: somewhat
+    });
 
     const result = await reranker.rerank("query", candidates);
     expect(result.map((r) => r.id)).toEqual(["b", "c", "a"]);
@@ -74,10 +73,10 @@ describe("CrossEncoderReranker", () => {
       makeCandidate("b", "high", 0.3),
       makeCandidate("c", "mid", 0.5),
     ];
-    mockModelCall
-      .mockResolvedValueOnce({ logits: { data: [0.1] } }) // a: sigmoid(0.1) ≈ 0.525
-      .mockResolvedValueOnce({ logits: { data: [0.9] } }) // b: sigmoid(0.9) ≈ 0.711
-      .mockResolvedValueOnce({ logits: { data: [0.5] } }); // c: sigmoid(0.5) ≈ 0.622
+    // Single batched call: logits in candidate order [a, b, c]
+    mockModelCall.mockResolvedValueOnce({
+      logits: { data: [0.1, 0.9, 0.5] }, // a≈0.525, b≈0.711, c≈0.622
+    });
 
     const result = await reranker.rerank("query", candidates);
     // Order: b > c > a
@@ -118,9 +117,7 @@ describe("CrossEncoderReranker", () => {
       makeCandidate("b", "irrelevant", 0.3),
     ];
     // sigmoid(2) ≈ 0.88, sigmoid(-2) ≈ 0.12 — only "a" passes minScore 0.5
-    mockModelCall
-      .mockResolvedValueOnce({ logits: { data: [2] } })
-      .mockResolvedValueOnce({ logits: { data: [-2] } });
+    mockModelCall.mockResolvedValueOnce({ logits: { data: [2, -2] } });
 
     const result = await reranker.rerank("query", candidates);
     expect(result).toHaveLength(1);
@@ -134,10 +131,7 @@ describe("CrossEncoderReranker", () => {
       makeCandidate("b", "b"),
       makeCandidate("c", "c"),
     ];
-    mockModelCall
-      .mockResolvedValueOnce({ logits: { data: [9.0] } })
-      .mockResolvedValueOnce({ logits: { data: [8.0] } })
-      .mockResolvedValueOnce({ logits: { data: [7.0] } });
+    mockModelCall.mockResolvedValueOnce({ logits: { data: [9.0, 8.0, 7.0] } });
 
     const result = await reranker.rerank("query", candidates);
     expect(result).toHaveLength(2);
@@ -150,10 +144,7 @@ describe("CrossEncoderReranker", () => {
       makeCandidate("b", "b"),
       makeCandidate("c", "c"),
     ];
-    mockModelCall
-      .mockResolvedValueOnce({ logits: { data: [9.0] } })
-      .mockResolvedValueOnce({ logits: { data: [8.0] } })
-      .mockResolvedValueOnce({ logits: { data: [7.0] } });
+    mockModelCall.mockResolvedValueOnce({ logits: { data: [9.0, 8.0, 7.0] } });
 
     const result = await reranker.rerank("query", candidates, 1);
     expect(result).toHaveLength(1);
