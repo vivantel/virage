@@ -1,0 +1,165 @@
+{
+  "version": "1",
+  "dataset": "golden-dataset.json",
+  "topK": 10,
+  "baseline": "ce-vector",
+  "ciGate": {
+    "mrr": 0.35
+  },
+  "cacheDir": "../.virage/eval-cache",
+  "exclude": [
+    "**/*.a",
+    "**/*.class",
+    "**/*.generated.cs",
+    "**/*.lock",
+    "**/*.min.css",
+    "**/*.min.js",
+    "**/*.o",
+    "**/*.pb.cs",
+    "**/*.pb.go",
+    "**/*.pb.ts",
+    "**/.next/**",
+    "**/.turbo/**",
+    "**/CMakeFiles/**",
+    "**/bin/**",
+    "**/cmake-build-*/**",
+    "**/package-lock.json",
+    "**/pnpm-lock.yaml",
+    "**/target/**",
+    "**/yarn.lock"
+  ],
+  "filesets": {
+    "md": {
+      "include": [
+        "**/*.md",
+        "**/*.mdx"
+      ],
+      "exclude": [
+        "**/node_modules/**",
+        "**/vendor/**",
+        "**/dist/**",
+        "**/out/**",
+        "CHANGELOG.md"
+      ]
+    },
+    "ts": {
+      "include": [
+        "**/*.ts",
+        "**/*.tsx"
+      ],
+      "exclude": [
+        "**/node_modules/**",
+        "**/vendor/**",
+        "**/dist/**",
+        "**/out/**",
+        "**/*.d.ts"
+      ]
+    },
+    "js": {
+      "include": [
+        "**/*.js",
+        "**/*.jsx"
+      ],
+      "exclude": [
+        "**/node_modules/**",
+        "**/vendor/**",
+        "**/dist/**",
+        "**/out/**"
+      ]
+    }
+  },
+  "chunkers": {
+    "md": "markdownHeaders",
+    "ts": "codeChunkAst",
+    "js": "codeChunkAst"
+  },
+  "databases": {
+    "minilm-384-cemd": {
+      "url": "",
+      "description": "all-MiniLM-L6-v2 384d, CE-Markdown (Rust/comrak) + AST code chunking, virage master branch",
+      "embedder": {
+        "package": "@vivantel/virage-embedder-transformers",
+        "config": {
+          "model": "Xenova/all-MiniLM-L6-v2",
+          "dimensions": 384
+        }
+      },
+      "vectorStore": {
+        "package": "@vivantel/virage-store-lancedb"
+      },
+      "chunkers": {
+        "md": "@vivantel/virage-chunker-ce-md"
+      },
+      "sha256": "",
+      "pluginVersions": {
+        "@vivantel/virage-agent-claude": "0.2.26",
+        "@vivantel/virage-agent-core": "0.1.7",
+        "@vivantel/virage-cli": "0.1.88",
+        "@vivantel/virage-chunker-ce-ast": "0.1.0",
+        "@vivantel/virage-chunker-ce-md": "0.1.1",
+        "@vivantel/virage-code-chunk-chunker": "0.1.41",
+        "@vivantel/virage-core": "0.2.56",
+        "@vivantel/virage-embedder-transformers": "0.2.58",
+        "@vivantel/virage-reranker-cross-encoder": "0.1.33",
+        "@vivantel/virage-skills": "0.1.9",
+        "@vivantel/virage-store-lancedb": "0.2.59"
+      }
+    },
+    "minilm-384-ast": {
+      "url": "https://github.com/vivantel/virage/releases/download/eval-db-2026-06-23-7f82fcd/minilm-384-ast.tar.gz",
+      "description": "all-MiniLM-L6-v2 384d, AST+Markdown chunking, virage master branch",
+      "embedder": {
+        "package": "@vivantel/virage-embedder-transformers",
+        "config": {
+          "model": "Xenova/all-MiniLM-L6-v2",
+          "dimensions": 384
+        }
+      },
+      "vectorStore": {
+        "package": "@vivantel/virage-store-lancedb"
+      },
+      "sha256": "2af57b74d377520c9ba39c12ca521d221f88c3531ba4d745f9df0108294e474a",
+      "pluginVersions": {
+        "@vivantel/virage-agent-claude": "0.2.26",
+        "@vivantel/virage-agent-core": "0.1.7",
+        "@vivantel/virage-cli": "0.1.88",
+        "@vivantel/virage-code-chunk-chunker": "0.1.41",
+        "@vivantel/virage-core": "0.2.56",
+        "@vivantel/virage-embedder-transformers": "0.2.58",
+        "@vivantel/virage-reranker-cross-encoder": "0.1.33",
+        "@vivantel/virage-skills": "0.1.9",
+        "@vivantel/virage-store-lancedb": "0.2.59"
+      }
+    }
+  },
+  "variants": [
+    {
+      "name": "vector",
+      "database": "minilm-384-ast",
+      "description": "Pure vector search (cosine)"
+    },
+    {
+      "name": "hybrid",
+      "database": "minilm-384-ast",
+      "description": "Hybrid BM25 + vector via RRF (alpha=0.6)",
+      "search": {
+        "hybrid": true,
+        "hybridAlpha": 0.6
+      }
+    },
+    {
+      "name": "ce-vector",
+      "database": "minilm-384-cemd",
+      "description": "CE Markdown chunker (Rust/comrak) — pure vector search"
+    },
+    {
+      "name": "ce-hybrid",
+      "database": "minilm-384-cemd",
+      "description": "CE Markdown chunker (Rust/comrak) — hybrid BM25 + vector via RRF (alpha=0.6)",
+      "search": {
+        "hybrid": true,
+        "hybridAlpha": 0.6
+      }
+    }
+  ]
+}

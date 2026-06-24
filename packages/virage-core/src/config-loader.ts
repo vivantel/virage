@@ -12,6 +12,7 @@ import {
   StrategyOptions,
 } from "./core/strategy-registry.js";
 import { createChunker } from "./helpers/create-chunker.js";
+import type { FileChunker } from "./interfaces/chunker.js";
 import type { EmbeddingProvider } from "./interfaces/embedder.js";
 import type { VectorStore } from "./interfaces/vector-store.js";
 import type { Reranker } from "./interfaces/reranker.js";
@@ -24,7 +25,8 @@ interface JsonChunkerConfig {
   name?: string;
   patterns: string[];
   ignorePatterns?: string[];
-  strategy: BuiltinStrategyName;
+  /** Built-in strategy name or npm package name (e.g. "@vivantel/virage-chunker-ce-md") */
+  strategy: string;
   strategyOptions?: StrategyOptions;
 }
 
@@ -60,6 +62,10 @@ interface JsonRagConfig {
 }
 
 // ─── JSON config loading ──────────────────────────────────────────────────────
+
+function isPackageName(s: string): boolean {
+  return s.startsWith("@") || s.includes("/");
+}
 
 function normalizeConfig(raw: Record<string, unknown>): void {
   if (!raw.chunking && Array.isArray(raw.chunkers)) {
@@ -199,6 +205,41 @@ async function loadJsonConfig(
 
   const chunkers = await Promise.all(
     jsonConfig.chunking.chunkers.map(async (ch) => {
+      if (isPackageName(ch.strategy)) {
+        let pkgMod: Record<string, unknown>;
+        try {
+          pkgMod = (await importPackage(ch.strategy)) as Record<
+            string,
+            unknown
+          >;
+        } catch (err) {
+          const isNotFound =
+            err instanceof Error &&
+            (err.message.includes("Cannot find module") ||
+              err.message.includes("Cannot find package") ||
+              (err as { code?: string }).code === "ERR_MODULE_NOT_FOUND");
+          throw new ConfigError(
+            `Cannot load chunker package "${ch.strategy}"`,
+            {
+              suggestion: isNotFound
+                ? `Install it first: npm install ${ch.strategy}`
+                : undefined,
+              cause: err,
+            },
+          );
+        }
+        const factory = pkgMod["createChunker"];
+        if (typeof factory !== "function") {
+          throw new ConfigError(
+            `Package "${ch.strategy}" does not export a createChunker() function`,
+          );
+        }
+        return (factory as (opts?: Record<string, unknown>) => FileChunker)({
+          ignore: ch.ignorePatterns,
+          ...ch.strategyOptions,
+        });
+      }
+
       const strategy = await resolveStrategy(
         ch.strategy as BuiltinStrategyName,
         ch.strategyOptions,
