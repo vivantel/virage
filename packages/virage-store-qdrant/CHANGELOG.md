@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.2.58](https://github.com/vivantel/virage/compare/virage-store-qdrant@v0.2.57...virage-store-qdrant@v0.2.58) (2026-06-24)
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * devDependencies
+    * @vivantel/virage-core bumped from 0.2.56 to 0.2.57
+  * peerDependencies
+    * @vivantel/virage-core bumped from * to 0.2.57
+
 ## [0.2.57](https://github.com/vivantel/virage/compare/virage-store-qdrant@v0.2.56...virage-store-qdrant@v0.2.57) (2026-06-23)
 
 
