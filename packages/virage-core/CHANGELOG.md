@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.57](https://github.com/vivantel/virage/compare/virage-core@v0.2.56...virage-core@v0.2.57) (2026-06-24)
+
+
+### Features
+
+* **eval:** Add CE-Markdown chunker eval suite; extend config-loader for package-name strategies ([610c4b7](https://github.com/vivantel/virage/commit/610c4b7a2eef49198ad16a89dfb8eb5ee8ef1739))
+
 ## [0.2.56](https://github.com/vivantel/virage/compare/virage-core@v0.2.55...virage-core@v0.2.56) (2026-06-23)
 
 
