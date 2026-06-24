@@ -41,37 +41,10 @@
         "**/out/**",
         "CHANGELOG.md"
       ]
-    },
-    "ts": {
-      "include": [
-        "**/*.ts",
-        "**/*.tsx"
-      ],
-      "exclude": [
-        "**/node_modules/**",
-        "**/vendor/**",
-        "**/dist/**",
-        "**/out/**",
-        "**/*.d.ts"
-      ]
-    },
-    "js": {
-      "include": [
-        "**/*.js",
-        "**/*.jsx"
-      ],
-      "exclude": [
-        "**/node_modules/**",
-        "**/vendor/**",
-        "**/dist/**",
-        "**/out/**"
-      ]
     }
   },
   "chunkers": {
-    "md": "markdownHeaders",
-    "ts": "codeChunkAst",
-    "js": "codeChunkAst"
+    "md": "markdownHeaders"
   },
   "databases": {
     "minilm-384-cemd": {
