@@ -1,12 +1,12 @@
 {
   "version": "1",
-  "dataset": "golden-dataset.json",
+  "dataset": "../quality-evaluation.json",
   "topK": 10,
   "baseline": "ce-vector",
   "ciGate": {
     "mrr": 0.35
   },
-  "cacheDir": "../.virage/eval-cache",
+  "cacheDir": "../../.virage/eval-cache",
   "exclude": [
     "**/*.a",
     "**/*.class",

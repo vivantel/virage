@@ -8,8 +8,8 @@ This document tracks the state and next steps for Virage's retrieval quality eva
 
 | Artifact | Location | Purpose |
 |---|---|---|
-| Golden dataset | `eval/golden-dataset.json` | 15 ground-truth query/answer pairs for this repo |
-| Eval suite config | `eval/suite.json` | Declarative 4-variant eval: vector, hybrid, vector+reranker, hybrid+reranker |
+| Quality evaluation dataset | `eval/quality-evaluation.json` | 15 ground-truth query/answer pairs for this repo |
+| Eval suite config | `eval/suites/retrieval-quality.json` | Declarative 4-variant eval: vector, hybrid, vector+reranker, hybrid+reranker |
 | Eval suite runner | `virage eval-suite run` | Downloads DB archives from HTTPS, installs pinned plugins, runs all variants, compares vs baseline |
 | DB archive packer | `virage pack` | Packs a LanceDB directory into a `.tar.gz` for upload and suite reference |
 | Eval matrix script | `scripts/eval-matrix.sh` | Shell wrapper: runs `virage eval save` per config + `virage eval compare` vs baseline |
@@ -34,7 +34,7 @@ Before loading config for each variant, the runner temporarily sets `VIRAGE_DIR`
 | vector-cross-encoder | ~0.55 | ~0.47 | ~0.73 |
 | hybrid-cross-encoder | ~0.58 | ~0.50 | ~0.77 |
 
-Dataset: `eval/golden-dataset.json` (15 queries). All variants use `minilm-384-ast` (all-MiniLM-L6-v2, 384d, AST+Markdown chunking, this repo's master branch).
+Dataset: `eval/quality-evaluation.json` (15 queries). All variants use `minilm-384-ast` (all-MiniLM-L6-v2, 384d, AST+Markdown chunking, this repo's master branch).
 
 > The 15-query dataset has high variance — these numbers are directionally correct but not statistically decisive. Expand the dataset to reduce noise.
 
@@ -44,14 +44,14 @@ Dataset: `eval/golden-dataset.json` (15 queries). All variants use `minilm-384-a
 
 ### 1. Upload `minilm-384-ast.tar.gz` to GitHub releases
 
-The suite config in `eval/suite.json` references a GitHub releases URL. Until the archive is uploaded, `virage eval-suite run` will fail on a clean clone.
+The suite config in `eval/suites/retrieval-quality.json` references a GitHub releases URL. Until the archive is uploaded, `virage eval-suite run` will fail on a clean clone.
 
 ```bash
 virage pack --output minilm-384-ast.tar.gz --database .virage/lancedb
 # Then upload to: https://github.com/vivantel/virage/releases/tag/eval-db
 ```
 
-Update `eval/suite.json` with the sha256 of the uploaded archive.
+Update `eval/suites/retrieval-quality.json` with the sha256 of the uploaded archive.
 
 ---
 
@@ -73,11 +73,11 @@ Expected improvement: MRR +0.10–0.15.
 }
 ```
 
-Add `virage.config.hybrid.cross-encoder-20x.json` and a new variant to `eval/suite.json`.
+Add `virage.config.hybrid.cross-encoder-20x.json` and a new variant to `eval/suites/retrieval-quality.json`.
 
 ---
 
-### 3. Expand the golden dataset (15 → 40+ queries)
+### 3. Expand the quality evaluation dataset (15 → 40+ queries)
 
 The current 15-query dataset produces noisy MRR estimates (±0.05 with 10k bootstrap). At 40+ queries the confidence intervals narrow to ±0.02, making smaller improvements detectable.
 
@@ -101,20 +101,20 @@ Each embedder requires its own DB archive (different embedding dimensions). Plan
 | `multilingual-e5-384-ast` | intfloat/multilingual-e5-small | 384 |
 | `minilm-384-token` | all-MiniLM-L6-v2 | 384 (token chunking) |
 
-Steps: run `virage index` with each config, `virage pack`, upload to releases, add to `eval/suite.json`.
+Steps: run `virage index` with each config, `virage pack`, upload to releases, add to `eval/suites/retrieval-quality.json`.
 
 ---
 
 ### 5. Wire `virage eval-suite run --ci` into `rag-eval.yml`
 
-The CI gate (`ciGate.mrr: 0.35` in `eval/suite.json`) should fail the workflow when the baseline drops below the threshold.
+The CI gate (`ciGate.mrr: 0.35` in `eval/suites/retrieval-quality.json`) should fail the workflow when the baseline drops below the threshold.
 
 ```yaml
 # .github/workflows/rag-eval.yml
 - name: Run eval suite
   run: |
     node packages/virage-cli/dist/bin/virage.js eval-suite run \
-      --suite eval/suite.json --ci
+      --suite eval/suites/retrieval-quality.json --ci
 ```
 
 This requires the DB archive to be uploaded (step 1) and the runner installed via `npm ci`.

@@ -1,4 +1,4 @@
-You are an expert in RAG (Retrieval-Augmented Generation) evaluation dataset construction. Your task is to extend or sanitize `eval/golden-dataset.json` for the **virage** project — a TypeScript monorepo that indexes its own codebase into a vector store and retrieves relevant chunks to answer developer queries.
+You are an expert in RAG (Retrieval-Augmented Generation) evaluation dataset construction. Your task is to extend or sanitize `eval/quality-evaluation.json` for the **virage** project — a TypeScript monorepo that indexes its own codebase into a vector store and retrieves relevant chunks to answer developer queries.
 
 ---
 
@@ -29,7 +29,7 @@ docs/USE_CASES.md                  — end-to-end usage scenarios
 
 ## Output format
 
-Each entry in `eval/golden-dataset.json` follows this schema:
+Each entry in `eval/quality-evaluation.json` follows this schema:
 
 ```json
 {

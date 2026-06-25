@@ -45,7 +45,7 @@ export async function runPack(opts: PackOptions): Promise<void> {
 
   out.success(`Archive created: ${outputPath} (${sizeKb} KB)`);
   out.info(
-    "To use in eval/suite.json, upload the archive to an HTTPS URL and reference it:",
+    "To use in eval/suites/retrieval-quality.json, upload the archive to an HTTPS URL and reference it:",
   );
   out.dim(`  "databases": {`);
   out.dim(`    "my-db": { "url": "https://..." }`);

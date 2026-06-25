@@ -19,21 +19,21 @@ jobs:
         run: npm ci --workspaces --if-present
 
       - name: Hook coverage
-        run: npx tsx eval/hook-coverage.mts
+        run: npx tsx eval/suites/hook-coverage.mts
 
       - name: Skill routing accuracy
-        run: npx tsx eval/skill-routing.mts
+        run: npx tsx eval/suites/skill-routing.mts
 
       - name: Write job summary
         if: always()
         run: |
           echo "## Hook Coverage" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          npx tsx eval/hook-coverage.mts --summary >> $GITHUB_STEP_SUMMARY
+          npx tsx eval/suites/hook-coverage.mts --summary >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "## Skill Routing Accuracy" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          npx tsx eval/skill-routing.mts --summary >> $GITHUB_STEP_SUMMARY || true
+          npx tsx eval/suites/skill-routing.mts --summary >> $GITHUB_STEP_SUMMARY || true
 
   rag-quality:
     name: RAG Retrieval Quality & Token Efficiency
@@ -53,16 +53,16 @@ jobs:
         run: npx virage index
 
       - name: Token efficiency delta
-        run: npx tsx eval/token-efficiency.mts
+        run: npx tsx eval/suites/token-efficiency.mts
 
       - name: RAG retrieval quality (P@5 / MRR / R@10)
         run: |
-          if [ -f eval/golden-dataset.json ]; then
-            npx virage evaluate --dataset eval/golden-dataset.json --ci --threshold-mrr 0.6
+          if [ -f eval/quality-evaluation.json ]; then
+            npx virage evaluate --dataset eval/quality-evaluation.json --ci --threshold-mrr 0.6
           else
-            echo "Skipping: eval/golden-dataset.json not found."
+            echo "Skipping: eval/quality-evaluation.json not found."
             echo "Run: npx virage eval-generate --output eval/candidate-dataset.json"
-            echo "Then curate it to eval/golden-dataset.json and commit."
+            echo "Then curate it to eval/quality-evaluation.json and commit."
           fi
 
       - name: Write job summary
@@ -70,17 +70,17 @@ jobs:
         run: |
           echo "## Token Efficiency Delta" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          npx tsx eval/token-efficiency.mts --summary >> $GITHUB_STEP_SUMMARY
+          npx tsx eval/suites/token-efficiency.mts --summary >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          if [ -f eval/golden-dataset.json ]; then
+          if [ -f eval/quality-evaluation.json ]; then
             echo "## RAG Retrieval Quality (P@5 / MRR / R@10)" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             echo '```' >> $GITHUB_STEP_SUMMARY
-            npx virage evaluate --dataset eval/golden-dataset.json >> $GITHUB_STEP_SUMMARY || true
+            npx virage evaluate --dataset eval/quality-evaluation.json >> $GITHUB_STEP_SUMMARY || true
             echo '```' >> $GITHUB_STEP_SUMMARY
           else
             echo "## RAG Retrieval Quality" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo "> ⚠️ Skipped — \`eval/golden-dataset.json\` not committed yet." >> $GITHUB_STEP_SUMMARY
-            echo "> Run \`virage eval-generate --output eval/candidate-dataset.json\`, curate, and commit as \`eval/golden-dataset.json\`." >> $GITHUB_STEP_SUMMARY
+            echo "> ⚠️ Skipped — \`eval/quality-evaluation.json\` not committed yet." >> $GITHUB_STEP_SUMMARY
+            echo "> Run \`virage eval-generate --output eval/candidate-dataset.json\`, curate, and commit as \`eval/quality-evaluation.json\`." >> $GITHUB_STEP_SUMMARY
           fi
