@@ -47,9 +47,35 @@
     "md": "markdownHeaders"
   },
   "databases": {
+    "minilm-384-ast": {
+      "url": "https://github.com/vivantel/virage/releases/download/eval-db-2026-06-23-7f82fcd/minilm-384-ast.tar.gz",
+      "description": "all-MiniLM-L6-v2 384d, AST+Markdown chunking, virage master branch",
+      "embedder": {
+        "package": "@vivantel/virage-embedder-transformers",
+        "config": {
+          "model": "Xenova/all-MiniLM-L6-v2",
+          "dimensions": 384
+        }
+      },
+      "vectorStore": {
+        "package": "@vivantel/virage-store-lancedb"
+      },
+      "sha256": "2af57b74d377520c9ba39c12ca521d221f88c3531ba4d745f9df0108294e474a",
+      "pluginVersions": {
+        "@vivantel/virage-agent-claude": "0.2.26",
+        "@vivantel/virage-agent-core": "0.1.7",
+        "@vivantel/virage-cli": "0.1.88",
+        "@vivantel/virage-code-chunk-chunker": "0.1.41",
+        "@vivantel/virage-core": "0.2.56",
+        "@vivantel/virage-embedder-transformers": "0.2.58",
+        "@vivantel/virage-reranker-cross-encoder": "0.1.33",
+        "@vivantel/virage-skills": "0.1.9",
+        "@vivantel/virage-store-lancedb": "0.2.59"
+      }
+    },
     "minilm-384-cemd": {
       "url": "",
-      "description": "all-MiniLM-L6-v2 384d, CE-Markdown (Rust/comrak) + AST code chunking, virage master branch",
+      "description": "all-MiniLM-L6-v2 384d, CE-Markdown (Rust/comrak) + AST code chunking, full breadcrumb prepend + section-boundary flushing",
       "embedder": {
         "package": "@vivantel/virage-embedder-transformers",
         "config": {
@@ -78,9 +104,9 @@
         "@vivantel/virage-store-lancedb": "0.2.59"
       }
     },
-    "minilm-384-ast": {
-      "url": "https://github.com/vivantel/virage/releases/download/eval-db-2026-06-23-7f82fcd/minilm-384-ast.tar.gz",
-      "description": "all-MiniLM-L6-v2 384d, AST+Markdown chunking, virage master branch",
+    "minilm-384-cemd-ol": {
+      "url": "",
+      "description": "all-MiniLM-L6-v2 384d, CE-MD — full breadcrumb + document outline prefix (H1 hypothesis)",
       "embedder": {
         "package": "@vivantel/virage-embedder-transformers",
         "config": {
@@ -91,11 +117,47 @@
       "vectorStore": {
         "package": "@vivantel/virage-store-lancedb"
       },
-      "sha256": "2af57b74d377520c9ba39c12ca521d221f88c3531ba4d745f9df0108294e474a",
+      "chunkers": {
+        "md": "@vivantel/virage-chunker-ce-md"
+      },
+      "sha256": "",
       "pluginVersions": {
         "@vivantel/virage-agent-claude": "0.2.26",
         "@vivantel/virage-agent-core": "0.1.7",
         "@vivantel/virage-cli": "0.1.88",
+        "@vivantel/virage-chunker-ce-ast": "0.1.1-ol",
+        "@vivantel/virage-chunker-ce-md": "0.1.1",
+        "@vivantel/virage-code-chunk-chunker": "0.1.41",
+        "@vivantel/virage-core": "0.2.56",
+        "@vivantel/virage-embedder-transformers": "0.2.58",
+        "@vivantel/virage-reranker-cross-encoder": "0.1.33",
+        "@vivantel/virage-skills": "0.1.9",
+        "@vivantel/virage-store-lancedb": "0.2.59"
+      }
+    },
+    "minilm-384-cemd-sib": {
+      "url": "",
+      "description": "all-MiniLM-L6-v2 384d, CE-MD — full breadcrumb + sibling section context (H2 hypothesis)",
+      "embedder": {
+        "package": "@vivantel/virage-embedder-transformers",
+        "config": {
+          "model": "Xenova/all-MiniLM-L6-v2",
+          "dimensions": 384
+        }
+      },
+      "vectorStore": {
+        "package": "@vivantel/virage-store-lancedb"
+      },
+      "chunkers": {
+        "md": "@vivantel/virage-chunker-ce-md"
+      },
+      "sha256": "",
+      "pluginVersions": {
+        "@vivantel/virage-agent-claude": "0.2.26",
+        "@vivantel/virage-agent-core": "0.1.7",
+        "@vivantel/virage-cli": "0.1.88",
+        "@vivantel/virage-chunker-ce-ast": "0.1.1-sib",
+        "@vivantel/virage-chunker-ce-md": "0.1.1",
         "@vivantel/virage-code-chunk-chunker": "0.1.41",
         "@vivantel/virage-core": "0.2.56",
         "@vivantel/virage-embedder-transformers": "0.2.58",
@@ -109,29 +171,145 @@
     {
       "name": "vector",
       "database": "minilm-384-ast",
-      "description": "Pure vector search (cosine)"
+      "description": "AST chunker — pure vector search"
     },
     {
       "name": "hybrid",
       "database": "minilm-384-ast",
-      "description": "Hybrid BM25 + vector via RRF (alpha=0.6)",
+      "description": "AST chunker — hybrid BM25+vector (alpha=0.6)",
       "search": {
         "hybrid": true,
         "hybridAlpha": 0.6
       }
     },
     {
+      "name": "vector-rr",
+      "database": "minilm-384-ast",
+      "description": "AST chunker — pure vector + cross-encoder reranker",
+      "search": {
+        "reranker": { "package": "@vivantel/virage-reranker-cross-encoder" }
+      }
+    },
+    {
+      "name": "hybrid-rr",
+      "database": "minilm-384-ast",
+      "description": "AST chunker — hybrid BM25+vector (alpha=0.6) + cross-encoder reranker",
+      "search": {
+        "hybrid": true,
+        "hybridAlpha": 0.6,
+        "reranker": { "package": "@vivantel/virage-reranker-cross-encoder" }
+      }
+    },
+    {
       "name": "ce-vector",
       "database": "minilm-384-cemd",
-      "description": "CE Markdown chunker (Rust/comrak) — pure vector search"
+      "description": "CE-MD full breadcrumb — pure vector search"
     },
     {
       "name": "ce-hybrid",
       "database": "minilm-384-cemd",
-      "description": "CE Markdown chunker (Rust/comrak) — hybrid BM25 + vector via RRF (alpha=0.6)",
+      "description": "CE-MD full breadcrumb — hybrid BM25+vector (alpha=0.6)",
       "search": {
         "hybrid": true,
         "hybridAlpha": 0.6
+      }
+    },
+    {
+      "name": "ce-hybrid-30",
+      "database": "minilm-384-cemd",
+      "description": "CE-MD full breadcrumb — hybrid BM25+vector alpha=0.3",
+      "search": { "hybrid": true, "hybridAlpha": 0.3 }
+    },
+    {
+      "name": "ce-hybrid-20",
+      "database": "minilm-384-cemd",
+      "description": "CE-MD full breadcrumb — hybrid BM25+vector alpha=0.2",
+      "search": { "hybrid": true, "hybridAlpha": 0.2 }
+    },
+    {
+      "name": "ce-vector-rr",
+      "database": "minilm-384-cemd",
+      "description": "CE-MD full breadcrumb — pure vector + cross-encoder reranker",
+      "search": {
+        "reranker": { "package": "@vivantel/virage-reranker-cross-encoder" }
+      }
+    },
+    {
+      "name": "ce-hybrid-30-rr",
+      "database": "minilm-384-cemd",
+      "description": "CE-MD full breadcrumb — hybrid alpha=0.3 + cross-encoder reranker",
+      "search": {
+        "hybrid": true,
+        "hybridAlpha": 0.3,
+        "reranker": { "package": "@vivantel/virage-reranker-cross-encoder" }
+      }
+    },
+    {
+      "name": "ce-hybrid-20-rr",
+      "database": "minilm-384-cemd",
+      "description": "CE-MD full breadcrumb — hybrid alpha=0.2 + cross-encoder reranker",
+      "search": {
+        "hybrid": true,
+        "hybridAlpha": 0.2,
+        "reranker": { "package": "@vivantel/virage-reranker-cross-encoder" }
+      }
+    },
+    {
+      "name": "ce-vector-ol",
+      "database": "minilm-384-cemd-ol",
+      "description": "CE-MD + document outline prefix (H1) — pure vector"
+    },
+    {
+      "name": "ce-hybrid-ol",
+      "database": "minilm-384-cemd-ol",
+      "description": "CE-MD + document outline prefix (H1) — hybrid alpha=0.3",
+      "search": { "hybrid": true, "hybridAlpha": 0.3 }
+    },
+    {
+      "name": "ce-vector-ol-rr",
+      "database": "minilm-384-cemd-ol",
+      "description": "CE-MD + document outline prefix (H1) — pure vector + reranker",
+      "search": {
+        "reranker": { "package": "@vivantel/virage-reranker-cross-encoder" }
+      }
+    },
+    {
+      "name": "ce-hybrid-ol-rr",
+      "database": "minilm-384-cemd-ol",
+      "description": "CE-MD + document outline prefix (H1) — hybrid alpha=0.3 + reranker",
+      "search": {
+        "hybrid": true,
+        "hybridAlpha": 0.3,
+        "reranker": { "package": "@vivantel/virage-reranker-cross-encoder" }
+      }
+    },
+    {
+      "name": "ce-vector-sib",
+      "database": "minilm-384-cemd-sib",
+      "description": "CE-MD + sibling section context (H2) — pure vector"
+    },
+    {
+      "name": "ce-hybrid-sib",
+      "database": "minilm-384-cemd-sib",
+      "description": "CE-MD + sibling section context (H2) — hybrid alpha=0.3",
+      "search": { "hybrid": true, "hybridAlpha": 0.3 }
+    },
+    {
+      "name": "ce-vector-sib-rr",
+      "database": "minilm-384-cemd-sib",
+      "description": "CE-MD + sibling section context (H2) — pure vector + reranker",
+      "search": {
+        "reranker": { "package": "@vivantel/virage-reranker-cross-encoder" }
+      }
+    },
+    {
+      "name": "ce-hybrid-sib-rr",
+      "database": "minilm-384-cemd-sib",
+      "description": "CE-MD + sibling section context (H2) — hybrid alpha=0.3 + reranker",
+      "search": {
+        "hybrid": true,
+        "hybridAlpha": 0.3,
+        "reranker": { "package": "@vivantel/virage-reranker-cross-encoder" }
       }
     }
   ]
