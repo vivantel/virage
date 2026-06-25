@@ -53,7 +53,7 @@ export class LlmReranker implements Reranker {
             role: "user",
             content: RANK_PROMPT(
               query,
-              candidates.map((c) => c.content),
+              candidates.map((c) => c.denseText),
             ),
           },
         ],

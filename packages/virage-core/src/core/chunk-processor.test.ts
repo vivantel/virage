@@ -3,7 +3,10 @@ import { ChunkProcessor } from "./chunk-processor.js";
 import { FileChunker, Chunk } from "../interfaces/index.js";
 
 const baseChunk: Chunk = {
-  content: "test content",
+  denseText: "test content",
+  sparseText: "test content",
+  contextText: "test content",
+  denseTextHash: "abcd1234abcd1234",
   metadata: { type: "test" },
   sourceFile: "test.txt",
   commitHash: "abc123",
@@ -11,7 +14,10 @@ const baseChunk: Chunk = {
 
 const mockChunker: FileChunker = {
   name: "test",
+  version: "1.0.0",
   patterns: ["**/*.txt"],
+  sparseTextId: "test@1.0.0:default",
+  contextTextHash: "test@1.0.0:ctx:default",
   chunk: vi.fn().mockResolvedValue([baseChunk]),
 };
 
@@ -21,7 +27,7 @@ describe("ChunkProcessor", () => {
     expect(processor).toBeInstanceOf(ChunkProcessor);
   });
 
-  it("processFile: populates contentHash, sourceFile, and commitHash on returned chunks", async () => {
+  it("processFile: populates denseTextHash, sourceFile, and commitHash on returned chunks", async () => {
     const processor = new ChunkProcessor([mockChunker]);
     const chunks = await processor.processFile(
       "file.txt",
@@ -30,9 +36,9 @@ describe("ChunkProcessor", () => {
     );
 
     expect(chunks).toHaveLength(1);
-    expect(chunks[0].contentHash).toBeDefined();
-    expect(typeof chunks[0].contentHash).toBe("string");
-    expect(chunks[0].contentHash!.length).toBe(16);
+    expect(chunks[0].denseTextHash).toBeDefined();
+    expect(typeof chunks[0].denseTextHash).toBe("string");
+    expect(chunks[0].denseTextHash!.length).toBe(16);
     expect(chunks[0].sourceFile).toBe("file.txt");
     expect(chunks[0].commitHash).toBe("hash123");
   });
@@ -40,7 +46,10 @@ describe("ChunkProcessor", () => {
   it("processFile: returns empty array when chunker returns no chunks", async () => {
     const emptyChunker: FileChunker = {
       name: "empty",
+      version: "1.0.0",
       patterns: ["**/*.txt"],
+      sparseTextId: "empty@1.0.0:default",
+      contextTextHash: "empty@1.0.0:ctx:default",
       chunk: vi.fn().mockResolvedValue([]),
     };
     const processor = new ChunkProcessor([emptyChunker]);
@@ -55,7 +64,10 @@ describe("ChunkProcessor", () => {
   it("processFile: propagates errors from chunker", async () => {
     const failingChunker: FileChunker = {
       name: "fail",
+      version: "1.0.0",
       patterns: ["**/*.txt"],
+      sparseTextId: "fail@1.0.0:default",
+      contextTextHash: "fail@1.0.0:ctx:default",
       chunk: vi.fn().mockRejectedValue(new Error("chunker failed")),
     };
     const processor = new ChunkProcessor([failingChunker]);
@@ -87,7 +99,10 @@ describe("ChunkProcessor", () => {
   it("processFiles: continues processing remaining files when one throws", async () => {
     const failingChunker: FileChunker = {
       name: "fail",
+      version: "1.0.0",
       patterns: ["**/*.txt"],
+      sparseTextId: "fail@1.0.0:default",
+      contextTextHash: "fail@1.0.0:ctx:default",
       chunk: vi.fn().mockRejectedValue(new Error("chunker failed")),
     };
     const processor = new ChunkProcessor([mockChunker, failingChunker]);

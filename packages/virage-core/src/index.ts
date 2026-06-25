@@ -27,6 +27,11 @@ export {
   withRetry,
   withConcurrency,
 } from "./core/utils.js";
+export {
+  makeDenseText,
+  makeSparseText,
+  computeDenseTextHash,
+} from "./core/chunk-utils.js";
 export { rrfMerge } from "./core/rrf.js";
 export type { RetryOptions } from "./core/utils.js";
 
@@ -47,27 +52,6 @@ export {
   IGNORED_DIRS,
   DEFAULT_EXCLUDE_PATTERNS,
 } from "./core/virage-defaults.js";
-
-/**
- * Chunking strategies.
- *
- * @deprecated Import from `@vivantel/virage-strategies` instead:
- * ```ts
- * import { tokenStrategy } from '@vivantel/virage-strategies';
- * ```
- * Direct exports from `@vivantel/virage-core` will be removed in v3.0.
- */
-export {
-  tokenStrategy,
-  markdownHeadersStrategy,
-  semanticStrategy,
-  wholeFileStrategy,
-} from "./strategies/chunk/index.js";
-export type { TokenStrategyOptions } from "./strategies/chunk/token.js";
-
-// Helpers
-export { createChunker } from "./helpers/create-chunker.js";
-export { computeChunkQualityMetrics } from "./strategies/chunk/quality-metrics.js";
 
 // Embeddings I/O
 export {

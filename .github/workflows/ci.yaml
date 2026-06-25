@@ -35,12 +35,6 @@ jobs:
               - 'package.json'
               - 'package-lock.json'
               - '.github/workflows/ci.yaml'
-            virage-strategies:
-              - 'packages/virage-strategies/**'
-              - 'eslint.config.js'
-              - 'package.json'
-              - 'package-lock.json'
-              - '.github/workflows/ci.yaml'
             virage-embedder-openai:
               - 'packages/virage-embedder-openai/**'
               - 'eslint.config.js'

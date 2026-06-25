@@ -78,7 +78,7 @@ export class CrossEncoderReranker implements Reranker {
     // ms-marco cross-encoders return one logit per pair; batching reduces
     // N ONNX inference calls to 1 with no effect on scores.
     const queries = candidates.map(() => query);
-    const docs = candidates.map((c) => c.content);
+    const docs = candidates.map((c) => c.denseText);
     const inputs = tokenizer(queries, {
       text_pair: docs,
       padding: true,

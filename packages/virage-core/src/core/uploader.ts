@@ -5,16 +5,8 @@ import {
 } from "../interfaces/index.js";
 import type { Logger } from "../interfaces/logger.js";
 import { NullLogger } from "../logger/null-logger.js";
-import { createHash } from "crypto";
 import { withRetry, RetryOptions } from "./utils.js";
 import { VirageDb } from "./virage-db.js";
-
-function contentHash(chunk: EmbeddedChunk): string {
-  return (
-    chunk.contentHash ??
-    createHash("sha256").update(chunk.content).digest("hex").slice(0, 16)
-  );
-}
 
 export function isFatalVectorStoreError(err: unknown): boolean {
   const msg = String(err instanceof Error ? err.message : err).toLowerCase();
@@ -41,31 +33,31 @@ export class Uploader {
     chunk: EmbeddedChunk,
     collection?: string,
   ): VectorDocument {
-    const hash = contentHash(chunk);
     return {
-      id: hash,
-      content: chunk.content,
-      metadata: { ...chunk.metadata, contentHash: hash },
-      embedding: chunk.embedding,
+      id: chunk.denseTextHash,
+      denseText: chunk.denseText,
+      sparseText: chunk.sparseText,
+      contextText: chunk.contextText,
+      denseTextHash: chunk.denseTextHash,
+      metadata: chunk.metadata as unknown as Record<string, unknown>,
+      denseVector: chunk.denseVector,
       sourceFile: chunk.sourceFile,
       commitHash: chunk.commitHash,
-      contentHash: hash,
       collection,
     };
   }
 
   /**
-   * Deduplicates chunks by content hash before upsert. Multiple source files can
-   * produce chunks with identical content (and therefore the same id), which causes
+   * Deduplicates chunks by denseTextHash before upsert. Multiple source files can
+   * produce chunks with identical denseText (and therefore the same id), which causes
    * LanceDB's mergeInsert to reject the batch. We keep only the first occurrence per
-   * id but still mark ALL hashes as uploaded so SQLite doesn't re-queue the dupes.
+   * id but still delete ALL hashes from SQLite so they don't get re-queued.
    */
-  private deduplicateByContentHash(chunks: EmbeddedChunk[]): EmbeddedChunk[] {
+  private deduplicateByHash(chunks: EmbeddedChunk[]): EmbeddedChunk[] {
     const seen = new Set<string>();
     return chunks.filter((c) => {
-      const h = contentHash(c);
-      if (seen.has(h)) return false;
-      seen.add(h);
+      if (seen.has(c.denseTextHash)) return false;
+      seen.add(c.denseTextHash);
       return true;
     });
   }
@@ -189,10 +181,10 @@ export class Uploader {
    */
   async upsertBatch(db: VirageDb, chunks: EmbeddedChunk[]): Promise<void> {
     if (chunks.length === 0) return;
-    const unique = this.deduplicateByContentHash(chunks);
+    const unique = this.deduplicateByHash(chunks);
     if (unique.length < chunks.length) {
       this.logger.debug(
-        `  Deduped ${chunks.length - unique.length} chunk(s) with shared content hash`,
+        `  Deduped ${chunks.length - unique.length} chunk(s) with shared denseTextHash`,
       );
     }
     const documents = unique.map((e) => this.chunkToDocument(e));
@@ -205,8 +197,7 @@ export class Uploader {
       this.logger,
     );
     // Delete staging rows for ALL hashes (including deduped ones) — SQLite is a pure buffer.
-    const hashes = chunks.map((e) => contentHash(e));
-    db.deleteChunks(hashes);
+    db.deleteChunks(chunks.map((e) => e.denseTextHash));
   }
 
   async uploadPending(
@@ -222,7 +213,7 @@ export class Uploader {
     let uploaded = 0;
     for (let i = 0; i < pending.length; i += batchSize) {
       const batch = pending.slice(i, i + batchSize);
-      const unique = this.deduplicateByContentHash(batch);
+      const unique = this.deduplicateByHash(batch);
       const documents = unique.map((e) => this.chunkToDocument(e));
       await withRetry(
         () => this.vectorStore.upsert(documents),
@@ -232,7 +223,7 @@ export class Uploader {
         },
         this.logger,
       );
-      db.deleteChunks(batch.map((e) => contentHash(e)));
+      db.deleteChunks(batch.map((e) => e.denseTextHash));
       uploaded += batch.length;
       onProgress?.(uploaded, pending.length);
     }
@@ -280,7 +271,7 @@ export class Uploader {
       let uploaded = 0;
       for (let i = 0; i < toUpload.length; i += batchSize) {
         const batch = toUpload.slice(i, i + batchSize);
-        const unique = this.deduplicateByContentHash(batch);
+        const unique = this.deduplicateByHash(batch);
         const documents = unique.map((e) => this.chunkToDocument(e));
         await withRetry(
           () => this.vectorStore.upsert(documents),
@@ -290,7 +281,7 @@ export class Uploader {
           },
           this.logger,
         );
-        db.deleteChunks(batch.map((e) => contentHash(e)));
+        db.deleteChunks(batch.map((e) => e.denseTextHash));
         uploaded += batch.length;
         onProgress?.(uploaded, toUpload.length);
         const batchNum = Math.floor(i / batchSize) + 1;
@@ -298,9 +289,7 @@ export class Uploader {
           `  Batch ${batchNum}/${totalBatches}: ${batch.length} docs`,
         );
         this.logger.silly(
-          `  IDs: ${batch
-            .map((d) => d.contentHash?.slice(0, 8) ?? "?")
-            .join(", ")}`,
+          `  IDs: ${batch.map((d) => d.denseTextHash.slice(0, 8)).join(", ")}`,
         );
       }
     }

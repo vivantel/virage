@@ -74,15 +74,17 @@ export class LanceDBVectorStore implements VectorStore {
 
     const schema = new Schema([
       new Field("id", new Utf8()),
-      new Field("content", new Utf8()),
+      new Field("dense_text", new Utf8()),
+      new Field("sparse_text", new Utf8()),
+      new Field("context_text", new Utf8()),
+      new Field("dense_text_hash", new Utf8()),
       new Field(
-        "embedding",
+        "dense_vector",
         new FixedSizeList(this.dimensions, new Field("item", new Float32())),
       ),
       new Field("metadata_json", new Utf8()),
       new Field("source_file", new Utf8()),
       new Field("commit_hash", new Utf8()),
-      new Field("content_hash", new Utf8()),
     ]);
 
     const tableNames: string[] = await this.db.tableNames();
@@ -90,20 +92,17 @@ export class LanceDBVectorStore implements VectorStore {
 
     if (tableNames.includes(this.tableName)) {
       const existing = await this.db.openTable(this.tableName);
-      // schema() is an async method in LanceDB 0.18+; must be called and awaited
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const existingSchema = await (existing as any).schema();
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const embField = (existingSchema as any).fields?.find(
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (f: any) => f.name === "embedding",
-      );
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const existingDims: number | undefined = (embField?.type as any)
-        ?.listSize;
-      if (existingDims !== undefined && existingDims !== this.dimensions) {
+      const fields = (existingSchema as any).fields as Array<{
+        name: string;
+        type: { listSize?: number };
+      }>;
+      const hasOldSchema = fields?.some((f) => f.name === "content");
+      if (hasOldSchema) {
         this.logger?.warn(
-          `LanceDB dimension mismatch (${existingDims}→${this.dimensions}), dropping and recreating tables`,
+          `LanceDB schema changed (content → dense_text): dropping table, re-index required.`,
         );
         await this.db.dropTable(this.tableName);
         if (tableNames.includes(metaTableName)) {
@@ -111,7 +110,22 @@ export class LanceDBVectorStore implements VectorStore {
         }
         this.table = await this.db.createEmptyTable(this.tableName, schema);
       } else {
-        this.table = existing;
+        const vecField = fields?.find((f) => f.name === "dense_vector");
+        const existingDims: number | undefined = (
+          vecField?.type as { listSize?: number }
+        )?.listSize;
+        if (existingDims !== undefined && existingDims !== this.dimensions) {
+          this.logger?.warn(
+            `LanceDB dimension mismatch (${existingDims}→${this.dimensions}), dropping and recreating tables`,
+          );
+          await this.db.dropTable(this.tableName);
+          if (tableNames.includes(metaTableName)) {
+            await this.db.dropTable(metaTableName);
+          }
+          this.table = await this.db.createEmptyTable(this.tableName, schema);
+        } else {
+          this.table = existing;
+        }
       }
     } else {
       this.table = await this.db.createEmptyTable(this.tableName, schema);
@@ -124,11 +138,11 @@ export class LanceDBVectorStore implements VectorStore {
     // correctly even when the store is initialised from a downloaded archive.
     try {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      await (this.table as any).createIndex("content", {
+      await (this.table as any).createIndex("sparse_text", {
         config: lancedb.Index.fts(),
       });
       this.ftsIndexCreated = true;
-      this.logger?.debug("FTS index created on 'content'");
+      this.logger?.debug("FTS index created on 'sparse_text'");
     } catch {
       // createIndex throws when the index already exists; check the index list
       // to distinguish "already there" from a genuine failure.
@@ -139,14 +153,14 @@ export class LanceDBVectorStore implements VectorStore {
         this.ftsIndexCreated = indices.some(
           (i) =>
             i.indexType?.toUpperCase() === "FTS" ||
-            i.name?.toLowerCase().includes("content"),
+            i.name?.toLowerCase().includes("sparse_text"),
         );
       } catch {
         this.ftsIndexCreated = false;
       }
       this.logger?.debug(
         this.ftsIndexCreated
-          ? "FTS index already exists on 'content'"
+          ? "FTS index already exists on 'sparse_text'"
           : "FTS index not available",
       );
     }
@@ -177,13 +191,15 @@ export class LanceDBVectorStore implements VectorStore {
       `Upserting ${documents.length} docs into "${this.tableName}"`,
     );
     const rows = documents.map((doc) => ({
-      id: doc.id ?? crypto.randomUUID(),
-      content: doc.content,
-      embedding: doc.embedding,
+      id: doc.id ?? doc.denseTextHash,
+      dense_text: doc.denseText,
+      sparse_text: doc.sparseText,
+      context_text: doc.contextText,
+      dense_text_hash: doc.denseTextHash,
+      dense_vector: doc.denseVector,
       metadata_json: JSON.stringify(doc.metadata),
       source_file: doc.sourceFile,
       commit_hash: doc.commitHash,
-      content_hash: doc.contentHash,
     }));
 
     this.logger?.trace(
@@ -253,7 +269,10 @@ export class LanceDBVectorStore implements VectorStore {
       })();
       return {
         id: typeof row.id === "string" ? row.id : "",
-        content: typeof row.content === "string" ? row.content : "",
+        denseText: typeof row.dense_text === "string" ? row.dense_text : "",
+        sparseText: typeof row.sparse_text === "string" ? row.sparse_text : "",
+        contextText:
+          typeof row.context_text === "string" ? row.context_text : "",
         metadata,
         similarity: 1 - distance,
         sourceFile:
@@ -269,7 +288,7 @@ export class LanceDBVectorStore implements VectorStore {
     try {
       const rows = await this.table
         .vectorSearch(queryEmbedding)
-        .column("embedding")
+        .column("dense_vector")
         .distanceType("cosine")
         .limit(fetchLimit)
         .toArray();
@@ -302,7 +321,10 @@ export class LanceDBVectorStore implements VectorStore {
         .toArray();
       return (rows as Record<string, unknown>[]).map((row) => ({
         id: typeof row.id === "string" ? row.id : "",
-        content: typeof row.content === "string" ? row.content : "",
+        denseText: typeof row.dense_text === "string" ? row.dense_text : "",
+        sparseText: typeof row.sparse_text === "string" ? row.sparse_text : "",
+        contextText:
+          typeof row.context_text === "string" ? row.context_text : "",
         metadata: (() => {
           try {
             const p: unknown =
@@ -400,7 +422,7 @@ export class LanceDBVectorStore implements VectorStore {
         const fields = (tableSchema as any)?.fields as
           | Array<{ name: string; type: { listSize?: number } }>
           | undefined;
-        const embField = fields?.find((f) => f.name === "embedding");
+        const embField = fields?.find((f) => f.name === "dense_vector");
         const schemaDims = embField?.type?.listSize;
         if (typeof schemaDims === "number") {
           return {

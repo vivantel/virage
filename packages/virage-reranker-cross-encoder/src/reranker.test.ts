@@ -17,10 +17,17 @@ vi.mock("@huggingface/transformers", () => ({
 
 function makeCandidate(
   id: string,
-  content: string,
+  denseText: string,
   similarity = 0.5,
 ): VectorSearchResult {
-  return { id, content, similarity, metadata: {} };
+  return {
+    id,
+    denseText,
+    sparseText: "",
+    contextText: "",
+    similarity,
+    metadata: {},
+  };
 }
 
 describe("CrossEncoderReranker", () => {

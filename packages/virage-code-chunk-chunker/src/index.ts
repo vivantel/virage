@@ -1,17 +1,25 @@
+import { readFile } from "fs/promises";
 import {
   chunk as codeChunk,
   detectLanguage,
   UnsupportedLanguageError,
 } from "code-chunk";
 import type { Chunk as CodeChunk, ChunkOptions } from "code-chunk";
-import type {
-  ChunkStrategy,
-  Chunk,
-  ChunkQualityMetrics,
-} from "@vivantel/virage-core";
-import { computeChunkQualityMetrics } from "@vivantel/virage-core";
+import type { FileChunker, Chunk } from "@vivantel/virage-core";
+import { computeDenseTextHash, makeDenseText } from "@vivantel/virage-core";
+import { createHash } from "crypto";
 
-export interface CodeChunkStrategyOptions {
+const VERSION = "0.1.42";
+
+const SUPPORTED_EXTENSIONS = [
+  "**/*.{js,mjs,cjs,ts,tsx,jsx}",
+  "**/*.{py,rb,go,rs,java,kt,scala}",
+  "**/*.{c,cpp,cc,cxx,h,hpp}",
+  "**/*.{cs,swift,m,mm}",
+  "**/*.{php,lua,sh,bash,zsh}",
+];
+
+export interface CodeChunkOptions {
   /** Maximum size of each chunk in bytes (default: 1500) */
   maxChunkSize?: number;
   /** How much context to include (default: "full") */
@@ -23,25 +31,42 @@ export interface CodeChunkStrategyOptions {
   /** Number of lines to overlap from the previous chunk (default: 0) */
   overlapLines?: number;
   /**
-   * Use `contextualizedText` (scope chain + entity signatures prepended)
-   * instead of raw `text` as chunk content. Produces richer embeddings. (default: false)
+   * When true, `denseText` uses the scope-contextualized form (prepends
+   * scope chain + sibling signatures) instead of raw body. Produces richer
+   * embeddings at the cost of slightly longer texts. (default: false)
    */
   useContextualizedText?: boolean;
 }
 
-export function codeChunkStrategy(
-  options: CodeChunkStrategyOptions = {},
-): ChunkStrategy {
+function optionsFingerprint(opts: CodeChunkOptions): string {
+  const { useContextualizedText: _unused, ...sparseOpts } = opts;
+  void _unused;
+  return createHash("sha256")
+    .update(JSON.stringify(sparseOpts))
+    .digest("hex")
+    .slice(0, 16);
+}
+
+export function createChunker(options: CodeChunkOptions = {}): FileChunker {
   const { useContextualizedText = false, ...chunkOptions } =
-    options as CodeChunkStrategyOptions & ChunkOptions;
+    options as CodeChunkOptions & ChunkOptions;
+
+  const sparseId = `code-chunk-ast@${VERSION}:${optionsFingerprint(options)}`;
+  const ctxHash = `code-chunk-ast@${VERSION}:ctx:${optionsFingerprint(options)}`;
 
   return {
     name: "code-chunk-ast",
+    version: VERSION,
+    patterns: SUPPORTED_EXTENSIONS,
+    sparseTextId: sparseId,
+    contextTextHash: ctxHash,
 
-    async chunk(text: string, filePath?: string): Promise<Chunk[]> {
-      if (!filePath) {
-        return [];
-      }
+    async canProcess(filePath: string): Promise<boolean> {
+      return detectLanguage(filePath) !== null;
+    },
+
+    async chunk(filePath: string, commitHash: string): Promise<Chunk[]> {
+      const text = await readFile(filePath, "utf-8");
 
       let results: CodeChunk[];
       try {
@@ -53,38 +78,28 @@ export function codeChunkStrategy(
         throw err;
       }
 
-      return results.map((c, i) => ({
-        content: useContextualizedText ? c.contextualizedText : c.text,
-        metadata: {
-          strategy: "code-chunk-ast",
-          chunk_index: i,
-          source_file: filePath,
-          total_chunks: c.totalChunks,
-          scope: c.context.scope,
-          entities: c.context.entities,
-        },
-        sourceFile: filePath,
-        commitHash: "",
-      }));
-    },
+      return results.map((c, i) => {
+        const sparseText = c.text;
+        const contextText = c.contextualizedText;
+        const breadcrumb = c.context.scope.map((s) => s.name);
+        const denseText = useContextualizedText
+          ? contextText
+          : makeDenseText(breadcrumb, sparseText);
 
-    extractMetadata(_text: string, filePath?: string): Record<string, unknown> {
-      const language = filePath ? detectLanguage(filePath) : null;
-      return {
-        strategy: "code-chunk-ast",
-        language: language ?? "unknown",
-        supported: language !== null,
-      };
-    },
-
-    getQualityMetrics(chunks: Chunk[]): ChunkQualityMetrics {
-      return computeChunkQualityMetrics(chunks);
+        return {
+          denseText,
+          sparseText,
+          contextText,
+          denseTextHash: computeDenseTextHash(denseText),
+          metadata: {
+            strategy: "code-chunk-ast",
+            chunkIndex: i,
+            totalChunks: c.totalChunks,
+          } as import("@vivantel/virage-core").ChunkMeta,
+          sourceFile: filePath,
+          commitHash,
+        };
+      });
     },
   };
 }
-
-export const ragPlugin = {
-  name: "code-chunk-ast",
-  type: "chunker" as const,
-  factory: () => codeChunkStrategy(),
-};

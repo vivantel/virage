@@ -1,11 +1,6 @@
 import { Chunk, FileChunker } from "../interfaces/index.js";
 import type { Logger } from "../interfaces/logger.js";
 import { NullLogger } from "../logger/null-logger.js";
-import { createHash } from "crypto";
-
-function computeContentHash(content: string): string {
-  return createHash("sha256").update(content).digest("hex").slice(0, 16);
-}
 
 export class ChunkProcessor {
   private chunkers: Map<string, FileChunker>;
@@ -25,7 +20,6 @@ export class ChunkProcessor {
     const chunks = await chunker.chunk(normalizedPath, commitHash);
 
     for (const chunk of chunks) {
-      chunk.contentHash = computeContentHash(chunk.content);
       chunk.sourceFile = normalizedPath;
       chunk.commitHash = commitHash;
     }
@@ -64,7 +58,7 @@ export class ChunkProcessor {
           this.logger.verbose(`  ✅ ${chunks.length} chunk(s)`);
           for (let j = 0; j < chunks.length; j++) {
             this.logger.debug(
-              `  Chunk ${j}: contentHash=${chunks[j].contentHash} len=${chunks[j].content.length}`,
+              `  Chunk ${j}: denseTextHash=${chunks[j].denseTextHash} len=${chunks[j].denseText.length}`,
             );
           }
         } else {

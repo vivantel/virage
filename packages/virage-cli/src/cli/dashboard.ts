@@ -161,7 +161,7 @@ async function getChunksHistogram(dbPath: string) {
     const db = new VirageDb(dbPath);
     const chunks = db.getAllChunks();
     db.close();
-    const sizes = chunks.map((c) => c.content?.length ?? 0);
+    const sizes = chunks.map((c) => c.denseText?.length ?? 0);
     const buckets = [
       { label: "< 200 chars", min: 0, max: 200 },
       { label: "200–500 chars", min: 200, max: 500 },
@@ -187,7 +187,7 @@ async function getAnomalies(dbPath: string) {
     if (chunks.length === 0) return { anomalies: [] };
     const norms = chunks.map((c) =>
       Math.sqrt(
-        (c.embedding ?? []).reduce((s: number, v: number) => s + v * v, 0),
+        (c.denseVector ?? []).reduce((s: number, v: number) => s + v * v, 0),
       ),
     );
     const mean = norms.reduce((s, v) => s + v, 0) / norms.length;
@@ -198,7 +198,7 @@ async function getAnomalies(dbPath: string) {
       .map((c, i) => ({
         sourceFile: c.sourceFile ?? "unknown",
         zscore: std > 0 ? Math.abs(norms[i] - mean) / std : 0,
-        preview: (c.content ?? "").slice(0, 60),
+        preview: (c.denseText ?? "").slice(0, 60),
       }))
       .filter((a) => a.zscore > 2.5)
       .sort((a, b) => b.zscore - a.zscore);

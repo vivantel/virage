@@ -2,7 +2,6 @@
  * Embedding provider interfaces
  */
 
-import { Chunk } from "./chunker.js";
 import type { EmbeddingMetrics } from "./quality.js";
 
 export interface EmbeddingProvider {
@@ -55,11 +54,6 @@ export interface EmbeddingConfig {
   rateLimitMs?: number;
 }
 
-export interface EmbeddedChunk extends Chunk {
-  embedding: number[];
-  embeddedAt: number;
-}
-
 /** Metadata stored in the embeddings SQLite DB to detect model/store changes across runs. */
 export interface EmbeddingsMeta {
   schemaVersion: number;
@@ -73,10 +67,4 @@ export interface EmbeddingsMeta {
   vectorStoreName?: string;
   createdAt: number;
   updatedAt: number;
-}
-
-/** The legacy JSON on-disk format (v2+) used for migration. Current storage is SQLite via VirageDb. */
-export interface EmbeddingsFileFormat {
-  _meta: EmbeddingsMeta;
-  chunks: EmbeddedChunk[];
 }

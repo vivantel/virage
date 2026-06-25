@@ -88,30 +88,41 @@ export class PostgresVectorStore implements VectorStore {
     try {
       await pgvector.registerTypes(client);
       await client.query("CREATE EXTENSION IF NOT EXISTS vector");
+      // Old-schema detection: content column means pre-four-artifact schema; drop and re-index.
+      const { rows: cols } = await client.query<{ column_name: string }>(
+        `SELECT column_name FROM information_schema.columns
+         WHERE table_name = $1 AND column_name = 'content'`,
+        [this.table],
+      );
+      if (cols.length > 0) {
+        await client.query(`DROP TABLE IF EXISTS ${this.table}`);
+        this.logger?.warn(
+          `Postgres schema changed (content → dense_text): table dropped, re-index required.`,
+        );
+      }
       await client.query(`
         CREATE TABLE IF NOT EXISTS ${this.table} (
           id SERIAL PRIMARY KEY,
-          content TEXT NOT NULL,
-          embedding vector(${this.dimensions}),
+          dense_text TEXT NOT NULL,
+          sparse_text TEXT NOT NULL,
+          context_text TEXT NOT NULL,
+          dense_text_hash TEXT NOT NULL,
+          dense_vector vector(${this.dimensions}),
           metadata JSONB,
           source_file TEXT NOT NULL,
           commit_hash TEXT NOT NULL,
           ingested_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
         )
       `);
+      // FTS column for hybrid search — generated on sparse_text, always up-to-date
       await client.query(`
         ALTER TABLE ${this.table}
-        ADD COLUMN IF NOT EXISTS ingested_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-      `);
-      // FTS column for hybrid search — generated, always up-to-date
-      await client.query(`
-        ALTER TABLE ${this.table}
-        ADD COLUMN IF NOT EXISTS content_tsv tsvector
-          GENERATED ALWAYS AS (to_tsvector('english', content)) STORED
+        ADD COLUMN IF NOT EXISTS sparse_text_tsv tsvector
+          GENERATED ALWAYS AS (to_tsvector('english', sparse_text)) STORED
       `);
       await client.query(`
         CREATE INDEX IF NOT EXISTS ${this.table}_tsv_idx
-        ON ${this.table} USING gin(content_tsv)
+        ON ${this.table} USING gin(sparse_text_tsv)
       `);
       await client.query(this.buildIndexSQL());
       this.logger?.debug(
@@ -123,13 +134,7 @@ export class PostgresVectorStore implements VectorStore {
   }
 
   async upsert(
-    docs: Array<{
-      content: string;
-      embedding: number[];
-      metadata: Record<string, unknown>;
-      sourceFile: string;
-      commitHash: string;
-    }>,
+    docs: import("@vivantel/virage-core").VectorDocument[],
   ): Promise<void> {
     if (docs.length === 0) return;
 
@@ -141,11 +146,16 @@ export class PostgresVectorStore implements VectorStore {
       for (const doc of docs) {
         this.logger?.trace(`  source_file: ${doc.sourceFile}`);
         await client.query(
-          `INSERT INTO ${this.table} (content, embedding, metadata, source_file, commit_hash)
-           VALUES ($1, $2, $3, $4, $5)`,
+          `INSERT INTO ${this.table}
+             (dense_text, sparse_text, context_text, dense_text_hash, dense_vector, metadata, source_file, commit_hash)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+           ON CONFLICT DO NOTHING`,
           [
-            doc.content,
-            pgvector.toSql(doc.embedding),
+            doc.denseText,
+            doc.sparseText,
+            doc.contextText,
+            doc.denseTextHash,
+            pgvector.toSql(doc.denseVector),
             JSON.stringify(doc.metadata),
             doc.sourceFile,
             doc.commitHash,
@@ -179,14 +189,14 @@ export class PostgresVectorStore implements VectorStore {
   }
 
   private buildIndexSQL(): string {
-    const idxName = `${this.table}_embedding_idx`;
+    const idxName = `${this.table}_dense_vector_idx`;
     if (this.indexType === "hnsw") {
       const p = this.indexParams as HNSWParams;
       const m = p.m ?? 16;
       const efConstruction = p.efConstruction ?? 64;
       return (
         `CREATE INDEX IF NOT EXISTS ${idxName} ` +
-        `ON ${this.table} USING hnsw (embedding vector_cosine_ops) ` +
+        `ON ${this.table} USING hnsw (dense_vector vector_cosine_ops) ` +
         `WITH (m = ${m}, ef_construction = ${efConstruction})`
       );
     }
@@ -194,7 +204,7 @@ export class PostgresVectorStore implements VectorStore {
     const lists = p.lists ?? 100;
     return (
       `CREATE INDEX IF NOT EXISTS ${idxName} ` +
-      `ON ${this.table} USING ivfflat (embedding vector_cosine_ops) ` +
+      `ON ${this.table} USING ivfflat (dense_vector vector_cosine_ops) ` +
       `WITH (lists = ${lists})`
     );
   }
@@ -219,17 +229,19 @@ export class PostgresVectorStore implements VectorStore {
       const runVectorQuery = async () => {
         const { rows } = await client.query<{
           id: number;
-          content: string;
+          dense_text: string;
+          sparse_text: string;
+          context_text: string;
           metadata: Record<string, unknown>;
           source_file: string;
           similarity: number;
           ingested_at: Date | null;
         }>(
-          `SELECT id, content, metadata, source_file,
-                  1 - (embedding <=> $1) AS similarity,
+          `SELECT id, dense_text, sparse_text, context_text, metadata, source_file,
+                  1 - (dense_vector <=> $1) AS similarity,
                   ingested_at
            FROM ${this.table}
-           ORDER BY embedding <=> $1
+           ORDER BY dense_vector <=> $1
            LIMIT $2`,
           [pgvector.toSql(embedding), fetchLimit],
         );
@@ -243,7 +255,9 @@ export class PostgresVectorStore implements VectorStore {
             : 0;
           return {
             id: String(r.id),
-            content: r.content,
+            denseText: r.dense_text,
+            sparseText: r.sparse_text,
+            contextText: r.context_text,
             metadata: r.metadata,
             sourceFile: r.source_file,
             similarity: r.similarity,
@@ -265,22 +279,26 @@ export class PostgresVectorStore implements VectorStore {
         try {
           const { rows } = await client.query<{
             id: number;
-            content: string;
+            dense_text: string;
+            sparse_text: string;
+            context_text: string;
             metadata: Record<string, unknown>;
             source_file: string;
             fts_score: number;
           }>(
-            `SELECT id, content, metadata, source_file,
-                    ts_rank_cd(content_tsv, query) AS fts_score
+            `SELECT id, dense_text, sparse_text, context_text, metadata, source_file,
+                    ts_rank_cd(sparse_text_tsv, query) AS fts_score
              FROM ${this.table}, plainto_tsquery('english', $1) query
-             WHERE content_tsv @@ query
+             WHERE sparse_text_tsv @@ query
              ORDER BY fts_score DESC
              LIMIT $2`,
             [options!.queryText!, fetchLimit],
           );
           return rows.map((r) => ({
             id: String(r.id),
-            content: r.content,
+            denseText: r.dense_text,
+            sparseText: r.sparse_text,
+            contextText: r.context_text,
             metadata: r.metadata,
             sourceFile: r.source_file,
             similarity: r.fts_score,

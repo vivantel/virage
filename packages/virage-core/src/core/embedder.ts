@@ -7,7 +7,6 @@ import {
 import type { Logger } from "../interfaces/logger.js";
 import { NullLogger } from "../logger/null-logger.js";
 import { readFile } from "fs/promises";
-import { createHash } from "crypto";
 import { EmbedError } from "./errors.js";
 import {
   sleep,
@@ -18,11 +17,6 @@ import {
   RetryOptions,
 } from "./utils.js";
 import { VirageDb } from "./virage-db.js";
-
-function chunkContentHash(chunk: Chunk): string {
-  if (chunk.contentHash) return chunk.contentHash;
-  return createHash("sha256").update(chunk.content).digest("hex").slice(0, 16);
-}
 
 export class EmbedderProcessor {
   private provider: EmbeddingProvider;
@@ -66,31 +60,31 @@ export class EmbedderProcessor {
   }
 
   async embedChunk(chunk: Chunk): Promise<EmbeddedChunk> {
-    const embedding = await withRetry(
-      () => this.provider.embed(chunk.content),
+    const denseVector = await withRetry(
+      () => this.provider.embed(chunk.denseText),
       { ...this.retryOptions, isRetryable: defaultIsRetryable },
       this.logger,
     );
 
     return {
       ...chunk,
-      embedding,
+      denseVector,
       embeddedAt: Date.now() / 1000,
     };
   }
 
   async embedBatch(chunks: Chunk[]): Promise<EmbeddedChunk[]> {
     if (this.provider.embedBatch && chunks.length > 0) {
-      const texts = chunks.map((c) => c.content);
-      const embeddings = await withRetry(
+      const texts = chunks.map((c) => c.denseText);
+      const vectors = await withRetry(
         () => this.provider.embedBatch!(texts),
         { ...this.retryOptions, isRetryable: defaultIsRetryable },
         this.logger,
       );
 
-      if (embeddings.length !== chunks.length) {
+      if (vectors.length !== chunks.length) {
         throw new EmbedError(
-          `embedBatch returned ${embeddings.length} embeddings for ${chunks.length} chunks`,
+          `embedBatch returned ${vectors.length} embeddings for ${chunks.length} chunks`,
           {
             suggestion:
               "Check that your EmbeddingProvider.embedBatch() returns one vector per input text.",
@@ -100,7 +94,7 @@ export class EmbedderProcessor {
 
       return chunks.map((chunk, i) => ({
         ...chunk,
-        embedding: embeddings[i],
+        denseVector: vectors[i],
         embeddedAt: Date.now() / 1000,
       }));
     }
@@ -108,8 +102,7 @@ export class EmbedderProcessor {
     let completed = 0;
     const tasks = chunks.map((chunk) => async (): Promise<EmbeddedChunk> => {
       const label =
-        (chunk.metadata.event_type as string) ||
-        (chunk.metadata.title as string) ||
+        (chunk.metadata.sectionTitle as string | undefined) ||
         chunk.sourceFile.split("/").pop() ||
         "unknown";
 
@@ -117,7 +110,7 @@ export class EmbedderProcessor {
       completed++;
       this.logger.verbose(`[${completed}/${chunks.length}] ${label}`);
       this.logger.trace(
-        `  ${chunkContentHash(chunk)}: ${chunk.content.slice(0, 60).replace(/\n/g, " ")}`,
+        `  ${chunk.denseTextHash}: ${chunk.denseText.slice(0, 60).replace(/\n/g, " ")}`,
       );
 
       if (this.rateLimitMs > 0) {
@@ -141,7 +134,7 @@ export class EmbedderProcessor {
     const batches = batchBySize(
       chunks,
       this.batchSize,
-      (c) => c.content.length,
+      (c) => c.denseText.length,
       this.maxBatchChars,
     );
     const all: EmbeddedChunk[] = [];
@@ -198,19 +191,18 @@ export class EmbedderProcessor {
       }
     }
 
-    // Two-level index: (sourceFile::commitHash) → Set<contentHash> and global contentHash set
+    // Two-level index: (sourceFile::commitHash) → Set<denseTextHash> and global denseTextHash set
     const existingEmbeddings = db.getAll();
     const embeddedFileVersions = new Map<string, Set<string>>();
-    const embeddedByContentHash = new Set<string>();
+    const embeddedByHash = new Set<string>();
     for (const emb of existingEmbeddings) {
       const key = `${emb.sourceFile}::${emb.commitHash}`;
-      const hash = emb.contentHash || chunkContentHash(emb);
-      embeddedByContentHash.add(hash);
+      embeddedByHash.add(emb.denseTextHash);
       const entry = embeddedFileVersions.get(key);
       if (entry) {
-        entry.add(hash);
+        entry.add(emb.denseTextHash);
       } else {
-        embeddedFileVersions.set(key, new Set([hash]));
+        embeddedFileVersions.set(key, new Set([emb.denseTextHash]));
       }
     }
 
@@ -240,7 +232,7 @@ export class EmbedderProcessor {
       if (
         fileVersionHashes &&
         fileVersionHashes.size === fileChunks.length &&
-        fileChunks.every((c) => fileVersionHashes.has(chunkContentHash(c)))
+        fileChunks.every((c) => fileVersionHashes.has(c.denseTextHash))
       ) {
         skippedFiles++;
         skippedChunks += fileChunks.length;
@@ -248,7 +240,7 @@ export class EmbedderProcessor {
       }
 
       for (const chunk of fileChunks) {
-        if (!embeddedByContentHash.has(chunkContentHash(chunk))) {
+        if (!embeddedByHash.has(chunk.denseTextHash)) {
           chunksToEmbed.push(chunk);
         }
       }
@@ -317,13 +309,13 @@ export class EmbedderProcessor {
     const batches = batchBySize(
       chunksToEmbed,
       this.batchSize,
-      (c) => c.content.length,
+      (c) => c.denseText.length,
       this.maxBatchChars,
     );
     const newEmbeddings: EmbeddedChunk[] = [];
 
     for (let i = 0; i < batches.length; i++) {
-      const totalChars = batches[i].reduce((s, c) => s + c.content.length, 0);
+      const totalChars = batches[i].reduce((s, c) => s + c.denseText.length, 0);
       this.logger.debug(
         `Batch ${i + 1}/${batches.length}: ${batches[i].length} chunks, ~${totalChars} chars`,
       );

@@ -310,7 +310,11 @@ export class Orchestrator {
           const embedded = await embedder.embedChunks(batch);
           const embeddedAt = Math.floor(Date.now() / 1000);
           for (const chunk of embedded) {
-            db.updateEmbedding(chunk.contentHash!, chunk.embedding, embeddedAt);
+            db.updateDenseVector(
+              chunk.denseTextHash,
+              chunk.denseVector,
+              embeddedAt,
+            );
           }
           db.setMeta(newMeta);
           pendingUpload.push(...embedded);
@@ -340,9 +344,7 @@ export class Orchestrator {
               info.commitHash,
               info.chunker,
             );
-            for (const chunk of newChunks) {
-              chunk.metadata = { ...chunk.metadata, branch: currentBranch };
-            }
+            void currentBranch; // branch tracking removed from ChunkMeta
           } catch (err) {
             logger.error(
               `❌ Chunking failed for ${file}: ${
@@ -361,9 +363,9 @@ export class Orchestrator {
           try {
             filesStreamed++;
             db.replaceChunks(file, capturedChunks, info?.commitHash);
-            const alreadyEmbedded = db.getEmbeddedContentHashes(file);
+            const alreadyEmbedded = db.getEmbeddedDenseTextHashes(file);
             const chunksToEmbed = capturedChunks.filter(
-              (c) => !alreadyEmbedded.has(c.contentHash!),
+              (c) => !alreadyEmbedded.has(c.denseTextHash),
             );
             pendingEmbed.push(...chunksToEmbed);
             embedTotal += chunksToEmbed.length;

@@ -1,10 +1,11 @@
 import { readFile, writeFile, mkdir } from "fs/promises";
 import { dirname } from "path";
-import {
-  EmbeddedChunk,
-  EmbeddingsFileFormat,
-  EmbeddingsMeta,
-} from "../interfaces/index.js";
+import { EmbeddedChunk, EmbeddingsMeta } from "../interfaces/index.js";
+
+interface EmbeddingsFileFormat {
+  _meta: EmbeddingsMeta;
+  chunks: EmbeddedChunk[];
+}
 
 export interface EmbeddingsReadResult {
   meta: EmbeddingsMeta | null;

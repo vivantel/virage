@@ -12,20 +12,13 @@ describe("@vivantel/virage-core", () => {
     expect(module.Orchestrator).toBeDefined();
 
     // Utils
-    expect(module.computeContentHash).toBeDefined();
+    expect(module.makeDenseText).toBeDefined();
+    expect(module.makeSparseText).toBeDefined();
+    expect(module.computeDenseTextHash).toBeDefined();
     expect(module.sleep).toBeDefined();
     expect(module.batchArray).toBeDefined();
     expect(module.extractFileName).toBeDefined();
     expect(module.extractDirectory).toBeDefined();
-
-    // Strategies
-    expect(module.tokenStrategy).toBeDefined();
-    expect(module.markdownHeadersStrategy).toBeDefined();
-    expect(module.semanticStrategy).toBeDefined();
-    expect(module.wholeFileStrategy).toBeDefined();
-
-    // Helpers
-    expect(module.createChunker).toBeDefined();
 
     // Config loader
     expect(module.loadConfig).toBeDefined();

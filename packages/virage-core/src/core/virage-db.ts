@@ -1,16 +1,12 @@
-import { createHash } from "crypto";
-import {
-  existsSync,
-  mkdirSync,
-  readFileSync,
-  renameSync,
-  readdirSync,
-} from "fs";
+import { existsSync, mkdirSync, readFileSync, readdirSync } from "fs";
 import { dirname, join } from "path";
-import { rename } from "fs/promises";
 import Database from "better-sqlite3";
-import type { Chunk } from "../interfaces/index.js";
-import type { EmbeddedChunk, EmbeddingsMeta } from "../interfaces/index.js";
+import type {
+  Chunk,
+  EmbeddedChunk,
+  EmbeddingsMeta,
+} from "../interfaces/index.js";
+import type { ChunkMeta } from "../interfaces/artifact.js";
 import type { ExperimentRun, EvalDataset } from "../interfaces/quality.js";
 import type { PipelineRunData } from "./telemetry.js";
 import type {
@@ -22,29 +18,21 @@ import type {
   TelemetryCacheStatsRow,
 } from "../telemetry/types.js";
 
-function computeContentHash(content: string): string {
-  return createHash("sha256").update(content).digest("hex").slice(0, 16);
+function vectorToBlob(vector: number[]): Buffer {
+  return Buffer.from(new Float32Array(vector).buffer);
 }
 
-function chunkContentHash(chunk: Chunk | EmbeddedChunk): string {
-  return chunk.contentHash ?? computeContentHash(chunk.content);
-}
-
-function embeddingToBlob(embedding: number[]): Buffer {
-  return Buffer.from(new Float32Array(embedding).buffer);
-}
-
-function blobToEmbedding(blob: Buffer): number[] {
+function blobToVector(blob: Buffer): number[] {
   return Array.from(
     new Float32Array(blob.buffer, blob.byteOffset, blob.byteLength / 4),
   );
 }
 
-function parseMetadata(json: string): Record<string, unknown> {
+function parseChunkMeta(json: string): ChunkMeta {
   try {
-    return JSON.parse(json) as Record<string, unknown>;
+    return JSON.parse(json) as ChunkMeta;
   } catch {
-    return {};
+    return {} as ChunkMeta;
   }
 }
 
@@ -55,17 +43,19 @@ CREATE TABLE IF NOT EXISTS meta (
 );
 `;
 
-// embedding: raw IEEE-754 float32 little-endian bytes (~4× smaller than JSON).
-// NULL until embedded; cleared after upload to reclaim storage.
+// dense_vector: raw IEEE-754 float32 little-endian bytes (~4× smaller than JSON).
+// NULL until embedded; deleted after upload to reclaim storage.
 // file_revision: git blob SHA (content-addressed, stable across rebases).
 const CHUNKS_DDL = `
 CREATE TABLE IF NOT EXISTS chunks (
-  content_hash TEXT PRIMARY KEY,
+  dense_text_hash TEXT PRIMARY KEY,
   source_file TEXT NOT NULL,
   file_revision TEXT NOT NULL,
-  content TEXT NOT NULL,
+  dense_text TEXT NOT NULL,
+  sparse_text TEXT NOT NULL,
+  context_text TEXT NOT NULL,
   metadata_json TEXT NOT NULL,
-  embedding BLOB,
+  dense_vector BLOB,
   embedded_at INTEGER,
   uploaded INTEGER NOT NULL DEFAULT 0
 ) STRICT;
@@ -217,31 +207,26 @@ export class VirageDb {
 
   constructor(dbPath: string) {
     mkdirSync(dirname(dbPath), { recursive: true });
-
-    // Backward-compat: if virage.db doesn't exist but embeddings.db does, rename it.
-    const legacyPath = dbPath.replace(/virage\.db$/, "embeddings.db");
-    if (!existsSync(dbPath) && existsSync(legacyPath)) {
-      renameSync(legacyPath, dbPath);
-    }
-
     this.db = new Database(dbPath);
     this.db.pragma("journal_mode = WAL");
     this.db.exec(META_DDL);
 
-    const hasOldTable = this.db
+    // Old-schema detection: chunks table with a 'content' column is the pre-four-artifact schema.
+    // No migration — drop and require re-index.
+    const chunksTableRow = this.db
       .prepare(
-        "SELECT name FROM sqlite_master WHERE type='table' AND name='embeddings'",
+        "SELECT name FROM sqlite_master WHERE type='table' AND name='chunks'",
       )
       .get() as { name: string } | undefined;
-    if (hasOldTable) {
-      this.migrateFromEmbeddingsTable();
-    }
-
-    // Breaking schema change: drop chunks if it uses the old commit_hash column.
-    // Embeddings are preserved by content_hash; first run re-scans all files.
-    if (this.hasColumn("chunks", "commit_hash")) {
-      this.db.exec("DROP TABLE IF EXISTS chunks");
-      this.db.exec("DROP INDEX IF EXISTS idx_source_file");
+    if (chunksTableRow) {
+      const cols = this.db.pragma("table_info(chunks)") as Array<{
+        name: string;
+      }>;
+      if (cols.some((c) => c.name === "content")) {
+        this.db.exec("DROP TABLE IF EXISTS chunks");
+        this.db.exec("DROP INDEX IF EXISTS idx_source_file");
+        console.warn("[virage] chunks schema changed: re-index required.");
+      }
     }
 
     this.db.exec(CHUNKS_DDL);
@@ -251,91 +236,6 @@ export class VirageDb {
     this.db.exec(PIPELINE_RUNS_DDL);
     this.db.exec(TELEMETRY_DDL);
     this.db.exec(SEARCH_QUERIES_DDL);
-
-    const jsonPath = dbPath.replace(/\.db$/, ".json");
-    if (this.isEmpty() && existsSync(jsonPath)) {
-      this.migrateFromJson(jsonPath);
-    }
-  }
-
-  private isEmpty(): boolean {
-    const row = this.db.prepare("SELECT COUNT(*) as cnt FROM chunks").get() as {
-      cnt: number;
-    };
-    return row.cnt === 0;
-  }
-
-  private hasColumn(table: string, column: string): boolean {
-    const cols = this.db.pragma(`table_info(${table})`) as Array<{
-      name: string;
-    }>;
-    return cols.some((c) => c.name === column);
-  }
-
-  private migrateFromEmbeddingsTable(): void {
-    type OldRow = {
-      content_hash: string;
-      source_file: string;
-      commit_hash: string;
-      content: string;
-      metadata_json: string;
-      embedding_json: string;
-      embedded_at: number;
-      uploaded: number;
-    };
-
-    const rows = this.db.prepare("SELECT * FROM embeddings").all() as OldRow[];
-
-    const migrate = this.db.transaction(() => {
-      this.db
-        .prepare(
-          `
-        CREATE TABLE IF NOT EXISTS chunks (
-          content_hash TEXT PRIMARY KEY,
-          source_file TEXT NOT NULL,
-          file_revision TEXT NOT NULL,
-          content TEXT NOT NULL,
-          metadata_json TEXT NOT NULL,
-          embedding BLOB,
-          embedded_at INTEGER,
-          uploaded INTEGER NOT NULL DEFAULT 0
-        ) STRICT
-      `,
-        )
-        .run();
-
-      const stmt = this.db.prepare(`
-        INSERT OR IGNORE INTO chunks
-          (content_hash, source_file, file_revision, content, metadata_json, embedding, embedded_at, uploaded)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-      `);
-
-      for (const row of rows) {
-        let blob: Buffer | null = null;
-        if (row.embedding_json) {
-          try {
-            blob = embeddingToBlob(JSON.parse(row.embedding_json) as number[]);
-          } catch {
-            /* skip rows with invalid embedding JSON */
-          }
-        }
-        stmt.run(
-          row.content_hash,
-          row.source_file,
-          row.commit_hash,
-          row.content,
-          row.metadata_json,
-          blob,
-          row.embedded_at != null ? Math.floor(row.embedded_at) : null,
-          row.uploaded,
-        );
-      }
-
-      this.db.prepare("DROP TABLE embeddings").run();
-      this.db.prepare("DROP INDEX IF EXISTS idx_source_file").run();
-    });
-
-    migrate();
   }
 
   getMeta(): EmbeddingsMeta | null {
@@ -356,21 +256,36 @@ export class VirageDb {
       .run(JSON.stringify(meta));
   }
 
+  getMetaValue(key: string): string | null {
+    const row = this.db
+      .prepare("SELECT value FROM meta WHERE key = ?")
+      .get(key) as { value: string } | undefined;
+    return row?.value ?? null;
+  }
+
+  setMetaValue(key: string, value: string): void {
+    this.db
+      .prepare("INSERT OR REPLACE INTO meta (key, value) VALUES (?, ?)")
+      .run(key, value);
+  }
+
   // ── Streaming pipeline methods ─────────────────────────────────────────────
 
-  /** Insert chunk metadata only (no embedding yet). Safe to call inside a transaction. */
+  /** Insert chunk metadata only (no dense vector yet). Safe to call inside a transaction. */
   insertChunk(chunk: Chunk): void {
     this.db
       .prepare(
         `INSERT OR IGNORE INTO chunks
-           (content_hash, source_file, file_revision, content, metadata_json, embedding, embedded_at, uploaded)
-         VALUES (?, ?, ?, ?, ?, NULL, NULL, 0)`,
+           (dense_text_hash, source_file, file_revision, dense_text, sparse_text, context_text, metadata_json, dense_vector, embedded_at, uploaded)
+         VALUES (?, ?, ?, ?, ?, ?, ?, NULL, NULL, 0)`,
       )
       .run(
-        chunkContentHash(chunk),
+        chunk.denseTextHash,
         chunk.sourceFile,
         chunk.commitHash,
-        chunk.content,
+        chunk.denseText,
+        chunk.sparseText,
+        chunk.contextText,
         JSON.stringify(chunk.metadata),
       );
   }
@@ -379,16 +294,18 @@ export class VirageDb {
   insertChunks(chunks: Chunk[]): void {
     const stmt = this.db.prepare(
       `INSERT OR IGNORE INTO chunks
-         (content_hash, source_file, file_revision, content, metadata_json, embedding, embedded_at, uploaded)
-       VALUES (?, ?, ?, ?, ?, NULL, NULL, 0)`,
+         (dense_text_hash, source_file, file_revision, dense_text, sparse_text, context_text, metadata_json, dense_vector, embedded_at, uploaded)
+       VALUES (?, ?, ?, ?, ?, ?, ?, NULL, NULL, 0)`,
     );
     const insertAll = this.db.transaction((items: Chunk[]) => {
       for (const chunk of items) {
         stmt.run(
-          chunkContentHash(chunk),
+          chunk.denseTextHash,
           chunk.sourceFile,
           chunk.commitHash,
-          chunk.content,
+          chunk.denseText,
+          chunk.sparseText,
+          chunk.contextText,
           JSON.stringify(chunk.metadata),
         );
       }
@@ -396,26 +313,26 @@ export class VirageDb {
     insertAll(chunks);
   }
 
-  /** Store the embedding for a previously inserted chunk. */
-  updateEmbedding(
-    contentHash: string,
-    embedding: number[],
+  /** Store the dense vector for a previously inserted chunk. */
+  updateDenseVector(
+    denseTextHash: string,
+    denseVector: number[],
     embeddedAt: number,
   ): void {
     this.db
       .prepare(
-        "UPDATE chunks SET embedding = ?, embedded_at = ? WHERE content_hash = ?",
+        "UPDATE chunks SET dense_vector = ?, embedded_at = ? WHERE dense_text_hash = ?",
       )
-      .run(embeddingToBlob(embedding), Math.floor(embeddedAt), contentHash);
+      .run(vectorToBlob(denseVector), Math.floor(embeddedAt), denseTextHash);
   }
 
-  /** Clear embedding data after upload to reclaim storage. */
-  clearEmbedding(contentHash: string): void {
+  /** Clear dense vector after upload to reclaim storage. */
+  clearDenseVector(denseTextHash: string): void {
     this.db
       .prepare(
-        "UPDATE chunks SET embedding = NULL, embedded_at = NULL WHERE content_hash = ?",
+        "UPDATE chunks SET dense_vector = NULL, embedded_at = NULL WHERE dense_text_hash = ?",
       )
-      .run(contentHash);
+      .run(denseTextHash);
   }
 
   /** Delete all chunks for a source file (called before re-chunking a changed file). */
@@ -428,7 +345,7 @@ export class VirageDb {
 
   /**
    * Atomically replace all chunks for a source file with a new set,
-   * preserving existing embeddings for chunks whose content hasn't changed.
+   * preserving existing dense vectors for chunks whose denseTextHash hasn't changed.
    * fileRevision is the git blob SHA; required when chunks may be empty.
    */
   replaceChunks(
@@ -436,28 +353,28 @@ export class VirageDb {
     chunks: Chunk[],
     fileRevision?: string,
   ): void {
-    const newHashes = chunks.map((c) => chunkContentHash(c));
+    const newHashes = chunks.map((c) => c.denseTextHash);
 
-    // Delete chunks that are no longer present in this file.
-    // When the file is empty we delete everything; otherwise only removed chunks.
     const del =
       newHashes.length > 0
         ? this.db.prepare(
-            `DELETE FROM chunks WHERE source_file = ? AND content_hash NOT IN (${newHashes.map(() => "?").join(",")})`,
+            `DELETE FROM chunks WHERE source_file = ? AND dense_text_hash NOT IN (${newHashes.map(() => "?").join(",")})`,
           )
         : this.db.prepare("DELETE FROM chunks WHERE source_file = ?");
 
-    // Upsert: insert new chunks OR update metadata for existing ones.
-    // embedding / embedded_at / uploaded are intentionally NOT overwritten on
-    // conflict — this preserves computed embeddings for unchanged content.
+    // Upsert: insert new chunks OR update text fields for existing ones.
+    // dense_vector / embedded_at / uploaded are intentionally NOT overwritten on
+    // conflict — this preserves computed embeddings for unchanged denseTextHash.
     const upsert = this.db.prepare(
       `INSERT INTO chunks
-         (content_hash, source_file, file_revision, content, metadata_json, embedding, embedded_at, uploaded)
-       VALUES (?, ?, ?, ?, ?, NULL, NULL, 0)
-       ON CONFLICT(content_hash) DO UPDATE SET
+         (dense_text_hash, source_file, file_revision, dense_text, sparse_text, context_text, metadata_json, dense_vector, embedded_at, uploaded)
+       VALUES (?, ?, ?, ?, ?, ?, ?, NULL, NULL, 0)
+       ON CONFLICT(dense_text_hash) DO UPDATE SET
          source_file   = excluded.source_file,
          file_revision = excluded.file_revision,
-         content       = excluded.content,
+         dense_text    = excluded.dense_text,
+         sparse_text   = excluded.sparse_text,
+         context_text  = excluded.context_text,
          metadata_json = excluded.metadata_json`,
     );
 
@@ -473,7 +390,9 @@ export class VirageDb {
           newHashes[i],
           sourceFile,
           chunk.commitHash,
-          chunk.content,
+          chunk.denseText,
+          chunk.sparseText,
+          chunk.contextText,
           JSON.stringify(chunk.metadata),
         );
       }
@@ -492,66 +411,74 @@ export class VirageDb {
     }
   }
 
-  /** Content hashes of chunks for a file that already have embeddings. */
-  getEmbeddedContentHashes(sourceFile: string): Set<string> {
+  /** Dense-text hashes of chunks for a file that already have a dense vector. */
+  getEmbeddedDenseTextHashes(sourceFile: string): Set<string> {
     const rows = this.db
       .prepare(
-        "SELECT content_hash FROM chunks WHERE source_file = ? AND embedding IS NOT NULL",
+        "SELECT dense_text_hash FROM chunks WHERE source_file = ? AND dense_vector IS NOT NULL",
       )
-      .all(sourceFile) as Array<{ content_hash: string }>;
-    return new Set(rows.map((r) => r.content_hash));
+      .all(sourceFile) as Array<{ dense_text_hash: string }>;
+    return new Set(rows.map((r) => r.dense_text_hash));
   }
 
-  /** Chunks inserted during chunking that still need an embedding computed. */
+  /** Chunks inserted during chunking that still need a dense vector computed. */
   getPendingEmbedChunks(): Chunk[] {
     type Row = {
-      content_hash: string;
+      dense_text_hash: string;
       source_file: string;
       file_revision: string;
-      content: string;
+      dense_text: string;
+      sparse_text: string;
+      context_text: string;
       metadata_json: string;
     };
     const rows = this.db
       .prepare(
-        "SELECT content_hash, source_file, file_revision, content, metadata_json FROM chunks WHERE embedding IS NULL AND uploaded = 0",
+        "SELECT dense_text_hash, source_file, file_revision, dense_text, sparse_text, context_text, metadata_json FROM chunks WHERE dense_vector IS NULL AND uploaded = 0",
       )
       .all() as Row[];
     return rows.map((row) => ({
-      contentHash: row.content_hash,
+      denseTextHash: row.dense_text_hash,
       sourceFile: row.source_file,
       commitHash: row.file_revision,
-      content: row.content,
-      metadata: parseMetadata(row.metadata_json),
+      denseText: row.dense_text,
+      sparseText: row.sparse_text,
+      contextText: row.context_text,
+      metadata: parseChunkMeta(row.metadata_json),
     }));
   }
 
   /** Embedded chunks that have not yet been uploaded to the vector store. */
   getPendingUploadChunks(): EmbeddedChunk[] {
     return this.rowsToEmbeddedChunks(
-      "SELECT * FROM chunks WHERE uploaded = 0 AND embedding IS NOT NULL",
+      "SELECT * FROM chunks WHERE uploaded = 0 AND dense_vector IS NOT NULL",
     );
   }
 
   /** Returns all chunk rows as Chunk objects, regardless of embedding or upload status. */
   getAllChunks(): Chunk[] {
     type Row = {
-      content_hash: string;
+      dense_text_hash: string;
       source_file: string;
       file_revision: string;
-      content: string;
+      dense_text: string;
+      sparse_text: string;
+      context_text: string;
       metadata_json: string;
     };
     const rows = this.db
       .prepare(
-        "SELECT content_hash, source_file, file_revision, content, metadata_json FROM chunks",
+        "SELECT dense_text_hash, source_file, file_revision, dense_text, sparse_text, context_text, metadata_json FROM chunks",
       )
       .all() as Row[];
     return rows.map((row) => ({
-      contentHash: row.content_hash,
+      denseTextHash: row.dense_text_hash,
       sourceFile: row.source_file,
       commitHash: row.file_revision,
-      content: row.content,
-      metadata: parseMetadata(row.metadata_json),
+      denseText: row.dense_text,
+      sparseText: row.sparse_text,
+      contextText: row.context_text,
+      metadata: parseChunkMeta(row.metadata_json),
     }));
   }
 
@@ -577,22 +504,24 @@ export class VirageDb {
 
   // ── Preserved methods ──────────────────────────────────────────────────────
 
-  /** Insert fully-embedded chunks (used by migration and legacy callers). */
+  /** Insert fully-embedded chunks (used by batch pipeline callers). */
   insert(chunks: EmbeddedChunk[]): void {
     const stmt = this.db.prepare(`
       INSERT OR IGNORE INTO chunks
-        (content_hash, source_file, file_revision, content, metadata_json, embedding, embedded_at, uploaded)
-      VALUES (?, ?, ?, ?, ?, ?, ?, 0)
+        (dense_text_hash, source_file, file_revision, dense_text, sparse_text, context_text, metadata_json, dense_vector, embedded_at, uploaded)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0)
     `);
     const insertMany = this.db.transaction((items: EmbeddedChunk[]) => {
       for (const chunk of items) {
         stmt.run(
-          chunkContentHash(chunk),
+          chunk.denseTextHash,
           chunk.sourceFile,
           chunk.commitHash,
-          chunk.content,
+          chunk.denseText,
+          chunk.sparseText,
+          chunk.contextText,
           JSON.stringify(chunk.metadata),
-          embeddingToBlob(chunk.embedding),
+          vectorToBlob(chunk.denseVector),
           Math.floor(chunk.embeddedAt),
         );
       }
@@ -600,17 +529,17 @@ export class VirageDb {
     insertMany(chunks);
   }
 
-  has(contentHash: string): boolean {
+  has(denseTextHash: string): boolean {
     const row = this.db
-      .prepare("SELECT 1 FROM chunks WHERE content_hash = ?")
-      .get(contentHash);
+      .prepare("SELECT 1 FROM chunks WHERE dense_text_hash = ?")
+      .get(denseTextHash);
     return row !== undefined;
   }
 
-  /** Returns all rows that have an embedding (excludes metadata-only rows). */
+  /** Returns all rows that have a dense vector (excludes metadata-only rows). */
   getAll(): EmbeddedChunk[] {
     return this.rowsToEmbeddedChunks(
-      "SELECT * FROM chunks WHERE embedding IS NOT NULL",
+      "SELECT * FROM chunks WHERE dense_vector IS NOT NULL",
     );
   }
 
@@ -619,30 +548,30 @@ export class VirageDb {
     return this.getPendingUploadChunks();
   }
 
-  markUploaded(contentHashes: string[]): void {
-    if (contentHashes.length === 0) return;
-    const placeholders = contentHashes.map(() => "?").join(", ");
+  markUploaded(denseTextHashes: string[]): void {
+    if (denseTextHashes.length === 0) return;
+    const placeholders = denseTextHashes.map(() => "?").join(", ");
     this.db
       .prepare(
-        `UPDATE chunks SET uploaded = 1 WHERE content_hash IN (${placeholders})`,
+        `UPDATE chunks SET uploaded = 1 WHERE dense_text_hash IN (${placeholders})`,
       )
-      .run(...contentHashes);
+      .run(...denseTextHashes);
   }
 
   /** Remove staging rows after successful upload — SQLite is a pure staging buffer. */
-  deleteChunks(contentHashes: string[]): void {
-    if (contentHashes.length === 0) return;
-    const placeholders = contentHashes.map(() => "?").join(", ");
+  deleteChunks(denseTextHashes: string[]): void {
+    if (denseTextHashes.length === 0) return;
+    const placeholders = denseTextHashes.map(() => "?").join(", ");
     this.db
-      .prepare(`DELETE FROM chunks WHERE content_hash IN (${placeholders})`)
-      .run(...contentHashes);
+      .prepare(`DELETE FROM chunks WHERE dense_text_hash IN (${placeholders})`)
+      .run(...denseTextHashes);
   }
 
   /** Count of embedded chunks not yet uploaded. */
   pendingCount(): number {
     const row = this.db
       .prepare(
-        "SELECT COUNT(*) as cnt FROM chunks WHERE uploaded = 0 AND embedding IS NOT NULL",
+        "SELECT COUNT(*) as cnt FROM chunks WHERE uploaded = 0 AND dense_vector IS NOT NULL",
       )
       .get() as { cnt: number };
     return row.cnt;
@@ -657,83 +586,32 @@ export class VirageDb {
     this.db.prepare("DELETE FROM chunks WHERE uploaded = 1").run();
   }
 
-  migrateFromJson(jsonPath: string): void {
-    let raw: string;
-    try {
-      raw = readFileSync(jsonPath, "utf-8");
-    } catch {
-      return;
-    }
-
-    let parsed: unknown;
-    try {
-      parsed = JSON.parse(raw);
-    } catch {
-      return;
-    }
-
-    let chunks: EmbeddedChunk[];
-    let meta: EmbeddingsMeta | null = null;
-
-    if (Array.isArray(parsed)) {
-      chunks = parsed as EmbeddedChunk[];
-    } else {
-      const file = parsed as {
-        _meta?: EmbeddingsMeta;
-        chunks?: EmbeddedChunk[];
-      };
-      chunks = file.chunks ?? [];
-      meta = file._meta ?? null;
-    }
-
-    if (meta) this.setMeta(meta);
-    if (chunks.length > 0) {
-      const stmt = this.db.prepare(`
-        INSERT OR IGNORE INTO chunks
-          (content_hash, source_file, file_revision, content, metadata_json, embedding, embedded_at, uploaded)
-        VALUES (?, ?, ?, ?, ?, ?, ?, 1)
-      `);
-      const insertAll = this.db.transaction((items: EmbeddedChunk[]) => {
-        for (const chunk of items) {
-          stmt.run(
-            chunkContentHash(chunk),
-            chunk.sourceFile,
-            chunk.commitHash,
-            chunk.content,
-            JSON.stringify(chunk.metadata),
-            embeddingToBlob(chunk.embedding),
-            Math.floor(chunk.embeddedAt),
-          );
-        }
-      });
-      insertAll(chunks);
-    }
-
-    rename(jsonPath, jsonPath + ".migrated").catch(() => {});
-  }
-
   close(): void {
     this.db.close();
   }
 
   private rowsToEmbeddedChunks(sql: string): EmbeddedChunk[] {
     type Row = {
-      content_hash: string;
+      dense_text_hash: string;
       source_file: string;
       file_revision: string;
-      content: string;
+      dense_text: string;
+      sparse_text: string;
+      context_text: string;
       metadata_json: string;
-      embedding: Buffer;
+      dense_vector: Buffer;
       embedded_at: number;
     };
     const rows = this.db.prepare(sql).all() as Row[];
     return rows.map((row) => ({
-      contentHash: row.content_hash,
+      denseTextHash: row.dense_text_hash,
       sourceFile: row.source_file,
       commitHash: row.file_revision,
-      content: row.content,
-      metadata: parseMetadata(row.metadata_json),
-      embedding: blobToEmbedding(row.embedding),
+      denseText: row.dense_text,
+      sparseText: row.sparse_text,
+      contextText: row.context_text,
+      metadata: parseChunkMeta(row.metadata_json),
+      denseVector: blobToVector(row.dense_vector),
       embeddedAt: row.embedded_at,
     }));
   }
@@ -1268,7 +1146,6 @@ export class VirageDb {
     avgTopSimilarity: number;
     zeroResultRate: number;
   } {
-    const now = new Date().toISOString();
     const hourAgo = new Date(Date.now() - 3_600_000).toISOString();
     const dayAgo = new Date(Date.now() - 86_400_000).toISOString();
 
@@ -1301,9 +1178,6 @@ export class VirageDb {
     const emptyRow = this.db
       .prepare("SELECT COUNT(*) as cnt FROM search_queries WHERE was_empty = 1")
       .get() as { cnt: number };
-
-    // suppress unused variable warning — now is used for context only
-    void now;
 
     return {
       queriesLastHour: lastHour,

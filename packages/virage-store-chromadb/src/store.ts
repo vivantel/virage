@@ -76,15 +76,17 @@ export class ChromaVectorStore implements VectorStore {
     );
     for (let i = 0; i < documents.length; i += UPSERT_BATCH_SIZE) {
       const batch = documents.slice(i, i + UPSERT_BATCH_SIZE);
-      const ids = batch.map((doc) => doc.id ?? crypto.randomUUID());
+      const ids = batch.map((doc) => doc.id ?? doc.denseTextHash);
       await this.collection.upsert({
         ids,
-        embeddings: batch.map((doc) => doc.embedding),
-        documents: batch.map((doc) => doc.content),
+        embeddings: batch.map((doc) => doc.denseVector),
+        documents: batch.map((doc) => doc.denseText),
         metadatas: batch.map((doc) => ({
           source_file: doc.sourceFile,
           commit_hash: doc.commitHash,
-          content_hash: doc.contentHash,
+          dense_text_hash: doc.denseTextHash,
+          sparse_text: doc.sparseText,
+          context_text: doc.contextText,
           ...doc.metadata,
         })),
       });
@@ -145,20 +147,23 @@ export class ChromaVectorStore implements VectorStore {
 
   private async buildMiniSearchIfStale(): Promise<void> {
     if (!this.miniSearchStale) return;
-    const ms = new MiniSearch<{ id: string; content: string }>({
-      fields: ["content"],
-      storeFields: ["id", "content"],
+    const ms = new MiniSearch<{ id: string; sparse_text: string }>({
+      fields: ["sparse_text"],
+      storeFields: ["id", "sparse_text"],
     });
     let offset = 0;
     while (true) {
       const result = await this.collection.get({
-        include: [IncludeEnum.documents],
+        include: [IncludeEnum.metadatas],
         limit: SCROLL_PAGE_SIZE,
         offset,
       });
       const docs = result.ids.map((id, i) => ({
         id,
-        content: result.documents[i] ?? "",
+        sparse_text:
+          typeof result.metadatas[i]?.sparse_text === "string"
+            ? (result.metadatas[i]!.sparse_text as string)
+            : "",
       }));
       if (docs.length > 0) ms.addAll(docs);
       if (result.ids.length < SCROLL_PAGE_SIZE) break;
@@ -187,15 +192,31 @@ export class ChromaVectorStore implements VectorStore {
     const distances = result.distances?.[0] ?? [];
     return ids.map((id, i) => ({
       id,
-      content: documents[i] ?? "",
+      denseText: documents[i] ?? "",
+      sparseText: (() => {
+        const meta = metadatas[i];
+        return typeof meta?.sparse_text === "string" ? meta.sparse_text : "";
+      })(),
+      contextText: (() => {
+        const meta = metadatas[i];
+        return typeof meta?.context_text === "string" ? meta.context_text : "";
+      })(),
       metadata: (() => {
         const meta = metadatas[i];
         if (!meta || typeof meta !== "object") return {};
-        const { source_file, commit_hash, content_hash, ...rest } =
-          meta as Record<string, unknown>;
+        const {
+          source_file,
+          commit_hash,
+          dense_text_hash,
+          sparse_text,
+          context_text,
+          ...rest
+        } = meta as Record<string, unknown>;
         void source_file;
         void commit_hash;
-        void content_hash;
+        void dense_text_hash;
+        void sparse_text;
+        void context_text;
         return rest;
       })(),
       similarity: 1 - (distances[i] ?? 1),
@@ -227,7 +248,9 @@ export class ChromaVectorStore implements VectorStore {
         .slice(0, topK * 2)
         .map((r) => ({
           id: r.id as string,
-          content: r.content as string,
+          denseText: "",
+          sparseText: r.sparse_text as string,
+          contextText: "",
           metadata: {},
           similarity: r.score / maxScore,
         }));

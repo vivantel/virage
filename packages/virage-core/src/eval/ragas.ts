@@ -25,7 +25,7 @@ export class RAGASRunner {
 
       const embedding = await this.embedder.embed(evalQuery.query);
       const results = await this.store.search(embedding, this.topK);
-      const contexts = results.map((r) => r.content);
+      const contexts = results.map((r) => r.contextText);
 
       const scores = await this.judge.evaluate(
         evalQuery.query,

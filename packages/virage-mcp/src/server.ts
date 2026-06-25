@@ -99,9 +99,9 @@ export function createMcpServer(
 
   server.tool(
     "get_chunk",
-    "Get a single chunk by its content hash.",
+    "Get a single chunk by its dense text hash.",
     {
-      content_hash: z.string().describe("16-character hex content hash"),
+      dense_text_hash: z.string().describe("16-character hex dense text hash"),
     },
     async (args) => {
       const result = await handleGetChunk(args, ctx);

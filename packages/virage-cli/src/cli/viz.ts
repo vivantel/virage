@@ -99,18 +99,18 @@ export async function runVizEmbeddings(
       };
       points = await withSpinner("Computing UMAP projection", async () => {
         const umap = new UMAP({ nComponents: 2, nNeighbors: 15, minDist: 0.1 });
-        const result = await umap.fitAsync(chunks.map((c) => c.embedding));
+        const result = await umap.fitAsync(chunks.map((c) => c.denseVector));
         return result.map((p: number[]) => [p[0], p[1]] as [number, number]);
       });
     } catch {
       out.dim("   umap-js not installed — falling back to PCA projection");
       points = await withSpinner("Computing PCA projection", async () =>
-        pca2d(chunks.map((c) => c.embedding)),
+        pca2d(chunks.map((c) => c.denseVector)),
       );
     }
   } else {
     points = await withSpinner("Computing PCA projection", async () =>
-      pca2d(chunks.map((c) => c.embedding)),
+      pca2d(chunks.map((c) => c.denseVector)),
     );
   }
 
@@ -119,7 +119,7 @@ export async function runVizEmbeddings(
     y: points[i][1],
     label: c.sourceFile,
     ext: extname(c.sourceFile) || "unknown",
-    preview: c.content.slice(0, 100).replace(/"/g, "'"),
+    preview: c.denseText.slice(0, 100).replace(/"/g, "'"),
   }));
 
   const html = buildHtml(plotData, opts.dbPath, opts.projection);

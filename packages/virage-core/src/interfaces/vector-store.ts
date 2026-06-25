@@ -13,34 +13,45 @@ export interface VectorStoreMeta {
 }
 
 export interface VectorDocument {
-  /** Unique ID (optional, auto-generated if not provided) */
+  /** Unique ID (optional; set to denseTextHash by Uploader when omitted). */
   id?: string;
 
-  /** Original text content */
-  content: string;
+  /** Text sent to the embedding model (breadcrumb + full body). */
+  denseText: string;
 
-  /** Metadata for filtering */
+  /** Raw body used for BM25/FTS lexical search (no breadcrumb prefix). */
+  sparseText: string;
+
+  /** Full LLM context: body + boundary padding + injected declarations. */
+  contextText: string;
+
+  /** sha256(denseText) truncated to 16 hex chars — primary dedup key. */
+  denseTextHash: string;
+
+  /** Metadata for filtering (serialized ChunkMeta). */
   metadata: Record<string, unknown>;
 
-  /** Embedding vector */
-  embedding: number[];
+  /** Dense embedding vector of denseText. */
+  denseVector: number[];
 
-  /** Source file path (for tracking updates) */
+  /** Source file path (for tracking updates). */
   sourceFile: string;
 
-  /** Git commit hash (for change detection) */
+  /** Git commit hash (for change detection). */
   commitHash: string;
 
-  /** Content hash (for change detection) */
-  contentHash: string;
-
-  /** Collection name (for multi-collection stores) */
+  /** Collection name (for multi-collection stores). */
   collection?: string;
 }
 
 export interface VectorSearchResult {
   id: string;
-  content: string;
+  /** Text used for dense embedding — also input to the cross-encoder reranker. */
+  denseText: string;
+  /** Raw body text used for BM25 search. */
+  sparseText: string;
+  /** Full LLM context delivered to the RAG prompt. */
+  contextText: string;
   metadata: Record<string, unknown>;
   similarity: number;
   sourceFile?: string;

@@ -81,7 +81,8 @@ export async function runQuery(
     console.log(
       JSON.stringify(
         results.map((r) => ({
-          content: r.content,
+          contextText: r.contextText,
+          denseText: r.denseText,
           sourceFile: r.sourceFile,
           similarity: r.similarity,
           metadata: r.metadata,
@@ -114,7 +115,7 @@ export async function runQuery(
     );
     out.dim(`    similarity: ${(r.similarity * 100).toFixed(1)}%`);
     out.info(
-      `\n${r.content.slice(0, 400)}${r.content.length > 400 ? "…" : ""}`,
+      `\n${r.contextText.slice(0, 400)}${r.contextText.length > 400 ? "…" : ""}`,
     );
     out.divider("─", 60, ansi.cyan);
   }

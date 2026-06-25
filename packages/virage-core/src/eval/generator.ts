@@ -52,20 +52,19 @@ export async function generateEvalDataset(
 
   // Build positive examples
   for (const chunk of chunks) {
-    if (!chunk.contentHash) continue;
-    const query = chunk.content.slice(0, 80).replace(/\s+/g, " ").trim();
+    const query = chunk.sparseText.slice(0, 80).replace(/\s+/g, " ").trim();
     if (!query) continue;
 
     queries.push({
       query,
-      expectedChunkIds: [chunk.contentHash],
-      groundTruth: chunk.content.slice(0, 500),
+      expectedChunkIds: [chunk.denseTextHash],
+      groundTruth: chunk.sparseText.slice(0, 500),
     });
   }
 
   if (options.includeNegatives && chunks.length > 1) {
     // For each chunk, find a chunk with low keyword overlap to use as a "distractor"
-    const tokenSets = chunks.map((c) => tokenSet(c.content));
+    const tokenSets = chunks.map((c) => tokenSet(c.sparseText));
 
     for (let i = 0; i < chunks.length; i++) {
       let minSim = 1;
@@ -83,16 +82,16 @@ export async function generateEvalDataset(
       if (furthestIdx === -1 || minSim > 0.3) continue;
 
       // Create a negative query: ask about a distant chunk using the CURRENT chunk's language
-      const negativeQuery = chunks[furthestIdx].content
+      const negativeQuery = chunks[furthestIdx].sparseText
         .slice(0, 80)
         .replace(/\s+/g, " ")
         .trim();
-      if (!negativeQuery || !chunks[i].contentHash) continue;
+      if (!negativeQuery) continue;
 
       queries.push({
         query: negativeQuery,
-        expectedChunkIds: [chunks[furthestIdx].contentHash!],
-        groundTruth: chunks[furthestIdx].content.slice(0, 500),
+        expectedChunkIds: [chunks[furthestIdx].denseTextHash],
+        groundTruth: chunks[furthestIdx].sparseText.slice(0, 500),
       });
     }
   }

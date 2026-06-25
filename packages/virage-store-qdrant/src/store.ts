@@ -91,14 +91,16 @@ export class QdrantVectorStore implements VectorStore {
     for (let i = 0; i < documents.length; i += UPSERT_BATCH_SIZE) {
       const batch = documents.slice(i, i + UPSERT_BATCH_SIZE);
       const points = batch.map((doc) => ({
-        id: crypto.randomUUID(),
-        vector: doc.embedding,
+        id: doc.id ?? doc.denseTextHash,
+        vector: doc.denseVector,
         payload: {
-          content: doc.content,
+          dense_text: doc.denseText,
+          sparse_text: doc.sparseText,
+          context_text: doc.contextText,
+          dense_text_hash: doc.denseTextHash,
           metadata: doc.metadata,
           source_file: doc.sourceFile,
           commit_hash: doc.commitHash,
-          content_hash: doc.contentHash,
         },
       }));
       await this.client.upsert(this.collection, {
@@ -106,7 +108,7 @@ export class QdrantVectorStore implements VectorStore {
         points,
       });
       this.logger?.trace(
-        `  Upserted IDs: ${points.map((p) => p.id.slice(0, 8)).join(", ")}`,
+        `  Upserted IDs: ${points.map((p) => String(p.id).slice(0, 8)).join(", ")}`,
       );
     }
   }
@@ -168,7 +170,12 @@ export class QdrantVectorStore implements VectorStore {
     const payload = r.payload as Record<string, unknown> | null | undefined;
     return {
       id: String(r.id),
-      content: typeof payload?.content === "string" ? payload.content : "",
+      denseText:
+        typeof payload?.dense_text === "string" ? payload.dense_text : "",
+      sparseText:
+        typeof payload?.sparse_text === "string" ? payload.sparse_text : "",
+      contextText:
+        typeof payload?.context_text === "string" ? payload.context_text : "",
       metadata:
         payload?.metadata &&
         typeof payload.metadata === "object" &&
@@ -200,7 +207,7 @@ export class QdrantVectorStore implements VectorStore {
         }),
         this.client.scroll(this.collection, {
           filter: {
-            must: [{ key: "content", match: { text: queryText } }],
+            must: [{ key: "sparse_text", match: { text: queryText } }],
           },
           with_payload: true,
           with_vector: false,

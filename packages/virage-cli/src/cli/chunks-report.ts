@@ -1,11 +1,9 @@
 import { existsSync } from "fs";
+import type { Chunk } from "@vivantel/virage-core";
 import { VirageDb } from "@vivantel/virage-core";
 import { createOut } from "../output.js";
 
-interface ChunkEntry {
-  content: string;
-  metadata?: { strategy?: string; [key: string]: unknown };
-}
+type ChunkEntry = Chunk;
 
 function computeCohesion(chunks: ChunkEntry[]): {
   cohesion: number;
@@ -13,7 +11,7 @@ function computeCohesion(chunks: ChunkEntry[]): {
   suggestion: string;
 } {
   const sentenceEnd = /[.!?\n]\s*$/;
-  const midSentence = chunks.filter((c) => !sentenceEnd.test(c.content));
+  const midSentence = chunks.filter((c) => !sentenceEnd.test(c.sparseText));
   const cohesion = 1 - midSentence.length / chunks.length;
 
   const suggestion =
@@ -53,7 +51,9 @@ export async function runChunksReport(
   const byStrategy = new Map<string, ChunkEntry[]>();
   for (const chunk of chunks) {
     const strategy =
-      (chunk.metadata?.strategy as string | undefined) ?? "unknown";
+      ((chunk.metadata as unknown as Record<string, unknown>)?.strategy as
+        | string
+        | undefined) ?? "unknown";
     const group = byStrategy.get(strategy) ?? [];
     group.push(chunk);
     byStrategy.set(strategy, group);
@@ -62,7 +62,7 @@ export async function runChunksReport(
   out.section(`📊 Chunk Cohesion Report (${chunks.length} total chunks)`);
 
   for (const [strategy, group] of byStrategy) {
-    const sizes = group.map((c) => c.content.length);
+    const sizes = group.map((c) => c.denseText.length);
     const avgSize = Math.round(sizes.reduce((s, v) => s + v, 0) / sizes.length);
     const { cohesion, midSentenceCuts, suggestion } = computeCohesion(group);
 

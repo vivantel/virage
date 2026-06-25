@@ -101,7 +101,8 @@ export async function handleSearch(
 
   return results.map((r) => ({
     id: r.id,
-    content: r.content,
+    contextText: r.contextText,
+    denseText: r.denseText,
     metadata: r.metadata,
     similarity: r.similarity,
     sourceFile: (r.metadata["sourceFile"] as string | undefined) ?? r.id,
@@ -146,21 +147,21 @@ export async function handleListChunks(
     chunks = chunks.filter((c) => c.sourceFile === args.source_file);
   }
   return chunks.slice(0, args.limit ?? 100).map((c) => ({
-    contentHash: c.contentHash,
+    denseTextHash: c.denseTextHash,
     sourceFile: c.sourceFile,
-    content: c.content.slice(0, 200),
+    sparseText: c.sparseText.slice(0, 200),
     metadata: c.metadata,
   }));
 }
 
 export async function handleGetChunk(
-  args: { content_hash: string },
+  args: { dense_text_hash: string },
   ctx: McpContext,
 ) {
   const chunk = ctx.db
     .getAllChunks()
-    .find((c) => c.contentHash === args.content_hash);
-  if (!chunk) throw new Error(`Chunk not found: ${args.content_hash}`);
+    .find((c) => c.denseTextHash === args.dense_text_hash);
+  if (!chunk) throw new Error(`Chunk not found: ${args.dense_text_hash}`);
   return chunk;
 }
 

@@ -18,7 +18,6 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       virage-core: ${{ steps.release.outputs['packages/virage-core--release_created'] }}
-      virage-strategies: ${{ steps.release.outputs['packages/virage-strategies--release_created'] }}
       virage-embedder-openai: ${{ steps.release.outputs['packages/virage-embedder-openai--release_created'] }}
       virage-embedder-transformers: ${{ steps.release.outputs['packages/virage-embedder-transformers--release_created'] }}
       virage-embedder-fastembed: ${{ steps.release.outputs['packages/virage-embedder-fastembed--release_created'] }}
@@ -59,7 +58,6 @@ jobs:
         run: |
           packages=()
           if [[ "${{ needs.release-please.outputs.virage-core }}" == "true" ]]; then packages+=("virage-core"); fi
-          if [[ "${{ needs.release-please.outputs.virage-strategies }}" == "true" ]]; then packages+=("virage-strategies"); fi
           if [[ "${{ needs.release-please.outputs.virage-embedder-openai }}" == "true" ]]; then packages+=("virage-embedder-openai"); fi
           if [[ "${{ needs.release-please.outputs.virage-embedder-transformers }}" == "true" ]]; then packages+=("virage-embedder-transformers"); fi
           if [[ "${{ needs.release-please.outputs.virage-embedder-fastembed }}" == "true" ]]; then packages+=("virage-embedder-fastembed"); fi

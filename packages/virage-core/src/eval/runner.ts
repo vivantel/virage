@@ -77,20 +77,14 @@ export class EvalRunner {
         }
       }
 
-      // Resolve retrieved IDs: prefer contentHash from metadata, fall back to id
-      const retrievedIds = searchResults.map(
-        (r) => (r.metadata.contentHash as string | undefined) ?? r.id,
-      );
+      const retrievedIds = searchResults.map((r) => r.id);
 
       // Substring match fallback
       if (evalQuery.expectedContent && evalQuery.expectedContent.length > 0) {
         for (const expected of evalQuery.expectedContent) {
           for (const result of searchResults) {
-            if (result.content.includes(expected)) {
-              relevantIds.add(
-                (result.metadata.contentHash as string | undefined) ??
-                  result.id,
-              );
+            if (result.contextText.includes(expected)) {
+              relevantIds.add(result.id);
             }
           }
         }
