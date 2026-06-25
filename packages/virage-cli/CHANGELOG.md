@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.90](https://github.com/vivantel/virage/compare/virage-cli@v0.1.89...virage-cli@v0.1.90) (2026-06-25)
+
+
+### Features
+
+* **cli:** Switch init to CE chunker packages with semver and strategyOptions support ([00c5641](https://github.com/vivantel/virage/commit/00c564122412a679da77faf7aecd206cca7b3e3c))
+
 ## [0.1.89](https://github.com/vivantel/virage/compare/virage-cli@v0.1.88...virage-cli@v0.1.89) (2026-06-24)
 
 
