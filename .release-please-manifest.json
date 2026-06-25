@@ -13,7 +13,7 @@
   "packages/virage-agent-copilot": "0.1.10",
   "packages/virage-agent-codex": "0.1.10",
   "packages/virage-agent-antigravity": "0.1.10",
-  "packages/virage-cli": "0.1.89",
+  "packages/virage-cli": "0.1.90",
   "packages/virage-skills": "0.1.9",
   "packages/virage-dashboard": "0.1.20",
   "packages/virage-mcp": "0.1.51",
