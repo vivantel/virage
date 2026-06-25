@@ -186,10 +186,36 @@ Hook: `.claude/settings.json` fires `npm run fix && npm run type-check` automati
 
 | Interface | Implementations |
 | --------- | --------------- |
-| `FileChunker` | `virage-code-chunk-chunker`, `virage-strategies` |
+| `FileChunker` | `virage-code-chunk-chunker`, external plugins (`virage-chunker-ce-*`, `virage-chunker-ee-*`) |
 | `EmbeddingProvider` | `virage-embedder-openai`, `virage-embedder-fastembed`, `virage-embedder-transformers` |
 | `VectorStore` | `virage-store-chromadb`, `virage-store-lancedb`, `virage-store-qdrant`, `virage-store-postgres` |
 | `Logger` | built-in console logger in `virage-core` |
+
+**`FileChunker` interface** (all chunker plugins must implement):
+```typescript
+interface FileChunker {
+  name: string;          // package name
+  version: string;       // semver string
+  patterns: string[];    // glob patterns
+  sparseTextId: string;  // session-level sparse cache key
+  contextTextHash: string; // session-level context cache key
+  chunk(filePath: string, commitHash: string): Promise<Chunk[]>;
+  canProcess?(filePath: string): Promise<boolean>;
+}
+```
+
+**`Chunk` shape** (output of `FileChunker.chunk()`):
+```typescript
+interface Chunk {
+  denseText: string;     // breadcrumb + body → embedding
+  sparseText: string;    // raw body → BM25/FTS
+  contextText: string;   // body + padding → LLM
+  denseTextHash: string; // sha256(denseText).slice(0,16)
+  metadata: ChunkMeta;
+  sourceFile: string;
+  commitHash: string;
+}
+```
 
 **Plugin registry**: packages declare themselves as Virage plugins via `"rag-plugin": "<entrypoint>"` in `package.json`.
 
@@ -210,12 +236,13 @@ Hook: `.claude/settings.json` fires `npm run fix && npm run type-check` automati
 | ADR-031 | `chunking` config section with global exclude patterns | Accepted |
 | ADR-032 | Scanning/chunking perf + global model dir + GPU support | Accepted |
 | ADR-033 | `file_revisions` table for zero-chunk file tracking | Accepted |
+| ADR-034 | Four-artifact flat model: denseText / sparseText / contextText / denseTextHash; plugin-only chunkers; delete `virage-strategies` | Accepted |
 
 ---
 
 ## Package development
 
-**Package inventory** (21 packages under `@vivantel/`):
+**Package inventory** (20 packages under `@vivantel/`):
 
 | Package | Type | Published |
 | ------- | ---- | --------- |
@@ -223,7 +250,6 @@ Hook: `.claude/settings.json` fires `npm run fix && npm run type-check` automati
 | `virage-cli` | CLI entrypoint (`virage` command) | Yes |
 | `virage-mcp` | MCP server | Yes |
 | `virage-dashboard` | Web dashboard (JavaScript) | Yes |
-| `virage-strategies` | Built-in chunking strategies | Yes |
 | `virage-code-chunk-chunker` | Code chunker plugin | Yes |
 | `virage-embedder-openai` | OpenAI embedder | Yes |
 | `virage-embedder-fastembed` | FastEmbed embedder | Yes |
