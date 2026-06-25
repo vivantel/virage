@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Patches eval/suite.json with new GitHub release download URLs, SHA-256 digests,
+// Patches eval/suites/retrieval-quality.json with new GitHub release download URLs, SHA-256 digests,
 // and captured plugin versions.
 //
 // Reads from environment variables (safe for JSON values in CI):
@@ -20,7 +20,7 @@ if (!tag) {
   process.exit(1);
 }
 
-const suiteRaw = readFileSync('eval/suite.json', 'utf8');
+const suiteRaw = readFileSync('eval/suites/retrieval-quality.json', 'utf8');
 const suite = JSON.parse(suiteRaw);
 
 const baseUrl = `https://github.com/${repo}/releases/download/${tag}`;
@@ -37,5 +37,5 @@ for (const [dbName, dbEntry] of Object.entries(suite.databases)) {
   if (digests[dbName]) console.log(`    sha256: ${digests[dbName]}`);
 }
 
-writeFileSync('eval/suite.json', JSON.stringify(suite, null, 2) + '\n');
-console.log('\neval/suite.json updated.');
+writeFileSync('eval/suites/retrieval-quality.json', JSON.stringify(suite, null, 2) + '\n');
+console.log('\neval/suites/retrieval-quality.json updated.');

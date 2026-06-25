@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Reads eval/suite.json, detects distinct indexing databases by signature,
+// Reads eval/suites/retrieval-quality.json, detects distinct indexing databases by signature,
 // generates temp configs with unique LanceDB URIs, and outputs a build matrix.
 //
 // Outputs:
@@ -10,7 +10,7 @@
 import { readFileSync, writeFileSync, mkdirSync, appendFileSync } from 'fs';
 import { createHash } from 'crypto';
 
-const suite = JSON.parse(readFileSync('eval/suite.json', 'utf8'));
+const suite = JSON.parse(readFileSync('eval/suites/retrieval-quality.json', 'utf8'));
 
 // Resolve the effective chunking config for a database using suite-level
 // filesets (immutable) and merging suite + db chunker strategy maps.
