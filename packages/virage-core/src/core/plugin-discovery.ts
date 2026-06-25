@@ -14,7 +14,7 @@ export interface RagPlugin {
  * Naming convention (not enforced):
  *   rag-embedder-*   EmbeddingProvider implementations
  *   rag-store-*      VectorStore implementations
- *   rag-chunker-*    FileChunker / ChunkStrategy implementations
+ *   rag-chunker-*    FileChunker implementations
  */
 export async function discoverPlugins(
   packageNames: string[],

@@ -122,9 +122,9 @@ export interface ExperimentRun {
 
 export interface EvalQuery {
   query: string;
-  /** Match against chunk.contentHash (preferred). */
+  /** Match against chunk.denseTextHash (preferred). */
   expectedChunkIds?: string[];
-  /** Substring match fallback when contentHash is unavailable. */
+  /** Substring match fallback when denseTextHash is unavailable. */
   expectedContent?: string[];
   /** Expected answer text — required for RAGAS metrics. */
   groundTruth?: string;
