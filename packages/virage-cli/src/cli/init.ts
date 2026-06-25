@@ -207,8 +207,10 @@ function getRequiredPackages(
   if (embedderEntry && embedderEntry.key !== "custom")
     pkgs.add(embedderEntry.package);
   if (storeEntry && storeEntry.key !== "custom") pkgs.add(storeEntry.package);
-  if (state.groups.some((g) => g.strategyFn === "codeChunkStrategy"))
-    pkgs.add("@vivantel/virage-code-chunk-chunker");
+  for (const g of state.groups) {
+    if (g.strategy.startsWith("@") || g.strategy.includes("/"))
+      pkgs.add(g.strategy);
+  }
   if (state.reranker && RERANKER_PACKAGES[state.reranker])
     pkgs.add(RERANKER_PACKAGES[state.reranker]);
   // Add agent packages for selected agents
@@ -255,14 +257,6 @@ async function rotateConfigBackups(configPath: string): Promise<void> {
 
 // ─── Config generation ────────────────────────────────────────────────────────
 
-const STRATEGY_FN_TO_JSON: Record<string, string> = {
-  markdownHeadersStrategy: "markdownHeaders",
-  tokenStrategy: "token",
-  wholeFileStrategy: "wholeFile",
-  semanticStrategy: "semantic",
-  codeChunkStrategy: "codeChunkAst",
-};
-
 function buildExcludePatterns(groups: ExtGroup[]): string[] {
   const patterns = new Set(DEFAULT_EXCLUDE_PATTERNS);
   const groupNames = new Set(groups.map((g) => g.name));
@@ -287,11 +281,16 @@ function generateJsonConfig(
       ? state.groups
       : [EXT_GROUPS.find((g) => g.name === "typescript")!];
 
-  const chunkers = effectiveGroups.map((g) => ({
-    name: g.name,
-    patterns: g.exts.map((e) => `**/*${e}`),
-    strategy: STRATEGY_FN_TO_JSON[g.strategyFn] ?? g.strategyFn,
-  }));
+  const chunkers = effectiveGroups.map((g) => {
+    const entry: Record<string, unknown> = {
+      name: g.name,
+      patterns: g.exts.map((e) => `**/*${e}`),
+      strategy: g.strategy,
+    };
+    if (g.strategyOptions && Object.keys(g.strategyOptions).length > 0)
+      entry.strategyOptions = g.strategyOptions;
+    return entry;
+  });
 
   const embedderEntry = registry.embedders.find(
     (e) => e.key === state.embedder,
@@ -467,7 +466,7 @@ export async function runInit(verbosity = 0): Promise<void> {
           const confirmed = await checkboxWithBack({
             message: "Detected file types — select which to index:",
             choices: detectedGroups.map((g) => ({
-              name: `${g.name} (${g.exts.join(", ")}) → ${g.strategyFn}`,
+              name: `${g.name} (${g.exts.join(", ")}) → ${g.strategy}`,
               value: g.name,
               checked: true,
             })),
@@ -484,7 +483,7 @@ export async function runInit(verbosity = 0): Promise<void> {
           const chosen = await checkboxWithBack({
             message: "Which chunking strategies do you need?",
             choices: EXT_GROUPS.map((g) => ({
-              name: `${g.name} (${g.strategyFn})`,
+              name: `${g.name} (${g.strategy})`,
               value: g.name,
             })),
           });
@@ -728,7 +727,22 @@ export async function runInit(verbosity = 0): Promise<void> {
   if (pkgs.length > 0) {
     out.info("Resolving plugin versions...");
 
-    const versions = await Promise.all(pkgs.map(fetchLatestVersion));
+    const pinnedVersions = new Map(
+      finalState.groups
+        .filter(
+          (g) =>
+            g.version &&
+            (g.strategy.startsWith("@") || g.strategy.includes("/")),
+        )
+        .map((g) => [g.strategy, g.version!]),
+    );
+    const versions = await Promise.all(
+      pkgs.map((pkg) =>
+        pinnedVersions.has(pkg)
+          ? Promise.resolve(pinnedVersions.get(pkg)!)
+          : fetchLatestVersion(pkg),
+      ),
+    );
     const versionedPkgs = pkgs.map((pkg, i) => {
       const ver = versions[i];
       finalState.pluginVersions[pkg] = ver;

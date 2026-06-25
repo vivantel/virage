@@ -6,32 +6,49 @@ export { IGNORED_DIRS };
 
 export interface ExtGroup {
   exts: string[];
-  strategyFn: string;
+  /** Package name (e.g. `@vivantel/virage-chunker-ce-md`) or built-in alias (`token`, `wholeFile`, `semantic`). Written verbatim into the generated config. */
+  strategy: string;
+  /** Optional semver constraint used when installing a package-name strategy (skips fetchLatestVersion). */
+  version?: string;
+  /** Plugin-specific options forwarded verbatim to `strategyOptions` in the generated config. */
+  strategyOptions?: Record<string, unknown>;
   name: string;
 }
 
 export const EXT_GROUPS: ExtGroup[] = [
   {
     exts: [".md", ".mdx"],
-    strategyFn: "markdownHeadersStrategy",
+    strategy: "@vivantel/virage-chunker-ce-md",
     name: "markdown",
   },
   {
     exts: [".ts", ".tsx"],
-    strategyFn: "codeChunkStrategy",
+    strategy: "@vivantel/virage-code-chunk-chunker",
     name: "typescript",
   },
   {
     exts: [".js", ".jsx"],
-    strategyFn: "codeChunkStrategy",
+    strategy: "@vivantel/virage-code-chunk-chunker",
     name: "javascript",
   },
-  { exts: [".py"], strategyFn: "codeChunkStrategy", name: "python" },
-  { exts: [".go"], strategyFn: "codeChunkStrategy", name: "go" },
-  { exts: [".cs"], strategyFn: "tokenStrategy", name: "csharp" },
-  { exts: [".java"], strategyFn: "codeChunkStrategy", name: "java" },
-  { exts: [".yaml", ".yml"], strategyFn: "wholeFileStrategy", name: "yaml" },
-  { exts: [".txt"], strategyFn: "semanticStrategy", name: "text" },
+  {
+    exts: [".py"],
+    strategy: "@vivantel/virage-code-chunk-chunker",
+    name: "python",
+  },
+  {
+    exts: [".go"],
+    strategy: "@vivantel/virage-code-chunk-chunker",
+    name: "go",
+  },
+  { exts: [".cs"], strategy: "token", name: "csharp" },
+  {
+    exts: [".java"],
+    strategy: "@vivantel/virage-code-chunk-chunker",
+    name: "java",
+  },
+  { exts: [".yaml", ".yml"], strategy: "wholeFile", name: "yaml" },
+  { exts: [".txt"], strategy: "semantic", name: "text" },
 ];
 
 export async function collectExtensions(
