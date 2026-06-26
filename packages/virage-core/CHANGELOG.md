@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.58](https://github.com/vivantel/virage/compare/virage-core@v0.2.57...virage-core@v0.2.58) (2026-06-26)
+
+
+### Features
+
+* **core:** Four-artifact chunk model with plugin-only chunkers ([453ef4c](https://github.com/vivantel/virage/commit/453ef4c227b53109f5a42b43b941597cccd59b52))
+
+
+### Documentation
+
+* Update INDEX.md and virage-core README for four-artifact model ([dc351b6](https://github.com/vivantel/virage/commit/dc351b6915e5160beb34ec8b9646dbbc37ba74dc))
+
 ## [0.2.57](https://github.com/vivantel/virage/compare/virage-core@v0.2.56...virage-core@v0.2.57) (2026-06-24)
 
 
