@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.21](https://github.com/vivantel/virage/compare/virage-dashboard@v0.1.20...virage-dashboard@v0.1.21) (2026-06-26)
+
+
+### Bug Fixes
+
+* **dashboard:** Add @testing-library/dom as explicit devDependency ([ec2f7ba](https://github.com/vivantel/virage/commit/ec2f7bacdac57045fddcb0a0f587ad2f40ab1f79))
+
 ## [0.1.20](https://github.com/vivantel/virage/compare/virage-dashboard@v0.1.19...virage-dashboard@v0.1.20) (2026-06-20)
 
 
