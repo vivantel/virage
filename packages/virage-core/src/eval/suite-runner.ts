@@ -158,18 +158,16 @@ function buildRawConfigFromSuite(
     ...(db.chunkers ?? {}),
   };
   const chunkerEntries = Object.entries(effectiveChunkers).map(
-    ([filesetName, strategy]) => {
+    ([filesetName, packageName]) => {
       const fileset = suite.filesets?.[filesetName];
       if (!fileset)
         throw new Error(
           `Unknown fileset "${filesetName}" referenced in chunkers`,
         );
-      return {
-        name: filesetName,
-        patterns: fileset.include,
-        ignorePatterns: fileset.exclude ?? [],
-        strategy,
-      };
+      const entry: Record<string, unknown> = { package: packageName };
+      if (fileset.include?.length) entry.include = fileset.include;
+      if (fileset.exclude?.length) entry.ignore = fileset.exclude;
+      return entry;
     },
   );
 

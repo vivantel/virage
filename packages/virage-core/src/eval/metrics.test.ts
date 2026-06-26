@@ -35,8 +35,8 @@ describe("recallAtK", () => {
     expect(recallAtK(retrieved, relevant, 10)).toBeCloseTo(2 / 3);
   });
 
-  it("returns 1 when relevant set is empty", () => {
-    expect(recallAtK(["A"], new Set(), 5)).toBe(1);
+  it("returns 0 when relevant set is empty", () => {
+    expect(recallAtK(["A"], new Set(), 5)).toBe(0);
   });
 });
 

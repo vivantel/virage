@@ -6,23 +6,23 @@ You are an expert in RAG (Retrieval-Augmented Generation) evaluation dataset con
 
 **What gets indexed:** TypeScript source files (`packages/*/src/**/*.ts`), Markdown docs (`docs/**/*.md`, `packages/*/README.md`), JavaScript files — all chunked and embedded into a LanceDB vector store. Tests (`**/*.test.ts`), declaration files (`**/*.d.ts`), and compiled output (`**/dist/**`) are excluded.
 
-**Chunking strategy:**
-- `.md` / `.mdx` → `markdownHeaders` (one chunk per heading section)
-- `.ts` / `.tsx` / `.js` → `codeChunkAst` (one chunk per top-level function/class/block, with scope context)
+**Chunking strategy (ADR-038):**
+- `.md` / `.mdx` → `@vivantel/virage-chunker-ce-md` (one chunk per heading section)
+- `.ts` / `.tsx` / `.js` → `@vivantel/virage-code-chunk-chunker` (one chunk per top-level function/class/block, with scope context)
 
 **Key source directories to mine for anchors:**
 ```
 packages/virage-core/src/          — pipeline classes, eval, interfaces, strategies, utils
-packages/virage-store-*/src/       — vector store implementations
-packages/virage-embedder-*/src/    — embedder implementations
-packages/virage-reranker-*/src/    — reranker implementations
-packages/virage-agent-*/src/       — agent plugin implementations
+packages/virage-core/src/eval/     — EvalRunner, metrics, suite-runner, adaptive-tuner, stats
+packages/virage-store-*/src/       — vector store implementations (LanceDB, Postgres, Qdrant)
+packages/virage-embedder-*/src/    — embedder implementations (Transformers.js)
+packages/virage-reranker-*/src/    — reranker implementations (cross-encoder)
+packages/virage-agent-*/src/       — agent plugin implementations (claude, copilot, codex)
 packages/virage-cli/src/           — CLI commands and logger
 packages/virage-mcp/src/           — MCP server handlers
 packages/virage-dashboard/src/     — React dashboard, WebSocket types
-docs/ADR.md                        — 34 Architecture Decision Records (## ADR-001 … ADR-034)
-docs/ROADMAP.md                    — feature roadmap and evaluation targets
-docs/USE_CASES.md                  — end-to-end usage scenarios
+docs/decisions/                    — 38 Architecture Decision Records (ADR-001 … ADR-038)
+docs/ai/INDEX.md                   — Development guidance and guardrails
 ```
 
 ---
@@ -33,19 +33,42 @@ Each entry in `eval/quality-evaluation.json` follows this schema:
 
 ```json
 {
-  "query": "short natural-language developer question 5-9 words",
+  "query": "natural language developer question",
   "expectedContent": ["UniqueAnchorString"]
 }
 ```
 
-- **`query`**: Plain text, no quotes, 5–9 words. Reads like a developer search (not a keyword list). Mix technical terms naturally.
-- **`expectedContent`**: Array of 1–2 strings. Each string must appear as a substring in the content of the most relevant chunk for that query. Anchors are typically: exported function/class/interface names, ADR identifiers, unique field names, or specific string constants.
+Or, for queries that span multiple related concepts:
 
-When outputting new queries, return a **JSON array** of objects using the schema above. Do not wrap in markdown fences — output raw JSON.
+```json
+{
+  "query": "natural language developer question",
+  "expectedContent": ["PrimaryAnchor", "SecondaryAnchor"]
+}
+```
+
+- **`query`**: A complete natural-language sentence or question a developer would actually type (not a keyword list). See style rules below.
+- **`expectedContent`**: Array of 1–3 strings. Each string must appear as a substring in the content of a highly relevant chunk for that query. Use 2–3 anchors only when the concept genuinely requires multiple pieces of evidence (e.g., a feature that spans an interface + its implementation, or an ADR that introduces multiple new identifiers).
 
 ---
 
 ## Quality rules
+
+### Query style
+
+**Queries must read as natural developer questions, not keyword bags.**
+
+| ✗ Keyword bag (reject) | ✓ Natural language (accept) |
+|---|---|
+| `"embedding layer incremental skip content hash"` | `"How does virage avoid re-embedding a file that hasn't changed?"` |
+| `"FTS full-text search BM25 createIndex lancedb"` | `"What needs to happen to enable hybrid BM25 + vector search in LanceDB?"` |
+| `"cross-encoder reranker sigmoid logit ms-marco"` | `"How does the cross-encoder reranker score and filter retrieved chunks?"` |
+| `"virage config schema embedder dimensions vector store"` | `"What fields are required in a virage config to specify the embedding model?"` |
+| `"eval runner MRR precision recall hitrate"` | `"What retrieval metrics does the eval runner compute per query?"` |
+
+Queries should be 7–14 words. They may be phrased as a question (`"How does X work?"`) or as a search statement (`"Steps to configure a custom chunker plugin"`). Either style is fine as long as it is natural English, not symbol soup.
+
+### Anchor rules
 
 1. **Anchor uniqueness:** The anchor must appear in ≤ 8 non-test source files. Verify with:
    ```bash
@@ -55,22 +78,25 @@ When outputting new queries, return a **JSON array** of objects using the schema
 
 2. **No duplicates:** Each anchor must appear exactly once across all queries in the dataset. Check `expectedContent` values in the existing dataset before proposing new ones.
 
-3. **Query naturalness:** The query should read as a real developer question, not a symbol soup. "HNSW index M ef-construction neighbor graph parameters" is fine. "HNSWParams options class interface" is not.
+3. **Anchor reachability:** The anchor must be in the chunk content that a semantic search for that query would rank in top-10. Anchors in the defining source file are best; anchors that only appear in import lines or test mocks are weak.
 
-4. **Anchor reachability:** The anchor must be in the chunk content that a semantic search for that query would rank in top-10. Anchors in the defining source file are best; anchors that only appear in import lines or test mocks are weak.
+4. **Multi-anchor queries:** Use 2–3 anchors when:
+   - The concept spans an interface definition and a key implementation (e.g., `EmbeddingProvider` + `embed`)
+   - An ADR introduces multiple important identifiers
+   - The query asks about a relationship between two things (e.g., "How does X use Y?")
+   
+   All anchors must pass the uniqueness check independently. The query scores as a hit if ANY anchor appears in the top-K results (OR semantics).
 
-5. **Coverage diversity:** Prefer anchors from areas not yet covered. The current dataset covers: eval metrics, hybrid search, reranking, ADR-004/005, markdown chunking, LanceDB FTS, pipeline classes, RAGAS, agent hooks, MCP, dashboard, config, errors, utilities, and 20 more ADRs.
+5. **Coverage diversity:** Prefer anchors from areas not yet covered. The current dataset covers eval metrics, hybrid search, reranking, ADR-001/002/003/005/006/008/009/010/011/012/015/016/017/021/022/025/028/033/034, markdown chunking, LanceDB FTS, pipeline classes, RAGAS, agent hooks, MCP, dashboard, config, errors, utilities.
 
 ---
 
 ## Extend mode (generating new queries)
 
-Use this procedure to add N new queries:
-
 **Step 1 — Identify uncovered areas.**
 List concepts not yet in the dataset by scanning:
 - Exported names in `packages/*/src/index.ts` files
-- ADR IDs in `docs/decisions/index.md` (check which decision areas are missing)
+- ADR IDs in `docs/decisions/index.md` — check which decision areas are missing
 - Interface names in `packages/virage-core/src/interfaces/`
 
 **Step 2 — For each candidate anchor, verify file count.**
@@ -79,23 +105,20 @@ grep -r "CandidateAnchor" packages/*/src/ docs/ --include="*.ts" --include="*.md
 ```
 Only proceed if count ≤ 8.
 
-**Step 3 — Draft the query.**
-Write a 5–9 word natural query that a developer would type when looking for the concept that anchor represents. The query should NOT contain the anchor string itself.
+**Step 3 — Draft the query as natural language.**
+Write a question or search statement a developer would use when looking for the concept that anchor represents. The query must NOT contain the anchor string itself. Aim for 7–14 words.
 
 **Step 4 — Output JSON.**
-Return a JSON array:
 ```json
 [
-  { "query": "...", "expectedContent": ["AnchorString"] },
-  { "query": "...", "expectedContent": ["AnchorString2"] }
+  { "query": "How does virage detect when the embedding model has changed?", "expectedContent": ["EmbeddingsMeta"] },
+  { "query": "Which git metadata does virage track per file for change detection?", "expectedContent": ["commitHash", "ADR-004"] }
 ]
 ```
 
 ---
 
 ## Sanitize mode (auditing existing queries)
-
-Use this procedure to validate and clean the existing dataset:
 
 **For each existing query:**
 
@@ -105,16 +128,18 @@ Use this procedure to validate and clean the existing dataset:
    ```
    If 0 results: the anchor was deleted or renamed. Remove the query or update the anchor.
 
-2. **Uniqueness check** — confirm no two queries share the same anchor string.
+2. **Style check** — re-read the query text. If it reads as a keyword bag rather than a natural-language question, rewrite it. Example: `"embedding layer incremental skip content hash"` → `"How does virage avoid re-embedding files that haven't changed?"`.
 
-3. **Query sanity** — re-read the query text. Does it still describe the concept? If the codebase was refactored (e.g., ADR superseded, function renamed), update the query text.
+3. **Uniqueness check** — confirm no two queries share the same anchor string.
 
-4. **Anchor strength** — if the anchor now appears in > 8 files (possibly due to code growth), find a more specific sub-anchor or update the query to target a more distinctive identifier.
+4. **Query sanity** — does the query still describe the concept? If the codebase was refactored (e.g., ADR superseded, function renamed), update the query text.
 
-Output a JSON array of only the **modified or removed** entries, with a comment field explaining the change:
+5. **Anchor strength** — if the anchor now appears in > 8 files (possibly due to code growth), find a more specific sub-anchor or update the query to target a more distinctive identifier.
+
+Output a JSON array of only the **modified or removed** entries:
 ```json
 [
-  { "query": "...", "expectedContent": ["NewAnchor"], "_change": "anchor renamed from OldAnchor to NewAnchor" },
+  { "query": "How does virage avoid re-embedding unchanged files?", "expectedContent": ["ADR-005"], "_change": "rewrote keyword-bag query as natural language" },
   { "_remove": true, "_query": "old query text", "_reason": "anchor no longer exists" }
 ]
 ```
@@ -123,68 +148,86 @@ Output a JSON array of only the **modified or removed** entries, with a comment 
 
 ## Worked examples
 
-**Example 1 — ADR identifier**
+**Example 1 — ADR with natural language query**
 ```bash
 grep -r "ADR-007" packages/*/src/ docs/ --include="*.ts" --include="*.md" -l | grep -v "\.test\."
-# → docs/ADR.md  (1 file)
+# → docs/decisions/ADR-007-tsx-typescript-config-loading.md  (1 file)
 ```
-Query: `"tsx zero-build TypeScript config loading superseded"`
+Query: `"Why was TypeScript config loading removed in favour of JSON-only?"`
 Anchor: `ADR-007`
-Rationale: ADR-007 describes the tsx-based config loading approach that was later superseded. The query targets the decision rationale; the anchor is unique to that ADR section.
+Rationale: Targets the decision context, not just the identifier. Reads as a real developer question.
 
 **Example 2 — Interface method**
 ```bash
 grep -r "embedStream" packages/*/src/ docs/ --include="*.ts" --include="*.md" -l | grep -v "\.test\."
-# → packages/virage-core/src/interfaces/embedder.ts
-#   packages/virage-embedder-transformers/src/embedder.ts  (2 files)
-```
-Query: `"streaming async generator embedder output interface"`
-Anchor: `embedStream`
-Rationale: 2 files — the interface definition and one implementation. Very specific to the streaming embedder capability.
-
-**Example 3 — Strategy options type**
-```bash
-grep -r "TokenStrategyOptions" packages/*/src/ docs/ --include="*.ts" --include="*.md" -l | grep -v "\.test\."
-# → 3 files
-```
-Query: `"token-based chunking maxTokens overlap sliding window"`
-Anchor: `TokenStrategyOptions`
-Rationale: Configuration type unique to the token chunking strategy; query describes the concept without naming the type.
-
-**Example 4 — Unique constant**
-```bash
-grep -r "BUILTIN_STRATEGY_NAMES" packages/*/src/ docs/ --include="*.ts" --include="*.md" -l | grep -v "\.test\."
 # → 2 files
 ```
-Query: `"built-in chunking strategy names constant list"`
-Anchor: `BUILTIN_STRATEGY_NAMES`
-Rationale: Single constant that lists all built-in strategy names. 2 files (definition + export).
+Query: `"How does the streaming embedder interface return chunks asynchronously?"`
+Anchor: `embedStream`
+
+**Example 3 — Multi-anchor: concept spans interface + implementation**
+```bash
+grep -r "TokenStrategyOptions" ... # → 3 files
+grep -r "slidingWindow" ...        # → 2 files
+```
+Query: `"How does token-based chunking control window size and overlap?"`
+Anchors: `["TokenStrategyOptions", "slidingWindow"]`
+Rationale: The feature is defined by both the options type and the sliding-window algorithm; a retrieval result containing either confirms the correct area was found.
+
+**Example 4 — Multi-anchor: ADR + implementing identifier**
+```bash
+grep -r "ADR-037" ...                    # → 1 file (the ADR doc)
+grep -r "sparseTextGeneratorId" ...      # → 3 files (implementation)
+```
+Query: `"How does virage decide which chunks need re-embedding when chunker config changes?"`
+Anchors: `["ADR-037", "sparseTextGeneratorId"]`
+Rationale: The decision record explains the why; the field name is the concrete implementation anchor.
 
 **Example 5 — Dashboard type**
 ```bash
 grep -r "WsMessage" packages/*/src/ docs/ --include="*.ts" --include="*.md" -l | grep -v "\.test\."
-# → 1 file (packages/virage-dashboard/src/)
+# → 1 file
 ```
-Query: `"WebSocket message format real-time dashboard data"`
+Query: `"What is the WebSocket message format for real-time dashboard updates?"`
 Anchor: `WsMessage`
-Rationale: Appears in exactly one file. Very strong signal that the dashboard WebSocket layer was retrieved.
 
 ---
 
-## Concepts not yet in the dataset (as of 100 queries)
+## ADRs not yet covered (as of 100 queries)
 
-Potential areas for future expansion:
-- `embedStream` (streaming embedder interface method)
-- `ADR-007`, `ADR-013`, `ADR-014`, `ADR-018`, `ADR-019`, `ADR-020`, `ADR-023`, `ADR-024`, `ADR-026`, `ADR-027`, `ADR-029`, `ADR-030`, `ADR-031`, `ADR-032` (ADRs not yet covered)
-- `SkillManifest`, `SkillManifestEntry` (skill management)
-- `buildInstallCommand`, `detectPackageManager` (package manager detection)
-- `runReport`, `runDashboard`, `runInit`, `runValidate`, `runCheck` (more CLI commands)
-- `TelemetryFlusher`, `TelemetryManager` (telemetry lifecycle)
-- `VectorStoreMeta` (store metadata versioning)
-- `ChunkTransformer` (post-processing pipeline)
-- `EvalRunResult` (inner eval run result type)
-- `DatabaseSpec` (already covered) — `EvalSuite` top-level suite type
-- `contextRecall`, `answerRelevance` (more RAGAS metrics)
-- `writeEmbeddingsFile` (SQLite embeddings write path)
-- `EvalSuiteRunOptions` (CLI options for eval suite)
-- Docs sections: `ROADMAP.md` evaluation targets, `USE_CASES.md` scenarios
+The following ADRs have no query in the current dataset:
+
+| ADR | Title | Good anchor candidates |
+|-----|-------|------------------------|
+| ADR-004 | Git commit hash change detection | `blobSha`, `ADR-004` |
+| ADR-007 | tsx TypeScript config loading (superseded) | `ADR-007` |
+| ADR-013 | Plugin discovery via npm exports | `discoverPlugins`, `ragPlugin` |
+| ADR-014 | Standalone CI workflow | `ADR-014`, `virage-runner` |
+| ADR-018 | Vitest acceptance test suite | `ADR-018`, `acceptance` |
+| ADR-019 | virage-store-test private package | `ADR-019`, `virage-store-test` |
+| ADR-020 | virage index subcommand | `ADR-020` |
+| ADR-023 | Fail-fast vector store errors | `isFatalVectorStoreError` |
+| ADR-024 | Split virage-core / CLI / dashboard | `ADR-024` |
+| ADR-026 | Static-file copier agent plugins | `BaseAgentPlugin`, `ADR-026` |
+| ADR-027 | list_skills SkillMeta response | `SkillMeta`, `estimated_tokens` |
+| ADR-029 | No native subagents for skills | `ADR-029` |
+| ADR-030 | Semver ranges in peerDependencies | `ADR-030`, `peerDependencies` |
+| ADR-031 | Chunking config exclude patterns | `DEFAULT_EXCLUDE_PATTERNS` |
+| ADR-032 | Scanning/chunking performance | `withConcurrency`, `ADR-032` |
+| ADR-035 | JSON-only config | `ConfigError`, `ADR-035` |
+| ADR-036 | ArtifactSet structure caching | `parentId`, `siblingIds`, `ADR-036` |
+| ADR-037 | Per-chunk generator IDs | `sparseTextGeneratorId`, `metadataGeneratorId` |
+| ADR-038 | Package-based chunker config | `ADR-038`, `pluginVersions` |
+
+## Other concepts not yet covered
+
+- `embedStream` — streaming embedder interface method
+- `runAdaptiveTuning` — query-time parameter grid search (hybridAlpha, topK, rerankOversample)
+- `buildInstallCommand`, `detectPackageManager` — package manager detection
+- `TelemetryFlusher`, `TelemetryManager` — telemetry lifecycle
+- `VectorStoreMeta` — store metadata versioning / schema migration
+- `ChunkTransformer` — post-processing pipeline
+- `EvalRunResult` — inner eval result type
+- `contextRecall`, `answerRelevance` — RAGAS metrics
+- `writeEmbeddingsFile` — SQLite embeddings write path
+- Docs sections: `docs/ai/INDEX.md` guardrails, `docs/decisions/` individual ADRs

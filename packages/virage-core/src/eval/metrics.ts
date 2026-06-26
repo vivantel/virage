@@ -27,7 +27,7 @@ export function recallAtK(
   relevant: Set<string>,
   k: number,
 ): number {
-  if (relevant.size === 0) return 1;
+  if (relevant.size === 0) return 0;
   const topK = retrieved.slice(0, k);
   const hits = topK.filter((id) => relevant.has(id)).length;
   return hits / relevant.size;
