@@ -66,7 +66,9 @@ export async function runBenchmarkEmbedder(
   const p50 = percentile(latencies, 50);
   const p95 = percentile(latencies, 95);
   const p99 = percentile(latencies, 99);
-  const singleThroughput = 1000 / p50;
+  const avgChars = texts.reduce((s, t) => s + t.length, 0) / texts.length;
+  const avgTokens = Math.round(avgChars / 4);
+  const singleThroughputTokens = (1000 / p50) * avgTokens;
 
   let batchTotalMs: number | null = null;
   let batchPerItemMs: number | null = null;
@@ -97,8 +99,13 @@ export async function runBenchmarkEmbedder(
   out.info(`    p50              : ${p50.toFixed(1)} ms`);
   out.info(`    p95              : ${p95.toFixed(1)} ms`);
   out.info(`    p99              : ${p99.toFixed(1)} ms`);
-  out.info(`    throughput (est) : ${singleThroughput.toFixed(1)} embeds/sec`);
+  out.info(
+    `    throughput (est) : ${singleThroughputTokens.toFixed(0)} tokens/sec`,
+  );
+  out.info(`                       (~${avgTokens} tokens/embed)`);
   if (batchPerItemMs !== null && batchTotalMs !== null) {
+    const batchThroughputTokens =
+      (1000 / (batchPerItemMs as number)) * avgTokens;
     out.divider();
     out.info(`  Batch-embed (${opts.samples} items)`);
     out.info(
@@ -108,7 +115,7 @@ export async function runBenchmarkEmbedder(
       `    per-item         : ${(batchPerItemMs as number).toFixed(1)} ms`,
     );
     out.info(
-      `    throughput (est) : ${(1000 / (batchPerItemMs as number)).toFixed(1)} embeds/sec`,
+      `    throughput (est) : ${batchThroughputTokens.toFixed(0)} tokens/sec`,
     );
   }
   out.divider();

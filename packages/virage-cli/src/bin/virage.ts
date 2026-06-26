@@ -28,6 +28,8 @@ import {
   runExperimentList,
 } from "../cli/experiment.js";
 import { runBenchmarkEmbedder } from "../cli/benchmark.js";
+import { runBenchmarkChunker } from "../cli/benchmark-chunker.js";
+import { runBenchmarkReranker } from "../cli/benchmark-reranker.js";
 import { runStoreStats, runStorePerf } from "../cli/store-cmd.js";
 import { runReport } from "../cli/report.js";
 import { runChunksReport } from "../cli/chunks-report.js";
@@ -672,15 +674,20 @@ const benchmark = program
 benchmark
   .command("embedder")
   .description(
-    "Benchmark any configured embedder (latency p50/p95/p99 + batch throughput)",
+    "Benchmark any configured embedder (latency p50/p95/p99 + tokens/sec)",
   )
   .option(
     "-c, --config <path>",
     "Path to virage.config.json",
     "./virage.config.json",
   )
-  .option("--samples <n>", "Number of latency samples", parseInt, 20)
-  .option("--warmup <n>", "Number of warm-up runs", parseInt, 3)
+  .option(
+    "--samples <n>",
+    "Number of latency samples",
+    (v) => parseInt(v, 10),
+    20,
+  )
+  .option("--warmup <n>", "Number of warm-up runs", (v) => parseInt(v, 10), 3)
   .action(async (opts: { config: string; samples: number; warmup: number }) => {
     const verbose = program.opts<{ verbose: number }>().verbose;
     try {
@@ -694,6 +701,86 @@ benchmark
       handleError(error);
     }
   });
+
+benchmark
+  .command("chunker")
+  .description(
+    "Benchmark configured chunkers (latency p50/p95/p99 + KB/s throughput)",
+  )
+  .option(
+    "-c, --config <path>",
+    "Path to virage.config.json",
+    "./virage.config.json",
+  )
+  .requiredOption("--file <path>", "Path to a file to chunk")
+  .option(
+    "--samples <n>",
+    "Number of passes per chunker",
+    (v) => parseInt(v, 10),
+    20,
+  )
+  .option("--warmup <n>", "Number of warm-up runs", (v) => parseInt(v, 10), 3)
+  .action(
+    async (opts: {
+      config: string;
+      file: string;
+      samples: number;
+      warmup: number;
+    }) => {
+      const verbose = program.opts<{ verbose: number }>().verbose;
+      try {
+        await runBenchmarkChunker({
+          config: opts.config,
+          file: opts.file,
+          samples: opts.samples,
+          warmup: opts.warmup,
+          verbosity: verbose,
+        });
+      } catch (error) {
+        handleError(error);
+      }
+    },
+  );
+
+benchmark
+  .command("reranker")
+  .description(
+    "Benchmark configured reranker (latency p50/p95/p99 + passages/sec)",
+  )
+  .option(
+    "-c, --config <path>",
+    "Path to virage.config.json",
+    "./virage.config.json",
+  )
+  .option("--samples <n>", "Number of rerank calls", (v) => parseInt(v, 10), 20)
+  .option(
+    "--passages <n>",
+    "Passages per rerank call",
+    (v) => parseInt(v, 10),
+    10,
+  )
+  .option("--warmup <n>", "Number of warm-up runs", (v) => parseInt(v, 10), 3)
+  .action(
+    async (opts: {
+      config: string;
+      samples: number;
+      passages: number;
+      warmup: number;
+    }) => {
+      const verbose = program.opts<{ verbose: number }>().verbose;
+      try {
+        await runBenchmarkReranker({
+          config: opts.config,
+          samples: opts.samples,
+          passages: opts.passages,
+          warmup: opts.warmup,
+          verbosity: verbose,
+        });
+      } catch (error) {
+        handleError(error);
+      }
+    },
+  );
 
 const store = program.command("store").description("Vector store diagnostics");
 
