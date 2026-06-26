@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.1.91](https://github.com/vivantel/virage/compare/virage-cli@v0.1.90...virage-cli@v0.1.91) (2026-06-26)
+
+
+### Features
+
+* **core:** Four-artifact chunk model with plugin-only chunkers ([453ef4c](https://github.com/vivantel/virage/commit/453ef4c227b53109f5a42b43b941597cccd59b52))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @vivantel/virage-core bumped from >=0.2.0 <0.3.0 to >=0.2.58
+
 ## [0.1.90](https://github.com/vivantel/virage/compare/virage-cli@v0.1.89...virage-cli@v0.1.90) (2026-06-25)
 
 

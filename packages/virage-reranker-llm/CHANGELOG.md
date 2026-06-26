@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.1.32](https://github.com/vivantel/virage/compare/virage-reranker-llm@v0.1.31...virage-reranker-llm@v0.1.32) (2026-06-26)
+
+
+### Features
+
+* **core:** Four-artifact chunk model with plugin-only chunkers ([453ef4c](https://github.com/vivantel/virage/commit/453ef4c227b53109f5a42b43b941597cccd59b52))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * devDependencies
+    * @vivantel/virage-core bumped from 0.2.57 to 0.2.58
+  * peerDependencies
+    * @vivantel/virage-core bumped from * to 0.2.58
+
 ## [0.1.31](https://github.com/vivantel/virage/compare/virage-reranker-llm@v0.1.30...virage-reranker-llm@v0.1.31) (2026-06-24)
 
 

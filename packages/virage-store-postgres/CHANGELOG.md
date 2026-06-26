@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.2.59](https://github.com/vivantel/virage/compare/virage-store-postgres@v0.2.58...virage-store-postgres@v0.2.59) (2026-06-26)
+
+
+### Features
+
+* **core:** Four-artifact chunk model with plugin-only chunkers ([453ef4c](https://github.com/vivantel/virage/commit/453ef4c227b53109f5a42b43b941597cccd59b52))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * devDependencies
+    * @vivantel/virage-core bumped from 0.2.57 to 0.2.58
+  * peerDependencies
+    * @vivantel/virage-core bumped from * to 0.2.58
+
 ## [0.2.58](https://github.com/vivantel/virage/compare/virage-store-postgres@v0.2.57...virage-store-postgres@v0.2.58) (2026-06-24)
 
 
