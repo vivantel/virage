@@ -1,6 +1,7 @@
 import { Chunk, FileChunker } from "../interfaces/index.js";
 import type { Logger } from "../interfaces/logger.js";
 import { NullLogger } from "../logger/null-logger.js";
+import { computeDenseTextHash } from "./chunk-utils.js";
 
 export class ChunkProcessor {
   private chunkers: Map<string, FileChunker>;
@@ -22,6 +23,9 @@ export class ChunkProcessor {
     for (const chunk of chunks) {
       chunk.sourceFile = normalizedPath;
       chunk.commitHash = commitHash;
+      if (!chunk.denseTextHash) {
+        chunk.denseTextHash = computeDenseTextHash(chunk.denseText);
+      }
     }
 
     return chunks;
