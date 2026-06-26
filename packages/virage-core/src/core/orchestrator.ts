@@ -333,6 +333,7 @@ export class Orchestrator {
       const embedSemaphore = new Semaphore(maxPendingFiles);
       let filesStreamed = 0;
       let embedChain = Promise.resolve();
+      let firstEmbedError: Error | undefined;
 
       const chunkTasks = toProcess.map((file) => async () => {
         const info = currentState.get(file);
@@ -360,6 +361,10 @@ export class Orchestrator {
 
         const capturedChunks = newChunks;
         embedChain = embedChain.then(async () => {
+          if (firstEmbedError) {
+            embedSemaphore.release();
+            return;
+          }
           try {
             filesStreamed++;
             db.replaceChunks(file, capturedChunks, info?.commitHash);
@@ -387,10 +392,10 @@ export class Orchestrator {
             // render each increment, giving smooth 1/N → N/N progress.
             opts.onFileComplete?.(++filesIndexed, toProcess.length);
           } catch (err) {
+            firstEmbedError =
+              err instanceof Error ? err : new Error(String(err));
             logger.error(
-              `❌ Embed chain error for ${file}: ${
-                err instanceof Error ? err.message : String(err)
-              }`,
+              `❌ Embed chain error for ${file}: ${firstEmbedError.message}`,
             );
           } finally {
             embedSemaphore.release();
@@ -401,6 +406,10 @@ export class Orchestrator {
       await withConcurrency(chunkTasks, chunkConcurrency);
       // Wait for any in-flight embed/upload work that started during chunking
       await embedChain;
+
+      if (firstEmbedError) {
+        throw firstEmbedError;
+      }
 
       const chunkDuration = Date.now() - t2;
       telemetry?.recordChunking({
