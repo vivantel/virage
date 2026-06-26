@@ -65,3 +65,4 @@ packages/*/package-lock.json
 .agents/skills/virage/
 .claude/skills/
 virage-runner/node_modules/
+virage-runner/package-lock.json
