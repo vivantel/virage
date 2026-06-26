@@ -3,7 +3,13 @@ import { readFile, stat } from "node:fs/promises";
 import * as ts from "typescript";
 import { minimatch } from "minimatch";
 import { walkToChunks } from "@vivantel/virage-chunker-ce-ast";
-import type { ArtifactChunker, ArtifactSet, DocNode, DocNodeAttrs, BaseOptions } from "@vivantel/virage-chunker-ce-ast";
+import type {
+  ArtifactChunker,
+  ArtifactSet,
+  DocNode,
+  DocNodeAttrs,
+  BaseOptions,
+} from "@vivantel/virage-chunker-ce-ast";
 
 const NAME = "@vivantel/virage-chunker-ce-ts";
 const VERSION = "0.1.0";
@@ -32,20 +38,19 @@ function emptyAttrs(byteStart = 0, byteEnd = 0): DocNodeAttrs {
  * Build a ViDoc DocNode from a TypeScript/JavaScript source file.
  * Top-level declarations become sections; imports form a preamble code node.
  */
-function buildDocNode(
-  filePath: string,
-  content: string,
-): DocNode {
-  const sourceFile = ts.createSourceFile(filePath, content, ts.ScriptTarget.Latest, true);
+function buildDocNode(filePath: string, content: string): DocNode {
+  const sourceFile = ts.createSourceFile(
+    filePath,
+    content,
+    ts.ScriptTarget.Latest,
+    true,
+  );
   const children: DocNode[] = [];
 
   // Gather import declarations as a single preamble code node.
   const importLines: string[] = [];
   for (const stmt of sourceFile.statements) {
-    if (
-      ts.isImportDeclaration(stmt) ||
-      ts.isImportEqualsDeclaration(stmt)
-    ) {
+    if (ts.isImportDeclaration(stmt) || ts.isImportEqualsDeclaration(stmt)) {
       importLines.push(stmt.getText(sourceFile).trim());
     }
   }
@@ -64,10 +69,7 @@ function buildDocNode(
 
   // Each top-level non-import declaration becomes a section.
   for (const stmt of sourceFile.statements) {
-    if (
-      ts.isImportDeclaration(stmt) ||
-      ts.isImportEqualsDeclaration(stmt)
-    ) {
+    if (ts.isImportDeclaration(stmt) || ts.isImportEqualsDeclaration(stmt)) {
       continue;
     }
 
@@ -156,14 +158,24 @@ export function createChunker(opts?: TsChunkerOptions): ArtifactChunker {
   return {
     name: NAME,
     version: VERSION,
-    patterns: ["**/*.ts", "**/*.tsx", "**/*.js", "**/*.jsx", "**/*.mjs", "**/*.cjs"],
+    patterns: [
+      "**/*.ts",
+      "**/*.tsx",
+      "**/*.js",
+      "**/*.jsx",
+      "**/*.mjs",
+      "**/*.cjs",
+    ],
     sparseTextGeneratorId,
     metadataGeneratorId,
 
     async chunk(filePath: string, commitHash: string): Promise<ArtifactSet[]> {
       const content = await readFile(filePath, "utf-8");
       const fileStat = await stat(filePath);
-      const fileHash = createHash("sha256").update(content).digest("hex").slice(0, 16);
+      const fileHash = createHash("sha256")
+        .update(content)
+        .digest("hex")
+        .slice(0, 16);
 
       const docNode = buildDocNode(filePath, content);
 
@@ -174,11 +186,21 @@ export function createChunker(opts?: TsChunkerOptions): ArtifactChunker {
         strategy: NAME,
         sparseTextGeneratorId,
         metadataGeneratorId,
-        ...(resolvedOpts.maxTokens != null ? { maxTokens: resolvedOpts.maxTokens } : {}),
-        ...(resolvedOpts.minTokens != null ? { minTokens: resolvedOpts.minTokens } : {}),
-        ...(resolvedOpts.overlap != null ? { overlap: resolvedOpts.overlap } : {}),
-        ...(resolvedOpts.adaptiveSize != null ? { adaptiveSize: resolvedOpts.adaptiveSize } : {}),
-        ...(resolvedOpts.recursive != null ? { recursive: resolvedOpts.recursive } : {}),
+        ...(resolvedOpts.maxTokens != null
+          ? { maxTokens: resolvedOpts.maxTokens }
+          : {}),
+        ...(resolvedOpts.minTokens != null
+          ? { minTokens: resolvedOpts.minTokens }
+          : {}),
+        ...(resolvedOpts.overlap != null
+          ? { overlap: resolvedOpts.overlap }
+          : {}),
+        ...(resolvedOpts.adaptiveSize != null
+          ? { adaptiveSize: resolvedOpts.adaptiveSize }
+          : {}),
+        ...(resolvedOpts.recursive != null
+          ? { recursive: resolvedOpts.recursive }
+          : {}),
         fileHash,
         fileSizeBytes: fileStat.size,
         fileModifiedAt: fileStat.mtime.toISOString(),
@@ -189,9 +211,14 @@ export function createChunker(opts?: TsChunkerOptions): ArtifactChunker {
       if (ignore.some((p) => minimatch(filePath, p, { matchBase: true }))) {
         return false;
       }
-      return ["**/*.ts", "**/*.tsx", "**/*.js", "**/*.jsx", "**/*.mjs", "**/*.cjs"].some(
-        (p) => minimatch(filePath, p, { matchBase: true }),
-      );
+      return [
+        "**/*.ts",
+        "**/*.tsx",
+        "**/*.js",
+        "**/*.jsx",
+        "**/*.mjs",
+        "**/*.cjs",
+      ].some((p) => minimatch(filePath, p, { matchBase: true }));
     },
   };
 }

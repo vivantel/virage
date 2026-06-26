@@ -12,5 +12,6 @@ export const createChunker = createNativeChunker<PdfChunkerOptions>({
   sourceFormat: "pdf",
   patterns: ["**/*.pdf"],
   loadBinding: () => require("./virage_chunker_ce_pdf.node"),
-  callNative: (b, filePath) => b["parsePdf"](filePath) as unknown as ParseResult,
+  callNative: (b, filePath) =>
+    b["parsePdf"](filePath) as unknown as ParseResult,
 });

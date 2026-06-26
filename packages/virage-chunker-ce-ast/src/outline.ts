@@ -4,7 +4,11 @@ import type { DocNode } from "./types.js";
 export function extractOutline(root: DocNode): string[] {
   const titles: string[] = [];
   for (const child of root.children ?? []) {
-    if (child.type === "heading" && child.attrs.headingLevel === 1 && child.text) {
+    if (
+      child.type === "heading" &&
+      child.attrs.headingLevel === 1 &&
+      child.text
+    ) {
       titles.push(child.text);
     } else if (child.type === "section") {
       const h = (child.children ?? []).find(

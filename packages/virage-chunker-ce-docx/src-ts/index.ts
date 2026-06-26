@@ -12,6 +12,7 @@ export const createChunker = createNativeChunker<DocxChunkerOptions>({
   sourceFormat: "docx",
   patterns: ["**/*.docx"],
   loadBinding: () => require("./virage_chunker_ce_docx.node"),
-  callNative: (b, filePath) => b["parseDocx"](filePath) as unknown as ParseResult,
+  callNative: (b, filePath) =>
+    b["parseDocx"](filePath) as unknown as ParseResult,
   extraWalkOpts: () => ({ overlap: 0.1 }),
 });

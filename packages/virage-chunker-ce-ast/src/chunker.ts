@@ -148,7 +148,10 @@ export function walkToChunks(root: DocNode, opts: WalkOptions): ArtifactSet[] {
       const segTokens = estimateTokens(seg.text);
 
       // Flush if entering a new section (different breadcrumb).
-      if (currentTokens > 0 && !sameBreadcrumb(seg.breadcrumb, win.breadcrumb)) {
+      if (
+        currentTokens > 0 &&
+        !sameBreadcrumb(seg.breadcrumb, win.breadcrumb)
+      ) {
         break;
       }
 
@@ -210,7 +213,10 @@ export function walkToChunks(root: DocNode, opts: WalkOptions): ArtifactSet[] {
     const last = windows[windows.length - 1]!;
     const prev = windows[windows.length - 2]!;
     const lastTokens = estimateTokens(last.texts.join("\n\n"));
-    if (lastTokens < minTokens && sameBreadcrumb(last.breadcrumb, prev.breadcrumb)) {
+    if (
+      lastTokens < minTokens &&
+      sameBreadcrumb(last.breadcrumb, prev.breadcrumb)
+    ) {
       prev.texts.push(...last.texts);
       prev.byteEnd = last.byteEnd;
       prev.lineEnd = last.lineEnd;

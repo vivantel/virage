@@ -50,10 +50,19 @@ export interface NativeChunkerDef<TOptions extends BaseOptions> {
   /** Format-specific WalkOptions defaults. Spread before user opts so user opts win. */
   extraWalkOpts?: (opts: TOptions) => Partial<WalkOptions>;
   /** Optional post-walk hook for format-specific enrichment (XLSX cell refs, etc.). */
-  enrich?: (sets: ArtifactSet[], docNode: DocNode, opts: TOptions) => ArtifactSet[];
+  enrich?: (
+    sets: ArtifactSet[],
+    docNode: DocNode,
+    opts: TOptions,
+  ) => ArtifactSet[];
 }
 
-function makeGeneratorId(name: string, version: string, role: string, opts: BaseOptions): string {
+function makeGeneratorId(
+  name: string,
+  version: string,
+  role: string,
+  opts: BaseOptions,
+): string {
   const fp = JSON.stringify({
     maxTokens: opts.maxTokens,
     minTokens: opts.minTokens,
@@ -81,10 +90,21 @@ export function createNativeChunker<TOptions extends BaseOptions>(
   return (opts?: TOptions): ArtifactChunker => {
     const resolvedOpts = (opts ?? {}) as TOptions;
     const ignore = resolvedOpts.ignore ?? [];
-    let _binding: ReturnType<NativeChunkerDef<TOptions>["loadBinding"]> | null = null;
+    let _binding: ReturnType<NativeChunkerDef<TOptions>["loadBinding"]> | null =
+      null;
 
-    const sparseTextGeneratorId = makeGeneratorId(def.name, def.version, "sparse", resolvedOpts);
-    const metadataGeneratorId = makeGeneratorId(def.name, def.version, "meta", resolvedOpts);
+    const sparseTextGeneratorId = makeGeneratorId(
+      def.name,
+      def.version,
+      "sparse",
+      resolvedOpts,
+    );
+    const metadataGeneratorId = makeGeneratorId(
+      def.name,
+      def.version,
+      "meta",
+      resolvedOpts,
+    );
 
     function getBinding() {
       if (_binding == null) {
@@ -100,7 +120,10 @@ export function createNativeChunker<TOptions extends BaseOptions>(
       sparseTextGeneratorId,
       metadataGeneratorId,
 
-      async chunk(filePath: string, commitHash: string): Promise<ArtifactSet[]> {
+      async chunk(
+        filePath: string,
+        commitHash: string,
+      ): Promise<ArtifactSet[]> {
         const binding = getBinding();
         const result = def.callNative(binding, filePath, resolvedOpts);
         const docNode = JSON.parse(result.tree) as DocNode;

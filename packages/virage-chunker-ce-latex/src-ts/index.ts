@@ -12,6 +12,7 @@ export const createChunker = createNativeChunker<LatexChunkerOptions>({
   sourceFormat: "latex",
   patterns: ["**/*.tex", "**/*.latex"],
   loadBinding: () => require("./virage_chunker_ce_latex.node"),
-  callNative: (b, filePath) => b["parseLatex"](filePath) as unknown as ParseResult,
+  callNative: (b, filePath) =>
+    b["parseLatex"](filePath) as unknown as ParseResult,
   extraWalkOpts: () => ({ overlap: 0.1 }),
 });

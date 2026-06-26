@@ -16,7 +16,10 @@ const PLATFORM_STUBS: Record<string, string> = {
 function loadBinding(): Record<string, (...args: unknown[]) => string> {
   // Local dev build: napi places binary next to dist/
   try {
-    return require("./virage_chunker_ce_md.node") as Record<string, (...args: unknown[]) => string>;
+    return require("./virage_chunker_ce_md.node") as Record<
+      string,
+      (...args: unknown[]) => string
+    >;
   } catch {
     /* fall through to platform stub */
   }

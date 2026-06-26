@@ -23,7 +23,13 @@ export type DocNodeType =
 
 export interface DocNodeAttrs {
   headingLevel?: 1 | 2 | 3 | 4 | 5 | 6;
-  role?: "caption" | "footnote" | "abstract" | "toc-entry" | "header" | "footer";
+  role?:
+    | "caption"
+    | "footnote"
+    | "abstract"
+    | "toc-entry"
+    | "header"
+    | "footer";
   breadcrumb?: string[];
   byteStart: number;
   byteEnd: number;
