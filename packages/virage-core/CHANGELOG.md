@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.59](https://github.com/vivantel/virage/compare/virage-core@v0.2.58...virage-core@v0.2.59) (2026-06-26)
+
+
+### Features
+
+* Implement three-field flat model with generator IDs (ADR-036/037/038) ([94783cd](https://github.com/vivantel/virage/commit/94783cd55d9f0d7de8c7d7b8a4b14a5406541ad6))
+
+
+### Bug Fixes
+
+* **virage-core:** Compute denseTextHash in ChunkProcessor if chunker omits it ([3cc67a0](https://github.com/vivantel/virage/commit/3cc67a01a759d65f51518bda65f48c7c29a19ebb))
+
 ## [0.2.58](https://github.com/vivantel/virage/compare/virage-core@v0.2.57...virage-core@v0.2.58) (2026-06-26)
 
 

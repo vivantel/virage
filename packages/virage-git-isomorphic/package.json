@@ -1,6 +1,6 @@
 {
   "name": "@vivantel/virage-git-isomorphic",
-  "version": "0.1.26",
+  "version": "0.1.27",
   "description": "Pure-JS git source repository for Virage using isomorphic-git (no subprocess spawning)",
   "type": "module",
   "main": "dist/index.js",
@@ -52,7 +52,7 @@
     "@vivantel/virage-core": "*"
   },
   "devDependencies": {
-    "@vivantel/virage-core": "0.2.58",
+    "@vivantel/virage-core": "0.2.59",
     "@types/node": "^25.9.3",
     "typescript": "^6.0.3",
     "vitest": "^4.1.9"
