@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.2.62](https://github.com/vivantel/virage/compare/virage-store-lancedb@v0.2.61...virage-store-lancedb@v0.2.62) (2026-06-26)
+
+
+### Features
+
+* Implement three-field flat model with generator IDs (ADR-036/037/038) ([94783cd](https://github.com/vivantel/virage/commit/94783cd55d9f0d7de8c7d7b8a4b14a5406541ad6))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * devDependencies
+    * @vivantel/virage-core bumped from 0.2.58 to 0.2.59
+  * peerDependencies
+    * @vivantel/virage-core bumped from * to 0.2.59
+
 ## [0.2.61](https://github.com/vivantel/virage/compare/virage-store-lancedb@v0.2.60...virage-store-lancedb@v0.2.61) (2026-06-26)
 
 
