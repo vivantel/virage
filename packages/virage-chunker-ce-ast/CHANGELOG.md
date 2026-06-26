@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.6](https://github.com/vivantel/virage/compare/virage-chunker-ce-ast@v0.1.5...virage-chunker-ce-ast@v0.1.6) (2026-06-26)
+
+
+### Bug Fixes
+
+* **ci:** Fix package-lock, tsconfig.base.json, and lint paths after CE migration ([d9331f9](https://github.com/vivantel/virage/commit/d9331f90830723e375cfa7dde78e3fdf794617ed))
+* **ci:** Pass with no tests for virage-chunker-ce-ts, fix repo URLs in CE packages ([51955a5](https://github.com/vivantel/virage/commit/51955a54c2453860fa8add49c7a980a8bd74976b))
+
 ## [0.1.5](https://github.com/vivantel/virage/compare/virage-chunker-ce-ast@v0.1.4...virage-chunker-ce-ast@v0.1.5) (2026-06-26)
 
 

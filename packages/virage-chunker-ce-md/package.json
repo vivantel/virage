@@ -1,6 +1,6 @@
 {
   "name": "@vivantel/virage-chunker-ce-md",
-  "version": "0.1.6",
+  "version": "0.1.7",
   "description": "Markdown / MDX chunker for Virage — Rust napi-rs native addon (comrak)",
   "type": "module",
   "main": "./dist/index.js",
@@ -30,11 +30,11 @@
     "minimatch": "^10.0.0"
   },
   "optionalDependencies": {
-    "@vivantel/virage-chunker-ce-md-linux-x64-gnu": "0.1.6",
-    "@vivantel/virage-chunker-ce-md-linux-arm64-gnu": "0.1.6",
-    "@vivantel/virage-chunker-ce-md-darwin-x64": "0.1.6",
-    "@vivantel/virage-chunker-ce-md-darwin-arm64": "0.1.6",
-    "@vivantel/virage-chunker-ce-md-win32-x64-msvc": "0.1.6"
+    "@vivantel/virage-chunker-ce-md-linux-x64-gnu": "0.1.7",
+    "@vivantel/virage-chunker-ce-md-linux-arm64-gnu": "0.1.7",
+    "@vivantel/virage-chunker-ce-md-darwin-x64": "0.1.7",
+    "@vivantel/virage-chunker-ce-md-darwin-arm64": "0.1.7",
+    "@vivantel/virage-chunker-ce-md-win32-x64-msvc": "0.1.7"
   },
   "rag-plugin": {
     "type": "chunker",

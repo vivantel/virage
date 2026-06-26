@@ -1,6 +1,6 @@
 {
   "name": "@vivantel/virage-chunker-ce-pdf-linux-arm64-gnu",
-  "version": "0.1.7",
+  "version": "0.1.8",
   "description": "PDF chunker native binary for linux-arm64-gnu",
   "os": [
     "linux"

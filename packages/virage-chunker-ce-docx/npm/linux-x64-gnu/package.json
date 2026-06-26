@@ -1,6 +1,6 @@
 {
   "name": "@vivantel/virage-chunker-ce-docx-linux-x64-gnu",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "Linux x64 (GNU libc) native binary for @vivantel/virage-chunker-ce-docx",
   "main": "virage_chunker_ce_docx.node",
   "files": [
