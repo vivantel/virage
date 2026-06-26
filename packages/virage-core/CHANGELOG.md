@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.60](https://github.com/vivantel/virage/compare/virage-core@v0.2.59...virage-core@v0.2.60) (2026-06-26)
+
+
+### Features
+
+* **core:** Add per-chunker include/ignore path filters ([dc36997](https://github.com/vivantel/virage/commit/dc369973af14e74210ddb281d1af61f176c46b41))
+
 ## [0.2.59](https://github.com/vivantel/virage/compare/virage-core@v0.2.58...virage-core@v0.2.59) (2026-06-26)
 
 

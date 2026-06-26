@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.1.93](https://github.com/vivantel/virage/compare/virage-cli@v0.1.92...virage-cli@v0.1.93) (2026-06-26)
+
+
+### Features
+
+* **core:** Add per-chunker include/ignore path filters ([dc36997](https://github.com/vivantel/virage/commit/dc369973af14e74210ddb281d1af61f176c46b41))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @vivantel/virage-core bumped from >=0.2.59 to >=0.2.60
+
 ## [0.1.92](https://github.com/vivantel/virage/compare/virage-cli@v0.1.91...virage-cli@v0.1.92) (2026-06-26)
 
 
