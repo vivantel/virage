@@ -14,17 +14,16 @@ const suite = JSON.parse(readFileSync('eval/suites/retrieval-quality.json', 'utf
 
 // Resolve the effective chunking config for a database using suite-level
 // filesets (immutable) and merging suite + db chunker strategy maps.
+// Emits ADR-038 package-based format: { package, include?, ignore? }
 function generateChunking(suite, db) {
   const effectiveChunkers = { ...(suite.chunkers ?? {}), ...(db.chunkers ?? {}) };
-  const chunkers = Object.entries(effectiveChunkers).map(([filesetName, strategy]) => {
+  const chunkers = Object.entries(effectiveChunkers).map(([filesetName, packageName]) => {
     const fileset = suite.filesets?.[filesetName];
     if (!fileset) throw new Error(`Unknown fileset "${filesetName}" referenced in chunkers`);
-    return {
-      name: filesetName,
-      patterns: fileset.include,
-      ignorePatterns: fileset.exclude ?? [],
-      strategy,
-    };
+    const entry = { package: packageName };
+    if (fileset.include?.length) entry.include = fileset.include;
+    if (fileset.exclude?.length) entry.ignore = fileset.exclude;
+    return entry;
   });
   return { exclude: suite.exclude ?? [], chunkers };
 }
@@ -38,8 +37,12 @@ function indexSignature(suite, db) {
     model: db.embedder?.config?.model ?? null,
     dimensions: db.embedder?.config?.dimensions ?? null,
     chunkers: chunking.chunkers
-      .map((c) => ({ strategy: c.strategy, patterns: [...c.patterns].sort() }))
-      .sort((a, b) => a.strategy.localeCompare(b.strategy)),
+      .map((c) => ({
+        package: c.package,
+        include: [...(c.include ?? [])].sort(),
+        ignore: [...(c.ignore ?? [])].sort(),
+      }))
+      .sort((a, b) => a.package.localeCompare(b.package) || JSON.stringify(a.include).localeCompare(JSON.stringify(b.include))),
   };
 }
 
@@ -100,7 +103,7 @@ for (const { hash, sig, dbNames, representativeDb: db } of sigGroups.values()) {
 
   console.log(`DB group [${hash}]: ${dbNames.join(', ')}`);
   console.log(`  Embedder : ${sig.embedderPackage} / ${sig.model} (${sig.dimensions ?? 'auto'}d)`);
-  console.log(`  Chunkers : ${sig.chunkers.map((c) => c.strategy).join(', ')}`);
+  console.log(`  Chunkers : ${sig.chunkers.map((c) => c.package).join(', ')}`);
   console.log(`  Config   : ${tempConfigPath}`);
   console.log(`  LanceDB  : ${lancedbPath}`);
 }

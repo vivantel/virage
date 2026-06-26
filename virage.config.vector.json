@@ -29,28 +29,15 @@
     ],
     "chunkers": [
       {
-        "name": "markdown",
-        "patterns": [
-          "**/*.md",
-          "**/*.mdx"
-        ],
-        "strategy": "markdownHeaders"
+        "package": "@vivantel/virage-chunker-ce-md"
       },
       {
-        "name": "typescript",
-        "patterns": [
-          "**/*.ts",
-          "**/*.tsx"
-        ],
-        "strategy": "codeChunkAst"
+        "package": "@vivantel/virage-code-chunk-chunker",
+        "include": ["**/*.ts", "**/*.tsx"]
       },
       {
-        "name": "javascript",
-        "patterns": [
-          "**/*.js",
-          "**/*.jsx"
-        ],
-        "strategy": "codeChunkAst"
+        "package": "@vivantel/virage-code-chunk-chunker",
+        "include": ["**/*.js", "**/*.jsx"]
       }
     ]
   },
@@ -71,6 +58,7 @@
   "pluginVersions": {
     "@vivantel/virage-embedder-transformers": "latest",
     "@vivantel/virage-store-lancedb": "latest",
+    "@vivantel/virage-chunker-ce-md": "latest",
     "@vivantel/virage-code-chunk-chunker": "latest"
   },
   "installScope": "local"

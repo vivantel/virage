@@ -1,17 +1,17 @@
 {
   "$schema": "../../packages/virage-core/schemas/virage.config.schema.json",
-  "chunkers": [
-    {
-      "name": "markdown",
-      "patterns": ["docs/**/*.md", "docs/**/*.mdx"],
-      "strategy": "markdownHeaders"
-    },
-    {
-      "name": "typescript",
-      "patterns": ["src/**/*.ts", "src/**/*.tsx"],
-      "strategy": "token"
-    }
-  ],
+  "chunking": {
+    "chunkers": [
+      {
+        "package": "@vivantel/virage-chunker-ce-md",
+        "include": ["docs/**/*.md", "docs/**/*.mdx"]
+      },
+      {
+        "package": "@vivantel/virage-code-chunk-chunker",
+        "include": ["src/**/*.ts", "src/**/*.tsx"]
+      }
+    ]
+  },
   "embedder": {
     "package": "@vivantel/virage-embedder-openai",
     "config": {
