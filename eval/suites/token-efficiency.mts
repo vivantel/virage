@@ -1,169 +1,161 @@
 #!/usr/bin/env tsx
 /**
- * Compares the token cost of reading full files (old skill checklists)
- * vs retrieving targeted RAG results (new RAG-first checklists).
+ * Measures the token-cost gap between reading full source files vs using
+ * the virage MCP (or CLI equivalent) for the same queries.
  *
- * File token estimate: file_bytes / 4  (chars-per-token approximation)
- * RAG token estimate:  JSON result bytes / 4
+ * "Without MCP" scenario: Claude would read the full source files that contain
+ * the answer. Token estimate = sum of those files' byte lengths / 4.
  *
- * Requires `virage index` to have run (will gracefully report 0 RAG tokens if not).
+ * "With MCP" scenario: Claude calls the virage `search` tool and receives
+ * targeted chunks. Token estimate = size of the JSON query response / 4.
+ *
+ * Source files for the "without MCP" denominator are NOT hardcoded — they are
+ * extracted from the actual virage query results, so the comparison is honest:
+ * both sides reference the same content, just at different granularity.
+ *
+ * Requires `virage index` to have been run.
+ * Set VIRAGE_BIN to override the binary (e.g. ./virage-runner/node_modules/.bin/virage).
+ * Set VIRAGE_CONFIG to override the config file (default: virage.config.ci.json).
  */
 
-import { statSync, readdirSync } from "fs";
+import { statSync } from "fs";
 import { execSync } from "child_process";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 
-const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
+// Two levels up from eval/suites/ → repo root
+const REPO_ROOT = join(dirname(fileURLToPath(import.meta.url)), "../..");
+const VIRAGE_BIN = process.env.VIRAGE_BIN ?? "virage";
+const VIRAGE_CONFIG = process.env.VIRAGE_CONFIG ?? "virage.config.ci.json";
 
-interface ReplacedRead {
+interface QueryCase {
   label: string;
-  filePath: string;
-  ragQuery: string;
-  ragTopK: number;
-  skill: string;
+  query: string;
+  topK: number;
 }
 
-const REPLACED_READS: ReplacedRead[] = [
-  {
-    label: "docs/ADR.md (architect)",
-    filePath: join(ROOT, "docs", "ADR.md"),
-    ragQuery: "ADR architecture decision",
-    ragTopK: 3,
-    skill: "architect",
-  },
-  {
-    label: "docs/ADR.md (planner)",
-    filePath: join(ROOT, "docs", "ADR.md"),
-    ragQuery: "ADR trade-off decision",
-    ragTopK: 3,
-    skill: "planner",
-  },
-  {
-    label: "docs/ai/INDEX.md (planner)",
-    filePath: join(ROOT, "docs", "ai", "INDEX.md"),
-    ragQuery: "cross-cutting rules commit ADR import style",
-    ragTopK: 3,
-    skill: "planner",
-  },
-  {
-    label: "packages/virage-core/src/interfaces/ (architect)",
-    filePath: join(ROOT, "packages", "virage-core", "src", "interfaces"),
-    ragQuery: "interface signature EmbeddingProvider VectorStore",
-    ragTopK: 5,
-    skill: "architect",
-  },
+// Representative developer queries that virage MCP is expected to answer well.
+// Each maps to real documentation/source content in the repo.
+const QUERIES: QueryCase[] = [
+  { label: "Custom chunker config (ADR-038 package format)", query: "configure chunker package include ignore patterns ADR", topK: 5 },
+  { label: "Orchestrator embed pipeline flow", query: "orchestrator embed pipeline chunk process sequence", topK: 5 },
+  { label: "LanceDB schema migration drop recreate", query: "LanceDB schema migration drop table recreate", topK: 5 },
+  { label: "Embedder retry batch concurrent options", query: "embedder retry batch size concurrent config", topK: 5 },
+  { label: "GitTracker file routing to chunker", query: "GitTracker file routing chunker selection pattern", topK: 5 },
 ];
 
-function fileTokens(filePath: string): number {
+interface QueryResult {
+  source_file: string;
+  [key: string]: unknown;
+}
+
+interface QueryMeasurement {
+  label: string;
+  ragTokens: number;
+  sourceFiles: string[];
+  noMcpTokens: number;
+}
+
+function runQuery(query: string, topK: number): { ragTokens: number; sourceFiles: string[] } {
   try {
-    const s = statSync(filePath);
-    if (s.isDirectory()) {
-      // Sum sizes of all .ts files in the directory (one level)
-      return readdirSync(filePath)
-        .filter((f) => f.endsWith(".ts"))
-        .reduce((sum, f) => {
-          try {
-            return sum + Math.ceil(statSync(join(filePath, f)).size / 4);
-          } catch {
-            return sum;
-          }
-        }, 0);
-    }
+    const out = execSync(
+      `${VIRAGE_BIN} query ${JSON.stringify(query)} --top-k ${topK} --json --config ${VIRAGE_CONFIG}`,
+      { encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"], cwd: REPO_ROOT },
+    );
+    const results = JSON.parse(out) as QueryResult[];
+    const ragTokens = Math.ceil(out.length / 4);
+    const sourceFiles = [...new Set(results.map((r) => r.source_file).filter(Boolean))];
+    return { ragTokens, sourceFiles };
+  } catch {
+    return { ragTokens: 0, sourceFiles: [] };
+  }
+}
+
+function fileTokens(relativePath: string): number {
+  try {
+    const s = statSync(join(REPO_ROOT, relativePath));
     return Math.ceil(s.size / 4);
   } catch {
     return 0;
   }
 }
 
-function ragTokens(query: string, topK: number): number {
-  try {
-    const out = execSync(
-      `npx virage query ${JSON.stringify(query)} --top-k ${topK} --json`,
-      { encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"], cwd: ROOT },
-    );
-    return Math.ceil(out.length / 4);
-  } catch {
-    return 0;
-  }
-}
-
-interface Row {
-  label: string;
-  skill: string;
-  fileTok: number;
-  ragTok: number;
-  saved: number;
-  pct: string;
-}
-
 function run(summaryMode = false): void {
-  const rows: Row[] = REPLACED_READS.map((r) => {
-    const fileTok = fileTokens(r.filePath);
-    const rt = ragTokens(r.ragQuery, r.ragTopK);
-    const saved = fileTok - rt;
-    const pct = fileTok > 0 ? ((saved / fileTok) * 100).toFixed(1) + "%" : "—";
-    return { label: r.label, skill: r.skill, fileTok, ragTok: rt, saved, pct };
+  const measurements: QueryMeasurement[] = QUERIES.map((q) => {
+    const { ragTokens, sourceFiles } = runQuery(q.query, q.topK);
+    const noMcpTokens = sourceFiles.reduce((sum, sf) => sum + fileTokens(sf), 0);
+    return { label: q.label, ragTokens, sourceFiles, noMcpTokens };
   });
 
-  const totalFileTok = rows.reduce((s, r) => s + r.fileTok, 0);
-  const totalRagTok = rows.reduce((s, r) => s + r.ragTok, 0);
-  const totalSaved = totalFileTok - totalRagTok;
-  const totalPct =
-    totalFileTok > 0 ? ((totalSaved / totalFileTok) * 100).toFixed(1) + "%" : "—";
+  const totalRag = measurements.reduce((s, m) => s + m.ragTokens, 0);
+  const totalNoMcp = measurements.reduce((s, m) => s + m.noMcpTokens, 0);
+  const totalSaved = totalNoMcp - totalRag;
+  const totalPct = totalNoMcp > 0 ? ((totalSaved / totalNoMcp) * 100).toFixed(1) + "%" : "—";
+
+  const indexNotBuilt = totalRag === 0;
 
   if (summaryMode) {
-    console.log("### Token Efficiency Delta");
+    console.log("### Token Efficiency: With vs Without Virage MCP");
     console.log("");
-    console.log("| Read replaced | Skill | File tokens | RAG tokens | Saved | % |");
-    console.log("|---|---|---|---|---|---|");
-    for (const r of rows) {
+    console.log("Token estimate = bytes / 4 (chars-per-token approximation).");
+    console.log('"No MCP" = reading the actual source files returned by each query.');
+    console.log('"With MCP" = receiving the targeted RAG chunks as JSON.');
+    console.log("");
+    console.log("| Query | No MCP (full files) | With MCP (chunks) | Saved | % |");
+    console.log("|---|---|---|---|---|");
+    for (const m of measurements) {
+      const saved = m.noMcpTokens - m.ragTokens;
+      const pct = m.noMcpTokens > 0 ? ((saved / m.noMcpTokens) * 100).toFixed(1) + "%" : "—";
+      const sourceFileList = m.sourceFiles.length > 0
+        ? ` (${m.sourceFiles.length} file${m.sourceFiles.length > 1 ? "s" : ""})`
+        : "";
       console.log(
-        `| ${r.label} | ${r.skill} | ${r.fileTok.toLocaleString()} | ${r.ragTok.toLocaleString()} | ${r.saved.toLocaleString()} | ${r.pct} |`,
+        `| ${m.label}${sourceFileList} | ${m.noMcpTokens.toLocaleString()} | ${m.ragTokens.toLocaleString()} | ${saved.toLocaleString()} | ${pct} |`,
       );
     }
     console.log(
-      `| **TOTAL** | | **${totalFileTok.toLocaleString()}** | **${totalRagTok.toLocaleString()}** | **${totalSaved.toLocaleString()}** | **${totalPct}** |`,
+      `| **TOTAL** | **${totalNoMcp.toLocaleString()}** | **${totalRag.toLocaleString()}** | **${totalSaved.toLocaleString()}** | **${totalPct}** |`,
     );
-    if (totalRagTok === 0) {
+    if (indexNotBuilt) {
       console.log("");
-      console.log(
-        "> ⚠️ RAG tokens = 0 — run `virage index` first to populate the knowledge base.",
-      );
+      console.log("> ⚠️ RAG tokens = 0 for all queries. Run `virage index` first.");
     }
   } else {
-    const col = [50, 12, 12, 12, 10, 8];
-    const h = ["Read replaced", "Skill", "File tok", "RAG tok", "Saved", "%"];
-    const line = h.map((s, i) => s.padEnd(col[i]!)).join("  ");
-    console.log("Token Efficiency Delta");
-    console.log("=".repeat(line.length));
+    const cols = [46, 22, 14, 10, 8];
+    const headers = ["Query", "No MCP (full files)", "With MCP", "Saved", "%"];
+    const line = headers.map((h, i) => h.padEnd(cols[i]!)).join("  ");
+    const sep = "=".repeat(line.length);
+    console.log("Token Efficiency: With vs Without Virage MCP");
+    console.log(sep);
     console.log(line);
     console.log("-".repeat(line.length));
-    for (const r of rows) {
+    for (const m of measurements) {
+      const saved = m.noMcpTokens - m.ragTokens;
+      const pct = m.noMcpTokens > 0 ? ((saved / m.noMcpTokens) * 100).toFixed(1) + "%" : "—";
+      const srcNote = m.sourceFiles.length > 0 ? ` [${m.sourceFiles.length}f]` : "";
       console.log(
         [
-          r.label.padEnd(col[0]!),
-          r.skill.padEnd(col[1]!),
-          r.fileTok.toLocaleString().padEnd(col[2]!),
-          r.ragTok.toLocaleString().padEnd(col[3]!),
-          r.saved.toLocaleString().padEnd(col[4]!),
-          r.pct,
+          (m.label + srcNote).slice(0, cols[0]! - 1).padEnd(cols[0]!),
+          m.noMcpTokens.toLocaleString().padEnd(cols[1]!),
+          m.ragTokens.toLocaleString().padEnd(cols[2]!),
+          saved.toLocaleString().padEnd(cols[3]!),
+          pct,
         ].join("  "),
       );
     }
     console.log("-".repeat(line.length));
     console.log(
       [
-        "TOTAL".padEnd(col[0]!),
-        "".padEnd(col[1]!),
-        totalFileTok.toLocaleString().padEnd(col[2]!),
-        totalRagTok.toLocaleString().padEnd(col[3]!),
-        totalSaved.toLocaleString().padEnd(col[4]!),
+        "TOTAL".padEnd(cols[0]!),
+        totalNoMcp.toLocaleString().padEnd(cols[1]!),
+        totalRag.toLocaleString().padEnd(cols[2]!),
+        totalSaved.toLocaleString().padEnd(cols[3]!),
         totalPct,
       ].join("  "),
     );
-    if (totalRagTok === 0) {
-      console.log("\nNote: RAG tokens = 0 — run `virage index` first.");
+    if (indexNotBuilt) {
+      console.log("\nERROR: RAG tokens = 0 for all queries — run `virage index` first.");
+      process.exit(1);
     }
   }
 }

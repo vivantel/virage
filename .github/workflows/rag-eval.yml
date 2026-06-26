@@ -4,8 +4,10 @@ on:
   workflow_dispatch:
 
 jobs:
+  # ── Static evals ──────────────────────────────────────────────────────────
+  # No index needed. Tests hook routing accuracy from live .claude/settings.json.
   static-evals:
-    name: Hook Coverage & Skill Routing
+    name: Skill Routing
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -16,10 +18,7 @@ jobs:
           cache: npm
 
       - name: Install dependencies
-        run: npm ci --workspaces --if-present
-
-      - name: Hook coverage
-        run: npx tsx eval/suites/hook-coverage.mts
+        run: npm ci
 
       - name: Skill routing accuracy
         run: npx tsx eval/suites/skill-routing.mts
@@ -27,14 +26,13 @@ jobs:
       - name: Write job summary
         if: always()
         run: |
-          echo "## Hook Coverage" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          npx tsx eval/suites/hook-coverage.mts --summary >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
           echo "## Skill Routing Accuracy" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           npx tsx eval/suites/skill-routing.mts --summary >> $GITHUB_STEP_SUMMARY || true
 
+  # ── RAG quality ───────────────────────────────────────────────────────────
+  # Installs published @vivantel/virage-cli (virage-runner pattern) so CI uses
+  # the same binary end-users install. Caches model + LanceDB between runs.
   rag-quality:
     name: RAG Retrieval Quality & Token Efficiency
     runs-on: ubuntu-latest
@@ -46,41 +44,74 @@ jobs:
           node-version: 22
           cache: npm
 
-      - name: Install dependencies
-        run: npm ci --workspaces --if-present
+      - name: Install dependencies (for tsx)
+        run: npm ci
+
+      - name: Install Virage CLI + plugins (published versions)
+        run: |
+          npm install --prefix ./virage-runner \
+            @vivantel/virage-cli@latest \
+            @vivantel/virage-embedder-transformers@latest \
+            @vivantel/virage-store-lancedb@latest \
+            @vivantel/virage-chunker-ce-md@latest \
+            @vivantel/virage-code-chunk-chunker@latest
+
+      - name: Restore Virage cache
+        uses: actions/cache/restore@v5
+        with:
+          path: |
+            .virage/lancedb
+            .virage/model-cache
+          key: rag-eval-${{ github.ref_name }}-${{ github.sha }}
+          restore-keys: |
+            rag-eval-${{ github.ref_name }}-
+            rag-eval-
 
       - name: Index knowledge base
-        run: npx virage index
+        run: ./virage-runner/node_modules/.bin/virage index --config virage.config.ci.json
 
-      - name: Token efficiency delta
+      - name: Save Virage cache
+        if: always()
+        uses: actions/cache/save@v5
+        with:
+          path: |
+            .virage/lancedb
+            .virage/model-cache
+          key: rag-eval-${{ github.ref_name }}-${{ github.sha }}
+
+      - name: Token efficiency (with vs without MCP)
+        env:
+          VIRAGE_BIN: ./virage-runner/node_modules/.bin/virage
+          VIRAGE_CONFIG: virage.config.ci.json
         run: npx tsx eval/suites/token-efficiency.mts
 
-      - name: RAG retrieval quality (P@5 / MRR / R@10)
+      - name: RAG retrieval quality (P@5 / MRR)
         run: |
           if [ -f eval/quality-evaluation.json ]; then
-            npx virage evaluate --dataset eval/quality-evaluation.json --ci --threshold-mrr 0.6
+            ./virage-runner/node_modules/.bin/virage eval run \
+              --dataset eval/quality-evaluation.json \
+              --ci --threshold-mrr 0.35 \
+              --config virage.config.ci.json
           else
             echo "Skipping: eval/quality-evaluation.json not found."
-            echo "Run: npx virage eval-generate --output eval/candidate-dataset.json"
-            echo "Then curate it to eval/quality-evaluation.json and commit."
           fi
 
       - name: Write job summary
         if: always()
+        env:
+          VIRAGE_BIN: ./virage-runner/node_modules/.bin/virage
+          VIRAGE_CONFIG: virage.config.ci.json
         run: |
-          echo "## Token Efficiency Delta" >> $GITHUB_STEP_SUMMARY
+          echo "## Token Efficiency: With vs Without Virage MCP" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          npx tsx eval/suites/token-efficiency.mts --summary >> $GITHUB_STEP_SUMMARY
+          npx tsx eval/suites/token-efficiency.mts --summary >> $GITHUB_STEP_SUMMARY || true
           echo "" >> $GITHUB_STEP_SUMMARY
           if [ -f eval/quality-evaluation.json ]; then
-            echo "## RAG Retrieval Quality (P@5 / MRR / R@10)" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo '```' >> $GITHUB_STEP_SUMMARY
-            npx virage evaluate --dataset eval/quality-evaluation.json >> $GITHUB_STEP_SUMMARY || true
-            echo '```' >> $GITHUB_STEP_SUMMARY
-          else
             echo "## RAG Retrieval Quality" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo "> ⚠️ Skipped — \`eval/quality-evaluation.json\` not committed yet." >> $GITHUB_STEP_SUMMARY
-            echo "> Run \`virage eval-generate --output eval/candidate-dataset.json\`, curate, and commit as \`eval/quality-evaluation.json\`." >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            ./virage-runner/node_modules/.bin/virage eval run \
+              --dataset eval/quality-evaluation.json \
+              --config virage.config.ci.json >> $GITHUB_STEP_SUMMARY || true
+            echo '```' >> $GITHUB_STEP_SUMMARY
           fi

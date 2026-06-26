@@ -1,10 +1,14 @@
 #!/usr/bin/env tsx
 /**
  * Tests skill routing accuracy by replaying the UserPromptSubmit hook
- * against a labeled dataset of (prompt → expected output) pairs.
+ * against a labeled dataset of (prompt → expected skill) pairs.
  *
- * Runs the actual hook bash command via child_process to test the real logic,
- * including the new trailing-? RAG suggestion branch.
+ * Intent: given a user prompt, the hook in .claude/settings.json must route
+ * to the correct skill and emit its summary. This test runs the REAL hook
+ * command so any change to settings.json is reflected automatically — no
+ * mocks, no stubs.
+ *
+ * Exit code: 1 when any test case fails (CI-blocking).
  */
 
 import { execSync } from "child_process";
@@ -13,43 +17,54 @@ import { tmpdir } from "os";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 
-const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
-const SETTINGS_PATH = join(ROOT, ".claude", "settings.json");
+// Two levels up from eval/suites/ → repo root where .claude/settings.json lives
+const REPO_ROOT = join(dirname(fileURLToPath(import.meta.url)), "../..");
+const SETTINGS_PATH = join(REPO_ROOT, ".claude", "settings.json");
 
 interface TestCase {
   prompt: string;
-  expectedKeyword: string | null;
+  expectedSkill: string | null;
   description: string;
 }
 
 const TEST_CASES: TestCase[] = [
-  // Planner branch
-  { prompt: "plan the implementation of branch-aware RAG", expectedKeyword: "planner", description: "planner: 'plan'" },
-  { prompt: "break down the refactor into steps", expectedKeyword: "planner", description: "planner: 'break down'" },
-  { prompt: "what is the roadmap for v2.0?", expectedKeyword: "planner", description: "planner: 'roadmap'" },
-  { prompt: "sequence the embedding pipeline changes", expectedKeyword: "planner", description: "planner: 'sequence'" },
-  { prompt: "give me implement steps for the new chunker", expectedKeyword: "planner", description: "planner: 'implement steps'" },
+  // planner — implementation planning, task breakdown, sequencing
+  { prompt: "plan the implementation of branch-aware RAG", expectedSkill: "planner", description: "planner: 'plan'" },
+  { prompt: "break down the refactor into steps", expectedSkill: "planner", description: "planner: 'break down'" },
+  { prompt: "what is the roadmap for v2.0?", expectedSkill: "planner", description: "planner: 'roadmap'" },
+  { prompt: "sequence the embedding pipeline changes", expectedSkill: "planner", description: "planner: 'sequence'" },
+  { prompt: "give me implement steps for the new chunker", expectedSkill: "planner", description: "planner: 'implement steps'" },
 
-  // Architect branch
-  { prompt: "write an ADR for the new vector store", expectedKeyword: "architect", description: "architect: 'ADR'" },
-  { prompt: "interface design for the new provider", expectedKeyword: "architect", description: "architect: 'interface design'" },
-  { prompt: "what are the system design trade-offs here?", expectedKeyword: "architect", description: "architect: 'system design'" },
-  { prompt: "evaluate refactor scope for the embedder API", expectedKeyword: "architect", description: "architect: 'refactor scope'" },
+  // architect — ADRs, interface design, system design, refactor scoping
+  { prompt: "write an ADR for the new vector store", expectedSkill: "architect", description: "architect: 'ADR'" },
+  { prompt: "interface design for the new provider", expectedSkill: "architect", description: "architect: 'interface design'" },
+  { prompt: "what are the system design trade-offs here?", expectedSkill: "architect", description: "architect: 'system design'" },
+  { prompt: "evaluate refactor scope for the embedder API", expectedSkill: "architect", description: "architect: 'refactor scope'" },
 
-  // Doc writer branch
-  { prompt: "update the README with the new CLI flags", expectedKeyword: "doc_writer", description: "doc_writer: 'README'" },
-  { prompt: "write up the CHANGELOG entry for v1.2.1", expectedKeyword: "doc_writer", description: "doc_writer: 'CHANGELOG'" },
-  { prompt: "document the new config options", expectedKeyword: "doc_writer", description: "doc_writer: 'document'" },
+  // doc-writer — README, CHANGELOG, documentation
+  { prompt: "update the README with the new CLI flags", expectedSkill: "doc-writer", description: "doc-writer: 'README'" },
+  { prompt: "write up the CHANGELOG entry for v1.2.1", expectedSkill: "doc-writer", description: "doc-writer: 'CHANGELOG'" },
+  { prompt: "document the new config options", expectedSkill: "doc-writer", description: "doc-writer: 'document'" },
 
-  // Code guardian branch
-  { prompt: "review the auth middleware for security issues", expectedKeyword: "code-guardian", description: "code-guardian: 'review security'" },
-  { prompt: "audit the dependencies for vulnerabilities", expectedKeyword: "code-guardian", description: "code-guardian: 'audit vulnerabilities'" },
+  // code-guard — code review, security, audit
+  { prompt: "review the auth middleware for security issues", expectedSkill: "code-guard", description: "code-guard: 'review security'" },
+  { prompt: "audit the dependencies for vulnerabilities", expectedSkill: "code-guard", description: "code-guard: 'audit vulnerabilities'" },
 
-  // True negatives (should produce no hook output)
-  { prompt: "fix the type error in session-usage.ts", expectedKeyword: null, description: "no match: 'fix'" },
-  { prompt: "commit this", expectedKeyword: null, description: "no match: 'commit'" },
-  { prompt: "apply npm fix", expectedKeyword: null, description: "no match: npm command" },
-  { prompt: "push it", expectedKeyword: null, description: "no match: 'push'" },
+  // devops — CI/CD, pipelines, deploy, release, GitHub Actions
+  { prompt: "fix the failing CI pipeline step", expectedSkill: "devops", description: "devops: 'CI'" },
+  { prompt: "update the GitHub Actions workflow for the new node version", expectedSkill: "devops", description: "devops: 'GitHub Actions'" },
+  { prompt: "how should we deploy the new release?", expectedSkill: "devops", description: "devops: 'deploy release'" },
+
+  // qa — tests, specs, coverage
+  { prompt: "write a test for the new chunker factory", expectedSkill: "qa", description: "qa: 'test'" },
+  { prompt: "check test coverage for the embedder module", expectedSkill: "qa", description: "qa: 'coverage'" },
+  { prompt: "what spec should this feature satisfy?", expectedSkill: "qa", description: "qa: 'spec'" },
+
+  // true negatives — should produce no hook output
+  { prompt: "fix the type error in session-usage.ts", expectedSkill: null, description: "no match: 'fix'" },
+  { prompt: "commit this", expectedSkill: null, description: "no match: 'commit'" },
+  { prompt: "push it", expectedSkill: null, description: "no match: 'push'" },
+  { prompt: "what does this function return?", expectedSkill: null, description: "no match: generic question" },
 ];
 
 function extractHookCommand(): string {
@@ -85,11 +100,14 @@ function cleanupHookFile(): void {
   }
 }
 
+// Maps skill summary heading text → skill directory name
 function classifyOutput(output: string): string | null {
   if (output.includes("Skill: Planner")) return "planner";
   if (output.includes("Skill: Architect")) return "architect";
-  if (output.includes("Skill: Doc Writer")) return "doc_writer";
-  if (output.includes("Skill: Code Guardian")) return "code-guardian";
+  if (output.includes("Skill: Doc Writer")) return "doc-writer";
+  if (output.includes("Skill: Code Guard")) return "code-guard";
+  if (output.includes("Skill: DevOps")) return "devops";
+  if (output.includes("Skill: QA")) return "qa";
   return null;
 }
 
@@ -111,7 +129,7 @@ function run(summaryMode = false): void {
   const results: Result[] = TEST_CASES.map((tc) => {
     const output = runHook(hookCommand, tc.prompt);
     const got = classifyOutput(output);
-    return { tc, got, pass: got === tc.expectedKeyword };
+    return { tc, got, pass: got === tc.expectedSkill };
   });
 
   const passed = results.filter((r) => r.pass).length;
@@ -132,7 +150,7 @@ function run(summaryMode = false): void {
       console.log("**Failures:**");
       console.log("");
       for (const { tc, got } of failures) {
-        console.log(`- \`${tc.prompt}\` → expected \`${tc.expectedKeyword ?? "none"}\`, got \`${got ?? "none"}\``);
+        console.log(`- \`${tc.prompt}\` → expected \`${tc.expectedSkill ?? "none"}\`, got \`${got ?? "none"}\``);
       }
     }
   } else {
@@ -147,7 +165,7 @@ function run(summaryMode = false): void {
       for (const { tc, got } of failures) {
         console.log(`  ✗  ${tc.description}`);
         console.log(`     prompt:   "${tc.prompt}"`);
-        console.log(`     expected: ${tc.expectedKeyword ?? "none"}`);
+        console.log(`     expected: ${tc.expectedSkill ?? "none"}`);
         console.log(`     got:      ${got ?? "none"}`);
       }
     } else {
