@@ -25,6 +25,7 @@ jobs:
       - name: Build Virage packages from source
         run: |
           mkdir -p /tmp/virage-packs
+          node scripts/patch-lockfile-stubs.cjs
           npm ci --ignore-scripts
           npm run build -w packages/virage-core
           npm run build -w packages/virage-cli
