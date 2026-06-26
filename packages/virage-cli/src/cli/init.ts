@@ -756,7 +756,9 @@ export async function runInit(verbosity = 0): Promise<void> {
     );
     const versionedPkgs = pkgs.map((pkg, i) => {
       const ver = versions[i];
-      finalState.pluginVersions[pkg] = ver;
+      // Store with tilde range for auto-patch-update; pinned versions are preserved as-is.
+      finalState.pluginVersions[pkg] =
+        pinnedVersions.has(pkg) || ver === "latest" ? ver : `~${ver}`;
       return ver === "latest" ? pkg : `${pkg}@${ver}`;
     });
 

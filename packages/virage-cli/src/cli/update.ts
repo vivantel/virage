@@ -412,7 +412,7 @@ export async function runUpdate(
               s.location === "global-plugin" ||
               s.name in existingVersions
             ) {
-              existingVersions[s.name] = s.latest;
+              existingVersions[s.name] = `~${s.latest}`;
             }
           }
           cfg.pluginVersions = existingVersions;
