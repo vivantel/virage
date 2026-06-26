@@ -70,9 +70,8 @@ Use this procedure to add N new queries:
 **Step 1 — Identify uncovered areas.**
 List concepts not yet in the dataset by scanning:
 - Exported names in `packages/*/src/index.ts` files
-- Section headers in `docs/ADR.md` (check which ADR-XXX numbers are missing)
+- ADR IDs in `docs/decisions/index.md` (check which decision areas are missing)
 - Interface names in `packages/virage-core/src/interfaces/`
-- Strategy option types in `packages/virage-strategies/src/`
 
 **Step 2 — For each candidate anchor, verify file count.**
 ```bash

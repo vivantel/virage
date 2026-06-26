@@ -1,6 +1,5 @@
 {
   "packages/virage-core": "0.2.57",
-  "packages/virage-strategies": "0.2.58",
   "packages/virage-embedder-openai": "0.2.58",
   "packages/virage-embedder-transformers": "0.2.59",
   "packages/virage-embedder-fastembed": "0.2.58",
