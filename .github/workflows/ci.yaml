@@ -5,6 +5,10 @@ on:
     branches: [master, develop]
     paths:
       - 'packages/**'
+      - 'crates/**'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - 'rust-toolchain.toml'
       - 'eslint.config.js'
       - 'package.json'
       - 'package-lock.json'
@@ -13,6 +17,10 @@ on:
     branches: [master]
     paths:
       - 'packages/**'
+      - 'crates/**'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - 'rust-toolchain.toml'
       - 'eslint.config.js'
       - 'package.json'
       - 'package-lock.json'
@@ -143,6 +151,164 @@ jobs:
               - 'package.json'
               - 'package-lock.json'
               - '.github/workflows/ci.yaml'
+            virage-chunker-ce-ast:
+              - 'packages/virage-chunker-ce-ast/**'
+              - 'eslint.config.js'
+              - 'package.json'
+              - 'package-lock.json'
+              - '.github/workflows/ci.yaml'
+            virage-chunker-ce-ts:
+              - 'packages/virage-chunker-ce-ts/**'
+              - 'eslint.config.js'
+              - 'package.json'
+              - 'package-lock.json'
+              - '.github/workflows/ci.yaml'
+            virage-chunker-ce-pdf:
+              - 'packages/virage-chunker-ce-pdf/**'
+              - 'crates/**'
+              - 'Cargo.toml'
+              - 'Cargo.lock'
+              - '.github/workflows/ci.yaml'
+            virage-chunker-ce-md:
+              - 'packages/virage-chunker-ce-md/**'
+              - 'crates/**'
+              - 'Cargo.toml'
+              - 'Cargo.lock'
+              - '.github/workflows/ci.yaml'
+            virage-chunker-ce-docx:
+              - 'packages/virage-chunker-ce-docx/**'
+              - 'crates/**'
+              - 'Cargo.toml'
+              - 'Cargo.lock'
+              - '.github/workflows/ci.yaml'
+            virage-chunker-ce-latex:
+              - 'packages/virage-chunker-ce-latex/**'
+              - 'crates/**'
+              - 'Cargo.toml'
+              - 'Cargo.lock'
+              - '.github/workflows/ci.yaml'
+
+  rust-checks:
+    name: Rust lint (CE chunkers)
+    runs-on: ubuntu-latest
+    if: |
+      contains(github.event.head_commit.modified, 'packages/virage-chunker-ce-') ||
+      contains(github.event.head_commit.modified, 'crates/') ||
+      github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+
+      - uses: actions/cache@v6
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-cargo-
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Patch lockfile stub version fields
+        run: node scripts/patch-lockfile-stubs.cjs
+
+      - run: npm ci --ignore-scripts
+
+      - name: Rust formatting
+        run: cargo fmt --check
+
+      - name: Rust linting
+        run: cargo clippy --workspace -- -D warnings
+
+      - name: Build CE native (linux-x64 validation)
+        run: cargo build --release
+
+  build-ce-native:
+    name: ${{ matrix.package }} / ${{ matrix.platform-name }} (PR)
+    if: github.event_name == 'pull_request'
+    needs: rust-checks
+    strategy:
+      fail-fast: false
+      matrix:
+        package:
+          - virage-chunker-ce-pdf
+          - virage-chunker-ce-md
+          - virage-chunker-ce-docx
+          - virage-chunker-ce-latex
+        platform-name:
+          - linux-x64-gnu
+          - linux-arm64-gnu
+          - darwin-x64
+          - darwin-arm64
+          - win32-x64-msvc
+        include:
+          - { platform-name: linux-x64-gnu,   os: ubuntu-latest,  target: x86_64-unknown-linux-gnu }
+          - { platform-name: linux-arm64-gnu, os: ubuntu-latest,  target: aarch64-unknown-linux-gnu, use-cross: true }
+          - { platform-name: darwin-x64,      os: macos-latest,   target: x86_64-apple-darwin,      rust-flags: "-C link-arg=-undefined -C link-arg=dynamic_lookup" }
+          - { platform-name: darwin-arm64,    os: macos-latest,   target: aarch64-apple-darwin,     rust-flags: "-C link-arg=-undefined -C link-arg=dynamic_lookup" }
+          - { platform-name: win32-x64-msvc,  os: windows-latest, target: x86_64-pc-windows-msvc }
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - uses: actions/cache@v6
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-${{ matrix.target }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Patch lockfile stub version fields
+        run: node scripts/patch-lockfile-stubs.cjs
+
+      - run: npm ci --omit=optional
+
+      - name: Install cross-compilation toolchain (ARM64 Linux)
+        if: matrix.use-cross == true
+        run: sudo apt-get install -y gcc-aarch64-linux-gnu
+
+      - name: Build (cross — ARM64 Linux)
+        if: matrix.use-cross == true
+        run: |
+          cd packages/${{ matrix.package }}
+          npx napi build --release --target ${{ matrix.target }}
+        env:
+          CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
+
+      - name: Build (native)
+        if: matrix.use-cross != true
+        run: |
+          cd packages/${{ matrix.package }}
+          npx napi build --release --target ${{ matrix.target }}
+        env:
+          RUSTFLAGS: ${{ matrix.rust-flags }}
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.package }}-${{ matrix.platform-name }}
+          path: packages/${{ matrix.package }}/*.node
+          if-no-files-found: error
 
   build-and-test:
     needs: changes
@@ -186,6 +352,14 @@ jobs:
       - name: Build virage-agent-claude (required by virage-cli)
         if: matrix.package == 'virage-cli'
         run: npm run build --workspace packages/virage-agent-claude
+
+      - name: Patch lockfile stub version fields (CE native packages)
+        if: contains(fromJSON('["virage-chunker-ce-pdf","virage-chunker-ce-md","virage-chunker-ce-docx","virage-chunker-ce-latex"]'), matrix.package)
+        run: node scripts/patch-lockfile-stubs.cjs
+
+      - name: Build virage-chunker-ce-ast (required by CE native chunkers and virage-chunker-ce-ts)
+        if: contains(fromJSON('["virage-chunker-ce-pdf","virage-chunker-ce-md","virage-chunker-ce-docx","virage-chunker-ce-latex","virage-chunker-ce-ts"]'), matrix.package)
+        run: npm run build --workspace packages/virage-chunker-ce-ast
 
       - name: Type check
         run: npm run type-check --workspace packages/${{ matrix.package }}

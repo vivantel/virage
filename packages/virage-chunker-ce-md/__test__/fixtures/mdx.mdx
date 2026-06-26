@@ -1,0 +1,23 @@
+---
+title: MDX Component Example
+---
+
+# MDX Document
+
+This is a paragraph in an MDX file. JSX components appear alongside markdown.
+
+<Alert type="info">
+  This JSX component should not produce garbage in chunk content.
+</Alert>
+
+## Section with Expressions
+
+The value is {someExpression} inline in text.
+
+## Regular Markdown Section
+
+This section contains only plain markdown content, which should be chunked normally.
+
+```typescript
+const x: number = 42;
+```

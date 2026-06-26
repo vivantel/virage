@@ -1,0 +1,54 @@
+name: Publish CE packages (emergency, TS only)
+
+on:
+  workflow_dispatch:
+    inputs:
+      packages:
+        description: >
+          Space-separated CE package paths to publish
+          (e.g. "packages/virage-chunker-ce-ast packages/virage-chunker-ce-ts").
+          Leave blank to publish all packages in .release-please-manifest.json.
+        required: false
+        default: ''
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+          cache: npm
+
+      - name: Patch lockfile stub version fields
+        run: node scripts/patch-lockfile-stubs.cjs
+
+      - run: npm ci --omit=optional
+
+      - name: Build TypeScript packages
+        run: npm run build
+
+      - name: Resolve packages to publish
+        id: resolve
+        run: |
+          if [ -n "${{ inputs.packages }}" ]; then
+            PKGS="${{ inputs.packages }}"
+          else
+            PKGS=$(jq -r 'keys[]' .release-please-manifest.json | tr '\n' ' ')
+          fi
+          echo "pkgs=$PKGS" >> "$GITHUB_OUTPUT"
+
+      - name: Publish packages
+        run: |
+          for pkg in ${{ steps.resolve.outputs.pkgs }}; do
+            echo "Publishing $pkg …"
+            npm publish --workspace "$pkg" --access public
+          done
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

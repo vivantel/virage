@@ -158,6 +158,11 @@ Hook: `.claude/settings.json` fires `npm run fix && npm run type-check` automati
 6. Build order must be respected: `virage-core` → `virage-agent-core` → all others
 7. After any `package.json` change: `npm install` from repo root, commit updated `package-lock.json`
 
+**CE chunker package guardrails** (applies to `packages/virage-chunker-ce-*`):
+- See [`guardrails/chunker.md`](guardrails/chunker.md) — plugin contract, ArtifactChunker interface, ChunkMeta fields
+- See [`guardrails/rust-napi.md`](guardrails/rust-napi.md) — napi-rs patterns, virage-vidoc usage, build steps
+- See [`guardrails/release-ce.md`](guardrails/release-ce.md) — CE publishing process, platform stubs, version bumping
+
 ---
 
 ## Architecture state

@@ -1,0 +1,57 @@
+{
+  "name": "@vivantel/virage-chunker-ce-pdf",
+  "version": "0.1.6",
+  "description": "PDF chunker for Virage — text layer extraction via Rust (lopdf)",
+  "type": "module",
+  "main": "./dist/index.js",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "files": [
+    "dist",
+    "npm",
+    "*.node"
+  ],
+  "scripts": {
+    "build": "tsc --build && node -e \"require('./scripts/postbuild.cjs')\" 2>/dev/null || true",
+    "build:native": "napi build --release --platform",
+    "type-check": "tsc --build --noEmit",
+    "test": "vitest run",
+    "prepublishOnly": "npm run build"
+  },
+  "peerDependencies": {
+    "@vivantel/virage-core": ">=0.2",
+    "@vivantel/virage-chunker-ce-ast": ">=0.1"
+  },
+  "dependencies": {
+    "minimatch": "^10.0.0"
+  },
+  "optionalDependencies": {
+    "@vivantel/virage-chunker-ce-pdf-linux-x64-gnu": "0.1.6",
+    "@vivantel/virage-chunker-ce-pdf-linux-arm64-gnu": "0.1.6",
+    "@vivantel/virage-chunker-ce-pdf-darwin-x64": "0.1.6",
+    "@vivantel/virage-chunker-ce-pdf-darwin-arm64": "0.1.6",
+    "@vivantel/virage-chunker-ce-pdf-win32-x64-msvc": "0.1.6"
+  },
+  "rag-plugin": {
+    "type": "chunker",
+    "label": "PDF (Rust, native)",
+    "key": "pdf",
+    "defaultConfig": {
+      "maxTokens": 512,
+      "overlapSentences": 1
+    }
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "license": "MIT OR Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/vivantel/virage-chunkers-ce.git",
+    "directory": "packages/virage-chunker-ce-pdf"
+  }
+}

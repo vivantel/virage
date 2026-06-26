@@ -1,0 +1,22 @@
+[workspace]
+resolver = "2"
+members = [
+  "crates/*",
+  "packages/virage-chunker-ce-pdf",
+  "packages/virage-chunker-ce-md",
+  "packages/virage-chunker-ce-docx",
+  "packages/virage-chunker-ce-latex",
+]
+
+[workspace.dependencies]
+napi = { version = "2", features = ["napi4"] }
+napi-derive = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sha2 = "0.10"
+virage-vidoc = { path = "crates/virage-vidoc" }
+
+[profile.release]
+opt-level = 3
+lto = true
+strip = true
