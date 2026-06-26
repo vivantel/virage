@@ -1,7 +1,6 @@
 {
   "$schema": "./packages/virage-core/schemas/virage.config.schema.json",
   "chunking": {
-    "exclude": ["**/CHANGELOG.md"],
     "chunkers": [
       {
         "patterns": ["**/*.md", "**/*.mdx"],
