@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.65](https://github.com/vivantel/virage/compare/virage-store-lancedb@v0.2.64...virage-store-lancedb@v0.2.65) (2026-06-26)
+
+
+### Bug Fixes
+
+* **lancedb:** Detect schema mismatches in both directions ([1261d3d](https://github.com/vivantel/virage/commit/1261d3d33f09bfb2498b0634abc3ddd2846506da))
+
 ## [0.2.64](https://github.com/vivantel/virage/compare/virage-store-lancedb@v0.2.63...virage-store-lancedb@v0.2.64) (2026-06-26)
 
 
