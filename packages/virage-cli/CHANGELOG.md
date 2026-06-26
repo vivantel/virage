@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.97](https://github.com/vivantel/virage/compare/virage-cli@v0.1.96...virage-cli@v0.1.97) (2026-06-26)
+
+
+### Features
+
+* **benchmark:** Fix --samples radix bug, add chunker/reranker sub-commands, switch to tokens/sec ([9d41944](https://github.com/vivantel/virage/commit/9d41944a220f2e0e27a44ce4c324b0e53b5bc0ed))
+* **init:** Store plugin versions as ~x.y.z tilde ranges for patch auto-update ([73c4aa8](https://github.com/vivantel/virage/commit/73c4aa889ed33ac7abb5b1e66a79b7bb34b07a40))
+
 ## [0.1.96](https://github.com/vivantel/virage/compare/virage-cli@v0.1.95...virage-cli@v0.1.96) (2026-06-26)
 
 

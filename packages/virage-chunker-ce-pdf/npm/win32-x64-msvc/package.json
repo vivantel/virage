@@ -1,6 +1,6 @@
 {
   "name": "@vivantel/virage-chunker-ce-pdf-win32-x64-msvc",
-  "version": "0.1.6",
+  "version": "0.1.7",
   "description": "PDF chunker native binary for win32-x64-msvc",
   "os": [
     "win32"
