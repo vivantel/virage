@@ -64,3 +64,4 @@ packages/*/package-lock.json
 # Source of truth: packages/virage-skills/skills/ and plugin-config/commands/
 .agents/skills/virage/
 .claude/skills/
+virage-runner/node_modules/

@@ -1,0 +1,8 @@
+{
+  "name": "virage-runner",
+  "private": true,
+  "description": "Isolated install prefix for CI virage pipeline runs.",
+  "overrides": {
+    "@vivantel/virage-core": "latest"
+  }
+}
