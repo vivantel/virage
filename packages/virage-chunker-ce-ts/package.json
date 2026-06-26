@@ -16,7 +16,7 @@
   "scripts": {
     "build": "tsc --build",
     "type-check": "tsc --build --noEmit",
-    "test": "vitest run",
+    "test": "vitest run --passWithNoTests",
     "prepublishOnly": "npm run build"
   },
   "peerDependencies": {
@@ -40,7 +40,7 @@
   "license": "MIT OR Apache-2.0",
   "repository": {
     "type": "git",
-    "url": "https://github.com/vivantel/virage-chunkers-ce.git",
+    "url": "https://github.com/vivantel/virage.git",
     "directory": "packages/virage-chunker-ce-ts"
   }
 }
