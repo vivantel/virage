@@ -100,15 +100,25 @@ export class LanceDBVectorStore implements VectorStore {
         name: string;
         type: { listSize?: number };
       }>;
-      const hasOldSchema = fields?.some(
-        (f) =>
-          f.name === "content" ||
-          f.name === "context_text" ||
-          f.name === "embedding",
+      const expectedNames = new Set(
+        schema.fields.map((f: { name: string }) => f.name),
       );
-      if (hasOldSchema) {
+      const existingNames = new Set(fields?.map((f) => f.name) ?? []);
+      const columnMismatch =
+        expectedNames.size !== existingNames.size ||
+        [...expectedNames].some((n) => !existingNames.has(n));
+      const vecField = fields?.find((f) => f.name === "dense_vector");
+      const existingDims: number | undefined = (
+        vecField?.type as { listSize?: number }
+      )?.listSize;
+      const dimMismatch =
+        existingDims !== undefined && existingDims !== this.dimensions;
+      if (columnMismatch || dimMismatch) {
+        const reason = columnMismatch
+          ? `column set changed (expected [${[...expectedNames].sort().join(", ")}], got [${[...existingNames].sort().join(", ")}])`
+          : `dimension mismatch (${existingDims}→${this.dimensions})`;
         this.logger?.warn(
-          `LanceDB schema changed: dropping table, re-index required.`,
+          `LanceDB schema changed (${reason}): dropping table, re-index required.`,
         );
         await this.db.dropTable(this.tableName);
         if (tableNames.includes(metaTableName)) {
@@ -116,22 +126,7 @@ export class LanceDBVectorStore implements VectorStore {
         }
         this.table = await this.db.createEmptyTable(this.tableName, schema);
       } else {
-        const vecField = fields?.find((f) => f.name === "dense_vector");
-        const existingDims: number | undefined = (
-          vecField?.type as { listSize?: number }
-        )?.listSize;
-        if (existingDims !== undefined && existingDims !== this.dimensions) {
-          this.logger?.warn(
-            `LanceDB dimension mismatch (${existingDims}→${this.dimensions}), dropping and recreating tables`,
-          );
-          await this.db.dropTable(this.tableName);
-          if (tableNames.includes(metaTableName)) {
-            await this.db.dropTable(metaTableName);
-          }
-          this.table = await this.db.createEmptyTable(this.tableName, schema);
-        } else {
-          this.table = existing;
-        }
+        this.table = existing;
       }
     } else {
       this.table = await this.db.createEmptyTable(this.tableName, schema);
