@@ -88,16 +88,16 @@ export class PostgresVectorStore implements VectorStore {
     try {
       await pgvector.registerTypes(client);
       await client.query("CREATE EXTENSION IF NOT EXISTS vector");
-      // Old-schema detection: content column means pre-four-artifact schema; drop and re-index.
+      // Old-schema detection: 'content' or 'context_text' columns indicate an outdated schema; drop and re-index.
       const { rows: cols } = await client.query<{ column_name: string }>(
         `SELECT column_name FROM information_schema.columns
-         WHERE table_name = $1 AND column_name = 'content'`,
+         WHERE table_name = $1 AND column_name IN ('content', 'context_text')`,
         [this.table],
       );
       if (cols.length > 0) {
         await client.query(`DROP TABLE IF EXISTS ${this.table}`);
         this.logger?.warn(
-          `Postgres schema changed (content → dense_text): table dropped, re-index required.`,
+          `Postgres schema changed: table dropped, re-index required.`,
         );
       }
       await client.query(`
@@ -105,7 +105,8 @@ export class PostgresVectorStore implements VectorStore {
           id SERIAL PRIMARY KEY,
           dense_text TEXT NOT NULL,
           sparse_text TEXT NOT NULL,
-          context_text TEXT NOT NULL,
+          sparse_text_generator_id TEXT NOT NULL DEFAULT '',
+          metadata_generator_id TEXT NOT NULL DEFAULT '',
           dense_text_hash TEXT NOT NULL,
           dense_vector vector(${this.dimensions}),
           metadata JSONB,
@@ -147,13 +148,14 @@ export class PostgresVectorStore implements VectorStore {
         this.logger?.trace(`  source_file: ${doc.sourceFile}`);
         await client.query(
           `INSERT INTO ${this.table}
-             (dense_text, sparse_text, context_text, dense_text_hash, dense_vector, metadata, source_file, commit_hash)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+             (dense_text, sparse_text, sparse_text_generator_id, metadata_generator_id, dense_text_hash, dense_vector, metadata, source_file, commit_hash)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
            ON CONFLICT DO NOTHING`,
           [
             doc.denseText,
             doc.sparseText,
-            doc.contextText,
+            doc.sparseTextGeneratorId,
+            doc.metadataGeneratorId,
             doc.denseTextHash,
             pgvector.toSql(doc.denseVector),
             JSON.stringify(doc.metadata),
@@ -231,13 +233,12 @@ export class PostgresVectorStore implements VectorStore {
           id: number;
           dense_text: string;
           sparse_text: string;
-          context_text: string;
           metadata: Record<string, unknown>;
           source_file: string;
           similarity: number;
           ingested_at: Date | null;
         }>(
-          `SELECT id, dense_text, sparse_text, context_text, metadata, source_file,
+          `SELECT id, dense_text, sparse_text, metadata, source_file,
                   1 - (dense_vector <=> $1) AS similarity,
                   ingested_at
            FROM ${this.table}
@@ -257,7 +258,6 @@ export class PostgresVectorStore implements VectorStore {
             id: String(r.id),
             denseText: r.dense_text,
             sparseText: r.sparse_text,
-            contextText: r.context_text,
             metadata: r.metadata,
             sourceFile: r.source_file,
             similarity: r.similarity,
@@ -281,12 +281,11 @@ export class PostgresVectorStore implements VectorStore {
             id: number;
             dense_text: string;
             sparse_text: string;
-            context_text: string;
             metadata: Record<string, unknown>;
             source_file: string;
             fts_score: number;
           }>(
-            `SELECT id, dense_text, sparse_text, context_text, metadata, source_file,
+            `SELECT id, dense_text, sparse_text, metadata, source_file,
                     ts_rank_cd(sparse_text_tsv, query) AS fts_score
              FROM ${this.table}, plainto_tsquery('english', $1) query
              WHERE sparse_text_tsv @@ query
@@ -298,7 +297,6 @@ export class PostgresVectorStore implements VectorStore {
             id: String(r.id),
             denseText: r.dense_text,
             sparseText: r.sparse_text,
-            contextText: r.context_text,
             metadata: r.metadata,
             sourceFile: r.source_file,
             similarity: r.fts_score,

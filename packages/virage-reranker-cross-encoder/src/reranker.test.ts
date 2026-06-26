@@ -24,7 +24,6 @@ function makeCandidate(
     id,
     denseText,
     sparseText: "",
-    contextText: "",
     similarity,
     metadata: {},
   };

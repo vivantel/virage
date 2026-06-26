@@ -23,8 +23,9 @@ function makeChunk(text: string, sourceFile = "test.ts"): Chunk {
   return {
     denseText: text,
     sparseText: text,
-    contextText: text,
     denseTextHash,
+    sparseTextGeneratorId: "mock@1.0.0:sparse:default",
+    metadataGeneratorId: "mock@1.0.0:meta:default",
     metadata: {},
     sourceFile,
     commitHash: "abc123",

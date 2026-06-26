@@ -101,7 +101,6 @@ export async function handleSearch(
 
   return results.map((r) => ({
     id: r.id,
-    contextText: r.contextText,
     denseText: r.denseText,
     metadata: r.metadata,
     similarity: r.similarity,

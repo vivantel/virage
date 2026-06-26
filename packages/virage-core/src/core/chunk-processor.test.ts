@@ -5,8 +5,9 @@ import { FileChunker, Chunk } from "../interfaces/index.js";
 const baseChunk: Chunk = {
   denseText: "test content",
   sparseText: "test content",
-  contextText: "test content",
   denseTextHash: "abcd1234abcd1234",
+  sparseTextGeneratorId: "test@1.0.0:sparse:default",
+  metadataGeneratorId: "test@1.0.0:meta:default",
   metadata: { type: "test" },
   sourceFile: "test.txt",
   commitHash: "abc123",
@@ -16,8 +17,8 @@ const mockChunker: FileChunker = {
   name: "test",
   version: "1.0.0",
   patterns: ["**/*.txt"],
-  sparseTextId: "test@1.0.0:default",
-  contextTextHash: "test@1.0.0:ctx:default",
+  sparseTextGeneratorId: "test@1.0.0:sparse:default",
+  metadataGeneratorId: "test@1.0.0:meta:default",
   chunk: vi.fn().mockResolvedValue([baseChunk]),
 };
 
@@ -48,8 +49,8 @@ describe("ChunkProcessor", () => {
       name: "empty",
       version: "1.0.0",
       patterns: ["**/*.txt"],
-      sparseTextId: "empty@1.0.0:default",
-      contextTextHash: "empty@1.0.0:ctx:default",
+      sparseTextGeneratorId: "empty@1.0.0:sparse:default",
+      metadataGeneratorId: "empty@1.0.0:meta:default",
       chunk: vi.fn().mockResolvedValue([]),
     };
     const processor = new ChunkProcessor([emptyChunker]);
@@ -66,8 +67,8 @@ describe("ChunkProcessor", () => {
       name: "fail",
       version: "1.0.0",
       patterns: ["**/*.txt"],
-      sparseTextId: "fail@1.0.0:default",
-      contextTextHash: "fail@1.0.0:ctx:default",
+      sparseTextGeneratorId: "fail@1.0.0:sparse:default",
+      metadataGeneratorId: "fail@1.0.0:meta:default",
       chunk: vi.fn().mockRejectedValue(new Error("chunker failed")),
     };
     const processor = new ChunkProcessor([failingChunker]);
@@ -101,8 +102,8 @@ describe("ChunkProcessor", () => {
       name: "fail",
       version: "1.0.0",
       patterns: ["**/*.txt"],
-      sparseTextId: "fail@1.0.0:default",
-      contextTextHash: "fail@1.0.0:ctx:default",
+      sparseTextGeneratorId: "fail@1.0.0:sparse:default",
+      metadataGeneratorId: "fail@1.0.0:meta:default",
       chunk: vi.fn().mockRejectedValue(new Error("chunker failed")),
     };
     const processor = new ChunkProcessor([mockChunker, failingChunker]);

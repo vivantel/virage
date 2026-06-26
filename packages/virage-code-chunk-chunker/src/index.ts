@@ -58,8 +58,8 @@ export function createChunker(options: CodeChunkOptions = {}): FileChunker {
     name: "code-chunk-ast",
     version: VERSION,
     patterns: SUPPORTED_EXTENSIONS,
-    sparseTextId: sparseId,
-    contextTextHash: ctxHash,
+    sparseTextGeneratorId: sparseId,
+    metadataGeneratorId: ctxHash,
 
     async canProcess(filePath: string): Promise<boolean> {
       return detectLanguage(filePath) !== null;
@@ -80,17 +80,17 @@ export function createChunker(options: CodeChunkOptions = {}): FileChunker {
 
       return results.map((c, i) => {
         const sparseText = c.text;
-        const contextText = c.contextualizedText;
         const breadcrumb = c.context.scope.map((s) => s.name);
         const denseText = useContextualizedText
-          ? contextText
+          ? c.contextualizedText
           : makeDenseText(breadcrumb, sparseText);
 
         return {
           denseText,
           sparseText,
-          contextText,
           denseTextHash: computeDenseTextHash(denseText),
+          sparseTextGeneratorId: sparseId,
+          metadataGeneratorId: ctxHash,
           metadata: {
             strategy: "code-chunk-ast",
             chunkIndex: i,

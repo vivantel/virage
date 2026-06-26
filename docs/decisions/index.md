@@ -37,3 +37,6 @@
 | ADR-033 | file_revisions table | Accepted | `file_revisions` SQLite table tracks zero-chunk files so they aren't re-processed | [ADR-033](./ADR-033-file-revisions-zero-chunk-tracking.md) |
 | ADR-034 | Sigmoid score calibration | Accepted | `sigmoid(logit)` replaces min-max normalization; `rerankOversample` default 5; `minScore` threshold | [ADR-034](./ADR-034-sigmoid-score-calibration.md) |
 | ADR-035 | JSON-only config | Accepted | Remove TypeScript config loading; `.ts` path raises `ConfigError`; `tsx` moved to devDeps | [ADR-035](./ADR-035-json-only-config.md) |
+| ADR-036 | ArtifactSet structure and on-the-fly context assembly | Accepted | Remove stored `contextText`; assemble context at query time from `denseText`, `metadata.parentId`, `metadata.siblingIds` | [ADR-036](./ADR-036-artifactset-structure-caching.md) |
+| ADR-037 | Per-chunk generator IDs for incremental rebuilding | Accepted | `sparseTextGeneratorId` and `metadataGeneratorId` stored per-chunk as method fingerprints; enable targeted rebuild when configuration changes | [ADR-037](./ADR-037-generator-ids-incremental-rebuilding.md) |
+| ADR-038 | Package-based chunker configuration | Accepted | Replace `strategy`+`patterns` with `package`+`version`+`options`; breaking change, no migration path | [ADR-038](./ADR-038-package-based-chunker-config.md) |

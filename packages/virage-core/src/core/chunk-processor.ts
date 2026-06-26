@@ -2,6 +2,14 @@ import { Chunk, FileChunker } from "../interfaces/index.js";
 import type { Logger } from "../interfaces/logger.js";
 import { NullLogger } from "../logger/null-logger.js";
 import { computeDenseTextHash } from "./chunk-utils.js";
+import { createHash } from "node:crypto";
+
+function makeGeneratorId(name: string, version: string, role: string): string {
+  return createHash("sha256")
+    .update(`${name}@${version}:${role}:{}`)
+    .digest("hex")
+    .slice(0, 16);
+}
 
 export class ChunkProcessor {
   private chunkers: Map<string, FileChunker>;
@@ -23,8 +31,33 @@ export class ChunkProcessor {
     for (const chunk of chunks) {
       chunk.sourceFile = normalizedPath;
       chunk.commitHash = commitHash;
-      if (!chunk.denseTextHash) {
+      // Legacy adapter: chunkers built against virage-chunker-ce-ast <0.2 returned
+      // `content` instead of `denseText`/`sparseText`. Bridge that here so the
+      // published packages continue to work until they are updated and republished.
+      const raw = chunk as unknown as Record<string, unknown>;
+      if (!chunk.denseText && typeof raw["content"] === "string") {
+        chunk.denseText = raw["content"] as string;
+      }
+      if (!chunk.sparseText && typeof raw["content"] === "string") {
+        chunk.sparseText = raw["content"] as string;
+      }
+      // Safety net: compute denseTextHash if missing.
+      if (!chunk.denseTextHash && chunk.denseText) {
         chunk.denseTextHash = computeDenseTextHash(chunk.denseText);
+      }
+      if (!chunk.sparseTextGeneratorId) {
+        chunk.sparseTextGeneratorId = makeGeneratorId(
+          chunker.name,
+          chunker.version ?? "0.0.0",
+          "sparse",
+        );
+      }
+      if (!chunk.metadataGeneratorId) {
+        chunk.metadataGeneratorId = makeGeneratorId(
+          chunker.name,
+          chunker.version ?? "0.0.0",
+          "meta",
+        );
       }
     }
 

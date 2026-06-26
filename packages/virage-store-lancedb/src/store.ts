@@ -76,8 +76,9 @@ export class LanceDBVectorStore implements VectorStore {
       new Field("id", new Utf8()),
       new Field("dense_text", new Utf8()),
       new Field("sparse_text", new Utf8()),
-      new Field("context_text", new Utf8()),
       new Field("dense_text_hash", new Utf8()),
+      new Field("sparse_text_generator_id", new Utf8()),
+      new Field("metadata_generator_id", new Utf8()),
       new Field(
         "dense_vector",
         new FixedSizeList(this.dimensions, new Field("item", new Float32())),
@@ -99,10 +100,15 @@ export class LanceDBVectorStore implements VectorStore {
         name: string;
         type: { listSize?: number };
       }>;
-      const hasOldSchema = fields?.some((f) => f.name === "content");
+      const hasOldSchema = fields?.some(
+        (f) =>
+          f.name === "content" ||
+          f.name === "context_text" ||
+          f.name === "embedding",
+      );
       if (hasOldSchema) {
         this.logger?.warn(
-          `LanceDB schema changed (content → dense_text): dropping table, re-index required.`,
+          `LanceDB schema changed: dropping table, re-index required.`,
         );
         await this.db.dropTable(this.tableName);
         if (tableNames.includes(metaTableName)) {
@@ -194,8 +200,9 @@ export class LanceDBVectorStore implements VectorStore {
       id: doc.id ?? doc.denseTextHash,
       dense_text: doc.denseText,
       sparse_text: doc.sparseText,
-      context_text: doc.contextText,
       dense_text_hash: doc.denseTextHash,
+      sparse_text_generator_id: doc.sparseTextGeneratorId,
+      metadata_generator_id: doc.metadataGeneratorId,
       dense_vector: doc.denseVector,
       metadata_json: JSON.stringify(doc.metadata),
       source_file: doc.sourceFile,
@@ -271,8 +278,6 @@ export class LanceDBVectorStore implements VectorStore {
         id: typeof row.id === "string" ? row.id : "",
         denseText: typeof row.dense_text === "string" ? row.dense_text : "",
         sparseText: typeof row.sparse_text === "string" ? row.sparse_text : "",
-        contextText:
-          typeof row.context_text === "string" ? row.context_text : "",
         metadata,
         similarity: 1 - distance,
         sourceFile:
@@ -323,8 +328,6 @@ export class LanceDBVectorStore implements VectorStore {
         id: typeof row.id === "string" ? row.id : "",
         denseText: typeof row.dense_text === "string" ? row.dense_text : "",
         sparseText: typeof row.sparse_text === "string" ? row.sparse_text : "",
-        contextText:
-          typeof row.context_text === "string" ? row.context_text : "",
         metadata: (() => {
           try {
             const p: unknown =

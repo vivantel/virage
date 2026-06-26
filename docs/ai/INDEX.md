@@ -194,11 +194,11 @@ Hook: `.claude/settings.json` fires `npm run fix && npm run type-check` automati
 **`FileChunker` interface** (all chunker plugins must implement):
 ```typescript
 interface FileChunker {
-  name: string;          // package name
-  version: string;       // semver string
-  patterns: string[];    // glob patterns
-  sparseTextId: string;  // session-level sparse cache key
-  contextTextHash: string; // session-level context cache key
+  name: string;                    // package name
+  version: string;                 // semver string
+  patterns: string[];              // glob patterns
+  sparseTextGeneratorId: string;   // per-chunk method fingerprint for sparseText (ADR-037)
+  metadataGeneratorId: string;     // per-chunk method fingerprint for metadata (ADR-037)
   chunk(filePath: string, commitHash: string): Promise<Chunk[]>;
   canProcess?(filePath: string): Promise<boolean>;
 }
@@ -207,10 +207,12 @@ interface FileChunker {
 **`Chunk` shape** (output of `FileChunker.chunk()`):
 ```typescript
 interface Chunk {
-  denseText: string;     // breadcrumb + body → embedding
-  sparseText: string;    // raw body → BM25/FTS
-  contextText: string;   // body + padding → LLM
-  denseTextHash: string; // sha256(denseText).slice(0,16)
+  denseText: string;               // breadcrumb + full body → embedding target
+  sparseText: string;              // raw body, no breadcrumb → BM25/FTS
+  // contextText is NOT stored — assembled at query time from denseText + metadata.parentId/siblingIds (ADR-036)
+  denseTextHash: string;           // sha256(denseText).slice(0,16) — primary dedup key
+  sparseTextGeneratorId: string;   // method fingerprint for sparseText generation
+  metadataGeneratorId: string;     // method fingerprint for metadata assembly
   metadata: ChunkMeta;
   sourceFile: string;
   commitHash: string;
@@ -236,7 +238,11 @@ interface Chunk {
 | ADR-031 | `chunking` config section with global exclude patterns | Accepted |
 | ADR-032 | Scanning/chunking perf + global model dir + GPU support | Accepted |
 | ADR-033 | `file_revisions` table for zero-chunk file tracking | Accepted |
-| ADR-034 | Four-artifact flat model: denseText / sparseText / contextText / denseTextHash; plugin-only chunkers; delete `virage-strategies` | Accepted |
+| ADR-034 | Three-field flat model: denseText / sparseText / denseTextHash; plugin-only chunkers; delete `virage-strategies` | Accepted |
+| ADR-035 | JSON-only config (no tsx/ts config files) | Accepted |
+| ADR-036 | ArtifactSet structure: contextText removed, assembled on-the-fly at query time | Accepted |
+| ADR-037 | Generator IDs for incremental rebuilding (sparseTextGeneratorId, metadataGeneratorId) | Accepted |
+| ADR-038 | Package-based chunker config (replaces strategy + patterns) | Accepted |
 
 ---
 

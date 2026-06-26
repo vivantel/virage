@@ -83,7 +83,10 @@ export class EvalRunner {
       if (evalQuery.expectedContent && evalQuery.expectedContent.length > 0) {
         for (const expected of evalQuery.expectedContent) {
           for (const result of searchResults) {
-            if (result.contextText.includes(expected)) {
+            if (
+              result.denseText.includes(expected) ||
+              result.sparseText.includes(expected)
+            ) {
               relevantIds.add(result.id);
             }
           }

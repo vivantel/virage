@@ -96,8 +96,9 @@ export class QdrantVectorStore implements VectorStore {
         payload: {
           dense_text: doc.denseText,
           sparse_text: doc.sparseText,
-          context_text: doc.contextText,
           dense_text_hash: doc.denseTextHash,
+          sparse_text_generator_id: doc.sparseTextGeneratorId,
+          metadata_generator_id: doc.metadataGeneratorId,
           metadata: doc.metadata,
           source_file: doc.sourceFile,
           commit_hash: doc.commitHash,
@@ -174,8 +175,6 @@ export class QdrantVectorStore implements VectorStore {
         typeof payload?.dense_text === "string" ? payload.dense_text : "",
       sparseText:
         typeof payload?.sparse_text === "string" ? payload.sparse_text : "",
-      contextText:
-        typeof payload?.context_text === "string" ? payload.context_text : "",
       metadata:
         payload?.metadata &&
         typeof payload.metadata === "object" &&

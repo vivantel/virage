@@ -46,6 +46,8 @@ CREATE TABLE IF NOT EXISTS meta (
 // dense_vector: raw IEEE-754 float32 little-endian bytes (~4× smaller than JSON).
 // NULL until embedded; deleted after upload to reclaim storage.
 // file_revision: git blob SHA (content-addressed, stable across rebases).
+// context_text removed (ADR-036): assembled on-the-fly at query time.
+// sparse_text_generator_id / metadata_generator_id: per-chunk method fingerprints (ADR-037).
 const CHUNKS_DDL = `
 CREATE TABLE IF NOT EXISTS chunks (
   dense_text_hash TEXT PRIMARY KEY,
@@ -53,7 +55,8 @@ CREATE TABLE IF NOT EXISTS chunks (
   file_revision TEXT NOT NULL,
   dense_text TEXT NOT NULL,
   sparse_text TEXT NOT NULL,
-  context_text TEXT NOT NULL,
+  sparse_text_generator_id TEXT NOT NULL,
+  metadata_generator_id TEXT NOT NULL,
   metadata_json TEXT NOT NULL,
   dense_vector BLOB,
   embedded_at INTEGER,
@@ -222,7 +225,7 @@ export class VirageDb {
       const cols = this.db.pragma("table_info(chunks)") as Array<{
         name: string;
       }>;
-      if (cols.some((c) => c.name === "content")) {
+      if (cols.some((c) => c.name === "content" || c.name === "context_text")) {
         this.db.exec("DROP TABLE IF EXISTS chunks");
         this.db.exec("DROP INDEX IF EXISTS idx_source_file");
         console.warn("[virage] chunks schema changed: re-index required.");
@@ -276,8 +279,8 @@ export class VirageDb {
     this.db
       .prepare(
         `INSERT OR IGNORE INTO chunks
-           (dense_text_hash, source_file, file_revision, dense_text, sparse_text, context_text, metadata_json, dense_vector, embedded_at, uploaded)
-         VALUES (?, ?, ?, ?, ?, ?, ?, NULL, NULL, 0)`,
+           (dense_text_hash, source_file, file_revision, dense_text, sparse_text, sparse_text_generator_id, metadata_generator_id, metadata_json, dense_vector, embedded_at, uploaded)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL, 0)`,
       )
       .run(
         chunk.denseTextHash,
@@ -285,7 +288,8 @@ export class VirageDb {
         chunk.commitHash,
         chunk.denseText,
         chunk.sparseText,
-        chunk.contextText,
+        chunk.sparseTextGeneratorId,
+        chunk.metadataGeneratorId,
         JSON.stringify(chunk.metadata),
       );
   }
@@ -294,8 +298,8 @@ export class VirageDb {
   insertChunks(chunks: Chunk[]): void {
     const stmt = this.db.prepare(
       `INSERT OR IGNORE INTO chunks
-         (dense_text_hash, source_file, file_revision, dense_text, sparse_text, context_text, metadata_json, dense_vector, embedded_at, uploaded)
-       VALUES (?, ?, ?, ?, ?, ?, ?, NULL, NULL, 0)`,
+         (dense_text_hash, source_file, file_revision, dense_text, sparse_text, sparse_text_generator_id, metadata_generator_id, metadata_json, dense_vector, embedded_at, uploaded)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL, 0)`,
     );
     const insertAll = this.db.transaction((items: Chunk[]) => {
       for (const chunk of items) {
@@ -305,7 +309,8 @@ export class VirageDb {
           chunk.commitHash,
           chunk.denseText,
           chunk.sparseText,
-          chunk.contextText,
+          chunk.sparseTextGeneratorId,
+          chunk.metadataGeneratorId,
           JSON.stringify(chunk.metadata),
         );
       }
@@ -367,15 +372,16 @@ export class VirageDb {
     // conflict — this preserves computed embeddings for unchanged denseTextHash.
     const upsert = this.db.prepare(
       `INSERT INTO chunks
-         (dense_text_hash, source_file, file_revision, dense_text, sparse_text, context_text, metadata_json, dense_vector, embedded_at, uploaded)
-       VALUES (?, ?, ?, ?, ?, ?, ?, NULL, NULL, 0)
+         (dense_text_hash, source_file, file_revision, dense_text, sparse_text, sparse_text_generator_id, metadata_generator_id, metadata_json, dense_vector, embedded_at, uploaded)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL, 0)
        ON CONFLICT(dense_text_hash) DO UPDATE SET
-         source_file   = excluded.source_file,
-         file_revision = excluded.file_revision,
-         dense_text    = excluded.dense_text,
-         sparse_text   = excluded.sparse_text,
-         context_text  = excluded.context_text,
-         metadata_json = excluded.metadata_json`,
+         source_file              = excluded.source_file,
+         file_revision            = excluded.file_revision,
+         dense_text               = excluded.dense_text,
+         sparse_text              = excluded.sparse_text,
+         sparse_text_generator_id = excluded.sparse_text_generator_id,
+         metadata_generator_id    = excluded.metadata_generator_id,
+         metadata_json            = excluded.metadata_json`,
     );
 
     const txn = this.db.transaction(() => {
@@ -392,7 +398,8 @@ export class VirageDb {
           chunk.commitHash,
           chunk.denseText,
           chunk.sparseText,
-          chunk.contextText,
+          chunk.sparseTextGeneratorId,
+          chunk.metadataGeneratorId,
           JSON.stringify(chunk.metadata),
         );
       }
@@ -429,12 +436,13 @@ export class VirageDb {
       file_revision: string;
       dense_text: string;
       sparse_text: string;
-      context_text: string;
+      sparse_text_generator_id: string;
+      metadata_generator_id: string;
       metadata_json: string;
     };
     const rows = this.db
       .prepare(
-        "SELECT dense_text_hash, source_file, file_revision, dense_text, sparse_text, context_text, metadata_json FROM chunks WHERE dense_vector IS NULL AND uploaded = 0",
+        "SELECT dense_text_hash, source_file, file_revision, dense_text, sparse_text, sparse_text_generator_id, metadata_generator_id, metadata_json FROM chunks WHERE dense_vector IS NULL AND uploaded = 0",
       )
       .all() as Row[];
     return rows.map((row) => ({
@@ -443,7 +451,8 @@ export class VirageDb {
       commitHash: row.file_revision,
       denseText: row.dense_text,
       sparseText: row.sparse_text,
-      contextText: row.context_text,
+      sparseTextGeneratorId: row.sparse_text_generator_id,
+      metadataGeneratorId: row.metadata_generator_id,
       metadata: parseChunkMeta(row.metadata_json),
     }));
   }
@@ -463,12 +472,13 @@ export class VirageDb {
       file_revision: string;
       dense_text: string;
       sparse_text: string;
-      context_text: string;
+      sparse_text_generator_id: string;
+      metadata_generator_id: string;
       metadata_json: string;
     };
     const rows = this.db
       .prepare(
-        "SELECT dense_text_hash, source_file, file_revision, dense_text, sparse_text, context_text, metadata_json FROM chunks",
+        "SELECT dense_text_hash, source_file, file_revision, dense_text, sparse_text, sparse_text_generator_id, metadata_generator_id, metadata_json FROM chunks",
       )
       .all() as Row[];
     return rows.map((row) => ({
@@ -477,7 +487,8 @@ export class VirageDb {
       commitHash: row.file_revision,
       denseText: row.dense_text,
       sparseText: row.sparse_text,
-      contextText: row.context_text,
+      sparseTextGeneratorId: row.sparse_text_generator_id,
+      metadataGeneratorId: row.metadata_generator_id,
       metadata: parseChunkMeta(row.metadata_json),
     }));
   }
@@ -508,8 +519,8 @@ export class VirageDb {
   insert(chunks: EmbeddedChunk[]): void {
     const stmt = this.db.prepare(`
       INSERT OR IGNORE INTO chunks
-        (dense_text_hash, source_file, file_revision, dense_text, sparse_text, context_text, metadata_json, dense_vector, embedded_at, uploaded)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0)
+        (dense_text_hash, source_file, file_revision, dense_text, sparse_text, sparse_text_generator_id, metadata_generator_id, metadata_json, dense_vector, embedded_at, uploaded)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)
     `);
     const insertMany = this.db.transaction((items: EmbeddedChunk[]) => {
       for (const chunk of items) {
@@ -519,7 +530,8 @@ export class VirageDb {
           chunk.commitHash,
           chunk.denseText,
           chunk.sparseText,
-          chunk.contextText,
+          chunk.sparseTextGeneratorId,
+          chunk.metadataGeneratorId,
           JSON.stringify(chunk.metadata),
           vectorToBlob(chunk.denseVector),
           Math.floor(chunk.embeddedAt),
@@ -597,7 +609,8 @@ export class VirageDb {
       file_revision: string;
       dense_text: string;
       sparse_text: string;
-      context_text: string;
+      sparse_text_generator_id: string;
+      metadata_generator_id: string;
       metadata_json: string;
       dense_vector: Buffer;
       embedded_at: number;
@@ -609,7 +622,8 @@ export class VirageDb {
       commitHash: row.file_revision,
       denseText: row.dense_text,
       sparseText: row.sparse_text,
-      contextText: row.context_text,
+      sparseTextGeneratorId: row.sparse_text_generator_id,
+      metadataGeneratorId: row.metadata_generator_id,
       metadata: parseChunkMeta(row.metadata_json),
       denseVector: blobToVector(row.dense_vector),
       embeddedAt: row.embedded_at,

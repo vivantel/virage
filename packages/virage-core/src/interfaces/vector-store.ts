@@ -22,11 +22,14 @@ export interface VectorDocument {
   /** Raw body used for BM25/FTS lexical search (no breadcrumb prefix). */
   sparseText: string;
 
-  /** Full LLM context: body + boundary padding + injected declarations. */
-  contextText: string;
-
   /** sha256(denseText) truncated to 16 hex chars — primary dedup key. */
   denseTextHash: string;
+
+  /** Method fingerprint for sparseText generation (ADR-037). */
+  sparseTextGeneratorId: string;
+
+  /** Method fingerprint for metadata assembly (ADR-037). */
+  metadataGeneratorId: string;
 
   /** Metadata for filtering (serialized ChunkMeta). */
   metadata: Record<string, unknown>;
@@ -50,8 +53,6 @@ export interface VectorSearchResult {
   denseText: string;
   /** Raw body text used for BM25 search. */
   sparseText: string;
-  /** Full LLM context delivered to the RAG prompt. */
-  contextText: string;
   metadata: Record<string, unknown>;
   similarity: number;
   sourceFile?: string;

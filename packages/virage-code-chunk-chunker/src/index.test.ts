@@ -58,16 +58,16 @@ describe("createChunker() factory", () => {
     expect(chunker.name).toBe("code-chunk-ast");
     expect(typeof chunker.version).toBe("string");
     expect(Array.isArray(chunker.patterns)).toBe(true);
-    expect(typeof chunker.sparseTextId).toBe("string");
-    expect(typeof chunker.contextTextHash).toBe("string");
+    expect(typeof chunker.sparseTextGeneratorId).toBe("string");
+    expect(typeof chunker.metadataGeneratorId).toBe("string");
     expect(typeof chunker.chunk).toBe("function");
     expect(typeof chunker.canProcess).toBe("function");
   });
 
-  it("different option sets produce different sparseTextId", () => {
+  it("different option sets produce different sparseTextGeneratorId", () => {
     const a = createChunker({ maxChunkSize: 500 });
     const b = createChunker({ maxChunkSize: 1000 });
-    expect(a.sparseTextId).not.toBe(b.sparseTextId);
+    expect(a.sparseTextGeneratorId).not.toBe(b.sparseTextGeneratorId);
   });
 });
 
@@ -92,11 +92,10 @@ describe("canProcess()", () => {
 describe("chunk() — four-artifact mapping", () => {
   beforeEach(() => vi.clearAllMocks());
 
-  it("maps c.text to sparseText and contextText to contextualizedText", async () => {
+  it("maps c.text to sparseText", async () => {
     vi.mocked(mockCodeChunk).mockResolvedValueOnce([makeMockChunk()]);
     const [c] = await createChunker().chunk("f.ts", "abc123");
     expect(c.sparseText).toBe("function foo() {}");
-    expect(c.contextText).toBe("// scope: module\nfunction foo() {}");
   });
 
   it("denseText uses scope breadcrumb + sparseText by default", async () => {

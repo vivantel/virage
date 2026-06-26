@@ -16,12 +16,12 @@ import type { Logger } from "./interfaces/logger.js";
 // ─── JSON config types ────────────────────────────────────────────────────────
 
 interface JsonChunkerConfig {
-  name?: string;
-  patterns: string[];
-  ignorePatterns?: string[];
   /** npm package name for the chunker plugin (e.g. "@vivantel/virage-chunker-ce-md") */
-  strategy: string;
-  strategyOptions?: Record<string, unknown>;
+  package: string;
+  /** Semver version range (informational; used for generator ID traceability). */
+  version?: string;
+  /** Options forwarded to createChunker(). Use options.ignore for file exclusions. */
+  options?: Record<string, unknown>;
 }
 
 interface JsonChunkingConfig {
@@ -104,19 +104,20 @@ function validateJsonConfig(raw: unknown): asserts raw is JsonRagConfig {
   }
   for (let i = 0; i < (chunking.chunkers as unknown[]).length; i++) {
     const ch = (chunking.chunkers as unknown[])[i] as Record<string, unknown>;
-    if (!Array.isArray(ch.patterns) || ch.patterns.length === 0) {
+    if (typeof ch.strategy === "string" || Array.isArray(ch.patterns)) {
       throw new ConfigError(
-        `chunking.chunkers[${i}].patterns must be a non-empty array`,
+        `chunking.chunkers[${i}] uses the old "strategy"/"patterns" format (deprecated in ADR-038). ` +
+          `Replace with "package" and "options". See docs/decisions/ADR-038-package-based-chunker-config.md`,
       );
     }
-    if (typeof ch.strategy !== "string") {
+    if (typeof ch.package !== "string") {
       throw new ConfigError(
-        `chunking.chunkers[${i}].strategy must be a package name string`,
+        `chunking.chunkers[${i}].package must be a package name string (e.g. "@vivantel/virage-chunker-ce-md")`,
       );
     }
-    if (!isPackageName(ch.strategy)) {
+    if (!isPackageName(ch.package as string)) {
       throw new ConfigError(
-        `chunking.chunkers[${i}].strategy "${ch.strategy}" is not a valid package name. Built-in strategies have been removed — install a chunker plugin (e.g. "@vivantel/virage-chunker-ce-md").`,
+        `chunking.chunkers[${i}].package "${ch.package}" is not a valid package name.`,
       );
     }
   }
@@ -206,16 +207,16 @@ async function loadJsonConfig(
     jsonConfig.chunking.chunkers.map(async (ch) => {
       let pkgMod: Record<string, unknown>;
       try {
-        pkgMod = (await importPackage(ch.strategy)) as Record<string, unknown>;
+        pkgMod = (await importPackage(ch.package)) as Record<string, unknown>;
       } catch (err) {
         const isNotFound =
           err instanceof Error &&
           (err.message.includes("Cannot find module") ||
             err.message.includes("Cannot find package") ||
             (err as { code?: string }).code === "ERR_MODULE_NOT_FOUND");
-        throw new ConfigError(`Cannot load chunker package "${ch.strategy}"`, {
+        throw new ConfigError(`Cannot load chunker package "${ch.package}"`, {
           suggestion: isNotFound
-            ? `Install it first: npm install ${ch.strategy}`
+            ? `Install it first: npm install ${ch.package}`
             : undefined,
           cause: err,
         });
@@ -223,13 +224,12 @@ async function loadJsonConfig(
       const factory = pkgMod["createChunker"];
       if (typeof factory !== "function") {
         throw new ConfigError(
-          `Package "${ch.strategy}" does not export a createChunker() function`,
+          `Package "${ch.package}" does not export a createChunker() function`,
         );
       }
-      return (factory as (opts?: Record<string, unknown>) => FileChunker)({
-        ignore: ch.ignorePatterns,
-        ...ch.strategyOptions,
-      });
+      return (factory as (opts?: Record<string, unknown>) => FileChunker)(
+        ch.options ?? {},
+      );
     }),
   );
 

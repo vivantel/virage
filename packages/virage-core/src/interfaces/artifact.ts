@@ -33,8 +33,14 @@ export interface ChunkMeta {
   headingLevel?: number;
   documentOutline?: string[];
 
-  // Sibling links (IDs of adjacent chunks in sequence)
+  // Hierarchy links — used for on-the-fly contextText assembly at query time (ADR-036)
+  /** denseTextHash of the logical parent section chunk. */
+  parentId?: string;
+  /** denseTextHashes of adjacent chunks [prev, next] for context assembly. */
+  siblingIds?: string[];
+  /** denseTextHash of the immediately preceding chunk (same section). */
   siblingPrev?: string;
+  /** denseTextHash of the immediately following chunk (same section). */
   siblingNext?: string;
 
   // Code-specific enrichment

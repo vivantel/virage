@@ -86,7 +86,8 @@ export class ChromaVectorStore implements VectorStore {
           commit_hash: doc.commitHash,
           dense_text_hash: doc.denseTextHash,
           sparse_text: doc.sparseText,
-          context_text: doc.contextText,
+          sparse_text_generator_id: doc.sparseTextGeneratorId,
+          metadata_generator_id: doc.metadataGeneratorId,
           ...doc.metadata,
         })),
       });
@@ -197,10 +198,6 @@ export class ChromaVectorStore implements VectorStore {
         const meta = metadatas[i];
         return typeof meta?.sparse_text === "string" ? meta.sparse_text : "";
       })(),
-      contextText: (() => {
-        const meta = metadatas[i];
-        return typeof meta?.context_text === "string" ? meta.context_text : "";
-      })(),
       metadata: (() => {
         const meta = metadatas[i];
         if (!meta || typeof meta !== "object") return {};
@@ -209,14 +206,16 @@ export class ChromaVectorStore implements VectorStore {
           commit_hash,
           dense_text_hash,
           sparse_text,
-          context_text,
+          sparse_text_generator_id,
+          metadata_generator_id,
           ...rest
         } = meta as Record<string, unknown>;
         void source_file;
         void commit_hash;
         void dense_text_hash;
         void sparse_text;
-        void context_text;
+        void sparse_text_generator_id;
+        void metadata_generator_id;
         return rest;
       })(),
       similarity: 1 - (distances[i] ?? 1),
@@ -250,7 +249,6 @@ export class ChromaVectorStore implements VectorStore {
           id: r.id as string,
           denseText: "",
           sparseText: r.sparse_text as string,
-          contextText: "",
           metadata: {},
           similarity: r.score / maxScore,
         }));

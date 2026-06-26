@@ -7,11 +7,22 @@ export interface Chunk {
   /** Raw chunk body without breadcrumb — used for BM25/FTS lexical search. */
   sparseText: string;
 
-  /** Full LLM context: body + boundary padding + injected code declarations. */
-  contextText: string;
-
   /** sha256(denseText) truncated to 16 hex chars — primary cache key. */
   denseTextHash: string;
+
+  /**
+   * Method fingerprint for sparseText generation (`${name}@${version}:sparse:${optsFp}`).
+   * Stored per-chunk. If changed on a subsequent run, sparseText is regenerated
+   * and the FTS index is rebuilt for the affected fileset.
+   */
+  sparseTextGeneratorId: string;
+
+  /**
+   * Method fingerprint for metadata assembly (`${name}@${version}:meta:${optsFp}`).
+   * Stored per-chunk. If changed on a subsequent run, metadata is re-enriched
+   * for the affected fileset.
+   */
+  metadataGeneratorId: string;
 
   /** Enrichment metadata. */
   metadata: ChunkMeta;
@@ -35,26 +46,27 @@ export interface FileChunker {
   /** Unique name of this chunker plugin. */
   name: string;
 
-  /** Semver version — used to build sparseTextId / contextTextHash. */
+  /** Semver version — used to compute generator IDs. */
   version: string;
 
   /** Glob patterns this chunker handles. */
   patterns: string[];
 
   /**
-   * Stable fingerprint of the SparseText generation parameters for this
-   * instance (e.g. sha256 of package name + version + sparse options).
-   * The same value for every chunk produced in a session.
-   * Stored in the meta table; if unchanged from last run, FTS rebuild is skipped.
+   * Method fingerprint for sparseText generation for this instance.
+   * Computed from name + version + sparse-generation options.
+   * Stored per-chunk; if changed from a previous run, FTS rebuild is triggered
+   * for chunks produced by this chunker.
    */
-  sparseTextId: string;
+  sparseTextGeneratorId: string;
 
   /**
-   * Stable fingerprint of the ContextText generation parameters for this
-   * instance. Stored in the meta table; if unchanged, contextText refresh
-   * is skipped.
+   * Method fingerprint for metadata assembly for this instance.
+   * Computed from name + version + metadata-assembly options.
+   * Stored per-chunk; if changed from a previous run, metadata re-enrichment
+   * is triggered for chunks produced by this chunker.
    */
-  contextTextHash: string;
+  metadataGeneratorId: string;
 
   /**
    * Process a file and return chunks.
