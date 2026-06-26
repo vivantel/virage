@@ -8,13 +8,6 @@
         "options": {
           "ignore": ["**/node_modules/**", "CHANGELOG.md"]
         }
-      },
-      {
-        "package": "@vivantel/virage-chunker-ce-ts",
-        "version": "^0.1.0",
-        "options": {
-          "ignore": ["**/*.test.ts", "**/*.d.ts", "**/dist/**", "**/node_modules/**"]
-        }
       }
     ]
   },

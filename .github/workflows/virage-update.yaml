@@ -28,8 +28,7 @@ jobs:
             @vivantel/virage-cli@latest \
             @vivantel/virage-embedder-transformers@latest \
             @vivantel/virage-store-lancedb@latest \
-            @vivantel/virage-chunker-ce-md@latest \
-            @vivantel/virage-chunker-ce-ts@latest
+            @vivantel/virage-chunker-ce-md@latest
 
       - name: Restore Virage cache
         uses: actions/cache/restore@v5
