@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.96](https://github.com/vivantel/virage/compare/virage-cli@v0.1.95...virage-cli@v0.1.96) (2026-06-26)
+
+
+### Documentation
+
+* **adr:** Add ADR-039, supersede ADR-006, rename INDEX.md, update CLI ([e725ea5](https://github.com/vivantel/virage/commit/e725ea5841123883c31dbf92e0071027e7c6849d))
+
 ## [0.1.95](https://github.com/vivantel/virage/compare/virage-cli@v0.1.94...virage-cli@v0.1.95) (2026-06-26)
 
 
