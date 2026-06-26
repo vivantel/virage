@@ -1,8 +1,9 @@
 ---
 id: ADR-006
 title: Strategy pattern for chunking with createChunker composition helper
-status: Accepted
+status: Superseded
 date: 2026-05-31
+deprecated_by: ADR-039
 related: [ADR-008]
 ---
 

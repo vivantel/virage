@@ -36,7 +36,7 @@ interface VirageConfig {
   search?: { reranker?: { package?: string } };
   agents?: string[];
   pluginVersions?: Record<string, string>;
-  chunkers?: Array<{ strategy?: string }>;
+  chunkers?: Array<{ strategy?: string; package?: string }>;
 }
 
 const AGENT_PACKAGES: Record<string, string> = {
@@ -116,9 +116,12 @@ async function discoverViragePackages(
       codeChunkAst: "@vivantel/virage-code-chunk-chunker",
     };
     for (const chunker of virageConfig.chunkers ?? []) {
-      const pkg =
-        chunker.strategy && CHUNKER_STRATEGY_PACKAGES[chunker.strategy];
-      if (pkg) candidates.add(pkg);
+      if (chunker.package) {
+        candidates.add(chunker.package);
+      } else if (chunker.strategy) {
+        const pkg = CHUNKER_STRATEGY_PACKAGES[chunker.strategy];
+        if (pkg) candidates.add(pkg);
+      }
     }
   }
 
@@ -406,7 +409,8 @@ export async function runUpdate(
           for (const s of selectedStatuses) {
             if (
               s.location === "local-plugin" ||
-              s.location === "global-plugin"
+              s.location === "global-plugin" ||
+              s.name in existingVersions
             ) {
               existingVersions[s.name] = s.latest;
             }

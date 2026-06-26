@@ -7,7 +7,7 @@
 | ADR-003 | Consumer/provider interfaces | Accepted | `FileChunker`, `EmbeddingProvider`, `VectorStore` as the three core contracts | [ADR-003](./ADR-003-consumer-provider-interfaces.md) |
 | ADR-004 | Git commit hash change detection | Accepted | Per-file git blob SHA for change detection; `-dirty` suffix for uncommitted changes | [ADR-004](./ADR-004-git-commit-hash-change-detection.md) |
 | ADR-005 | Content hash embedding skip | Accepted | SHA-256 `contentHash` for chunk-level dedup; skip re-embedding unchanged chunks | [ADR-005](./ADR-005-content-hash-embedding-skip.md) |
-| ADR-006 | Strategy pattern for chunking | Accepted | `ChunkStrategy` + `FileChunker` + `createChunker` factory pattern | [ADR-006](./ADR-006-strategy-pattern-chunking.md) |
+| ADR-006 | Strategy pattern for chunking | Superseded | `ChunkStrategy` + `FileChunker` + `createChunker` factory pattern — superseded by ADR-039 | [ADR-006](./ADR-006-strategy-pattern-chunking.md) |
 | ADR-007 | tsx TypeScript config loading | Superseded | `tsx` runtime for `.ts` configs — superseded by JSON-only config (ADR-035) | [ADR-007](./ADR-007-tsx-typescript-config-loading.md) |
 | ADR-008 | Monorepo with independent versioning | Accepted | npm workspaces monorepo; release-please manifest per package | [ADR-008](./ADR-008-monorepo-independent-versioning.md) |
 | ADR-009 | gitignore for rag config | Accepted | `rag.config.ts` gitignored; `virage.config.ci.json` tracked for CI | [ADR-009](./ADR-009-gitignore-rag-config.md) |
@@ -40,3 +40,4 @@
 | ADR-036 | ArtifactSet structure and on-the-fly context assembly | Accepted | Remove stored `contextText`; assemble context at query time from `denseText`, `metadata.parentId`, `metadata.siblingIds` | [ADR-036](./ADR-036-artifactset-structure-caching.md) |
 | ADR-037 | Per-chunk generator IDs for incremental rebuilding | Accepted | `sparseTextGeneratorId` and `metadataGeneratorId` stored per-chunk as method fingerprints; enable targeted rebuild when configuration changes | [ADR-037](./ADR-037-generator-ids-incremental-rebuilding.md) |
 | ADR-038 | Package-based chunker configuration | Accepted | Replace `strategy`+`patterns` with `package`+`version`+`options`; breaking change, no migration path | [ADR-038](./ADR-038-package-based-chunker-config.md) |
+| ADR-039 | Plugin-only chunkers and virage-strategies deprecation | Accepted | Three-field flat model (denseText/sparseText/denseTextHash); all chunking via external packages; `virage-strategies` deprecated | [ADR-039](./ADR-039-plugin-only-chunkers-virage-strategies-deprecation.md) |

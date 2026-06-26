@@ -6,7 +6,7 @@ export { IGNORED_DIRS };
 
 export interface ExtGroup {
   exts: string[];
-  /** Package name (e.g. `@vivantel/virage-chunker-ce-md`) or built-in alias (`token`, `wholeFile`, `semantic`). Written verbatim into the generated config. */
+  /** Package name (e.g. `@vivantel/virage-chunker-ce-md`) or built-in alias (`token`, `wholeFile`, `semantic`). Package-based entries are emitted as `{ package, include }` per ADR-038; built-in aliases use legacy `{ name, patterns, strategy }` until replacement packages exist. */
   strategy: string;
   /** Optional semver constraint used when installing a package-name strategy (skips fetchLatestVersion). */
   version?: string;

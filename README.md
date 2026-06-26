@@ -100,16 +100,6 @@ The `chunking` section replaces the old root-level `chunkers` array. Old configs
 
 **`chunking.exclude`** accepts glob patterns applied to all chunkers before any file is processed. `virage init` seeds this with sensible per-ecosystem defaults (Node, Java, .NET, Go, C/C++). Per-chunker exclusions remain available as `ignorePatterns` inside each chunker entry.
 
-## Built-in strategies
-
-| Strategy          | Best for                                                                                                         |
-| ----------------- | ---------------------------------------------------------------------------------------------------------------- |
-| `markdownHeaders` | Markdown documentation — splits at `##` headings                                                                 |
-| `codeChunkAst`    | Source code (TS, JS, Python, Go, Java) — AST-aware splits at function/class boundaries; requires `@vivantel/virage-code-chunk-chunker` |
-| `token`           | Source code, structured text — respects `maxTokens` and `overlap`                                               |
-| `semantic`        | Prose, articles — splits on paragraph/sentence boundaries                                                        |
-| `wholeFile`       | Small configs, YAML, rule files — one chunk per file                                                             |
-
 ## CLI commands
 
 All commands have short aliases. Run `virage --help` to see the full list.

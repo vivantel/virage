@@ -282,6 +282,17 @@ function generateJsonConfig(
       : [EXT_GROUPS.find((g) => g.name === "typescript")!];
 
   const chunkers = effectiveGroups.map((g) => {
+    const isPackage = g.strategy.startsWith("@") || g.strategy.includes("/");
+    if (isPackage) {
+      const entry: Record<string, unknown> = {
+        package: g.strategy,
+        include: g.exts.map((e) => `**/*${e}`),
+      };
+      if (g.strategyOptions && Object.keys(g.strategyOptions).length > 0)
+        entry.options = g.strategyOptions;
+      return entry;
+    }
+    // Built-in alias (token, wholeFile, semantic) — legacy format; normalizeConfig handles it
     const entry: Record<string, unknown> = {
       name: g.name,
       patterns: g.exts.map((e) => `**/*${e}`),

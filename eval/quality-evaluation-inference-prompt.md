@@ -96,7 +96,7 @@ Queries should be 7–14 words. They may be phrased as a question (`"How does X 
 **Step 1 — Identify uncovered areas.**
 List concepts not yet in the dataset by scanning:
 - Exported names in `packages/*/src/index.ts` files
-- ADR IDs in `docs/decisions/index.md` — check which decision areas are missing
+- ADR IDs in `docs/decisions/INDEX.md` — check which decision areas are missing
 - Interface names in `packages/virage-core/src/interfaces/`
 
 **Step 2 — For each candidate anchor, verify file count.**

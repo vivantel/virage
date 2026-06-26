@@ -8,7 +8,7 @@ All architectural decisions for this repository are stored as individual files i
 docs/decisions/ADR-NNN-short-description.md
 ```
 
-`NNN` is a zero-padded three-digit number. Claim the next available number from `docs/decisions/index.md`.
+`NNN` is a zero-padded three-digit number. Claim the next available number from `docs/decisions/INDEX.md`.
 
 ## Required frontmatter
 
@@ -55,11 +55,11 @@ Proposed → Accepted → Superseded (by ADR-NNN)
 When an ADR is superseded:
 - Set `status: Superseded` and add `deprecated_by: ADR-NNN` in the old file.
 - Set `supersedes: ADR-NNN` in the new file.
-- Update `docs/decisions/index.md`.
+- Update `docs/decisions/INDEX.md`.
 
 ## Index maintenance
 
-After writing a new ADR, add a row to `docs/decisions/index.md`:
+After writing a new ADR, add a row to `docs/decisions/INDEX.md`:
 
 ```
 | ADR-NNN | Title | Status | One-sentence summary | [ADR-NNN](./ADR-NNN-slug.md) |
@@ -71,3 +71,5 @@ After writing a new ADR, add a row to `docs/decisions/index.md`:
 - **No code in the Decision section** — describe *what* and *why*, not *how*.
 - **Cross-references use file links**, not anchors into a monolith.
 - **Never edit the `id` field** after an ADR is Accepted — IDs are permanent identifiers.
+- **ADRs are immutable once Accepted.** Never delete, rename, or overwrite an Accepted ADR file. If a decision changes, write a new ADR that supersedes it (`supersedes: ADR-NNN` frontmatter + `status: Superseded` on the old file). IDs are permanent identifiers and must never be recycled.
+- **Multi-ADR commit references use full comma-separated form**: `ADR-XXX, ADR-YYY, ADR-ZZZ`. Never use slash-separated shorthand (`ADR-XXX/YYY/ZZZ`).

@@ -221,28 +221,7 @@ interface Chunk {
 
 **Plugin registry**: packages declare themselves as Virage plugins via `"rag-plugin": "<entrypoint>"` in `package.json`.
 
-**ADR log** (latest — full log in `docs/ADR.md`):
-
-| ADR | Title | Status |
-| --- | ----- | ------ |
-| ADR-021 | SQLite as intermediate embeddings storage | Accepted |
-| ADR-022 | Mid-run partial uploads via `onIntermediateBatch` | Accepted |
-| ADR-023 | Fail-fast on fatal vector store errors | Accepted |
-| ADR-024 | Split `virage-core` into library + CLI + dashboard | Accepted |
-| ADR-025 | Universal agent hook base package (`virage-agent-core`) | Accepted |
-| ADR-026 | Static-file copier model for agent plugins | Accepted |
-| ADR-027 | `list_skills` response shape — `string[]` → `SkillMeta[]` | Accepted |
-| ADR-028 | Branch-aware RAG via metadata tagging | Accepted |
-| ADR-029 | No switch to Claude Code native subagents for Virage skills | Accepted |
-| ADR-030 | Semver ranges in peerDependencies for inter-package dependencies | Accepted |
-| ADR-031 | `chunking` config section with global exclude patterns | Accepted |
-| ADR-032 | Scanning/chunking perf + global model dir + GPU support | Accepted |
-| ADR-033 | `file_revisions` table for zero-chunk file tracking | Accepted |
-| ADR-034 | Three-field flat model: denseText / sparseText / denseTextHash; plugin-only chunkers; delete `virage-strategies` | Accepted |
-| ADR-035 | JSON-only config (no tsx/ts config files) | Accepted |
-| ADR-036 | ArtifactSet structure: contextText removed, assembled on-the-fly at query time | Accepted |
-| ADR-037 | Generator IDs for incremental rebuilding (sparseTextGeneratorId, metadataGeneratorId) | Accepted |
-| ADR-038 | Package-based chunker config (replaces strategy + patterns) | Accepted |
+See [docs/decisions/INDEX.md](../decisions/INDEX.md) for the full ADR log.
 
 ---
 
