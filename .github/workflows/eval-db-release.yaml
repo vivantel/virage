@@ -56,6 +56,7 @@ jobs:
             @vivantel/virage-cli@latest \
             @vivantel/virage-embedder-transformers@latest \
             @vivantel/virage-store-lancedb@latest \
+            @vivantel/virage-chunker-ce-md@latest \
             @vivantel/virage-code-chunk-chunker@latest \
             @vivantel/virage-reranker-cross-encoder@latest
 

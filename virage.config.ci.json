@@ -1,22 +1,19 @@
 {
   "$schema": "./packages/virage-core/schemas/virage.config.schema.json",
-  "chunkers": [
-    {
-      "patterns": ["**/*.md", "**/*.mdx"],
-      "strategy": "markdownHeaders",
-      "ignorePatterns": ["**/node_modules/**", "CHANGELOG.md"]
-    },
-    {
-      "patterns": ["packages/**/*.ts"],
-      "strategy": "token",
-      "ignorePatterns": ["**/*.test.ts", "**/*.d.ts", "**/dist/**"]
-    },
-    {
-      "patterns": ["**/*.yaml", "**/*.yml"],
-      "strategy": "wholeFile",
-      "ignorePatterns": ["**/node_modules/**"]
-    }
-  ],
+  "chunking": {
+    "chunkers": [
+      {
+        "patterns": ["**/*.md", "**/*.mdx"],
+        "strategy": "@vivantel/virage-chunker-ce-md",
+        "ignorePatterns": ["**/node_modules/**", "CHANGELOG.md"]
+      },
+      {
+        "patterns": ["packages/**/*.ts"],
+        "strategy": "@vivantel/virage-code-chunk-chunker",
+        "ignorePatterns": ["**/*.test.ts", "**/*.d.ts", "**/dist/**"]
+      }
+    ]
+  },
   "embedder": {
     "package": "@vivantel/virage-embedder-transformers",
     "config": {

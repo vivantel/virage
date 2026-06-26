@@ -27,7 +27,9 @@ jobs:
           npm install --prefix ./virage-runner \
             @vivantel/virage-cli@latest \
             @vivantel/virage-embedder-transformers@latest \
-            @vivantel/virage-store-lancedb@latest
+            @vivantel/virage-store-lancedb@latest \
+            @vivantel/virage-chunker-ce-md@latest \
+            @vivantel/virage-code-chunk-chunker@latest
 
       - name: Restore Virage cache
         uses: actions/cache/restore@v5

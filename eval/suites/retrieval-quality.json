@@ -69,9 +69,9 @@
     }
   },
   "chunkers": {
-    "md": "markdownHeaders",
-    "ts": "codeChunkAst",
-    "js": "codeChunkAst"
+    "md": "@vivantel/virage-chunker-ce-md",
+    "ts": "@vivantel/virage-code-chunk-chunker",
+    "js": "@vivantel/virage-code-chunk-chunker"
   },
   "databases": {
     "minilm-384-ast": {
