@@ -81,6 +81,19 @@ export interface FileChunker {
   canProcess?(filePath: string): Promise<boolean>;
 }
 
+/**
+ * Wraps a FileChunker with optional pipeline-level path filters.
+ * `include` and `ignore` are applied by virage-core before routing any file
+ * to the chunker; they are independent of the package's built-in `patterns`.
+ */
+export interface ChunkerEntry {
+  chunker: FileChunker;
+  /** If set, only files matching at least one of these globs are sent to this chunker. */
+  include?: string[];
+  /** If set, files matching any of these globs are skipped for this chunker. */
+  ignore?: string[];
+}
+
 export interface ChunkTransformer {
   /** Transformer name */
   name: string;

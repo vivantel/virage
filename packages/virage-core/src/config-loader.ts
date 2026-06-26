@@ -2,6 +2,7 @@ import { readFile } from "fs/promises";
 import { existsSync } from "fs";
 import { resolve } from "path";
 import { RAGPipelineConfig } from "./core/orchestrator.js";
+import type { ChunkerEntry } from "./interfaces/chunker.js";
 import { ConfigError } from "./core/errors.js";
 import { importPackage } from "./core/module-import.js";
 import type { TelemetryConfig } from "./telemetry/types.js";
@@ -20,7 +21,11 @@ interface JsonChunkerConfig {
   package: string;
   /** Semver version range (informational; used for generator ID traceability). */
   version?: string;
-  /** Options forwarded to createChunker(). Use options.ignore for file exclusions. */
+  /** Glob patterns: if set, only matching files are sent to this chunker. */
+  include?: string[];
+  /** Glob patterns: files matching any of these are skipped for this chunker. */
+  ignore?: string[];
+  /** Options forwarded to createChunker(). */
   options?: Record<string, unknown>;
 }
 
@@ -120,6 +125,22 @@ function validateJsonConfig(raw: unknown): asserts raw is JsonRagConfig {
         `chunking.chunkers[${i}].package "${ch.package}" is not a valid package name.`,
       );
     }
+    for (const field of ["include", "ignore"] as const) {
+      if (ch[field] !== undefined) {
+        if (!Array.isArray(ch[field])) {
+          throw new ConfigError(
+            `chunking.chunkers[${i}].${field} must be an array of glob strings`,
+          );
+        }
+        for (let j = 0; j < (ch[field] as unknown[]).length; j++) {
+          if (typeof (ch[field] as unknown[])[j] !== "string") {
+            throw new ConfigError(
+              `chunking.chunkers[${i}].${field}[${j}] must be a string`,
+            );
+          }
+        }
+      }
+    }
   }
 
   if (!c.embedder || typeof c.embedder !== "object") {
@@ -203,7 +224,7 @@ async function loadJsonConfig(
 
   const excludePatterns = jsonConfig.chunking.exclude ?? [];
 
-  const chunkers = await Promise.all(
+  const chunkers: ChunkerEntry[] = await Promise.all(
     jsonConfig.chunking.chunkers.map(async (ch) => {
       let pkgMod: Record<string, unknown>;
       try {
@@ -227,9 +248,10 @@ async function loadJsonConfig(
           `Package "${ch.package}" does not export a createChunker() function`,
         );
       }
-      return (factory as (opts?: Record<string, unknown>) => FileChunker)(
-        ch.options ?? {},
-      );
+      const chunker = (
+        factory as (opts?: Record<string, unknown>) => FileChunker
+      )(ch.options ?? {});
+      return { chunker, include: ch.include, ignore: ch.ignore };
     }),
   );
 

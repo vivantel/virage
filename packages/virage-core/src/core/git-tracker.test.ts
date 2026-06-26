@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { GitTracker } from "./git-tracker.js";
 import { CliGitSourceRepository } from "./cli-git-source-repository.js";
-import { FileChunker } from "../interfaces/index.js";
+import { ChunkerEntry, FileChunker } from "../interfaces/index.js";
 import { mkdtempSync, rmSync, writeFileSync, mkdirSync } from "fs";
 import { join } from "path";
 import { tmpdir } from "os";
@@ -16,6 +16,7 @@ describe("GitTracker", () => {
     patterns: ["**/*.txt", "**/*.yaml", "**/*.json"],
     chunk: vi.fn().mockResolvedValue([]),
   };
+  const mockEntry: ChunkerEntry = { chunker: mockChunker };
 
   beforeEach(() => {
     testDir = mkdtempSync(join(tmpdir(), "git-test-"));
@@ -45,13 +46,13 @@ describe("GitTracker", () => {
 
   it("should be instantiable", () => {
     const source = new CliGitSourceRepository(testDir);
-    const tracker = new GitTracker([mockChunker], source);
+    const tracker = new GitTracker([mockEntry], source);
     expect(tracker).toBeInstanceOf(GitTracker);
   });
 
   it("should getAllTrackedFiles", async () => {
     const source = new CliGitSourceRepository(testDir);
-    const tracker = new GitTracker([mockChunker], source);
+    const tracker = new GitTracker([mockEntry], source);
     const files = await tracker.getAllTrackedFiles();
 
     expect(files.length).toBeGreaterThan(0);
@@ -60,7 +61,7 @@ describe("GitTracker", () => {
 
   it("should getCurrentState", async () => {
     const source = new CliGitSourceRepository(testDir);
-    const tracker = new GitTracker([mockChunker], source);
+    const tracker = new GitTracker([mockEntry], source);
     const state = await tracker.getCurrentState();
 
     expect(state.size).toBeGreaterThan(0);

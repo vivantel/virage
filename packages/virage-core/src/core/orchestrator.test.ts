@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from "vitest";
 import { Orchestrator, RAGPipelineConfig } from "./orchestrator.js";
 import { defaultVirageDb } from "./virage-defaults.js";
 import {
+  ChunkerEntry,
   FileChunker,
   EmbeddingProvider,
   VectorStore,
@@ -12,6 +13,7 @@ const mockChunker: FileChunker = {
   patterns: ["**/*.txt"],
   chunk: vi.fn().mockResolvedValue([]),
 };
+const mockEntry: ChunkerEntry = { chunker: mockChunker };
 
 const mockEmbedder: EmbeddingProvider = {
   name: "mock",
@@ -32,7 +34,7 @@ function makeConfig(
   overrides?: Partial<RAGPipelineConfig["options"]>,
 ): RAGPipelineConfig {
   return {
-    chunkers: [mockChunker],
+    chunkers: [mockEntry],
     embedder: mockEmbedder,
     vectorStore: mockVectorStore,
     options: {
@@ -77,7 +79,7 @@ describe("Orchestrator", () => {
 
   it("should fall back to default embeddingsDb when not specified", () => {
     const config: RAGPipelineConfig = {
-      chunkers: [mockChunker],
+      chunkers: [mockEntry],
       embedder: mockEmbedder,
       vectorStore: mockVectorStore,
     };
@@ -89,7 +91,7 @@ describe("Orchestrator", () => {
   it("should use VIRAGE_DIR env var as default path prefix", () => {
     vi.stubEnv("VIRAGE_DIR", "/custom/dir");
     const config: RAGPipelineConfig = {
-      chunkers: [mockChunker],
+      chunkers: [mockEntry],
       embedder: mockEmbedder,
       vectorStore: mockVectorStore,
     };

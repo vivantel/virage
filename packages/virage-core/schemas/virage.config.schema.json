@@ -176,7 +176,7 @@
       "type": "object",
       "required": ["package"],
       "additionalProperties": false,
-      "description": "Package-based chunker entry (ADR-038). The package declares which file patterns it handles.",
+      "description": "Package-based chunker entry (ADR-038). The package declares which file types it handles via its built-in patterns.",
       "properties": {
         "package": {
           "type": "string",
@@ -186,15 +186,20 @@
           "type": "string",
           "description": "Semver range or exact version (e.g. '^0.1.3'). Informational — used for generator ID traceability."
         },
+        "include": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Glob patterns scoping this chunker to a subset of files (e.g. ['docs/**']). If omitted, the chunker's built-in patterns apply to all matching files."
+        },
+        "ignore": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Glob patterns for files this chunker should skip (e.g. ['CHANGELOG.md']). Applied before the chunker's built-in patterns."
+        },
         "options": {
           "type": "object",
-          "description": "Options forwarded to the package's createChunker() factory. Use options.ignore for file exclusions.",
+          "description": "Options forwarded to the package's createChunker() factory (chunker behavior: maxTokens, overlap, etc.).",
           "properties": {
-            "ignore": {
-              "type": "array",
-              "items": { "type": "string" },
-              "description": "Glob patterns for files this chunker should skip."
-            },
             "maxTokens": { "type": "number" },
             "minTokens": { "type": "number" },
             "overlap": { "type": "number" },

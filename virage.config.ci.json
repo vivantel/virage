@@ -5,9 +5,7 @@
       {
         "package": "@vivantel/virage-chunker-ce-md",
         "version": "^0.1.3",
-        "options": {
-          "ignore": ["**/node_modules/**", "CHANGELOG.md"]
-        }
+        "ignore": ["CHANGELOG.md"]
       }
     ]
   },

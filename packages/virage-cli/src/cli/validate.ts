@@ -39,14 +39,14 @@ export async function runValidate(
     ...(config.excludePatterns ?? []),
   ];
 
-  for (const chunker of config.chunkers) {
-    const files = await glob(chunker.patterns, {
+  for (const entry of config.chunkers) {
+    const files = await glob(entry.chunker.patterns, {
       nodir: true,
       ignore: excludeIgnore,
     });
     const unique = [...new Set(files)];
-    const patternsDisplay = chunker.patterns.join(", ");
-    out.dim(`  Chunker: ${chunker.name} (patterns: ${patternsDisplay})`);
+    const patternsDisplay = entry.chunker.patterns.join(", ");
+    out.dim(`  Chunker: ${entry.chunker.name} (patterns: ${patternsDisplay})`);
 
     if (unique.length === 0) {
       out.warn(`  No files matched — check your patterns`);
@@ -85,7 +85,7 @@ export async function runValidate(
   if (detectedGroups.length === 0) {
     out.dim("  No known file types detected in project");
   } else {
-    const allPatterns = config.chunkers.flatMap((c) => c.patterns);
+    const allPatterns = config.chunkers.flatMap((e) => e.chunker.patterns);
     for (const group of detectedGroups) {
       const covered = group.exts.some((ext) =>
         allPatterns.some((p) => p.includes(`*${ext}`) || p.includes(`${ext}`)),

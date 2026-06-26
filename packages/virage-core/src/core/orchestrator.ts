@@ -6,7 +6,7 @@ import { Uploader } from "./uploader.js";
 import { VirageDb } from "./virage-db.js";
 import { TelemetryCollector } from "./telemetry.js";
 import {
-  FileChunker,
+  ChunkerEntry,
   EmbeddingProvider,
   VectorStore,
   Chunk,
@@ -23,7 +23,7 @@ import type { TelemetryConfig } from "../telemetry/types.js";
 import type { Reranker } from "../interfaces/reranker.js";
 
 export interface RAGPipelineConfig {
-  chunkers: FileChunker[];
+  chunkers: ChunkerEntry[];
   embedder: EmbeddingProvider;
   vectorStore: VectorStore;
   sourceRepository?: SourceRepository;
@@ -256,7 +256,7 @@ export class Orchestrator {
       opts.onUploadProgress?.(0, sharedTotal);
 
       const chunkProcessor = new ChunkProcessor(
-        this.config.chunkers,
+        this.config.chunkers.map((e) => e.chunker),
         opts.logger,
       );
       const embedder = new EmbedderProcessor(this.config.embedder, {

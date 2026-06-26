@@ -32,7 +32,7 @@ const telemetryMgr = new TelemetryManager(db, telemetryConfig);
 telemetryMgr.printFirstRunDisclosure();
 const session = telemetryMgr.startSession({
   embeddingModel: (cfg.embedder as { model?: string }).model,
-  chunkingStrategy: cfg.chunkers.map((c) => c.name).join(","),
+  chunkingStrategy: cfg.chunkers.map((e) => e.chunker.name).join(","),
   storeType: cfg.vectorStore.name,
   nodeVersion: process.version,
   os: process.platform,

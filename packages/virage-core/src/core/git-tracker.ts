@@ -1,5 +1,5 @@
 import { glob } from "glob";
-import { FileChunker } from "../interfaces/index.js";
+import { ChunkerEntry, FileChunker } from "../interfaces/index.js";
 import type { SourceRepository } from "../interfaces/source-repository.js";
 import type { Logger } from "../interfaces/logger.js";
 import { NullLogger } from "../logger/null-logger.js";
@@ -9,20 +9,20 @@ import { IGNORED_DIRS } from "./virage-defaults.js";
 
 export class GitTracker {
   private source: SourceRepository;
-  private chunkers: FileChunker[];
+  private chunkers: ChunkerEntry[];
   private allPatterns: string[];
   private logger: Logger;
   private excludePatterns: string[];
 
   constructor(
-    chunkers: FileChunker[],
+    chunkers: ChunkerEntry[],
     source: SourceRepository,
     logger?: Logger,
     excludePatterns?: string[],
   ) {
     this.chunkers = chunkers;
     this.source = source;
-    this.allPatterns = chunkers.flatMap((c) => c.patterns);
+    this.allPatterns = chunkers.flatMap((e) => e.chunker.patterns);
     this.logger = (logger ?? new NullLogger()).withTag("git");
     this.excludePatterns = excludePatterns ?? [];
   }
@@ -33,12 +33,20 @@ export class GitTracker {
   }
 
   private getChunkerForFile(filePath: string): FileChunker | null {
-    for (const chunker of this.chunkers) {
-      for (const pattern of chunker.patterns) {
-        if (this.matchesPattern(filePath, pattern)) {
-          this.logger.trace(`Matched ${filePath} → chunker "${chunker.name}"`);
-          return chunker;
-        }
+    for (const entry of this.chunkers) {
+      if (
+        entry.include &&
+        !entry.include.some((p) => this.matchesPattern(filePath, p))
+      )
+        continue;
+      if (entry.ignore?.some((p) => this.matchesPattern(filePath, p))) continue;
+      if (
+        entry.chunker.patterns.some((p) => this.matchesPattern(filePath, p))
+      ) {
+        this.logger.trace(
+          `Matched ${filePath} → chunker "${entry.chunker.name}"`,
+        );
+        return entry.chunker;
       }
     }
     return null;
