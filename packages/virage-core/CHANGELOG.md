@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.61](https://github.com/vivantel/virage/compare/virage-core@v0.2.60...virage-core@v0.2.61) (2026-06-26)
+
+
+### Bug Fixes
+
+* **core:** Abort pipeline and exit non-zero on first embed chain error ([c9a0d84](https://github.com/vivantel/virage/commit/c9a0d8444131e7ab50b7a313868d3e36c403ab9f))
+
 ## [0.2.60](https://github.com/vivantel/virage/compare/virage-core@v0.2.59...virage-core@v0.2.60) (2026-06-26)
 
 
