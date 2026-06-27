@@ -59,7 +59,6 @@ export function ChunkHistogram({ buckets }: Props) {
       chartRef.current?.destroy();
       chartRef.current = null;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [allEmpty]);
 
   // Update data in-place on every buckets change — no animation, no flicker
