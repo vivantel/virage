@@ -136,12 +136,20 @@ virage pack --output ./archive.tar.gz  # pack LanceDB dir as a shareable .tar.gz
 **Pre-commit fix sequence** (run before every `git add`):
 
 ```bash
-npm run fix            # lint:fix + prettier --write
-npm run lint           # eslint check (read-only)
+npm run fix            # lint:fix + prettier --write (root)
+npm run lint           # eslint check — .ts files only (root)
 npm run type-check     # type-check all workspaces
 ```
 
 Hook: `.claude/settings.json` fires `npm run fix && npm run type-check` automatically before every commit. **Never skip with `--no-verify`.**
+
+**⚠️ Root lint misses `.tsx` files.** The root `lint` glob is `packages/*/src/**/*.ts` — `.tsx` is excluded. For any package that has `.tsx` source files, also run the per-package lint before committing:
+
+```bash
+npm run lint --workspace packages/<name> --if-present
+```
+
+Packages with `.tsx` files: `virage-dashboard`. Add to this list if new packages introduce `.tsx`.
 
 **Key npm scripts:**
 
