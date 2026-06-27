@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.25](https://github.com/vivantel/virage/compare/virage-dashboard@v0.1.24...virage-dashboard@v0.1.25) (2026-06-27)
+
+
+### Bug Fixes
+
+* **dashboard:** Remove eslint-disable for uninstalled react-hooks plugin ([7bfde93](https://github.com/vivantel/virage/commit/7bfde93a969d3d8fe0a5a7ef8a435143a46b6b84))
+
 ## [0.1.24](https://github.com/vivantel/virage/compare/virage-dashboard@v0.1.23...virage-dashboard@v0.1.24) (2026-06-27)
 
 
