@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.22](https://github.com/vivantel/virage/compare/virage-dashboard@v0.1.21...virage-dashboard@v0.1.22) (2026-06-27)
+
+
+### Features
+
+* **eval,cli,dashboard:** Eval restructure, CLI aliases, dashboard LanceDB + search + log ([cc9021c](https://github.com/vivantel/virage/commit/cc9021c968524074ba1d35b5d7cce7f11778036e))
+
 ## [0.1.21](https://github.com/vivantel/virage/compare/virage-dashboard@v0.1.20...virage-dashboard@v0.1.21) (2026-06-26)
 
 
