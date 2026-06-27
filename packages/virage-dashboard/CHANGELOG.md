@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.23](https://github.com/vivantel/virage/compare/virage-dashboard@v0.1.22...virage-dashboard@v0.1.23) (2026-06-27)
+
+
+### Bug Fixes
+
+* **cli:** Rename unused arr param to _arr in argv preprocessor ([fcaccc3](https://github.com/vivantel/virage/commit/fcaccc30f8fdbb8dd5cdc23d5a1b0f57b55bc242))
+
 ## [0.1.22](https://github.com/vivantel/virage/compare/virage-dashboard@v0.1.21...virage-dashboard@v0.1.22) (2026-06-27)
 
 
