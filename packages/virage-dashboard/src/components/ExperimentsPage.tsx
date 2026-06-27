@@ -60,7 +60,6 @@ export function ExperimentsPage() {
     if (last?.type === "done") void load();
   }, [messages]);
 
-
   async function handleDelete(id: string) {
     try {
       await api.deleteExperiment(id);

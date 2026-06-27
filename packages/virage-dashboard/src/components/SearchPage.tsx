@@ -45,7 +45,9 @@ function ResultCard({ r }: { r: SearchResult }) {
       </div>
 
       <p className="result-content mt-2">
-        {expanded ? displayText : displayText.slice(0, 200) + (displayText.length > 200 ? "…" : "")}
+        {expanded
+          ? displayText
+          : displayText.slice(0, 200) + (displayText.length > 200 ? "…" : "")}
       </p>
 
       {expanded && (
@@ -80,13 +82,17 @@ function ResultCard({ r }: { r: SearchResult }) {
                 {r.sparseTextGeneratorId && (
                   <div className="metadata-row">
                     <dt className="metadata-key">sparse</dt>
-                    <dd className="metadata-val font-mono text-xs">{r.sparseTextGeneratorId}</dd>
+                    <dd className="metadata-val font-mono text-xs">
+                      {r.sparseTextGeneratorId}
+                    </dd>
                   </div>
                 )}
                 {r.metadataGeneratorId && (
                   <div className="metadata-row">
                     <dt className="metadata-key">metadata</dt>
-                    <dd className="metadata-val font-mono text-xs">{r.metadataGeneratorId}</dd>
+                    <dd className="metadata-val font-mono text-xs">
+                      {r.metadataGeneratorId}
+                    </dd>
                   </div>
                 )}
               </dl>

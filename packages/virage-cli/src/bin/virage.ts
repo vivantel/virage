@@ -61,7 +61,7 @@ const TOP_LEVEL_ALIASES: Record<string, string> = {
 };
 
 // Expand -vvv etc. into individual -v flags, and rewrite top-level command aliases
-const argv = process.argv.flatMap((arg, i, arr) => {
+const argv = process.argv.flatMap((arg, i, _arr) => {
   if (/^-v+$/.test(arg)) {
     return arg
       .slice(1)
@@ -702,7 +702,12 @@ benchmark
     (v) => parseInt(v, 10),
     20,
   )
-  .option("-w, --warmup <n>", "Number of warm-up runs", (v) => parseInt(v, 10), 3)
+  .option(
+    "-w, --warmup <n>",
+    "Number of warm-up runs",
+    (v) => parseInt(v, 10),
+    3,
+  )
   .action(async (opts: { config: string; samples: number; warmup: number }) => {
     const verbose = program.opts<{ verbose: number }>().verbose;
     try {
@@ -735,13 +740,21 @@ benchmark
     (v) => parseInt(v, 10),
     20,
   )
-  .option("-w, --warmup <n>", "Number of warm-up runs", (v) => parseInt(v, 10), 3)
+  .option(
+    "-w, --warmup <n>",
+    "Number of warm-up runs",
+    (v) => parseInt(v, 10),
+    3,
+  )
   .action(
-    async (files: string[], opts: {
-      config: string;
-      samples: number;
-      warmup: number;
-    }) => {
+    async (
+      files: string[],
+      opts: {
+        config: string;
+        samples: number;
+        warmup: number;
+      },
+    ) => {
       const verbose = program.opts<{ verbose: number }>().verbose;
       try {
         await runBenchmarkChunker({
@@ -768,14 +781,24 @@ benchmark
     "Path to virage.config.json",
     "./virage.config.json",
   )
-  .option("-s, --samples <n>", "Number of rerank calls", (v) => parseInt(v, 10), 20)
+  .option(
+    "-s, --samples <n>",
+    "Number of rerank calls",
+    (v) => parseInt(v, 10),
+    20,
+  )
   .option(
     "--passages <n>",
     "Passages per rerank call",
     (v) => parseInt(v, 10),
     10,
   )
-  .option("-w, --warmup <n>", "Number of warm-up runs", (v) => parseInt(v, 10), 3)
+  .option(
+    "-w, --warmup <n>",
+    "Number of warm-up runs",
+    (v) => parseInt(v, 10),
+    3,
+  )
   .action(
     async (opts: {
       config: string;
