@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.1.98](https://github.com/vivantel/virage/compare/virage-cli@v0.1.97...virage-cli@v0.1.98) (2026-06-27)
+
+
+### Features
+
+* **eval,cli,dashboard:** Eval restructure, CLI aliases, dashboard LanceDB + search + log ([cc9021c](https://github.com/vivantel/virage/commit/cc9021c968524074ba1d35b5d7cce7f11778036e))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @vivantel/virage-core bumped from >=0.2.62 to >=0.2.63
+
 ## [0.1.97](https://github.com/vivantel/virage/compare/virage-cli@v0.1.96...virage-cli@v0.1.97) (2026-06-26)
 
 
