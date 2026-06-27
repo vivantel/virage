@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.68](https://github.com/vivantel/virage/compare/virage-store-lancedb@v0.2.67...virage-store-lancedb@v0.2.68) (2026-06-27)
+
+
+### Bug Fixes
+
+* **dashboard:** WS push, paginated chunks, styled cards, no-flicker histogram, fix chunk count ([84c61af](https://github.com/vivantel/virage/commit/84c61afeda6b47b625e0eb0e4d6fe6cce6565f44))
+
 ## [0.2.67](https://github.com/vivantel/virage/compare/virage-store-lancedb@v0.2.66...virage-store-lancedb@v0.2.67) (2026-06-27)
 
 

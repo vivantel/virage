@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.24](https://github.com/vivantel/virage/compare/virage-dashboard@v0.1.23...virage-dashboard@v0.1.24) (2026-06-27)
+
+
+### Bug Fixes
+
+* **dashboard:** WS push, paginated chunks, styled cards, no-flicker histogram, fix chunk count ([84c61af](https://github.com/vivantel/virage/commit/84c61afeda6b47b625e0eb0e4d6fe6cce6565f44))
+
 ## [0.1.23](https://github.com/vivantel/virage/compare/virage-dashboard@v0.1.22...virage-dashboard@v0.1.23) (2026-06-27)
 
 
