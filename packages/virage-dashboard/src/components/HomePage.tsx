@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { api } from "../api/client";
+import { useWs } from "../context/WebSocketContext";
 import { useToast } from "../context/ToastContext";
 import type {
   StatusData,
@@ -11,8 +12,6 @@ import { StatusCard } from "./StatusCard";
 import { ChunkHistogram } from "./ChunkHistogram";
 import { AnomalyTable } from "./AnomalyTable";
 import { ProjectSwitcher } from "./ProjectSwitcher";
-
-const POLL_INTERVAL_MS = 5000;
 
 interface HomeState {
   status: StatusData | null;
@@ -31,41 +30,56 @@ export function HomePage() {
     metaMismatch: null,
   });
   const { showError } = useToast();
+  const { dashboardSnapshot } = useWs();
 
-  async function refresh() {
-    try {
-      const [status, chunks, anomalies, projects, metaResult] =
-        await Promise.all([
-          api.status(),
-          api.chunks(),
-          api.anomalies(),
-          api.projects(),
-          api.metaCheck(),
-        ]);
-      setState((prev) => ({
-        ...prev,
-        status,
-        chunks,
-        anomalies,
-        projects,
-        metaMismatch:
-          metaResult.status === "mismatch"
-            ? (metaResult.message ?? null)
-            : null,
-      }));
-    } catch (err) {
-      showError(
-        "Failed to load dashboard data",
-        err instanceof Error ? err.message : String(err),
-      );
+  // Single initial fetch for everything (before WS connects)
+  useEffect(() => {
+    async function init() {
+      try {
+        const [status, chunks, anomalies, projects, metaResult] =
+          await Promise.all([
+            api.status(),
+            api.chunks(),
+            api.anomalies(),
+            api.projects(),
+            api.metaCheck(),
+          ]);
+        setState((prev) => ({
+          ...prev,
+          status,
+          chunks,
+          anomalies,
+          projects,
+          metaMismatch:
+            metaResult.status === "mismatch"
+              ? (metaResult.message ?? null)
+              : null,
+        }));
+      } catch (err) {
+        showError(
+          "Failed to load dashboard data",
+          err instanceof Error ? err.message : String(err),
+        );
+      }
     }
-  }
+    void init();
+  }, [showError]);
+
+  // When WS pushes a dashboard-update, replace status/histogram/anomalies in-place
+  useEffect(() => {
+    if (!dashboardSnapshot) return;
+    setState((prev) => ({
+      ...prev,
+      status: dashboardSnapshot.status,
+      chunks: { histogram: dashboardSnapshot.histogram },
+      anomalies: { anomalies: dashboardSnapshot.anomalies },
+    }));
+  }, [dashboardSnapshot]);
 
   async function handleSwitch(index: number) {
     try {
       const updated = await api.switchProject(index);
       setState((prev) => ({ ...prev, projects: updated }));
-      void refresh();
     } catch (err) {
       showError(
         "Failed to switch project",
@@ -78,7 +92,6 @@ export function HomePage() {
     try {
       const updated = await api.addProject(rootPath);
       setState((prev) => ({ ...prev, projects: updated }));
-      void refresh();
     } catch (err) {
       showError(
         "Failed to add project",
@@ -86,12 +99,6 @@ export function HomePage() {
       );
     }
   }
-
-  useEffect(() => {
-    void refresh();
-    const timer = setInterval(() => void refresh(), POLL_INTERVAL_MS);
-    return () => clearInterval(timer);
-  }, []);
 
   return (
     <>

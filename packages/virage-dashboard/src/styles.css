@@ -308,24 +308,6 @@ select {
 }
 .search-input:focus { outline: none; border-color: #7ec8e3; }
 .search-controls { display: flex; gap: 12px; align-items: center; }
-.search-results { display: flex; flex-direction: column; gap: 10px; margin-top: 12px; }
-.search-result-card { cursor: default; }
-.result-header { display: flex; justify-content: space-between; margin-bottom: 6px; }
-.source-badge {
-  background: #0f3460;
-  color: #7ec8e3;
-  padding: 2px 8px;
-  border-radius: 4px;
-  font-size: 0.8em;
-}
-.similarity-badge {
-  background: #1a3a1a;
-  color: #7ec87e;
-  padding: 2px 8px;
-  border-radius: 4px;
-  font-size: 0.8em;
-}
-.result-content { margin: 0; color: #ccc; white-space: pre-wrap; font-size: 0.9em; }
 
 /* ─── Pipeline page ───────────────────────────────────────── */
 .pipeline-controls { display: flex; gap: 8px; align-items: center; margin-bottom: 12px; flex-wrap: wrap; }

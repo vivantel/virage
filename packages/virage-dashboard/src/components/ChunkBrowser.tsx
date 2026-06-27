@@ -1,47 +1,75 @@
-import { useEffect, useState } from "react";
-import { DataTable } from "primereact/datatable";
+import React, { useCallback, useEffect, useState } from "react";
+import { DataTable, type DataTablePageEvent } from "primereact/datatable";
 import { Column } from "primereact/column";
 import { Button } from "primereact/button";
 import { Dropdown } from "primereact/dropdown";
+import { Dialog } from "primereact/dialog";
 import { ProgressSpinner } from "primereact/progressspinner";
-import { Card } from "primereact/card";
-import { api, type ChunkRecord } from "../api/client";
+import { Tag } from "primereact/tag";
+import { api, type ChunkRecord, type ChunksAllResponse } from "../api/client";
+
+const PAGE_SIZE = 50;
 
 export function ChunkBrowser() {
-  const [chunks, setChunks] = useState<ChunkRecord[]>([]);
+  const [data, setData] = useState<ChunksAllResponse>({
+    chunks: [],
+    total: 0,
+    page: 0,
+    pageSize: PAGE_SIZE,
+  });
+  const [files, setFiles] = useState<string[]>([]);
   const [selectedFile, setSelectedFile] = useState<string>("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmClear, setConfirmClear] = useState(false);
+  const [detail, setDetail] = useState<ChunkRecord | null>(null);
 
-  async function load(sourceFile?: string) {
+  const load = useCallback(async (page: number, sourceFile?: string) => {
     setLoading(true);
     setError(null);
     try {
-      const data = await api.chunksAll(sourceFile || undefined);
-      setChunks(data.chunks);
+      const result = await api.chunksAll({
+        page,
+        pageSize: PAGE_SIZE,
+        sourceFile: sourceFile || undefined,
+      });
+      setData(result);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
       setLoading(false);
     }
-  }
-
-  useEffect(() => {
-    void load();
   }, []);
 
-  const sourceFiles = Array.from(
-    new Set(chunks.map((c) => c.sourceFile)),
-  ).sort();
+  const loadFiles = useCallback(async () => {
+    try {
+      const result = await api.chunkFiles();
+      setFiles(result.files);
+    } catch {
+      /* not fatal */
+    }
+  }, []);
+
+  useEffect(() => {
+    void load(0);
+    void loadFiles();
+  }, [load, loadFiles]);
+
   const fileOptions = [
-    { label: `All files (${chunks.length} chunks)`, value: "" },
-    ...sourceFiles.map((f) => ({ label: f, value: f })),
+    { label: `All files (${data.total} chunks)`, value: "" },
+    ...files.map((f) => ({ label: f, value: f })),
   ];
 
   async function handleFilterChange(file: string) {
     setSelectedFile(file);
-    await load(file || undefined);
+    await load(0, file || undefined);
+  }
+
+  function handlePage(e: DataTablePageEvent) {
+    void load(
+      Math.floor((e.first ?? 0) / PAGE_SIZE),
+      selectedFile || undefined,
+    );
   }
 
   async function handleDeleteFile() {
@@ -49,7 +77,8 @@ export function ChunkBrowser() {
     try {
       await api.deleteChunksFile(selectedFile);
       setSelectedFile("");
-      await load();
+      await load(0);
+      await loadFiles();
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     }
@@ -60,20 +89,22 @@ export function ChunkBrowser() {
       await api.deleteChunksAll();
       setConfirmClear(false);
       setSelectedFile("");
-      await load();
+      await load(0);
+      await loadFiles();
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     }
   }
 
-  const displayed = selectedFile
-    ? chunks.filter((c) => c.sourceFile === selectedFile)
-    : chunks;
+  const metaEntries = detail
+    ? Object.entries(detail.metadata ?? {}).filter(([k]) => k !== "source_file")
+    : [];
 
   return (
     <div>
       <h2>Chunk Browser</h2>
-      {error && <Card className="card error mb-3">⚠️ {error}</Card>}
+
+      {error && <div className="card error mb-3">⚠️ {error}</div>}
 
       <div className="toolbar mb-3">
         <Dropdown
@@ -126,12 +157,20 @@ export function ChunkBrowser() {
         </div>
       ) : (
         <DataTable
-          value={displayed}
-          dataKey="contentHash"
+          value={data.chunks}
+          dataKey="id"
           size="small"
           stripedRows
+          lazy
+          paginator
+          rows={PAGE_SIZE}
+          totalRecords={data.total}
+          first={data.page * PAGE_SIZE}
+          onPage={handlePage}
           emptyMessage="No chunks found"
           className="chunk-table"
+          onRowClick={(e) => setDetail(e.data as ChunkRecord)}
+          rowClassName={() => "cursor-pointer"}
         >
           <Column
             field="sourceFile"
@@ -140,20 +179,114 @@ export function ChunkBrowser() {
             style={{ whiteSpace: "nowrap" }}
           />
           <Column
-            header="Preview"
-            body={(c: ChunkRecord) =>
-              c.content.slice(0, 80) + (c.content.length > 80 ? "…" : "")
-            }
-            className="content-preview"
+            header="Size"
+            body={(c: ChunkRecord) => (
+              <Tag
+                value={`${(c.denseText ?? c.content ?? "").length} chars`}
+                className="text-xs"
+              />
+            )}
+            style={{ whiteSpace: "nowrap", width: "90px" }}
           />
           <Column
-            field="contentHash"
-            header="Hash"
-            className="hash"
-            style={{ whiteSpace: "nowrap", fontSize: "0.8em" }}
+            header="Preview"
+            body={(c: ChunkRecord) => {
+              const text = c.denseText ?? c.content ?? "";
+              return (
+                <span className="font-mono text-xs text-[#acd]">
+                  {text.slice(0, 100)}
+                  {text.length > 100 ? "…" : ""}
+                </span>
+              );
+            }}
+            className="content-preview"
           />
         </DataTable>
       )}
+
+      {/* Detail dialog */}
+      <Dialog
+        visible={detail !== null}
+        onHide={() => setDetail(null)}
+        header={detail?.sourceFile ?? "Chunk detail"}
+        maximizable
+        style={{ width: "min(800px, 95vw)" }}
+        contentClassName="p-0"
+      >
+        {detail && (
+          <div className="flex flex-col gap-4 p-4 font-mono text-sm">
+            <section>
+              <h4 className="text-[0.7em] text-[#7ec8e3] uppercase tracking-wider m-0 mb-1">
+                Dense Text
+              </h4>
+              <pre className="text-[0.8em] text-[#acd] bg-[#0a1628] p-2 rounded m-0 whitespace-pre-wrap break-words max-h-60 overflow-y-auto">
+                {detail.denseText ?? detail.content}
+              </pre>
+            </section>
+
+            {detail.sparseText && (
+              <section>
+                <h4 className="text-[0.7em] text-[#7ec8e3] uppercase tracking-wider m-0 mb-1">
+                  Sparse Text (BM25)
+                </h4>
+                <pre className="text-[0.8em] text-[#acd] bg-[#0a1628] p-2 rounded m-0 whitespace-pre-wrap break-words max-h-40 overflow-y-auto">
+                  {detail.sparseText}
+                </pre>
+              </section>
+            )}
+
+            {metaEntries.length > 0 && (
+              <section>
+                <h4 className="text-[0.7em] text-[#7ec8e3] uppercase tracking-wider m-0 mb-1">
+                  Metadata
+                </h4>
+                <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 text-[0.8em] m-0">
+                  {metaEntries.map(([k, v]) => (
+                    <React.Fragment key={k}>
+                      <dt className="text-[#7ec8e3] whitespace-nowrap">{k}</dt>
+                      <dd className="text-[#cde] m-0 break-all">
+                        {typeof v === "string" ? v : JSON.stringify(v)}
+                      </dd>
+                    </React.Fragment>
+                  ))}
+                </dl>
+              </section>
+            )}
+
+            {(detail.sparseTextGeneratorId || detail.metadataGeneratorId) && (
+              <section>
+                <h4 className="text-[0.7em] text-[#7ec8e3] uppercase tracking-wider m-0 mb-1">
+                  Generator IDs
+                </h4>
+                <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 text-[0.8em] m-0">
+                  {detail.sparseTextGeneratorId && (
+                    <>
+                      <dt className="text-[#7ec8e3] whitespace-nowrap">
+                        sparse
+                      </dt>
+                      <dd className="text-[#cde] m-0 break-all">
+                        {detail.sparseTextGeneratorId}
+                      </dd>
+                    </>
+                  )}
+                  {detail.metadataGeneratorId && (
+                    <>
+                      <dt className="text-[#7ec8e3] whitespace-nowrap">
+                        metadata
+                      </dt>
+                      <dd className="text-[#cde] m-0 break-all">
+                        {detail.metadataGeneratorId}
+                      </dd>
+                    </>
+                  )}
+                </dl>
+              </section>
+            )}
+
+            <p className="text-[0.72em] text-[#667] m-0">id: {detail.id}</p>
+          </div>
+        )}
+      </Dialog>
     </div>
   );
 }

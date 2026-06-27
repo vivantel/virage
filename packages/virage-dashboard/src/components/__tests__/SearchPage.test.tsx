@@ -179,7 +179,7 @@ describe("SearchPage", () => {
     expect(screen.getByText("express")).toBeTruthy();
     expect(screen.getByText("bm25-v3")).toBeTruthy();
     expect(screen.getByText("meta-extractor-v2")).toBeTruthy();
-    expect(screen.getByText("chunk-99")).toBeTruthy();
+    expect(screen.getByText(/chunk-99/)).toBeTruthy();
   });
 
   it("renders sort control after search with results", async () => {

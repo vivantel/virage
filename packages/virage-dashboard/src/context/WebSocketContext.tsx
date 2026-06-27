@@ -8,6 +8,13 @@ import {
   type ReactNode,
 } from "react";
 import { useToast } from "./ToastContext";
+import type {
+  StatusData,
+  ChunksData,
+  AnomaliesData,
+  HistogramBucket,
+  Anomaly,
+} from "../api/client";
 
 export type WsStatus = "disconnected" | "connecting" | "connected" | "error";
 
@@ -16,12 +23,20 @@ export interface WsMessage {
   [key: string]: unknown;
 }
 
+export interface DashboardSnapshot {
+  status: StatusData;
+  histogram: HistogramBucket[];
+  anomalies: Anomaly[];
+}
+
 interface WsContextValue {
   status: WsStatus;
   operationRunning: boolean;
   messages: WsMessage[];
   /** The `op` string of the most recently started operation, null if none yet. */
   currentOp: string | null;
+  /** Latest dashboard data pushed by the server (status + histogram + anomalies). */
+  dashboardSnapshot: DashboardSnapshot | null;
   startOp: (msg: unknown) => void;
 }
 
@@ -34,6 +49,7 @@ const WebSocketContext = createContext<WsContextValue>({
   operationRunning: false,
   messages: [],
   currentOp: null,
+  dashboardSnapshot: null,
   startOp: () => undefined,
 });
 
@@ -42,6 +58,8 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
   const [messages, setMessages] = useState<WsMessage[]>([]);
   const [operationRunning, setOperationRunning] = useState(false);
   const [currentOp, setCurrentOp] = useState<string | null>(null);
+  const [dashboardSnapshot, setDashboardSnapshot] =
+    useState<DashboardSnapshot | null>(null);
   const { showError } = useToast();
 
   const wsRef = useRef<WebSocket | null>(null);
@@ -72,6 +90,23 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
       } catch {
         msg = { type: "raw", text: event.data as string };
       }
+
+      // Dashboard pushes go to snapshot state, not the pipeline log
+      if (msg.type === "dashboard-update") {
+        const payload = msg as unknown as {
+          type: string;
+          status: StatusData;
+          histogram: ChunksData;
+          anomalies: AnomaliesData;
+        };
+        setDashboardSnapshot({
+          status: payload.status,
+          histogram: payload.histogram?.histogram ?? [],
+          anomalies: payload.anomalies?.anomalies ?? [],
+        });
+        return;
+      }
+
       setMessages((prev) => [...prev, msg]);
       if (TERMINAL_TYPES.has(msg.type)) {
         setOperationRunning(false);
@@ -133,7 +168,14 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
 
   return (
     <WebSocketContext.Provider
-      value={{ status, operationRunning, messages, currentOp, startOp }}
+      value={{
+        status,
+        operationRunning,
+        messages,
+        currentOp,
+        dashboardSnapshot,
+        startOp,
+      }}
     >
       {children}
     </WebSocketContext.Provider>

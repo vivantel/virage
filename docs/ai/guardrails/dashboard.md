@@ -75,6 +75,21 @@ Always use `denseText` in new code. `content` exists only for backward compatibi
 
 ---
 
+## Styling rule: Tailwind first
+
+**Always use Tailwind utility classes** for component layout, spacing, color, and typography. Do NOT write custom CSS in `styles.css` for component-level styles.
+
+Tailwind v4 is active: `@import "tailwindcss"` in `styles.css`, `@tailwindcss/vite` in devDependencies. Use arbitrary values freely: `bg-[#0f1b2d]`, `text-[0.8em]`, `border-[#1e3a5f]`.
+
+Custom CSS in `styles.css` is only for:
+- Global body/layout overrides (sidebar, `.main-content`, `.layout`)
+- PrimeReact component overrides (`.p-datatable`, `.p-button`, etc.)
+- Keyframe animations
+
+Do NOT create new utility classes like `.result-card`, `.detail-section`, `.metadata-grid` — use Tailwind directly on the element.
+
+---
+
 ## React component patterns
 
 ### Virtualized lists

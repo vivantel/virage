@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import { Virtuoso } from "react-virtuoso";
 import { InputText } from "primereact/inputtext";
 import { Button } from "primereact/button";
@@ -27,9 +27,11 @@ function ResultCard({ r }: { r: SearchResult }) {
   );
 
   return (
-    <Card className="search-result-card mb-3">
-      <div className="result-header">
-        <Tag className="source-badge" value={sourceFile} />
+    <div className="bg-[#0f1b2d] border border-[#1e3a5f] rounded-md px-4 py-3 mb-2.5">
+      <div className="flex items-center gap-2 flex-wrap min-h-[32px] mb-1">
+        <span className="text-[0.78em] text-[#8899bb] font-mono flex-1 min-w-0 overflow-hidden text-ellipsis whitespace-nowrap">
+          {sourceFile}
+        </span>
         <Tag
           severity="success"
           value={`${(r.similarity * 100).toFixed(1)}% match`}
@@ -40,71 +42,102 @@ function ResultCard({ r }: { r: SearchResult }) {
           icon={expanded ? "pi pi-chevron-up" : "pi pi-chevron-down"}
           label={expanded ? "Collapse" : "Expand"}
           onClick={() => setExpanded((v) => !v)}
-          className="ml-auto"
         />
       </div>
 
-      <p className="result-content mt-2">
+      <p className="text-sm text-[#cde] mt-2 leading-relaxed whitespace-pre-wrap break-words m-0">
         {expanded
           ? displayText
           : displayText.slice(0, 200) + (displayText.length > 200 ? "…" : "")}
       </p>
 
       {expanded && (
-        <div className="result-details mt-3">
+        <div className="border-t border-[#1e3a5f] mt-3 pt-3 flex flex-col gap-3">
+          {r.denseText && (
+            <section>
+              <h4 className="text-[0.7em] text-[#7ec8e3] uppercase tracking-wider m-0 mb-1">
+                Dense Text
+              </h4>
+              <pre className="font-mono text-[0.8em] text-[#acd] bg-[#0a1628] p-2 rounded m-0 whitespace-pre-wrap break-words max-h-48 overflow-y-auto">
+                {r.denseText}
+              </pre>
+            </section>
+          )}
+
+          {r.contextText && (
+            <section>
+              <h4 className="text-[0.7em] text-[#7ec8e3] uppercase tracking-wider m-0 mb-1">
+                Context (siblings)
+              </h4>
+              <pre className="font-mono text-[0.8em] text-[#acd] bg-[#0a1628] p-2 rounded m-0 whitespace-pre-wrap break-words max-h-48 overflow-y-auto">
+                {r.contextText}
+              </pre>
+            </section>
+          )}
+
           {r.sparseText && r.sparseText !== displayText && (
-            <section className="detail-section">
-              <h4 className="detail-label">Sparse Text (BM25)</h4>
-              <pre className="detail-pre">{r.sparseText}</pre>
+            <section>
+              <h4 className="text-[0.7em] text-[#7ec8e3] uppercase tracking-wider m-0 mb-1">
+                Sparse Text (BM25)
+              </h4>
+              <pre className="font-mono text-[0.8em] text-[#acd] bg-[#0a1628] p-2 rounded m-0 whitespace-pre-wrap break-words max-h-48 overflow-y-auto">
+                {r.sparseText}
+              </pre>
             </section>
           )}
 
           {metaEntries.length > 0 && (
-            <section className="detail-section">
-              <h4 className="detail-label">Metadata</h4>
-              <dl className="metadata-list">
+            <section>
+              <h4 className="text-[0.7em] text-[#7ec8e3] uppercase tracking-wider m-0 mb-1">
+                Metadata
+              </h4>
+              <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 font-mono text-[0.8em] m-0">
                 {metaEntries.map(([k, v]) => (
-                  <div key={k} className="metadata-row">
-                    <dt className="metadata-key">{k}</dt>
-                    <dd className="metadata-val">
+                  <React.Fragment key={k}>
+                    <dt className="text-[#7ec8e3] whitespace-nowrap">{k}</dt>
+                    <dd className="text-[#cde] m-0 break-all">
                       {typeof v === "string" ? v : JSON.stringify(v)}
                     </dd>
-                  </div>
+                  </React.Fragment>
                 ))}
               </dl>
             </section>
           )}
 
           {(r.sparseTextGeneratorId || r.metadataGeneratorId) && (
-            <section className="detail-section">
-              <h4 className="detail-label">Generator IDs</h4>
-              <dl className="metadata-list">
+            <section>
+              <h4 className="text-[0.7em] text-[#7ec8e3] uppercase tracking-wider m-0 mb-1">
+                Generator IDs
+              </h4>
+              <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 font-mono text-[0.8em] m-0">
                 {r.sparseTextGeneratorId && (
-                  <div className="metadata-row">
-                    <dt className="metadata-key">sparse</dt>
-                    <dd className="metadata-val font-mono text-xs">
+                  <>
+                    <dt className="text-[#7ec8e3] whitespace-nowrap">sparse</dt>
+                    <dd className="text-[#cde] m-0 break-all">
                       {r.sparseTextGeneratorId}
                     </dd>
-                  </div>
+                  </>
                 )}
                 {r.metadataGeneratorId && (
-                  <div className="metadata-row">
-                    <dt className="metadata-key">metadata</dt>
-                    <dd className="metadata-val font-mono text-xs">
+                  <>
+                    <dt className="text-[#7ec8e3] whitespace-nowrap">
+                      metadata
+                    </dt>
+                    <dd className="text-[#cde] m-0 break-all">
                       {r.metadataGeneratorId}
                     </dd>
-                  </div>
+                  </>
                 )}
               </dl>
             </section>
           )}
 
-          <div className="detail-footer text-xs text-gray-400 mt-2">
-            id: <span className="font-mono">{r.id}</span>
-          </div>
+          <p className="text-[0.72em] text-[#667] font-mono mt-1 m-0">
+            id: {r.id}
+          </p>
         </div>
       )}
-    </Card>
+    </div>
   );
 }
 

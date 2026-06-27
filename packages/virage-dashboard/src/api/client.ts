@@ -36,10 +36,24 @@ export interface ProjectsData {
 }
 
 export interface ChunkRecord {
-  contentHash: string;
+  id: string;
   sourceFile: string;
-  content: string;
+  denseText: string;
+  sparseText: string;
+  sparseTextGeneratorId: string;
+  metadataGeneratorId: string;
   metadata: Record<string, unknown>;
+  /** Legacy field from SQLite fallback. */
+  content?: string;
+  /** Legacy field from SQLite fallback. */
+  contentHash?: string;
+}
+
+export interface ChunksAllResponse {
+  chunks: ChunkRecord[];
+  total: number;
+  page: number;
+  pageSize: number;
 }
 
 export interface SearchResult {
@@ -48,6 +62,8 @@ export interface SearchResult {
   denseText: string;
   /** BM25/FTS body text (no breadcrumb prefix). */
   sparseText: string;
+  /** Context assembled from sibling chunks (prevSiblingId / nextSiblingId in metadata). */
+  contextText?: string;
   metadata: Record<string, unknown>;
   similarity: number;
   sourceFile?: string;
@@ -160,10 +176,20 @@ export const api = {
     post<ProjectsData>("/api/projects/switch", { index }),
 
   // Chunks
-  chunksAll: (sourceFile?: string) =>
-    get<{ chunks: ChunkRecord[] }>(
-      `/api/chunks/all${sourceFile ? `?sourceFile=${encodeURIComponent(sourceFile)}` : ""}`,
-    ),
+  chunksAll: (opts?: {
+    page?: number;
+    pageSize?: number;
+    sourceFile?: string;
+  }) => {
+    const params = new URLSearchParams();
+    if (opts?.page !== undefined) params.set("page", String(opts.page));
+    if (opts?.pageSize !== undefined)
+      params.set("pageSize", String(opts.pageSize));
+    if (opts?.sourceFile) params.set("sourceFile", opts.sourceFile);
+    const qs = params.toString();
+    return get<ChunksAllResponse>(`/api/chunks/all${qs ? `?${qs}` : ""}`);
+  },
+  chunkFiles: () => get<{ files: string[] }>("/api/chunks/files"),
   deleteChunksFile: (sourceFile: string) =>
     del<{ ok: boolean }>("/api/chunks/file", { sourceFile }),
   deleteChunksAll: () => del<{ ok: boolean }>("/api/chunks/all"),

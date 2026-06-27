@@ -23,7 +23,6 @@ import {
   loadEvalDataset,
   type RAGPipelineConfig,
   type ExperimentRun,
-  type ListedDocument,
 } from "@vivantel/virage-core";
 
 export interface DashboardOptions {
@@ -263,7 +262,11 @@ function safeSend(ws: WebSocket, msg: unknown) {
   }
 }
 
-async function handleWsOperation(ws: WebSocket, msg: Record<string, unknown>) {
+async function handleWsOperation(
+  ws: WebSocket,
+  msg: Record<string, unknown>,
+  onDone?: () => void,
+) {
   const op = String(msg.op ?? "");
   const active = activeProject();
   if (!active) {
@@ -299,6 +302,7 @@ async function handleWsOperation(ws: WebSocket, msg: Record<string, unknown>) {
       safeSend(ws, { type: "progress", stage: "starting", done: 0, total: 0 });
       await orchestrator.run();
       safeSend(ws, { type: "done" });
+      onDone?.();
     } else if (op === "eval-generate") {
       const db = new VirageDb(active.virageDb);
       const chunks = db.getAllChunks();
@@ -318,6 +322,7 @@ async function handleWsOperation(ws: WebSocket, msg: Record<string, unknown>) {
         type: "done",
         message: `Eval dataset written to ${outputPath}`,
       });
+      onDone?.();
     } else if (op === "eval-run") {
       const datasetPath = join(active.rootPath, ".virage", "eval-dataset.json");
       if (!existsSync(datasetPath)) {
@@ -343,6 +348,7 @@ async function handleWsOperation(ws: WebSocket, msg: Record<string, unknown>) {
         }),
       );
       safeSend(ws, { type: "done", result });
+      onDone?.();
     } else if (op === "eval-save") {
       const name =
         typeof msg.name === "string" && msg.name.trim()
@@ -386,6 +392,7 @@ async function handleWsOperation(ws: WebSocket, msg: Record<string, unknown>) {
         };
         await store.save(run);
         safeSend(ws, { type: "done", result: run });
+        onDone?.();
       } finally {
         expDb.close();
       }
@@ -535,18 +542,46 @@ export async function runDashboard(opts: DashboardOptions): Promise<void> {
       typeof req.query["sourceFile"] === "string"
         ? req.query["sourceFile"]
         : undefined;
+    const page = Math.max(
+      0,
+      typeof req.query["page"] === "string"
+        ? parseInt(req.query["page"], 10) || 0
+        : 0,
+    );
+    const pageSize = Math.min(
+      200,
+      typeof req.query["pageSize"] === "string"
+        ? parseInt(req.query["pageSize"], 10) || 50
+        : 50,
+    );
     try {
       const cfg = await tryGetConfig(active);
       if (cfg?.vectorStore.listAll) {
-        let docs: ListedDocument[] = await cfg.vectorStore.listAll();
-        if (sf) docs = docs.filter((d) => d.sourceFile === sf);
+        // Get total count for pagination metadata
+        const allForCount = sf ? await cfg.vectorStore.listAll() : undefined;
+        const total = sf
+          ? (allForCount?.filter((d) => d.sourceFile === sf).length ?? 0)
+          : ((await cfg.vectorStore.getStats?.())?.documentCount ??
+            (await cfg.vectorStore.listAll()).length);
+
+        const docs = await cfg.vectorStore.listAll({
+          limit: pageSize,
+          offset: page * pageSize,
+        });
+        const filtered = sf ? docs.filter((d) => d.sourceFile === sf) : docs;
         res.json({
-          chunks: docs.map((d) => ({
+          chunks: filtered.map((d) => ({
             id: d.id,
             sourceFile: d.sourceFile,
-            content: d.denseText,
+            denseText: d.denseText,
+            sparseText: d.sparseText,
+            sparseTextGeneratorId: d.sparseTextGeneratorId,
+            metadataGeneratorId: d.metadataGeneratorId,
             metadata: d.metadata,
           })),
+          total,
+          page,
+          pageSize,
         });
         return;
       }
@@ -554,7 +589,35 @@ export async function runDashboard(opts: DashboardOptions): Promise<void> {
       let chunks = db.getAllChunks();
       db.close();
       if (sf) chunks = chunks.filter((c) => c.sourceFile === sf);
-      res.json({ chunks });
+      const total = chunks.length;
+      const sliced = chunks.slice(page * pageSize, (page + 1) * pageSize);
+      res.json({ chunks: sliced, total, page, pageSize });
+    } catch (err) {
+      res.status(500).json({ error: (err as Error).message });
+    }
+  });
+
+  app.get("/api/chunks/files", async (_req: Request, res: Response) => {
+    const active = activeProject();
+    if (!active) {
+      res.status(503).json({ error: "No active project" });
+      return;
+    }
+    try {
+      const cfg = await tryGetConfig(active);
+      if (cfg?.vectorStore.listAll) {
+        const docs = await cfg.vectorStore.listAll();
+        const files = Array.from(new Set(docs.map((d) => d.sourceFile))).sort();
+        res.json({ files });
+        return;
+      }
+      const db = new VirageDb(active.virageDb);
+      const chunks = db.getAllChunks();
+      db.close();
+      const files = Array.from(
+        new Set(chunks.map((c) => c.sourceFile ?? "")),
+      ).sort();
+      res.json({ files });
     } catch (err) {
       res.status(500).json({ error: (err as Error).message });
     }
@@ -662,6 +725,45 @@ export async function runDashboard(opts: DashboardOptions): Promise<void> {
       const reranked = cfg.search?.reranker != null;
       if (cfg.search?.reranker) {
         results = await cfg.search.reranker.rerank(queryText, results, topK);
+      }
+
+      // Assemble contextText from sibling chunks (best-effort, uses metadata.prevSiblingId / nextSiblingId)
+      if (cfg.vectorStore.listAll) {
+        const siblingIds = new Set<string>();
+        for (const r of results) {
+          const m = r.metadata as Record<string, unknown>;
+          if (typeof m["prevSiblingId"] === "string")
+            siblingIds.add(m["prevSiblingId"]);
+          if (typeof m["nextSiblingId"] === "string")
+            siblingIds.add(m["nextSiblingId"]);
+        }
+        if (siblingIds.size > 0) {
+          try {
+            const allDocs = await cfg.vectorStore.listAll();
+            const docMap = new Map(allDocs.map((d) => [d.id, d]));
+            for (const r of results) {
+              const m = r.metadata as Record<string, unknown>;
+              const prev =
+                typeof m["prevSiblingId"] === "string"
+                  ? docMap.get(m["prevSiblingId"])
+                  : null;
+              const next =
+                typeof m["nextSiblingId"] === "string"
+                  ? docMap.get(m["nextSiblingId"])
+                  : null;
+              if (prev || next) {
+                const parts: string[] = [];
+                if (prev) parts.push(prev.denseText);
+                parts.push(r.denseText);
+                if (next) parts.push(next.denseText);
+                (r as unknown as Record<string, unknown>)["contextText"] =
+                  parts.join("\n---\n");
+              }
+            }
+          } catch {
+            /* contextText is optional — never break search */
+          }
+        }
       }
 
       // Log to analytics table (best-effort)
@@ -939,7 +1041,46 @@ export async function runDashboard(opts: DashboardOptions): Promise<void> {
 
   const wss = new WebSocketServer({ server, path: "/ws" });
 
+  // ─── Dashboard push broadcast ────────────────────────────────────────────────
+  const dashboardClients = new Set<WebSocket>();
+
+  async function broadcastDashboardUpdate() {
+    if (dashboardClients.size === 0) return;
+    const active = activeProject();
+    const cfg = await tryGetConfig(active);
+    const [status, histogram, anomalies] = await Promise.all([
+      getStatus(active?.virageDb ?? opts.dbPath, cfg),
+      getChunksHistogram(active?.virageDb ?? opts.dbPath, cfg),
+      getAnomalies(active?.virageDb ?? opts.dbPath, cfg),
+    ]);
+    const payload = JSON.stringify({
+      type: "dashboard-update",
+      status,
+      histogram,
+      anomalies,
+    });
+    for (const client of dashboardClients) {
+      if (client.readyState === client.OPEN) {
+        client.send(payload);
+      }
+    }
+  }
+
+  const broadcastInterval = setInterval(
+    () => void broadcastDashboardUpdate(),
+    10_000,
+  );
+  // ────────────────────────────────────────────────────────────────────────────
+
   wss.on("connection", (ws: WebSocket) => {
+    dashboardClients.add(ws);
+    // Push current state immediately on connect
+    void broadcastDashboardUpdate();
+
+    ws.on("close", () => {
+      dashboardClients.delete(ws);
+    });
+
     ws.on("message", (raw) => {
       let msg: Record<string, unknown>;
       try {
@@ -955,14 +1096,17 @@ export async function runDashboard(opts: DashboardOptions): Promise<void> {
       }
 
       wsOperationRunning = true;
-      handleWsOperation(ws, msg).finally(() => {
-        wsOperationRunning = false;
-      });
+      handleWsOperation(ws, msg, () => void broadcastDashboardUpdate()).finally(
+        () => {
+          wsOperationRunning = false;
+        },
+      );
     });
   });
 
   await new Promise<void>((resolve) => {
     process.on("SIGINT", () => {
+      clearInterval(broadcastInterval);
       wss.close();
       server.close();
       resolve();

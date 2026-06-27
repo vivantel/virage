@@ -118,7 +118,7 @@ describe("api client — HTTP calls", () => {
 
   it("chunksAll() with filter encodes sourceFile in query string", async () => {
     global.fetch = mockFetch({ chunks: [] });
-    await api.chunksAll("src/index.ts");
+    await api.chunksAll({ sourceFile: "src/index.ts" });
     expect(
       (global.fetch as ReturnType<typeof vi.fn>).mock.calls[0][0],
     ).toContain("sourceFile=src%2Findex.ts");

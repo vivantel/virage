@@ -246,6 +246,11 @@ export class LanceDBVectorStore implements VectorStore {
     return state;
   }
 
+  async getStats(): Promise<{ documentCount: number; collections: string[] }> {
+    const documentCount = (await this.table.countRows()) as number;
+    return { documentCount, collections: [] };
+  }
+
   async getIndexStats(): Promise<IndexStats> {
     return getIndexStats(this.table);
   }
