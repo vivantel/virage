@@ -305,10 +305,8 @@ export class LanceDBVectorStore implements VectorStore {
             ? row.metadata_generator_id
             : "",
         metadata,
-        sourceFile:
-          typeof row.source_file === "string" ? row.source_file : "",
-        commitHash:
-          typeof row.commit_hash === "string" ? row.commit_hash : "",
+        sourceFile: typeof row.source_file === "string" ? row.source_file : "",
+        commitHash: typeof row.commit_hash === "string" ? row.commit_hash : "",
       };
       if (opts?.includeVectors && Array.isArray(row.dense_vector)) {
         doc.denseVector = row.dense_vector as number[];

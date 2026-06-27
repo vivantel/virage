@@ -196,7 +196,11 @@ async function getChunksHistogram(dbPath: string, cfg?: RAGPipelineConfig) {
 
 async function getAnomalies(dbPath: string, cfg?: RAGPipelineConfig) {
   try {
-    let items: { sourceFile: string; denseText: string; denseVector?: number[] }[];
+    let items: {
+      sourceFile: string;
+      denseText: string;
+      denseVector?: number[];
+    }[];
     if (cfg?.vectorStore.listAll) {
       const docs = await cfg.vectorStore.listAll({ includeVectors: true });
       items = docs.map((d) => ({
@@ -238,7 +242,9 @@ async function getAnomalies(dbPath: string, cfg?: RAGPipelineConfig) {
   }
 }
 
-async function tryGetConfig(active: ProjectEntry | undefined): Promise<RAGPipelineConfig | undefined> {
+async function tryGetConfig(
+  active: ProjectEntry | undefined,
+): Promise<RAGPipelineConfig | undefined> {
   if (!active) return undefined;
   const configPath = getProjectConfigPath(active);
   if (!existsSync(configPath)) return undefined;
@@ -525,13 +531,23 @@ export async function runDashboard(opts: DashboardOptions): Promise<void> {
       res.status(503).json({ error: "No active project" });
       return;
     }
-    const sf = typeof req.query["sourceFile"] === "string" ? req.query["sourceFile"] : undefined;
+    const sf =
+      typeof req.query["sourceFile"] === "string"
+        ? req.query["sourceFile"]
+        : undefined;
     try {
       const cfg = await tryGetConfig(active);
       if (cfg?.vectorStore.listAll) {
         let docs: ListedDocument[] = await cfg.vectorStore.listAll();
         if (sf) docs = docs.filter((d) => d.sourceFile === sf);
-        res.json({ chunks: docs.map((d) => ({ id: d.id, sourceFile: d.sourceFile, content: d.denseText, metadata: d.metadata })) });
+        res.json({
+          chunks: docs.map((d) => ({
+            id: d.id,
+            sourceFile: d.sourceFile,
+            content: d.denseText,
+            metadata: d.metadata,
+          })),
+        });
         return;
       }
       const db = new VirageDb(active.virageDb);

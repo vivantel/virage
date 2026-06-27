@@ -43,9 +43,13 @@ export async function runBenchmarkChunker(
   out.dim(`   Samples : ${opts.samples}  Warmup: ${opts.warmup}`);
 
   let resolvedFiles: string[];
-  await withSpinner("Resolving file globs", async () => {
-    resolvedFiles = await expandGlobs(opts.files);
-  }, 0);
+  await withSpinner(
+    "Resolving file globs",
+    async () => {
+      resolvedFiles = await expandGlobs(opts.files);
+    },
+    0,
+  );
 
   out.dim(`   Inputs  : ${opts.files.join(", ")}`);
   out.dim(`   Resolved: ${resolvedFiles!.length} file(s)`);
@@ -76,7 +80,9 @@ export async function runBenchmarkChunker(
     );
     const totalKB = totalBytes / 1024;
 
-    out.dim(`   Files   : ${matchedFiles.length} matched (${totalKB.toFixed(1)} KB total)`);
+    out.dim(
+      `   Files   : ${matchedFiles.length} matched (${totalKB.toFixed(1)} KB total)`,
+    );
 
     await withSpinner(
       `Warm-up (${opts.warmup} run${opts.warmup !== 1 ? "s" : ""})`,
