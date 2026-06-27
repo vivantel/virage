@@ -1,6 +1,6 @@
 {
   "name": "@vivantel/virage-cli",
-  "version": "0.1.98",
+  "version": "0.1.99",
   "type": "module",
   "description": "CLI for the Virage RAG pipeline — provides the virage command",
   "repository": {

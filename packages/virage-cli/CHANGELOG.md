@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.99](https://github.com/vivantel/virage/compare/virage-cli@v0.1.98...virage-cli@v0.1.99) (2026-06-27)
+
+
+### Bug Fixes
+
+* **cli:** Rename unused arr param to _arr in argv preprocessor ([fcaccc3](https://github.com/vivantel/virage/commit/fcaccc30f8fdbb8dd5cdc23d5a1b0f57b55bc242))
+
 ## [0.1.98](https://github.com/vivantel/virage/compare/virage-cli@v0.1.97...virage-cli@v0.1.98) (2026-06-27)
 
 
