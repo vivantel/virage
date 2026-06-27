@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.100](https://github.com/vivantel/virage/compare/virage-cli@v0.1.99...virage-cli@v0.1.100) (2026-06-27)
+
+
+### Bug Fixes
+
+* **dashboard:** WS push, paginated chunks, styled cards, no-flicker histogram, fix chunk count ([84c61af](https://github.com/vivantel/virage/commit/84c61afeda6b47b625e0eb0e4d6fe6cce6565f44))
+
 ## [0.1.99](https://github.com/vivantel/virage/compare/virage-cli@v0.1.98...virage-cli@v0.1.99) (2026-06-27)
 
 
