@@ -11,15 +11,21 @@ vi.mock("../../api/client", () => ({
   },
 }));
 
+let mockWsMessages: Array<{ type: string; [key: string]: unknown }> = [];
+let mockWsCurrentOp: string | null = null;
+let mockWsOperationRunning = false;
+const mockStartOp = vi.fn();
+
 vi.mock("../../context/WebSocketContext", () => ({
   WebSocketProvider: ({ children }: { children: React.ReactNode }) => (
     <>{children}</>
   ),
   useWs: () => ({
-    status: "disconnected",
-    operationRunning: false,
-    messages: [],
-    startOp: vi.fn(),
+    status: "connected",
+    operationRunning: mockWsOperationRunning,
+    messages: mockWsMessages,
+    currentOp: mockWsCurrentOp,
+    startOp: mockStartOp,
   }),
 }));
 
@@ -68,6 +74,9 @@ function renderPage() {
 describe("ExperimentsPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockWsMessages = [];
+    mockWsCurrentOp = null;
+    mockWsOperationRunning = false;
   });
 
   it("renders Experiments heading", () => {
@@ -126,5 +135,32 @@ describe("ExperimentsPage", () => {
     vi.mocked(api.experiments).mockResolvedValue({ runs: [] });
     renderPage();
     await waitFor(() => expect(api.experiments).toHaveBeenCalledOnce());
+  });
+
+  it("renders Run Log when eval-save op is active", () => {
+    vi.mocked(api.experiments).mockResolvedValue({ runs: [] });
+    mockWsCurrentOp = "eval-save";
+    mockWsMessages = [{ type: "progress", stage: "eval", done: 3, total: 10 }];
+    mockWsOperationRunning = true;
+    renderPage();
+    expect(screen.getByText("Run Log")).toBeTruthy();
+    expect(screen.getByText(/\[eval\] 3 \/ 10/)).toBeTruthy();
+  });
+
+  it("does not render Run Log when index op is active (pipeline-only op)", () => {
+    vi.mocked(api.experiments).mockResolvedValue({ runs: [] });
+    mockWsCurrentOp = "index";
+    mockWsMessages = [{ type: "progress", stage: "chunk", done: 1, total: 5 }];
+    mockWsOperationRunning = true;
+    renderPage();
+    expect(screen.queryByText("Run Log")).toBeNull();
+  });
+
+  it("does not render Run Log when idle (no messages)", () => {
+    vi.mocked(api.experiments).mockResolvedValue({ runs: [] });
+    mockWsCurrentOp = null;
+    mockWsMessages = [];
+    renderPage();
+    expect(screen.queryByText("Run Log")).toBeNull();
   });
 });

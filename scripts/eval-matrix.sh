@@ -8,7 +8,7 @@
 
 set -euo pipefail
 
-DATASET="eval/quality-evaluation.json"
+DATASET="eval/quality-evaluation.ds.json"
 TOP_K=10
 _LOCAL_DIST="node $(dirname "$0")/../packages/virage-cli/dist/bin/virage.js"
 VIRAGE="${VIRAGE_BIN:-$_LOCAL_DIST}"

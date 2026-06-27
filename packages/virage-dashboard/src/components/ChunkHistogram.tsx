@@ -7,7 +7,17 @@ interface Props {
 }
 
 export function ChunkHistogram({ buckets }: Props) {
-  if (buckets.length === 0) return null;
+  const allEmpty = buckets.length === 0 || buckets.every((b) => b.count === 0);
+
+  if (allEmpty) {
+    return (
+      <Card title="Chunk Size Distribution" className="mb-4">
+        <p className="text-color-secondary m-0">
+          No chunks indexed yet. Run <code>virage index</code> to populate.
+        </p>
+      </Card>
+    );
+  }
 
   const chartData = {
     labels: buckets.map((b) => b.label),
@@ -25,8 +35,14 @@ export function ChunkHistogram({ buckets }: Props) {
     plugins: { legend: { display: false } },
     scales: {
       x: { ticks: { color: "#aaa" }, grid: { color: "#1e3a5f" } },
-      y: { ticks: { color: "#aaa" }, grid: { color: "#1e3a5f" } },
+      y: {
+        ticks: { color: "#aaa", precision: 0 },
+        grid: { color: "#1e3a5f" },
+        beginAtZero: true,
+      },
     },
+    responsive: true,
+    maintainAspectRatio: true,
   };
 
   return (

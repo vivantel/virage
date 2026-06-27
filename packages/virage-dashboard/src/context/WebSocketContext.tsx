@@ -20,6 +20,8 @@ interface WsContextValue {
   status: WsStatus;
   operationRunning: boolean;
   messages: WsMessage[];
+  /** The `op` string of the most recently started operation, null if none yet. */
+  currentOp: string | null;
   startOp: (msg: unknown) => void;
 }
 
@@ -31,6 +33,7 @@ const WebSocketContext = createContext<WsContextValue>({
   status: "disconnected",
   operationRunning: false,
   messages: [],
+  currentOp: null,
   startOp: () => undefined,
 });
 
@@ -38,6 +41,7 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
   const [status, setStatus] = useState<WsStatus>("disconnected");
   const [messages, setMessages] = useState<WsMessage[]>([]);
   const [operationRunning, setOperationRunning] = useState(false);
+  const [currentOp, setCurrentOp] = useState<string | null>(null);
   const { showError } = useToast();
 
   const wsRef = useRef<WebSocket | null>(null);
@@ -114,6 +118,9 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
     (msg: unknown) => {
       setMessages([]);
       setOperationRunning(true);
+      if (msg && typeof msg === "object" && "op" in msg) {
+        setCurrentOp(String((msg as { op: unknown }).op));
+      }
       if (wsRef.current?.readyState === WebSocket.OPEN) {
         wsRef.current.send(JSON.stringify(msg));
       } else {
@@ -126,7 +133,7 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
 
   return (
     <WebSocketContext.Provider
-      value={{ status, operationRunning, messages, startOp }}
+      value={{ status, operationRunning, messages, currentOp, startOp }}
     >
       {children}
     </WebSocketContext.Provider>

@@ -21,14 +21,14 @@ jobs:
         run: npm ci
 
       - name: Skill routing accuracy
-        run: npx tsx eval/suites/skill-routing.mts
+        run: npx tsx eval/scripts/skill-routing.mts
 
       - name: Write job summary
         if: always()
         run: |
           echo "## Skill Routing Accuracy" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          npx tsx eval/suites/skill-routing.mts --summary >> $GITHUB_STEP_SUMMARY || true
+          npx tsx eval/scripts/skill-routing.mts --summary >> $GITHUB_STEP_SUMMARY || true
 
   # ── RAG quality ───────────────────────────────────────────────────────────
   # Installs published @vivantel/virage-cli (virage-runner pattern) so CI uses
@@ -83,17 +83,17 @@ jobs:
         env:
           VIRAGE_BIN: ./virage-runner/node_modules/.bin/virage
           VIRAGE_CONFIG: virage.config.ci.json
-        run: npx tsx eval/suites/token-efficiency.mts
+        run: npx tsx eval/scripts/token-efficiency.mts
 
       - name: RAG retrieval quality (P@5 / MRR)
         run: |
-          if [ -f eval/quality-evaluation.json ]; then
+          if [ -f eval/quality-evaluation.ds.json ]; then
             ./virage-runner/node_modules/.bin/virage eval run \
-              --dataset eval/quality-evaluation.json \
+              --dataset eval/quality-evaluation.ds.json \
               --ci --threshold-mrr 0.35 \
               --config virage.config.ci.json
           else
-            echo "Skipping: eval/quality-evaluation.json not found."
+            echo "Skipping: eval/quality-evaluation.ds.json not found."
           fi
 
       - name: Write job summary
@@ -104,14 +104,14 @@ jobs:
         run: |
           echo "## Token Efficiency: With vs Without Virage MCP" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          npx tsx eval/suites/token-efficiency.mts --summary >> $GITHUB_STEP_SUMMARY || true
+          npx tsx eval/scripts/token-efficiency.mts --summary >> $GITHUB_STEP_SUMMARY || true
           echo "" >> $GITHUB_STEP_SUMMARY
-          if [ -f eval/quality-evaluation.json ]; then
+          if [ -f eval/quality-evaluation.ds.json ]; then
             echo "## RAG Retrieval Quality" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             echo '```' >> $GITHUB_STEP_SUMMARY
             ./virage-runner/node_modules/.bin/virage eval run \
-              --dataset eval/quality-evaluation.json \
+              --dataset eval/quality-evaluation.ds.json \
               --config virage.config.ci.json >> $GITHUB_STEP_SUMMARY || true
             echo '```' >> $GITHUB_STEP_SUMMARY
           fi

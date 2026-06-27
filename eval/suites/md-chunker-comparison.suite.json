@@ -1,0 +1,156 @@
+{
+  "version": "1",
+  "dataset": "../quality-evaluation.ds.json",
+  "topK": 10,
+  "baseline": "ce-md-vector",
+  "ciGate": {
+    "mrr": 0.35
+  },
+  "cacheDir": "../../.virage/eval-cache",
+  "exclude": [
+    "**/*.a",
+    "**/*.class",
+    "**/*.generated.cs",
+    "**/*.lock",
+    "**/*.min.css",
+    "**/*.min.js",
+    "**/*.o",
+    "**/*.pb.cs",
+    "**/*.pb.go",
+    "**/*.pb.ts",
+    "**/.next/**",
+    "**/.turbo/**",
+    "**/CMakeFiles/**",
+    "**/bin/**",
+    "**/cmake-build-*/**",
+    "**/package-lock.json",
+    "**/pnpm-lock.yaml",
+    "**/target/**",
+    "**/yarn.lock"
+  ],
+  "filesets": {
+    "md": {
+      "include": [
+        "**/*.md",
+        "**/*.mdx"
+      ],
+      "exclude": [
+        "**/node_modules/**",
+        "**/vendor/**",
+        "**/dist/**",
+        "**/out/**",
+        "CHANGELOG.md"
+      ]
+    }
+  },
+  "chunkers": {
+    "md": "@vivantel/virage-chunker-ce-md"
+  },
+  "databases": {
+    "minilm-384-code-chunk-md": {
+      "url": "",
+      "description": "all-MiniLM-L6-v2 384d, code-chunk-chunker on .md files",
+      "embedder": {
+        "package": "@vivantel/virage-embedder-transformers",
+        "config": {
+          "model": "Xenova/all-MiniLM-L6-v2",
+          "dimensions": 384
+        }
+      },
+      "vectorStore": {
+        "package": "@vivantel/virage-store-lancedb"
+      },
+      "chunkers": {
+        "md": "@vivantel/virage-code-chunk-chunker"
+      },
+      "sha256": ""
+    },
+    "minilm-384-ce-md": {
+      "url": "",
+      "description": "all-MiniLM-L6-v2 384d, ce-md chunker (Rust/comrak) on .md files, full breadcrumb prepend",
+      "embedder": {
+        "package": "@vivantel/virage-embedder-transformers",
+        "config": {
+          "model": "Xenova/all-MiniLM-L6-v2",
+          "dimensions": 384
+        }
+      },
+      "vectorStore": {
+        "package": "@vivantel/virage-store-lancedb"
+      },
+      "sha256": ""
+    }
+  },
+  "variants": [
+    {
+      "name": "code-chunk-vector",
+      "database": "minilm-384-code-chunk-md",
+      "description": "code-chunk-chunker on .md — pure vector search"
+    },
+    {
+      "name": "code-chunk-hybrid",
+      "database": "minilm-384-code-chunk-md",
+      "description": "code-chunk-chunker on .md — hybrid BM25+vector (alpha=0.6)",
+      "search": {
+        "hybrid": true,
+        "hybridAlpha": 0.6
+      }
+    },
+    {
+      "name": "code-chunk-vector-rr",
+      "database": "minilm-384-code-chunk-md",
+      "description": "code-chunk-chunker on .md — pure vector + cross-encoder reranker",
+      "search": {
+        "reranker": { "package": "@vivantel/virage-reranker-cross-encoder" }
+      }
+    },
+    {
+      "name": "code-chunk-hybrid-rr",
+      "database": "minilm-384-code-chunk-md",
+      "description": "code-chunk-chunker on .md — hybrid alpha=0.6 + cross-encoder reranker",
+      "search": {
+        "hybrid": true,
+        "hybridAlpha": 0.6,
+        "reranker": { "package": "@vivantel/virage-reranker-cross-encoder" }
+      }
+    },
+    {
+      "name": "ce-md-vector",
+      "database": "minilm-384-ce-md",
+      "description": "ce-md chunker on .md — pure vector search"
+    },
+    {
+      "name": "ce-md-hybrid",
+      "database": "minilm-384-ce-md",
+      "description": "ce-md chunker on .md — hybrid BM25+vector (alpha=0.6)",
+      "search": {
+        "hybrid": true,
+        "hybridAlpha": 0.6
+      }
+    },
+    {
+      "name": "ce-md-hybrid-30",
+      "database": "minilm-384-ce-md",
+      "description": "ce-md chunker on .md — hybrid BM25+vector alpha=0.3",
+      "search": { "hybrid": true, "hybridAlpha": 0.3 }
+    },
+    {
+      "name": "ce-md-vector-rr",
+      "database": "minilm-384-ce-md",
+      "description": "ce-md chunker on .md — pure vector + cross-encoder reranker",
+      "search": {
+        "reranker": { "package": "@vivantel/virage-reranker-cross-encoder" }
+      }
+    },
+    {
+      "name": "ce-md-hybrid-rr",
+      "database": "minilm-384-ce-md",
+      "description": "ce-md chunker on .md — hybrid alpha=0.6 + cross-encoder reranker",
+      "search": {
+        "hybrid": true,
+        "hybridAlpha": 0.6,
+        "reranker": { "package": "@vivantel/virage-reranker-cross-encoder" }
+      }
+    }
+  ]
+}

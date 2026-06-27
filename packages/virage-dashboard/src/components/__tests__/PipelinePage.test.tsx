@@ -8,12 +8,14 @@ const mockStartOp = vi.fn();
 let mockMessages: Array<{ type: string; [key: string]: unknown }> = [];
 let mockStatus = "connected";
 let mockOperationRunning = false;
+let mockCurrentOp: string | null = null;
 
 vi.mock("../../context/WebSocketContext", () => ({
   useWs: () => ({
     status: mockStatus,
     operationRunning: mockOperationRunning,
     messages: mockMessages,
+    currentOp: mockCurrentOp,
     startOp: mockStartOp,
   }),
 }));
@@ -32,6 +34,7 @@ describe("PipelinePage", () => {
     mockMessages = [];
     mockStatus = "connected";
     mockOperationRunning = false;
+    mockCurrentOp = null;
   });
 
   it("renders Pipeline heading", () => {
@@ -63,18 +66,21 @@ describe("PipelinePage", () => {
   });
 
   it("renders progress messages in the log", () => {
+    mockCurrentOp = "index";
     mockMessages = [{ type: "progress", stage: "embed", done: 50, total: 100 }];
     renderPage();
     expect(screen.getByText(/\[embed\] 50 \/ 100/)).toBeTruthy();
   });
 
   it("renders done message in the log", () => {
+    mockCurrentOp = "index";
     mockMessages = [{ type: "done", message: "Index updated" }];
     renderPage();
     expect(screen.getByText(/✓ Completed — Index updated/)).toBeTruthy();
   });
 
   it("renders error message in the log", () => {
+    mockCurrentOp = "index";
     mockMessages = [{ type: "error", message: "Out of memory" }];
     renderPage();
     expect(screen.getByText(/✗ Error: Out of memory/)).toBeTruthy();

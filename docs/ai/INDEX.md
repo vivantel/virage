@@ -87,18 +87,18 @@ virage eval generate (gen)             # generate eval dataset from indexed chun
 virage eval save --name <n>            # run evaluation and save results for comparison
 virage eval list                       # list saved evaluation runs
 virage eval compare --baseline --candidate  # bootstrap significance test between two runs
-virage eval-suite (es) run --suite eval/suites/retrieval-quality.json  # multi-config/multi-db eval suite (downloads DB archives, compares all variants)
+virage eval-suite (es) run --suite eval/suites/retrieval-quality.suite.json  # multi-config/multi-db eval suite (downloads DB archives, compares all variants)
 virage pack --output ./archive.tar.gz  # pack LanceDB dir as a shareable .tar.gz for eval-suite
 ```
 
 ### CLI alias quick-reference
 
-| Command | Alias |
-|---------|-------|
+| Command | Alias(es) |
+|---------|-----------|
 | `index` | `i` |
 | `update` | `up` |
 | `check` | `c` |
-| `validate` | `val` |
+| `validate` | `v`, `val` |
 | `report` | `r` |
 | `query` | `q` |
 | `dashboard` | `d` |
@@ -108,6 +108,15 @@ virage pack --output ./archive.tar.gz  # pack LanceDB dir as a shareable .tar.gz
 | `eval` | `e` |
 | `eval generate` | `eval gen` / `e gen` |
 | `eval-suite` | `es` |
+| `benchmark` | `b`, `bench` |
+| `benchmark embedder` | `benchmark e` / `b e` |
+| `benchmark chunker` | `benchmark c` / `b c` |
+| `benchmark reranker` | `benchmark r` / `b r` |
+| `telemetry` | `tm` |
+
+**Benchmark short flags:** `-s / --samples`, `-w / --warmup` (all three subcommands).
+
+**Benchmark chunker** accepts glob patterns and multiple file paths: `virage b c 'src/**/*.ts' 'docs/**/*.md' -s 5 -w 1`. Files are routed to chunkers based on each chunker's `patterns` array.
 
 ---
 
@@ -162,6 +171,9 @@ Hook: `.claude/settings.json` fires `npm run fix && npm run type-check` automati
 - See [`guardrails/chunker.md`](guardrails/chunker.md) — plugin contract, ArtifactChunker interface, ChunkMeta fields
 - See [`guardrails/rust-napi.md`](guardrails/rust-napi.md) — napi-rs patterns, virage-vidoc usage, build steps
 - See [`guardrails/release-ce.md`](guardrails/release-ce.md) — CE publishing process, platform stubs, version bumping
+
+**Dashboard guardrails** (applies to `packages/virage-dashboard/` and `packages/virage-cli/src/cli/dashboard.ts`):
+- See [`guardrails/dashboard.md`](guardrails/dashboard.md) — data sources (LanceDB vs SQLite), PipelineLog op-filtering, WebSocket conventions, SearchResult fields, testing patterns
 
 ---
 

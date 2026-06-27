@@ -52,17 +52,30 @@ import { printBanner } from "../cli/banner.js";
 
 config({ quiet: true });
 
-// Expand -vvv etc. into individual -v flags before commander parses
-const argv = process.argv.flatMap((arg) =>
-  /^-v+$/.test(arg)
-    ? arg
-        .slice(1)
-        .split("")
-        .map((c) => `-${c}`)
-    : [arg],
-);
+// Top-level command aliases not expressible as a single Commander .alias()
+const TOP_LEVEL_ALIASES: Record<string, string> = {
+  b: "benchmark",
+  bench: "benchmark",
+  tm: "telemetry",
+  v: "validate",
+};
+
+// Expand -vvv etc. into individual -v flags, and rewrite top-level command aliases
+const argv = process.argv.flatMap((arg, i, arr) => {
+  if (/^-v+$/.test(arg)) {
+    return arg
+      .slice(1)
+      .split("")
+      .map((c) => `-${c}`);
+  }
+  if (i === 2 && TOP_LEVEL_ALIASES[arg]) {
+    return [TOP_LEVEL_ALIASES[arg]];
+  }
+  return [arg];
+});
 
 const program = new Command();
+program.configureHelp({ sortSubcommands: true });
 
 function handleError(error: unknown): never {
   createOut(0).error(error instanceof Error ? error.message : String(error));
@@ -669,10 +682,12 @@ program
 
 const benchmark = program
   .command("benchmark")
+  .alias("b")
   .description("Performance benchmarking tools");
 
 benchmark
   .command("embedder")
+  .alias("e")
   .description(
     "Benchmark any configured embedder (latency p50/p95/p99 + tokens/sec)",
   )
@@ -682,12 +697,12 @@ benchmark
     "./virage.config.json",
   )
   .option(
-    "--samples <n>",
+    "-s, --samples <n>",
     "Number of latency samples",
     (v) => parseInt(v, 10),
     20,
   )
-  .option("--warmup <n>", "Number of warm-up runs", (v) => parseInt(v, 10), 3)
+  .option("-w, --warmup <n>", "Number of warm-up runs", (v) => parseInt(v, 10), 3)
   .action(async (opts: { config: string; samples: number; warmup: number }) => {
     const verbose = program.opts<{ verbose: number }>().verbose;
     try {
@@ -704,26 +719,26 @@ benchmark
 
 benchmark
   .command("chunker")
+  .alias("c")
   .description(
     "Benchmark configured chunkers (latency p50/p95/p99 + KB/s throughput)",
   )
+  .argument("<files...>", "File paths or glob patterns to benchmark")
   .option(
     "-c, --config <path>",
     "Path to virage.config.json",
     "./virage.config.json",
   )
-  .requiredOption("--file <path>", "Path to a file to chunk")
   .option(
-    "--samples <n>",
+    "-s, --samples <n>",
     "Number of passes per chunker",
     (v) => parseInt(v, 10),
     20,
   )
-  .option("--warmup <n>", "Number of warm-up runs", (v) => parseInt(v, 10), 3)
+  .option("-w, --warmup <n>", "Number of warm-up runs", (v) => parseInt(v, 10), 3)
   .action(
-    async (opts: {
+    async (files: string[], opts: {
       config: string;
-      file: string;
       samples: number;
       warmup: number;
     }) => {
@@ -731,7 +746,7 @@ benchmark
       try {
         await runBenchmarkChunker({
           config: opts.config,
-          file: opts.file,
+          files,
           samples: opts.samples,
           warmup: opts.warmup,
           verbosity: verbose,
@@ -744,6 +759,7 @@ benchmark
 
 benchmark
   .command("reranker")
+  .alias("r")
   .description(
     "Benchmark configured reranker (latency p50/p95/p99 + passages/sec)",
   )
@@ -752,14 +768,14 @@ benchmark
     "Path to virage.config.json",
     "./virage.config.json",
   )
-  .option("--samples <n>", "Number of rerank calls", (v) => parseInt(v, 10), 20)
+  .option("-s, --samples <n>", "Number of rerank calls", (v) => parseInt(v, 10), 20)
   .option(
     "--passages <n>",
     "Passages per rerank call",
     (v) => parseInt(v, 10),
     10,
   )
-  .option("--warmup <n>", "Number of warm-up runs", (v) => parseInt(v, 10), 3)
+  .option("-w, --warmup <n>", "Number of warm-up runs", (v) => parseInt(v, 10), 3)
   .action(
     async (opts: {
       config: string;
@@ -817,6 +833,7 @@ store
 
 const telemetry = program
   .command("telemetry")
+  .alias("tm")
   .description("Manage telemetry collection settings and data");
 
 telemetry

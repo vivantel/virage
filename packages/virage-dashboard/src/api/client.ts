@@ -44,10 +44,17 @@ export interface ChunkRecord {
 
 export interface SearchResult {
   id: string;
-  content: string;
+  /** Dense embedding text (breadcrumb + body). */
+  denseText: string;
+  /** BM25/FTS body text (no breadcrumb prefix). */
+  sparseText: string;
   metadata: Record<string, unknown>;
   similarity: number;
   sourceFile?: string;
+  sparseTextGeneratorId?: string;
+  metadataGeneratorId?: string;
+  /** Legacy alias kept for backward compatibility with older API responses. */
+  content?: string;
 }
 
 export interface StatTestResult {

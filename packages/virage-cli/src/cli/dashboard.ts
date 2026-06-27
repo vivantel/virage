@@ -23,6 +23,7 @@ import {
   loadEvalDataset,
   type RAGPipelineConfig,
   type ExperimentRun,
+  type ListedDocument,
 } from "@vivantel/virage-core";
 
 export interface DashboardOptions {
@@ -139,53 +140,82 @@ async function getCachedConfig(configPath: string): Promise<RAGPipelineConfig> {
   return cfg;
 }
 
-// ─── Status helpers (preserved from original) ─────────────────────────────────
+// ─── Status / chunk helpers — prefer vector DB, fall back to SQLite ────────────
 
-async function getStatus(dbPath: string) {
+function histogramBuckets(sizes: number[]) {
+  const defs = [
+    { label: "< 200 chars", min: 0, max: 200 },
+    { label: "200–500 chars", min: 200, max: 500 },
+    { label: "500–1k chars", min: 500, max: 1000 },
+    { label: "1k–2k chars", min: 1000, max: 2000 },
+    { label: "> 2k chars", min: 2000, max: Infinity },
+  ];
+  return defs.map((b) => ({
+    label: b.label,
+    count: sizes.filter((s) => s >= b.min && s < b.max).length,
+  }));
+}
+
+async function getStatus(dbPath: string, cfg?: RAGPipelineConfig) {
   let totalChunks = 0;
   let totalEmbeddings = 0;
+  const memoryMB = Math.round(process.memoryUsage().heapUsed / 1024 / 1024);
   try {
-    const db = new VirageDb(dbPath);
-    totalChunks = db.getAllChunks().length;
-    totalEmbeddings = db.getAll().length;
-    db.close();
+    if (cfg?.vectorStore.getStats) {
+      const stats = await cfg.vectorStore.getStats();
+      totalChunks = stats.documentCount;
+      totalEmbeddings = stats.documentCount;
+    } else {
+      const db = new VirageDb(dbPath);
+      totalChunks = db.getAllChunks().length;
+      totalEmbeddings = db.getAll().length;
+      db.close();
+    }
   } catch {
     /* db may not exist yet */
   }
-  const memoryMB = Math.round(process.memoryUsage().heapUsed / 1024 / 1024);
   return { totalChunks, totalEmbeddings, memoryMB };
 }
 
-async function getChunksHistogram(dbPath: string) {
+async function getChunksHistogram(dbPath: string, cfg?: RAGPipelineConfig) {
   try {
+    if (cfg?.vectorStore.listAll) {
+      const docs = await cfg.vectorStore.listAll();
+      const sizes = docs.map((d) => d.denseText.length);
+      return { histogram: histogramBuckets(sizes) };
+    }
     const db = new VirageDb(dbPath);
     const chunks = db.getAllChunks();
     db.close();
     const sizes = chunks.map((c) => c.denseText?.length ?? 0);
-    const buckets = [
-      { label: "< 200 chars", min: 0, max: 200 },
-      { label: "200–500 chars", min: 200, max: 500 },
-      { label: "500–1k chars", min: 500, max: 1000 },
-      { label: "1k–2k chars", min: 1000, max: 2000 },
-      { label: "> 2k chars", min: 2000, max: Infinity },
-    ];
-    const histogram = buckets.map((b) => ({
-      label: b.label,
-      count: sizes.filter((s) => s >= b.min && s < b.max).length,
-    }));
-    return { histogram };
+    return { histogram: histogramBuckets(sizes) };
   } catch {
     return { histogram: [] };
   }
 }
 
-async function getAnomalies(dbPath: string) {
+async function getAnomalies(dbPath: string, cfg?: RAGPipelineConfig) {
   try {
-    const db = new VirageDb(dbPath);
-    const chunks = db.getAll();
-    db.close();
-    if (chunks.length === 0) return { anomalies: [] };
-    const norms = chunks.map((c) =>
+    let items: { sourceFile: string; denseText: string; denseVector?: number[] }[];
+    if (cfg?.vectorStore.listAll) {
+      const docs = await cfg.vectorStore.listAll({ includeVectors: true });
+      items = docs.map((d) => ({
+        sourceFile: d.sourceFile,
+        denseText: d.denseText,
+        denseVector: d.denseVector,
+      }));
+    } else {
+      const db = new VirageDb(dbPath);
+      const chunks = db.getAll();
+      db.close();
+      items = chunks.map((c) => ({
+        sourceFile: c.sourceFile ?? "unknown",
+        denseText: c.denseText ?? "",
+        denseVector: c.denseVector ?? [],
+      }));
+    }
+    if (items.length === 0) return { anomalies: [] };
+    const norms = items.map((c) =>
       Math.sqrt(
         (c.denseVector ?? []).reduce((s: number, v: number) => s + v * v, 0),
       ),
@@ -194,17 +224,28 @@ async function getAnomalies(dbPath: string) {
     const std = Math.sqrt(
       norms.reduce((s, v) => s + (v - mean) ** 2, 0) / norms.length,
     );
-    const anomalies = chunks
+    const anomalies = items
       .map((c, i) => ({
-        sourceFile: c.sourceFile ?? "unknown",
+        sourceFile: c.sourceFile,
         zscore: std > 0 ? Math.abs(norms[i] - mean) / std : 0,
-        preview: (c.denseText ?? "").slice(0, 60),
+        preview: c.denseText.slice(0, 60),
       }))
       .filter((a) => a.zscore > 2.5)
       .sort((a, b) => b.zscore - a.zscore);
     return { anomalies };
   } catch {
     return { anomalies: [] };
+  }
+}
+
+async function tryGetConfig(active: ProjectEntry | undefined): Promise<RAGPipelineConfig | undefined> {
+  if (!active) return undefined;
+  const configPath = getProjectConfigPath(active);
+  if (!existsSync(configPath)) return undefined;
+  try {
+    return await getCachedConfig(configPath);
+  } catch {
+    return undefined;
   }
 }
 
@@ -408,17 +449,20 @@ export async function runDashboard(opts: DashboardOptions): Promise<void> {
 
   app.get("/api/status", async (_req: Request, res: Response) => {
     const active = activeProject();
-    res.json(await getStatus(active?.virageDb ?? opts.dbPath));
+    const cfg = await tryGetConfig(active);
+    res.json(await getStatus(active?.virageDb ?? opts.dbPath, cfg));
   });
 
   app.get("/api/chunks", async (_req: Request, res: Response) => {
     const active = activeProject();
-    res.json(await getChunksHistogram(active?.virageDb ?? opts.dbPath));
+    const cfg = await tryGetConfig(active);
+    res.json(await getChunksHistogram(active?.virageDb ?? opts.dbPath, cfg));
   });
 
   app.get("/api/embeddings/anomalies", async (_req: Request, res: Response) => {
     const active = activeProject();
-    res.json(await getAnomalies(active?.virageDb ?? opts.dbPath));
+    const cfg = await tryGetConfig(active);
+    res.json(await getAnomalies(active?.virageDb ?? opts.dbPath, cfg));
   });
 
   app.get("/api/projects", (_req: Request, res: Response) => {
@@ -475,20 +519,25 @@ export async function runDashboard(opts: DashboardOptions): Promise<void> {
 
   // ─── New chunk routes ────────────────────────────────────────────────────────
 
-  app.get("/api/chunks/all", (req: Request, res: Response) => {
+  app.get("/api/chunks/all", async (req: Request, res: Response) => {
     const active = activeProject();
     if (!active) {
       res.status(503).json({ error: "No active project" });
       return;
     }
+    const sf = typeof req.query["sourceFile"] === "string" ? req.query["sourceFile"] : undefined;
     try {
+      const cfg = await tryGetConfig(active);
+      if (cfg?.vectorStore.listAll) {
+        let docs: ListedDocument[] = await cfg.vectorStore.listAll();
+        if (sf) docs = docs.filter((d) => d.sourceFile === sf);
+        res.json({ chunks: docs.map((d) => ({ id: d.id, sourceFile: d.sourceFile, content: d.denseText, metadata: d.metadata })) });
+        return;
+      }
       const db = new VirageDb(active.virageDb);
       let chunks = db.getAllChunks();
       db.close();
-      const sf = req.query["sourceFile"];
-      if (typeof sf === "string") {
-        chunks = chunks.filter((c) => c.sourceFile === sf);
-      }
+      if (sf) chunks = chunks.filter((c) => c.sourceFile === sf);
       res.json({ chunks });
     } catch (err) {
       res.status(500).json({ error: (err as Error).message });

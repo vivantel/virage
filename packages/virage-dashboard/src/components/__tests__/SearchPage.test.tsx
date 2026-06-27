@@ -4,6 +4,17 @@ import userEvent from "@testing-library/user-event";
 import { PrimeReactProvider } from "primereact/api";
 import { SearchPage } from "../SearchPage";
 
+// Virtuoso relies on real browser scroll metrics — render items directly in tests
+vi.mock("react-virtuoso", () => ({
+  Virtuoso: ({
+    data,
+    itemContent,
+  }: {
+    data: unknown[];
+    itemContent: (i: number, item: unknown) => React.ReactNode;
+  }) => <>{data.map((item, i) => itemContent(i, item))}</>,
+}));
+
 vi.mock("../../api/client", () => ({
   api: {
     search: vi.fn(),
@@ -61,14 +72,16 @@ describe("SearchPage", () => {
       results: [
         {
           id: "r1",
-          content: "Auth uses JWT tokens.",
+          denseText: "Auth uses JWT tokens.",
+          sparseText: "auth jwt tokens",
           metadata: {},
           similarity: 0.92,
           sourceFile: "src/auth.ts",
         },
         {
           id: "r2",
-          content: "Session expires after 1h.",
+          denseText: "Session expires after 1h.",
+          sparseText: "session expires",
           metadata: {},
           similarity: 0.78,
           sourceFile: "src/session.ts",
@@ -120,7 +133,8 @@ describe("SearchPage", () => {
       results: [
         {
           id: "r1",
-          content: "Content.",
+          denseText: "Content.",
+          sparseText: "",
           metadata: {},
           similarity: 0.85,
           sourceFile: "src/router.ts",
@@ -132,5 +146,89 @@ describe("SearchPage", () => {
     await user.type(screen.getByPlaceholderText(/search query/i), "routing");
     await user.click(screen.getByRole("button", { name: /search/i }));
     await waitFor(() => expect(screen.getByText("src/router.ts")).toBeTruthy());
+  });
+
+  it("expands result card to show sparseText, metadata, and generator IDs", async () => {
+    vi.mocked(api.search).mockResolvedValue({
+      results: [
+        {
+          id: "chunk-99",
+          denseText: "Authentication via OAuth2.",
+          sparseText: "authentication oauth2 tokens scopes",
+          metadata: { framework: "express", version: "4" },
+          similarity: 0.91,
+          sourceFile: "src/auth/oauth.ts",
+          sparseTextGeneratorId: "bm25-v3",
+          metadataGeneratorId: "meta-extractor-v2",
+        },
+      ],
+    });
+    const user = userEvent.setup();
+    renderPage();
+    await user.type(screen.getByPlaceholderText(/search query/i), "oauth");
+    await user.click(screen.getByRole("button", { name: /search/i }));
+    await waitFor(() =>
+      expect(screen.getByText("Authentication via OAuth2.")).toBeTruthy(),
+    );
+    // Expand the card
+    await user.click(screen.getByRole("button", { name: /expand/i }));
+    expect(
+      screen.getByText("authentication oauth2 tokens scopes"),
+    ).toBeTruthy();
+    expect(screen.getByText("framework")).toBeTruthy();
+    expect(screen.getByText("express")).toBeTruthy();
+    expect(screen.getByText("bm25-v3")).toBeTruthy();
+    expect(screen.getByText("meta-extractor-v2")).toBeTruthy();
+    expect(screen.getByText("chunk-99")).toBeTruthy();
+  });
+
+  it("renders sort control after search with results", async () => {
+    vi.mocked(api.search).mockResolvedValue({
+      results: [
+        {
+          id: "r1",
+          denseText: "First result.",
+          sparseText: "",
+          metadata: {},
+          similarity: 0.95,
+          sourceFile: "a.ts",
+        },
+      ],
+    });
+    const user = userEvent.setup();
+    renderPage();
+    await user.type(screen.getByPlaceholderText(/search query/i), "test");
+    await user.click(screen.getByRole("button", { name: /search/i }));
+    // Sort-by label is visible once results load
+    await waitFor(() => expect(screen.getByText(/Sort by/i)).toBeTruthy());
+    expect(screen.getByText(/1 result/i)).toBeTruthy();
+  });
+
+  it("shows result count after search", async () => {
+    vi.mocked(api.search).mockResolvedValue({
+      results: [
+        {
+          id: "r1",
+          denseText: "first",
+          sparseText: "",
+          metadata: {},
+          similarity: 0.9,
+          sourceFile: "a.ts",
+        },
+        {
+          id: "r2",
+          denseText: "second",
+          sparseText: "",
+          metadata: {},
+          similarity: 0.8,
+          sourceFile: "b.ts",
+        },
+      ],
+    });
+    const user = userEvent.setup();
+    renderPage();
+    await user.type(screen.getByPlaceholderText(/search query/i), "query");
+    await user.click(screen.getByRole("button", { name: /search/i }));
+    await waitFor(() => expect(screen.getByText(/2 results/i)).toBeTruthy());
   });
 });

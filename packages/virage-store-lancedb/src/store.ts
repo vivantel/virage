@@ -1,6 +1,7 @@
 import type {
   VectorDocument,
   VectorSearchResult,
+  ListedDocument,
   VectorStore,
   VectorStoreMeta,
   SearchOptions,
@@ -253,9 +254,29 @@ export class LanceDBVectorStore implements VectorStore {
     return getQueryPerfReport(this.table, this.dimensions, timeframeHours);
   }
 
-  private rowsToResults(rows: unknown[]): VectorSearchResult[] {
-    return (rows as Record<string, unknown>[]).map((row) => {
-      const distance = typeof row._distance === "number" ? row._distance : 1;
+  async listAll(opts?: {
+    limit?: number;
+    offset?: number;
+    includeVectors?: boolean;
+  }): Promise<ListedDocument[]> {
+    const columns = [
+      "id",
+      "dense_text",
+      "sparse_text",
+      "dense_text_hash",
+      "sparse_text_generator_id",
+      "metadata_generator_id",
+      "metadata_json",
+      "source_file",
+      "commit_hash",
+      ...(opts?.includeVectors ? ["dense_vector"] : []),
+    ];
+    let query = this.table.query().select(columns);
+    if (opts?.offset) query = query.offset(opts.offset);
+    if (opts?.limit) query = query.limit(opts.limit);
+    const rows = (await query.toArray()) as Record<string, unknown>[];
+
+    return rows.map((row) => {
       const metadata = (() => {
         try {
           const parsed: unknown =
@@ -269,16 +290,71 @@ export class LanceDBVectorStore implements VectorStore {
           return {};
         }
       })();
-      return {
+      const doc: ListedDocument = {
         id: typeof row.id === "string" ? row.id : "",
         denseText: typeof row.dense_text === "string" ? row.dense_text : "",
         sparseText: typeof row.sparse_text === "string" ? row.sparse_text : "",
+        denseTextHash:
+          typeof row.dense_text_hash === "string" ? row.dense_text_hash : "",
+        sparseTextGeneratorId:
+          typeof row.sparse_text_generator_id === "string"
+            ? row.sparse_text_generator_id
+            : "",
+        metadataGeneratorId:
+          typeof row.metadata_generator_id === "string"
+            ? row.metadata_generator_id
+            : "",
         metadata,
-        similarity: 1 - distance,
         sourceFile:
-          typeof row.source_file === "string" ? row.source_file : undefined,
+          typeof row.source_file === "string" ? row.source_file : "",
+        commitHash:
+          typeof row.commit_hash === "string" ? row.commit_hash : "",
       };
+      if (opts?.includeVectors && Array.isArray(row.dense_vector)) {
+        doc.denseVector = row.dense_vector as number[];
+      }
+      return doc;
     });
+  }
+
+  private rowToResult(row: Record<string, unknown>): VectorSearchResult {
+    const distance = typeof row._distance === "number" ? row._distance : 1;
+    const metadata = (() => {
+      try {
+        const parsed: unknown =
+          typeof row.metadata_json === "string"
+            ? JSON.parse(row.metadata_json)
+            : {};
+        return parsed && typeof parsed === "object" && !Array.isArray(parsed)
+          ? (parsed as Record<string, unknown>)
+          : {};
+      } catch {
+        return {};
+      }
+    })();
+    return {
+      id: typeof row.id === "string" ? row.id : "",
+      denseText: typeof row.dense_text === "string" ? row.dense_text : "",
+      sparseText: typeof row.sparse_text === "string" ? row.sparse_text : "",
+      metadata,
+      similarity: 1 - distance,
+      sourceFile:
+        typeof row.source_file === "string" ? row.source_file : undefined,
+      sparseTextGeneratorId:
+        typeof row.sparse_text_generator_id === "string"
+          ? row.sparse_text_generator_id
+          : undefined,
+      metadataGeneratorId:
+        typeof row.metadata_generator_id === "string"
+          ? row.metadata_generator_id
+          : undefined,
+    };
+  }
+
+  private rowsToResults(rows: unknown[]): VectorSearchResult[] {
+    return (rows as Record<string, unknown>[]).map((row) =>
+      this.rowToResult(row),
+    );
   }
 
   private async vectorSearchInternal(
@@ -320,25 +396,8 @@ export class LanceDBVectorStore implements VectorStore {
         .limit(fetchLimit)
         .toArray();
       return (rows as Record<string, unknown>[]).map((row) => ({
-        id: typeof row.id === "string" ? row.id : "",
-        denseText: typeof row.dense_text === "string" ? row.dense_text : "",
-        sparseText: typeof row.sparse_text === "string" ? row.sparse_text : "",
-        metadata: (() => {
-          try {
-            const p: unknown =
-              typeof row.metadata_json === "string"
-                ? JSON.parse(row.metadata_json)
-                : {};
-            return p && typeof p === "object" && !Array.isArray(p)
-              ? (p as Record<string, unknown>)
-              : {};
-          } catch {
-            return {};
-          }
-        })(),
+        ...this.rowToResult(row),
         similarity: typeof row._score === "number" ? row._score : 0,
-        sourceFile:
-          typeof row.source_file === "string" ? row.source_file : undefined,
       }));
     } catch {
       return [];

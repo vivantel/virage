@@ -1,33 +1,11 @@
-import { useEffect, useRef } from "react";
+import { useState } from "react";
 import { Button } from "primereact/button";
 import { Dropdown } from "primereact/dropdown";
 import { Tag } from "primereact/tag";
-import {
-  useWs,
-  type WsMessage,
-  type WsStatus,
-} from "../context/WebSocketContext";
-import { useState } from "react";
+import { useWs, type WsStatus } from "../context/WebSocketContext";
+import { PipelineLog } from "./PipelineLog";
 
 type PipelineOp = "index" | "eval-generate" | "eval-run";
-
-function formatMessage(msg: WsMessage): string {
-  if (msg.type === "progress") {
-    if (msg["message"])
-      return `[${String(msg["stage"] ?? "info")}] ${String(msg["message"])}`;
-    return `[${String(msg["stage"] ?? "progress")}] ${String(msg["done"] ?? 0)} / ${String(msg["total"] ?? "?")}`;
-  }
-  if (msg.type === "done") {
-    const extra = msg["message"] ? ` — ${String(msg["message"])}` : "";
-    return `✓ Completed${extra}`;
-  }
-  if (msg.type === "error")
-    return `✗ Error: ${String(msg["message"] ?? "unknown")}`;
-  if (msg.type === "busy")
-    return "⚠ Server busy — another operation is running";
-  if (msg.type === "raw") return String(msg["text"] ?? "");
-  return JSON.stringify(msg);
-}
 
 const opOptions = [
   { label: "Index (virage index)", value: "index" },
@@ -57,14 +35,7 @@ const statusLabel: Record<WsStatus, string> = {
 
 export function PipelinePage() {
   const [op, setOp] = useState<PipelineOp>("index");
-  const { startOp, messages, status, operationRunning } = useWs();
-  const logRef = useRef<HTMLPreElement>(null);
-
-  useEffect(() => {
-    if (logRef.current) {
-      logRef.current.scrollTop = logRef.current.scrollHeight;
-    }
-  }, [messages]);
+  const { startOp, status, operationRunning } = useWs();
 
   const label =
     status === "connected" && operationRunning
@@ -91,11 +62,11 @@ export function PipelinePage() {
         <Tag severity={statusSeverity[status]} value={label} />
       </div>
 
-      <pre ref={logRef} className="pipeline-log">
-        {messages.length === 0
-          ? "— Select an operation and click Run —"
-          : messages.map(formatMessage).join("\n")}
-      </pre>
+      <PipelineLog
+        allowedOps={["index", "eval-generate", "eval-run"]}
+        placeholder="— Select an operation and click Run —"
+        alwaysShow
+      />
     </div>
   );
 }

@@ -14,11 +14,11 @@ on:
       - '!**/node_modules/**'
       - '!**/vendor/**'
       - '!**/out/**'
-      - '!eval/suites/retrieval-quality.json'
+      - '!eval/suites/retrieval-quality.suite.json'
   workflow_dispatch:
 
 # Queue runs rather than cancelling — a run that already called `gh release create`
-# but hasn't committed retrieval-quality.json yet must not be interrupted.
+# but hasn't committed retrieval-quality.suite.json yet must not be interrupted.
 concurrency:
   group: eval-db-release
   cancel-in-progress: false
@@ -36,7 +36,7 @@ jobs:
         uses: actions/checkout@v6
         with:
           fetch-depth: 0
-          # PAT required so the retrieval-quality.json auto-commit can push to master
+          # PAT required so the retrieval-quality.suite.json auto-commit can push to master
           token: ${{ secrets.RELEASE_TOKEN }}
 
       - name: Setup Node.js
@@ -148,9 +148,9 @@ jobs:
             git fetch origin master
             git reset --hard origin/master
             node scripts/update-suite-urls.mjs
-            git add eval/suites/retrieval-quality.json
+            git add eval/suites/retrieval-quality.suite.json
             if git diff --cached --quiet; then
-              echo "No changes to eval/suites/retrieval-quality.json, skipping commit."
+              echo "No changes to eval/suites/retrieval-quality.suite.json, skipping commit."
               exit 0
             fi
             git commit -m "chore(eval): update eval-db URLs to ${{ steps.tag.outputs.tag }} [skip ci]"

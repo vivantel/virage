@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   DataTable,
   type DataTableExpandedRows,
@@ -11,26 +11,9 @@ import { Card } from "primereact/card";
 import { Tag } from "primereact/tag";
 import { ProgressSpinner } from "primereact/progressspinner";
 import { api, type ExperimentRun, type StatTestResult } from "../api/client";
-import { useWs, type WsMessage } from "../context/WebSocketContext";
+import { useWs } from "../context/WebSocketContext";
 import { useToast } from "../context/ToastContext";
-
-function formatMessage(msg: WsMessage): string {
-  if (msg.type === "progress") {
-    if (msg["message"])
-      return `[${String(msg["stage"] ?? "info")}] ${String(msg["message"])}`;
-    return `[${String(msg["stage"] ?? "progress")}] ${String(msg["done"] ?? 0)} / ${String(msg["total"] ?? "?")}`;
-  }
-  if (msg.type === "done") {
-    const extra = msg["message"] ? ` — ${String(msg["message"])}` : "";
-    return `✓ Completed${extra}`;
-  }
-  if (msg.type === "error")
-    return `✗ Error: ${String(msg["message"] ?? "unknown")}`;
-  if (msg.type === "busy")
-    return "⚠ Server busy — another operation is running";
-  if (msg.type === "raw") return String(msg["text"] ?? "");
-  return JSON.stringify(msg);
-}
+import { PipelineLog } from "./PipelineLog";
 
 const fmt = (n: number) => (n * 100).toFixed(1) + "%";
 
@@ -52,7 +35,6 @@ export function ExperimentsPage() {
   const [newName, setNewName] = useState("");
   const { startOp, messages, operationRunning } = useWs();
   const { showError } = useToast();
-  const logRef = useRef<HTMLPreElement>(null);
 
   async function load() {
     setLoading(true);
@@ -78,11 +60,6 @@ export function ExperimentsPage() {
     if (last?.type === "done") void load();
   }, [messages]);
 
-  useEffect(() => {
-    if (logRef.current) {
-      logRef.current.scrollTop = logRef.current.scrollHeight;
-    }
-  }, [messages]);
 
   async function handleDelete(id: string) {
     try {
@@ -167,11 +144,7 @@ export function ExperimentsPage() {
             disabled={operationRunning || !newName.trim()}
           />
         </div>
-        {messages.length > 0 && (
-          <pre ref={logRef} className="pipeline-log mt-2">
-            {messages.map(formatMessage).join("\n")}
-          </pre>
-        )}
+        <PipelineLog allowedOps={["eval-save", "eval-run"]} title="Run Log" />
       </Card>
 
       {selectedRuns.length === 2 && (

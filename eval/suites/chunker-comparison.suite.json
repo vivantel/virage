@@ -1,6 +1,6 @@
 {
   "version": "1",
-  "dataset": "../quality-evaluation.json",
+  "dataset": "../quality-evaluation.ds.json",
   "topK": 10,
   "baseline": "ce-vector",
   "ciGate": {

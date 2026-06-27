@@ -12,7 +12,7 @@ import { fileURLToPath } from "url";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "../..");
 const EVAL_DIR = join(ROOT, "eval");
-const SUITES_DIR = join(EVAL_DIR, "suites");
+const SCRIPTS_DIR = join(EVAL_DIR, "scripts");
 const SUMMARY_FILE = process.env["GITHUB_STEP_SUMMARY"];
 const CI = !!SUMMARY_FILE;
 
@@ -49,7 +49,7 @@ if (SUMMARY_FILE) {
 
 // ── 1. Hook coverage ──────────────────────────────────────────────────────────
 const hookCoverage = run(
-  `npx tsx ${join(SUITES_DIR, "hook-coverage.mts")} --summary`,
+  `npx tsx ${join(SCRIPTS_DIR, "hook-coverage.mts")} --summary`,
   "Hook Coverage",
 );
 emit(hookCoverage.output);
@@ -57,7 +57,7 @@ if (!CI && !hookCoverage.ok) console.error("  ⚠️  Hook coverage script faile
 
 // ── 2. Skill routing ──────────────────────────────────────────────────────────
 const skillRouting = run(
-  `npx tsx ${join(SUITES_DIR, "skill-routing.mts")} --summary`,
+  `npx tsx ${join(SCRIPTS_DIR, "skill-routing.mts")} --summary`,
   "Skill Routing",
 );
 emit(skillRouting.output);
@@ -65,14 +65,14 @@ if (!CI && !skillRouting.ok) console.error("  ⚠️  Skill routing script faile
 
 // ── 3. Token efficiency ───────────────────────────────────────────────────────
 const tokenEff = run(
-  `npx tsx ${join(SUITES_DIR, "token-efficiency.mts")} --summary`,
+  `npx tsx ${join(SCRIPTS_DIR, "token-efficiency.mts")} --summary`,
   "Token Efficiency",
 );
 emit(tokenEff.output);
 if (!CI && !tokenEff.ok) console.error("  ⚠️  Token efficiency script failed");
 
 // ── 4. RAG retrieval quality (virage evaluate) ────────────────────────────────
-const qualityEvalDataset = join(ROOT, "eval", "quality-evaluation.json");
+const qualityEvalDataset = join(ROOT, "eval", "quality-evaluation.ds.json");
 const ragEval = run(
   `npx virage evaluate --dataset ${qualityEvalDataset}`,
   "RAG Retrieval Quality",
@@ -88,9 +88,9 @@ if (ragEval.ok) {
   emit("### RAG Retrieval Quality");
   emit("");
   emit(
-    "> ⚠️ Skipped — either `virage index` has not run or `eval/quality-evaluation.json` does not exist yet.",
+    "> ⚠️ Skipped — either `virage index` has not run or `eval/quality-evaluation.ds.json` does not exist yet.",
   );
-  emit("> Run `virage eval-generate --output eval/candidate-dataset.json` and curate `eval/quality-evaluation.json` to enable this section.",
+  emit("> Run `virage eval-generate --output eval/candidate-dataset.json` and curate `eval/quality-evaluation.ds.json` to enable this section.",
   );
 }
 

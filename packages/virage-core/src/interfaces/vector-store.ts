@@ -47,6 +47,21 @@ export interface VectorDocument {
   collection?: string;
 }
 
+/** A stored document returned by listAll — denseVector is omitted by default for efficiency. */
+export interface ListedDocument {
+  id: string;
+  denseText: string;
+  sparseText: string;
+  denseTextHash: string;
+  sparseTextGeneratorId: string;
+  metadataGeneratorId: string;
+  metadata: Record<string, unknown>;
+  sourceFile: string;
+  commitHash: string;
+  /** Included only when listAll is called with includeVectors: true. */
+  denseVector?: number[];
+}
+
 export interface VectorSearchResult {
   id: string;
   /** Text used for dense embedding — also input to the cross-encoder reranker. */
@@ -58,6 +73,10 @@ export interface VectorSearchResult {
   sourceFile?: string;
   /** UTC timestamp when this chunk was indexed — used for recency-weighted scoring. */
   ingestedAt?: Date;
+  /** Method fingerprint for sparseText generation (ADR-037). */
+  sparseTextGeneratorId?: string;
+  /** Method fingerprint for metadata assembly (ADR-037). */
+  metadataGeneratorId?: string;
 }
 
 /** Options controlling composite similarity + recency scoring. */
@@ -120,6 +139,13 @@ export interface VectorStore {
 
   /** Optional: write embedder metadata alongside the index */
   writeMeta?(meta: VectorStoreMeta): Promise<void>;
+
+  /** Optional: list all stored documents (without vectors by default for efficiency) */
+  listAll?(opts?: {
+    limit?: number;
+    offset?: number;
+    includeVectors?: boolean;
+  }): Promise<ListedDocument[]>;
 
   /** Optional: close/disconnect from the store (important for file-backed stores like LanceDB) */
   close?(): Promise<void>;
