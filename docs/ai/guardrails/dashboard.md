@@ -206,3 +206,17 @@ npm test                      # unit tests (vitest run)
 npm run test:e2e              # E2E tests (playwright)
 npm run type-check            # TypeScript check (includes e2e/)
 ```
+
+---
+
+## Pre-commit checklist (dashboard changes)
+
+Run ALL three before every commit touching `packages/virage-dashboard/` or `packages/virage-cli/src/cli/dashboard.ts`:
+
+```bash
+npm run lint --workspace packages/virage-dashboard --if-present
+npm run type-check -w @vivantel/virage-dashboard
+npm test -w @vivantel/virage-dashboard
+```
+
+**Why not `npm run fix` at root?** The root lint glob is `packages/*/src/**/*.ts` — it excludes `.tsx` files. Dashboard components are `.tsx`, so the root lint silently misses them. The per-package `eslint src/` covers both `.ts` and `.tsx`.
