@@ -44,7 +44,7 @@ jobs:
             @vivantel/virage-chunker-ce-md@latest
 
       - name: Restore Virage cache
-        uses: actions/cache/restore@v5
+        uses: actions/cache/restore@v6
         with:
           path: |
             .virage/lancedb
@@ -60,7 +60,7 @@ jobs:
 
       - name: Save Virage cache
         if: always()
-        uses: actions/cache/save@v5
+        uses: actions/cache/save@v6
         with:
           path: |
             .virage/lancedb
