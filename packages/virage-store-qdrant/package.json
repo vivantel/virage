@@ -51,7 +51,7 @@
     "@vivantel/virage-core": "*"
   },
   "devDependencies": {
-    "@types/node": "^25.9.3",
+    "@types/node": "^26.0.1",
     "@vitest/coverage-v8": "^4.1.8",
     "@vivantel/virage-core": "0.2.63",
     "typescript": "^6.0.3",
