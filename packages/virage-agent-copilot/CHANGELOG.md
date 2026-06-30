@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.1.11](https://github.com/vivantel/virage/compare/virage-agent-copilot@v0.1.10...virage-agent-copilot@v0.1.11) (2026-06-30)
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @vivantel/virage-agent-core bumped from 0.1.7 to 0.1.8
+
 ## [0.1.10](https://github.com/vivantel/virage/compare/virage-agent-copilot@v0.1.9...virage-agent-copilot@v0.1.10) (2026-06-20)
 
 

@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.1.9](https://github.com/vivantel/virage/compare/virage-chunker-ce-ast@v0.1.8...virage-chunker-ce-ast@v0.1.9) (2026-06-30)
+
+
+### Bug Fixes
+
+* **format:** Reformat 10 files with prettier 3.9.4 ([f671170](https://github.com/vivantel/virage/commit/f6711705cc288da907d63ce329a18695fe077808))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * devDependencies
+    * @vivantel/virage-core bumped from >=0.3.0 to >=0.3.1
+  * peerDependencies
+    * @vivantel/virage-core bumped from >=0.2 to >=0.3.1
+
 ## [0.1.8](https://github.com/vivantel/virage/compare/virage-chunker-ce-ast@v0.1.7...virage-chunker-ce-ast@v0.1.8) (2026-06-30)
 
 

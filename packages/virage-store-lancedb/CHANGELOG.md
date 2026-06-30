@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.2.70](https://github.com/vivantel/virage/compare/virage-store-lancedb@v0.2.69...virage-store-lancedb@v0.2.70) (2026-06-30)
+
+
+### Bug Fixes
+
+* **format:** Reformat 10 files with prettier 3.9.4 ([f671170](https://github.com/vivantel/virage/commit/f6711705cc288da907d63ce329a18695fe077808))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * devDependencies
+    * @vivantel/virage-core bumped from 0.3.0 to 0.3.1
+  * peerDependencies
+    * @vivantel/virage-core bumped from * to 0.3.1
+
 ## [0.2.69](https://github.com/vivantel/virage/compare/virage-store-lancedb@v0.2.68...virage-store-lancedb@v0.2.69) (2026-06-30)
 
 

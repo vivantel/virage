@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.8](https://github.com/vivantel/virage/compare/virage-agent-core@v0.1.7...virage-agent-core@v0.1.8) (2026-06-30)
+
+
+### Bug Fixes
+
+* **format:** Reformat 10 files with prettier 3.9.4 ([f671170](https://github.com/vivantel/virage/commit/f6711705cc288da907d63ce329a18695fe077808))
+
 ## [0.1.7](https://github.com/vivantel/virage/compare/virage-agent-core@v0.1.6...virage-agent-core@v0.1.7) (2026-06-20)
 
 

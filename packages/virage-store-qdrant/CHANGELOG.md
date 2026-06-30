@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.2.66](https://github.com/vivantel/virage/compare/virage-store-qdrant@v0.2.65...virage-store-qdrant@v0.2.66) (2026-06-30)
+
+
+### Bug Fixes
+
+* **format:** Reformat 10 files with prettier 3.9.4 ([f671170](https://github.com/vivantel/virage/commit/f6711705cc288da907d63ce329a18695fe077808))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * devDependencies
+    * @vivantel/virage-core bumped from 0.3.0 to 0.3.1
+  * peerDependencies
+    * @vivantel/virage-core bumped from * to 0.3.1
+
 ## [0.2.65](https://github.com/vivantel/virage/compare/virage-store-qdrant@v0.2.64...virage-store-qdrant@v0.2.65) (2026-06-30)
 
 

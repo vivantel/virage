@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.1](https://github.com/vivantel/virage/compare/virage-core@v0.3.0...virage-core@v0.3.1) (2026-06-30)
+
+
+### Bug Fixes
+
+* **format:** Reformat 10 files with prettier 3.9.4 ([f671170](https://github.com/vivantel/virage/commit/f6711705cc288da907d63ce329a18695fe077808))
+
 ## [0.3.0](https://github.com/vivantel/virage/compare/virage-core@v0.2.63...virage-core@v0.3.0) (2026-06-30)
 
 
