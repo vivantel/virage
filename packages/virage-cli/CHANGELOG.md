@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.2](https://github.com/vivantel/virage/compare/virage-cli@v0.2.1...virage-cli@v0.2.2) (2026-06-30)
+
+
+### Bug Fixes
+
+* **tests:** Update test imports and VirageDb mocks after eval→quality refactor ([1cd6690](https://github.com/vivantel/virage/commit/1cd669043e3d85b62c264fa2305a973ca71708c9))
+
 ## [0.2.1](https://github.com/vivantel/virage/compare/virage-cli@v0.2.0...virage-cli@v0.2.1) (2026-06-30)
 
 
