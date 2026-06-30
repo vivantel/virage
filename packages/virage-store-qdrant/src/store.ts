@@ -141,9 +141,7 @@ export class QdrantVectorStore implements VectorStore {
 
       for (const point of response.points) {
         const payload = point.payload as
-          | Record<string, unknown>
-          | null
-          | undefined;
+          Record<string, unknown> | null | undefined;
         const sourceFile =
           typeof payload?.source_file === "string" ? payload.source_file : null;
         const commitHash =

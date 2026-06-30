@@ -480,8 +480,7 @@ export class LanceDBVectorStore implements VectorStore {
         const tableSchema = await (this.table as any).schema();
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const fields = (tableSchema as any)?.fields as
-          | Array<{ name: string; type: { listSize?: number } }>
-          | undefined;
+          Array<{ name: string; type: { listSize?: number } }> | undefined;
         const embField = fields?.find((f) => f.name === "dense_vector");
         const schemaDims = embField?.type?.listSize;
         if (typeof schemaDims === "number") {

@@ -45,16 +45,14 @@ export function computeRerankerInputMetrics(
       { key: "featureRedundancy", weight: 0.5, name: "FeatureRedundancy" },
       { key: "inputConsistency", weight: 1.0, name: "InputConsistency" },
     ] as const;
-    return defs.map(
-      ({ key, weight, name }): MetricResult => ({
-        name,
-        rawValue: 0,
-        normalizedValue: 0,
-        weight: weightOverrides[key] ?? weight,
-        skipped: true,
-        skipReason,
-      }),
-    );
+    return defs.map(({ key, weight, name }): MetricResult => ({
+      name,
+      rawValue: 0,
+      normalizedValue: 0,
+      weight: weightOverrides[key] ?? weight,
+      skipped: true,
+      skipReason,
+    }));
   }
 
   // Feature Completeness

@@ -1,11 +1,7 @@
 import type { NormalizedEventName } from "./events.js";
 
 export type VendorName =
-  | "claude"
-  | "copilot"
-  | "codex"
-  | "cursor"
-  | "antigravity";
+  "claude" | "copilot" | "codex" | "cursor" | "antigravity";
 
 export type HookType = "command" | "http" | "mcp_tool" | "prompt" | "agent";
 

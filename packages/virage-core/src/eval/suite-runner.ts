@@ -73,8 +73,7 @@ function extractConfigFields(rawConfig: RawRecord, topK: number): ConfigFields {
     embedderPackage: (rawConfig.embedder as RawRecord | undefined)?.package,
     embedderModel: (
       (rawConfig.embedder as RawRecord | undefined)?.config as
-        | RawRecord
-        | undefined
+        RawRecord | undefined
     )?.model,
     vectorStorePackage: (rawConfig.vectorStore as RawRecord | undefined)
       ?.package,
@@ -82,8 +81,7 @@ function extractConfigFields(rawConfig: RawRecord, topK: number): ConfigFields {
     searchHybridAlpha: (rawConfig.search as RawRecord | undefined)?.hybridAlpha,
     rerankerPackage: (
       (rawConfig.search as RawRecord | undefined)?.reranker as
-        | RawRecord
-        | undefined
+        RawRecord | undefined
     )?.package,
     pluginVersions: rawConfig.pluginVersions,
   };

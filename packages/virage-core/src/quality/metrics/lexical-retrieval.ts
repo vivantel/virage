@@ -11,8 +11,7 @@ import { normalizeMonotonicUp01 } from "../scoring.js";
 export interface LexicalRetrievalMetricsInput {
   chunks: Array<{ id: string; denseText: string; anchorText?: string }>;
   ftsSearchFn:
-    | ((query: string, topK: number) => Promise<Array<{ id: string }>>)
-    | null;
+    ((query: string, topK: number) => Promise<Array<{ id: string }>>) | null;
   topK: number;
 }
 

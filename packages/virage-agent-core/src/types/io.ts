@@ -1,9 +1,5 @@
 export type PermissionMode =
-  | "default"
-  | "acceptEdits"
-  | "plan"
-  | "dontAsk"
-  | "bypassPermissions";
+  "default" | "acceptEdits" | "plan" | "dontAsk" | "bypassPermissions";
 
 // ── Common base ───────────────────────────────────────────────────────────────
 

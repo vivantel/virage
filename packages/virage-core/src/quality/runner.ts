@@ -138,8 +138,7 @@ export async function runQualityAssessment(
 
   // Lexical (FTS) search — attempt hybrid with alpha=0 (pure BM25)
   let ftsSearchFn:
-    | ((q: string, k: number) => Promise<Array<{ id: string }>>)
-    | null = null;
+    ((q: string, k: number) => Promise<Array<{ id: string }>>) | null = null;
   try {
     const testEmbed = await cfg.embedder.embed("test");
     await cfg.vectorStore.search(testEmbed, 1, undefined, {

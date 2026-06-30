@@ -52,8 +52,7 @@ export async function runChunksReport(
   for (const chunk of chunks) {
     const strategy =
       ((chunk.metadata as unknown as Record<string, unknown>)?.strategy as
-        | string
-        | undefined) ?? "unknown";
+        string | undefined) ?? "unknown";
     const group = byStrategy.get(strategy) ?? [];
     group.push(chunk);
     byStrategy.set(strategy, group);
