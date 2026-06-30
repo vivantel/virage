@@ -13,6 +13,8 @@ vi.mock("@vivantel/virage-core", async (importOriginal) => {
     loadEvalDataset: vi.fn(),
     EvalRunner: vi.fn(),
     ExperimentStore: vi.fn(),
+    VirageDb: vi.fn(),
+    defaultVirageDb: vi.fn().mockReturnValue("/tmp/virage.db"),
     makeRunId: vi.fn().mockReturnValue("my-exp_2026-06-02T00-00-00"),
   };
 });
@@ -26,12 +28,13 @@ import {
   loadEvalDataset,
   EvalRunner,
   ExperimentStore,
+  VirageDb,
 } from "@vivantel/virage-core";
 import {
   runExperimentRun,
   runExperimentCompare,
   runExperimentList,
-} from "./experiment.js";
+} from "./quality/eval.js";
 
 // ---------------------------------------------------------------------------
 // Fixtures
@@ -98,6 +101,10 @@ describe("runExperimentRun", () => {
     mockSave = vi
       .fn()
       .mockResolvedValue("/tmp/.rag-experiments/my-exp_2026.json");
+
+    vi.mocked(VirageDb).mockImplementation(function (this: unknown) {
+      Object.assign(this as object, { close: vi.fn() });
+    } as unknown as typeof VirageDb);
 
     vi.mocked(ExperimentStore).mockImplementation(function (this: unknown) {
       Object.assign(this as object, {
@@ -167,6 +174,10 @@ describe("runExperimentCompare", () => {
     consoleWarnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
 
     mockLoad = vi.fn();
+
+    vi.mocked(VirageDb).mockImplementation(function (this: unknown) {
+      Object.assign(this as object, { close: vi.fn() });
+    } as unknown as typeof VirageDb);
 
     vi.mocked(ExperimentStore).mockImplementation(function (this: unknown) {
       Object.assign(this as object, {
@@ -304,6 +315,10 @@ describe("runExperimentList", () => {
   beforeEach(() => {
     consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
     mockList = vi.fn();
+
+    vi.mocked(VirageDb).mockImplementation(function (this: unknown) {
+      Object.assign(this as object, { close: vi.fn() });
+    } as unknown as typeof VirageDb);
 
     vi.mocked(ExperimentStore).mockImplementation(function (this: unknown) {
       Object.assign(this as object, {

@@ -26,7 +26,7 @@ import {
   ExperimentStore,
   VirageDb,
 } from "@vivantel/virage-core";
-import { runEvaluate } from "./evaluate.js";
+import { runEvaluate } from "./quality/eval.js";
 
 // ---------------------------------------------------------------------------
 // Helpers
