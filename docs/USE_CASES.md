@@ -127,16 +127,16 @@ The AST-aware chunker for TypeScript preserves class/method boundaries and embed
 
 ```bash
 # Baseline run with current embedder
-virage eval save --name openai-small
+virage quality eval save --name openai-small
 
 # Switch embedder in config, re-index
 virage index --force
 
 # Measure again
-virage eval save --name fastembed-bge
+virage quality eval save --name fastembed-bge
 
 # Statistical comparison
-virage eval compare --baseline openai-small --candidate fastembed-bge
+virage quality eval compare --baseline openai-small --candidate fastembed-bge
 # → MRR: 0.71 vs 0.68 (p=0.04, not significant at α=0.01)
 # → Precision@5: 0.74 vs 0.72 (p=0.21, not significant)
 # → Conclusion: FastEmbed is statistically equivalent at 1/10th the cost
@@ -228,11 +228,12 @@ virage chunks report
 virage viz embeddings   # 2D PCA/t-SNE visualization
 virage store stats      # intrinsic dimension, outlier fraction, ANN recall@10
 
-# Run a structured eval to quantify the issue
-virage eval generate    # auto-generate test queries from current chunks
-virage eval run         # measure precision@5, MRR, hit rate
+# Run 26-metric self-assessment and a structured eval to quantify the issue
+virage quality                       # 26-metric self-assessment: chunking, embedding, retrieval
+virage quality eval generate         # auto-generate test queries from current chunks
+virage quality eval run              # measure precision@5, MRR, hit rate
 ```
 
-The combination of chunk inspection, embedding quality metrics, and eval results usually localizes the problem to one of: chunk is too large (→ reduce `maxChunkSize`), chunk is split at the wrong boundary (→ switch from `token` to `codeChunkAst`), or embedding model is undertrained on this domain (→ try a different model via `virage eval save`).
+The combination of chunk inspection, embedding quality metrics, and eval results usually localizes the problem to one of: chunk is too large (→ reduce `maxChunkSize`), chunk is split at the wrong boundary (→ switch from `token` to `codeChunkAst`), or embedding model is undertrained on this domain (→ try a different model via `virage quality eval save`).
 
 **What changes.** Retrieval problems become diagnosable in under 15 minutes instead of requiring intuition or trial-and-error over days.

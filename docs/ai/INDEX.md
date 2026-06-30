@@ -82,13 +82,23 @@ virage update (up)                     # update virage plugins from plugin dirs 
 virage query (q) "<text>"             # semantic search; prints search mode after banner (--json, --top-k, --branch, --hybrid, --rerank)
 virage install-hooks (hooks)           # install post-merge & post-checkout git hooks for auto-indexing
 virage dashboard (d) [--verbose]       # start local RAG monitoring dashboard
-virage eval (e) run                    # one-shot retrieval quality check
-virage eval generate (gen)             # generate eval dataset from indexed chunks
-virage eval save --name <n>            # run evaluation and save results for comparison
-virage eval list                       # list saved evaluation runs
-virage eval compare --baseline --candidate  # bootstrap significance test between two runs
-virage eval-suite (es) run --suite eval/suites/retrieval-quality.suite.json  # multi-config/multi-db eval suite (downloads DB archives, compares all variants)
-virage pack --output ./archive.tar.gz  # pack LanceDB dir as a shareable .tar.gz for eval-suite
+virage quality (ql)                    # 26-metric pipeline self-assessment (default action)
+virage quality --json                  # machine-readable JSON report
+virage quality --fail-fast             # exit 1 on must-pass threshold violation
+virage quality --history               # save run to .virage/quality-history/ (benchmark-action format)
+virage quality --benchmark <path>      # also run RAGBench evaluation from qrels/JSON
+virage quality eval run                # one-shot retrieval quality check
+virage quality eval generate (gen)     # generate eval dataset from indexed chunks
+virage quality eval save --name <n>    # run evaluation and save results for comparison
+virage quality eval list               # list saved evaluation runs
+virage quality eval compare --baseline --candidate  # bootstrap significance test between two runs
+virage quality suite run --suite eval/suites/retrieval-quality.suite.json  # multi-config/multi-db eval suite
+virage quality bench embedder          # benchmark embedder latency (p50/p95/p99)
+virage quality bench chunker <files>   # benchmark chunker throughput
+virage quality bench reranker          # benchmark reranker latency
+virage quality history list            # list saved quality runs
+virage quality history show <id>       # show a specific quality run
+virage pack --output ./archive.tar.gz  # pack LanceDB dir as a shareable .tar.gz for quality suite
 ```
 
 ### CLI alias quick-reference
@@ -105,18 +115,20 @@ virage pack --output ./archive.tar.gz  # pack LanceDB dir as a shareable .tar.gz
 | `install-hooks` | `hooks` |
 | `usage` | `use` |
 | `read-skill-summary` | `skill` |
-| `eval` | `e` |
-| `eval generate` | `eval gen` / `e gen` |
-| `eval-suite` | `es` |
-| `benchmark` | `b`, `bench` |
-| `benchmark embedder` | `benchmark e` / `b e` |
-| `benchmark chunker` | `benchmark c` / `b c` |
-| `benchmark reranker` | `benchmark r` / `b r` |
+| `quality` | `ql` |
+| `quality eval` | `quality e` / `ql e` |
+| `quality eval generate` | `quality eval gen` |
+| `quality suite` | (no alias) |
+| `quality bench` | `quality b` |
+| `quality bench embedder` | `quality b e` |
+| `quality bench chunker` | `quality b c` |
+| `quality bench reranker` | `quality b r` |
+| `quality history` | `quality hist` |
 | `telemetry` | `tm` |
 
-**Benchmark short flags:** `-s / --samples`, `-w / --warmup` (all three subcommands).
+**Quality bench short flags:** `-s / --samples`, `-w / --warmup` (all three subcommands).
 
-**Benchmark chunker** accepts glob patterns and multiple file paths: `virage b c 'src/**/*.ts' 'docs/**/*.md' -s 5 -w 1`. Files are routed to chunkers based on each chunker's `patterns` array.
+**Quality bench chunker** accepts glob patterns and multiple file paths: `virage quality b c 'src/**/*.ts' 'docs/**/*.md' -s 5 -w 1`. Files are routed to chunkers based on each chunker's `include` patterns.
 
 ---
 

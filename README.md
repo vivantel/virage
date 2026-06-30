@@ -5,6 +5,7 @@ Monorepo for the **Virage** ecosystem — a Git-aware RAG pipeline that turns yo
 [![CI](https://github.com/vivantel/virage/actions/workflows/ci.yaml/badge.svg)](https://github.com/vivantel/virage/actions/workflows/ci.yaml)
 [![RAG Pipeline](https://github.com/vivantel/virage/actions/workflows/virage-update.yaml/badge.svg)](https://github.com/vivantel/virage/actions/workflows/virage-update.yaml)
 [![Release](https://github.com/vivantel/virage/actions/workflows/release.yaml/badge.svg)](https://github.com/vivantel/virage/actions/workflows/release.yaml)
+[![Quality](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/vivantel/virage/gh-pages/badges/quality.json)](https://vivantel.github.io/virage/dev/bench/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 ## Packages
@@ -120,11 +121,10 @@ Commands:
   validate  (val)   Validate config without running the pipeline
   dashboard (d)     Start the local monitoring dashboard
   query     (q)     Semantic search over the indexed knowledge base
-  eval      (e)     Evaluation tools (run / generate / save / list / compare)
+  quality   (ql)    Quality system: self-assessment, retrieval eval, benchmarks
   report    (r)     Show observability report from pipeline runs
   chunks            Chunk analysis tools
   viz               Visualization tools
-  benchmark         Performance benchmarking tools
   store             Vector store diagnostics
   telemetry         Manage telemetry settings and data
   install-hooks (hooks)  Install git hooks for auto-indexing
@@ -142,14 +142,34 @@ Options:
   (Use VIRAGE_DIR env var to override the .virage/ directory path)
 ```
 
-`virage eval` subcommands:
+`virage quality` — 26-metric pipeline self-assessment (default action):
 
 ```
-virage eval run              One-shot retrieval quality check (precision, MRR, hit rate)
-virage eval generate (gen)   Generate an eval dataset from existing indexed chunks
-virage eval save --name <n>  Run evaluation and save results for later comparison
-virage eval list             List saved evaluation runs
-virage eval compare          Bootstrap significance test between two saved runs
+virage quality                         # Run 26-metric self-assessment, print scored table
+virage quality --json                  # Machine-readable JSON report
+virage quality --markdown              # Markdown table for PR comments
+virage quality --fail-fast             # Exit 1 on must-pass threshold violation
+virage quality --history               # Save run to .virage/quality-history/
+virage quality --benchmark <path>      # Also run RAGBench evaluation from qrels/JSON
+```
+
+`virage quality eval` subcommands:
+
+```
+virage quality eval run              One-shot retrieval quality check (P@5, MRR, HitRate)
+virage quality eval generate (gen)   Generate an eval dataset from existing indexed chunks
+virage quality eval save --name <n>  Run evaluation and save results for later comparison
+virage quality eval list             List saved evaluation runs
+virage quality eval compare          Bootstrap significance test between two saved runs
+```
+
+`virage quality bench` and `virage quality suite`:
+
+```
+virage quality bench embedder           Benchmark embedder latency (p50/p95/p99)
+virage quality bench chunker <files>    Benchmark chunker throughput
+virage quality bench reranker           Benchmark reranker latency
+virage quality suite run --suite <path> Run multi-config eval suite
 ```
 
 ## Embedders

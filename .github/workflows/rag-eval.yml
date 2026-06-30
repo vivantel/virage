@@ -88,7 +88,7 @@ jobs:
       - name: RAG retrieval quality (P@5 / MRR)
         run: |
           if [ -f eval/quality-evaluation.ds.json ]; then
-            ./virage-runner/node_modules/.bin/virage eval run \
+            ./virage-runner/node_modules/.bin/virage quality eval run \
               --dataset eval/quality-evaluation.ds.json \
               --ci --threshold-mrr 0.35 \
               --config virage.config.ci.json
@@ -110,7 +110,7 @@ jobs:
             echo "## RAG Retrieval Quality" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             echo '```' >> $GITHUB_STEP_SUMMARY
-            ./virage-runner/node_modules/.bin/virage eval run \
+            ./virage-runner/node_modules/.bin/virage quality eval run \
               --dataset eval/quality-evaluation.ds.json \
               --config virage.config.ci.json >> $GITHUB_STEP_SUMMARY || true
             echo '```' >> $GITHUB_STEP_SUMMARY

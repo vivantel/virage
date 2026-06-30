@@ -3,7 +3,7 @@ import { dirname, resolve } from "path";
 import { VirageDb, defaultVirageDb } from "@vivantel/virage-core";
 import type { EvalSuite } from "@vivantel/virage-core";
 import { runSuite } from "@vivantel/virage-core";
-import { createLogger } from "../logger/index.js";
+import { createLogger } from "../../logger/index.js";
 
 export interface EvalSuiteRunOptions {
   suite: string;
@@ -40,7 +40,7 @@ export async function runEvalSuite(opts: EvalSuiteRunOptions): Promise<void> {
     );
   }
 
-  const { createOut } = await import("../output.js");
+  const { createOut } = await import("../../output.js");
   const out = createOut(opts.verbose);
   out.section("Virage Eval Suite");
   out.dim(`  suite: ${opts.suite}`);

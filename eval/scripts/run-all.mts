@@ -71,10 +71,10 @@ const tokenEff = run(
 emit(tokenEff.output);
 if (!CI && !tokenEff.ok) console.error("  ⚠️  Token efficiency script failed");
 
-// ── 4. RAG retrieval quality (virage evaluate) ────────────────────────────────
+// ── 4. RAG retrieval quality (virage quality eval run) ───────────────────────
 const qualityEvalDataset = join(ROOT, "eval", "quality-evaluation.ds.json");
 const ragEval = run(
-  `npx virage evaluate --dataset ${qualityEvalDataset}`,
+  `npx virage quality eval run --dataset ${qualityEvalDataset}`,
   "RAG Retrieval Quality",
 );
 
@@ -90,7 +90,7 @@ if (ragEval.ok) {
   emit(
     "> ⚠️ Skipped — either `virage index` has not run or `eval/quality-evaluation.ds.json` does not exist yet.",
   );
-  emit("> Run `virage eval-generate --output eval/candidate-dataset.json` and curate `eval/quality-evaluation.ds.json` to enable this section.",
+  emit("> Run `virage quality eval generate --output eval/candidate-dataset.json` and curate `eval/quality-evaluation.ds.json` to enable this section.",
   );
 }
 

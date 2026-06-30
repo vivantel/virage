@@ -1,0 +1,141 @@
+name: Quality Self-Assessment
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  deployments: write
+
+jobs:
+  quality:
+    name: Pipeline Quality Assessment
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies (for tsx)
+        run: npm ci
+
+      - name: Install Virage CLI + plugins (published versions)
+        run: |
+          npm install --prefix ./virage-runner \
+            @vivantel/virage-cli@latest \
+            @vivantel/virage-embedder-transformers@latest \
+            @vivantel/virage-store-lancedb@latest \
+            @vivantel/virage-chunker-ce-md@latest \
+            @vivantel/virage-code-chunk-chunker@latest
+
+      - name: Restore Virage index cache
+        uses: actions/cache/restore@v5
+        with:
+          path: |
+            .virage/lancedb
+            .virage/model-cache
+          key: rag-eval-${{ github.ref_name }}-${{ github.sha }}
+          restore-keys: |
+            rag-eval-${{ github.ref_name }}-
+            rag-eval-
+
+      - name: Index knowledge base
+        run: ./virage-runner/node_modules/.bin/virage index --config virage.config.ci.json
+
+      - name: Save Virage index cache
+        if: always()
+        uses: actions/cache/save@v5
+        with:
+          path: |
+            .virage/lancedb
+            .virage/model-cache
+          key: rag-eval-${{ github.ref_name }}-${{ github.sha }}
+
+      - name: Run quality self-assessment
+        run: |
+          mkdir -p .virage/quality-history
+          ./virage-runner/node_modules/.bin/virage quality \
+            --json \
+            --history \
+            --fail-fast \
+            --output .virage/quality-report.json \
+            --config virage.config.ci.json
+        continue-on-error: true
+        id: quality_run
+
+      - name: Upload quality report artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: quality-report
+          path: .virage/quality-report.json
+          retention-days: 90
+
+      - name: Write job summary
+        if: always()
+        run: |
+          echo "## Pipeline Quality Self-Assessment" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ -f .virage/quality-report.json ]; then
+            ./virage-runner/node_modules/.bin/virage quality \
+              --markdown \
+              --config virage.config.ci.json >> $GITHUB_STEP_SUMMARY 2>/dev/null || \
+            echo "> Quality report generated — see artifact for details." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "> ⚠️ Quality report not generated." >> $GITHUB_STEP_SUMMARY
+          fi
+
+      # ── Benchmark charts (benchmark-action/github-action-benchmark) ────────
+      # Reads benchmark-data.json written by `virage quality --history`
+      # Pushes results to gh-pages branch → generates charts at
+      # https://vivantel.github.io/virage/dev/bench/
+      - name: Store benchmark data
+        uses: benchmark-action/github-action-benchmark@v1
+        if: always() && hashFiles('.virage/quality-history/benchmark-data.json') != ''
+        with:
+          name: Virage Quality Metrics
+          tool: customBiggerIsBetter
+          output-file-path: .virage/quality-history/benchmark-data.json
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          gh-pages-branch: gh-pages
+          benchmark-data-dir-path: dev/bench
+          auto-push: true
+          alert-threshold: "85%"
+          comment-on-alert: false
+          fail-on-alert: false
+
+      # ── Shields.io badge ──────────────────────────────────────────────────
+      # Commits quality-badge.json to gh-pages so the README badge stays live.
+      - name: Publish quality badge to gh-pages
+        if: always() && hashFiles('.virage/quality-history/quality-badge.json') != ''
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          BADGE_JSON=$(cat .virage/quality-history/quality-badge.json)
+
+          git fetch origin gh-pages 2>/dev/null || true
+          git checkout gh-pages -- . 2>/dev/null || true
+
+          mkdir -p badges
+          echo "$BADGE_JSON" > badges/quality.json
+
+          git add badges/quality.json
+          if git diff --cached --quiet; then
+            echo "Badge unchanged — skipping commit."
+          else
+            git commit -m "chore(badges): update quality badge [skip ci]"
+            git push origin HEAD:gh-pages
+          fi
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Fail if quality gates did not pass
+        if: steps.quality_run.outcome == 'failure'
+        run: |
+          echo "Quality self-assessment failed — see report above."
+          exit 1

@@ -6,9 +6,7 @@ import {
   loadConfig,
   Orchestrator,
   RagError,
-  VirageDb,
   defaultVirageDb,
-  getVirageDir,
 } from "@vivantel/virage-core";
 import type { Logger } from "@vivantel/virage-core";
 import { createLogger } from "../logger/index.js";
@@ -21,15 +19,6 @@ import { runUpdate } from "../cli/update.js";
 import { runUsage } from "../cli/usage.js";
 import { runReadSkillSummary } from "../cli/read-skill-summary.js";
 import { runValidate } from "../cli/validate.js";
-import { runEvaluate } from "../cli/evaluate.js";
-import {
-  runExperimentRun,
-  runExperimentCompare,
-  runExperimentList,
-} from "../cli/experiment.js";
-import { runBenchmarkEmbedder } from "../cli/benchmark.js";
-import { runBenchmarkChunker } from "../cli/benchmark-chunker.js";
-import { runBenchmarkReranker } from "../cli/benchmark-reranker.js";
 import { runStoreStats, runStorePerf } from "../cli/store-cmd.js";
 import { runReport } from "../cli/report.js";
 import { runChunksReport } from "../cli/chunks-report.js";
@@ -38,8 +27,8 @@ import { runDashboard } from "../cli/dashboard.js";
 import { runCheck } from "../cli/check.js";
 import { runQuery } from "../cli/query-cmd.js";
 import { runInstallHooks } from "../cli/install-hooks.js";
-import { runEvalSuite } from "../cli/eval-suite.js";
 import { runPack } from "../cli/pack.js";
+import { registerQualityCommand } from "../cli/quality/index.js";
 import {
   runTelemetryStatus,
   runTelemetryOn,
@@ -54,8 +43,6 @@ config({ quiet: true });
 
 // Top-level command aliases not expressible as a single Commander .alias()
 const TOP_LEVEL_ALIASES: Record<string, string> = {
-  b: "benchmark",
-  bench: "benchmark",
   tm: "telemetry",
   v: "validate",
 };
@@ -400,206 +387,7 @@ program
     }
   });
 
-const evalCmd = program
-  .command("eval")
-  .alias("e")
-  .description(
-    "Evaluation tools: run quality checks, generate datasets, track experiments",
-  )
-  .action(function () {
-    this.help();
-  });
-
-evalCmd
-  .command("run")
-  .description("Run a one-shot retrieval quality check against an eval dataset")
-  .option("-c, --config <path>", "Path to config file", "./virage.config.json")
-  .option(
-    "-d, --dataset <path>",
-    "Eval dataset path",
-    `${getVirageDir()}/eval-dataset.json`,
-  )
-  .option("--with-llm-judge", "Enable RAGAS LLM-as-judge metrics")
-  .option(
-    "--threshold-mrr <n>",
-    "Fail if MRR is below this threshold",
-    parseFloat,
-  )
-  .option("--ci", "Exit with code 1 if quality gate fails")
-  .option(
-    "--suite <type>",
-    "Evaluation suite: retrieval (default) or ecosystem",
-    "retrieval",
-  )
-  .action(
-    async (opts: {
-      config: string;
-      dataset: string;
-      withLlmJudge: boolean;
-      thresholdMrr?: number;
-      ci: boolean;
-      suite: string;
-    }) => {
-      const verbose = program.opts<{ verbose: number }>().verbose;
-      const t0 = Date.now();
-      const tel = await CliTelemetry.fromConfigPath(opts.config);
-      tel.start();
-      try {
-        await runEvaluate({
-          config: opts.config,
-          dataset: opts.dataset,
-          withLlmJudge: opts.withLlmJudge ?? false,
-          thresholdMrr: opts.thresholdMrr,
-          ci: opts.ci ?? false,
-          suite: opts.suite === "ecosystem" ? "ecosystem" : undefined,
-          verbosity: verbose,
-        });
-        tel.record("eval.run", Date.now() - t0, true);
-      } catch (error) {
-        tel.record("eval.run", Date.now() - t0, false);
-        handleError(error);
-      }
-    },
-  );
-
-evalCmd
-  .command("generate")
-  .alias("gen")
-  .description("Generate an eval dataset from existing indexed chunks")
-  .option(
-    "--output <path>",
-    "Output dataset path",
-    `${getVirageDir()}/eval-dataset.json`,
-  )
-  .option("--include-negatives", "Add negative examples")
-  .option(
-    "--paraphrase-ratio <n>",
-    "Fraction of queries to paraphrase (requires LLM judge)",
-    parseFloat,
-    0,
-  )
-  .action(
-    async (opts: {
-      output: string;
-      includeNegatives: boolean;
-      paraphraseRatio: number;
-    }) => {
-      try {
-        const { generateEvalDataset } = await import("@vivantel/virage-core");
-        const db = new VirageDb(defaultVirageDb());
-        const chunks = db.getAllChunks();
-        db.close();
-        await generateEvalDataset(
-          chunks,
-          {
-            includeNegatives: opts.includeNegatives ?? false,
-            paraphraseRatio: opts.paraphraseRatio,
-          },
-          opts.output,
-        );
-      } catch (error) {
-        handleError(error);
-      }
-    },
-  );
-
-evalCmd
-  .command("save")
-  .description(
-    "Run evaluation and save results under a name for later comparison",
-  )
-  .requiredOption("--name <name>", "Experiment name")
-  .option("-c, --config <path>", "Path to config file", "./virage.config.json")
-  .option(
-    "-d, --dataset <path>",
-    "Eval dataset path",
-    `${getVirageDir()}/eval-dataset.json`,
-  )
-  .action(async (opts: { name: string; config: string; dataset: string }) => {
-    const verbose = program.opts<{ verbose: number }>().verbose;
-    try {
-      await runExperimentRun({
-        name: opts.name,
-        config: opts.config,
-        dataset: opts.dataset,
-        verbosity: verbose,
-      });
-    } catch (error) {
-      handleError(error);
-    }
-  });
-
-evalCmd
-  .command("list")
-  .description("List saved evaluation runs")
-  .action(async () => {
-    const verbose = program.opts<{ verbose: number }>().verbose;
-    try {
-      await runExperimentList(verbose);
-    } catch (error) {
-      handleError(error);
-    }
-  });
-
-evalCmd
-  .command("compare")
-  .description(
-    "Compare two saved evaluation runs with bootstrap significance test",
-  )
-  .requiredOption("--baseline <id>", "Baseline run name or id")
-  .requiredOption("--candidate <id>", "Candidate run name or id")
-  .action(async (opts: { baseline: string; candidate: string }) => {
-    const verbose = program.opts<{ verbose: number }>().verbose;
-    try {
-      await runExperimentCompare({
-        baseline: opts.baseline,
-        candidate: opts.candidate,
-        verbosity: verbose,
-      });
-    } catch (error) {
-      handleError(error);
-    }
-  });
-
-const evalSuiteCmd = program
-  .command("eval-suite")
-  .description(
-    "Multi-config evaluation suite: download pre-built archives and compare search strategies",
-  )
-  .action(function () {
-    this.help();
-  });
-
-evalSuiteCmd
-  .command("run")
-  .description(
-    "Run a multi-config eval suite from a declarative suite.json config",
-  )
-  .requiredOption("--suite <path>", "Path to eval suite config JSON")
-  .option("--ci", "Exit with code 1 if the CI quality gate fails", false)
-  .option("--json", "Output raw JSON results", false)
-  .option("--no-cache", "Re-download archives even if already cached")
-  .action(
-    async (cmdOpts: {
-      suite: string;
-      ci: boolean;
-      json: boolean;
-      cache: boolean; // commander inverts --no-cache → cache = false
-    }) => {
-      try {
-        const verbose = program.opts<{ verbose: number }>().verbose;
-        await runEvalSuite({
-          suite: cmdOpts.suite,
-          ci: cmdOpts.ci,
-          json: cmdOpts.json,
-          noCache: !cmdOpts.cache,
-          verbose,
-        });
-      } catch (error) {
-        handleError(error);
-      }
-    },
-  );
+registerQualityCommand(program, handleError);
 
 program
   .command("pack")
@@ -679,147 +467,6 @@ program
       handleError(error);
     }
   });
-
-const benchmark = program
-  .command("benchmark")
-  .alias("b")
-  .description("Performance benchmarking tools");
-
-benchmark
-  .command("embedder")
-  .alias("e")
-  .description(
-    "Benchmark any configured embedder (latency p50/p95/p99 + tokens/sec)",
-  )
-  .option(
-    "-c, --config <path>",
-    "Path to virage.config.json",
-    "./virage.config.json",
-  )
-  .option(
-    "-s, --samples <n>",
-    "Number of latency samples",
-    (v) => parseInt(v, 10),
-    20,
-  )
-  .option(
-    "-w, --warmup <n>",
-    "Number of warm-up runs",
-    (v) => parseInt(v, 10),
-    3,
-  )
-  .action(async (opts: { config: string; samples: number; warmup: number }) => {
-    const verbose = program.opts<{ verbose: number }>().verbose;
-    try {
-      await runBenchmarkEmbedder({
-        config: opts.config,
-        samples: opts.samples,
-        warmup: opts.warmup,
-        verbosity: verbose,
-      });
-    } catch (error) {
-      handleError(error);
-    }
-  });
-
-benchmark
-  .command("chunker")
-  .alias("c")
-  .description(
-    "Benchmark configured chunkers (latency p50/p95/p99 + KB/s throughput)",
-  )
-  .argument("<files...>", "File paths or glob patterns to benchmark")
-  .option(
-    "-c, --config <path>",
-    "Path to virage.config.json",
-    "./virage.config.json",
-  )
-  .option(
-    "-s, --samples <n>",
-    "Number of passes per chunker",
-    (v) => parseInt(v, 10),
-    20,
-  )
-  .option(
-    "-w, --warmup <n>",
-    "Number of warm-up runs",
-    (v) => parseInt(v, 10),
-    3,
-  )
-  .action(
-    async (
-      files: string[],
-      opts: {
-        config: string;
-        samples: number;
-        warmup: number;
-      },
-    ) => {
-      const verbose = program.opts<{ verbose: number }>().verbose;
-      try {
-        await runBenchmarkChunker({
-          config: opts.config,
-          files,
-          samples: opts.samples,
-          warmup: opts.warmup,
-          verbosity: verbose,
-        });
-      } catch (error) {
-        handleError(error);
-      }
-    },
-  );
-
-benchmark
-  .command("reranker")
-  .alias("r")
-  .description(
-    "Benchmark configured reranker (latency p50/p95/p99 + passages/sec)",
-  )
-  .option(
-    "-c, --config <path>",
-    "Path to virage.config.json",
-    "./virage.config.json",
-  )
-  .option(
-    "-s, --samples <n>",
-    "Number of rerank calls",
-    (v) => parseInt(v, 10),
-    20,
-  )
-  .option(
-    "--passages <n>",
-    "Passages per rerank call",
-    (v) => parseInt(v, 10),
-    10,
-  )
-  .option(
-    "-w, --warmup <n>",
-    "Number of warm-up runs",
-    (v) => parseInt(v, 10),
-    3,
-  )
-  .action(
-    async (opts: {
-      config: string;
-      samples: number;
-      passages: number;
-      warmup: number;
-    }) => {
-      const verbose = program.opts<{ verbose: number }>().verbose;
-      try {
-        await runBenchmarkReranker({
-          config: opts.config,
-          samples: opts.samples,
-          passages: opts.passages,
-          warmup: opts.warmup,
-          verbosity: verbose,
-        });
-      } catch (error) {
-        handleError(error);
-      }
-    },
-  );
 
 const store = program.command("store").description("Vector store diagnostics");
 

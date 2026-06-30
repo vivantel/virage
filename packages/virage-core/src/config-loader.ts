@@ -6,6 +6,7 @@ import type { ChunkerEntry } from "./interfaces/chunker.js";
 import { ConfigError } from "./core/errors.js";
 import { importPackage } from "./core/module-import.js";
 import type { TelemetryConfig } from "./telemetry/types.js";
+import type { QualityConfig } from "./interfaces/quality.js";
 import { expandEnvVars } from "./core/env-expand.js";
 import type { FileChunker } from "./interfaces/chunker.js";
 import type { EmbeddingProvider } from "./interfaces/embedder.js";
@@ -58,6 +59,7 @@ interface JsonRagConfig {
   options?: RAGPipelineConfig["options"];
   telemetry?: TelemetryConfig;
   search?: JsonSearchConfig;
+  quality?: QualityConfig;
 }
 
 // ─── JSON config loading ──────────────────────────────────────────────────────
@@ -317,6 +319,7 @@ async function loadJsonConfig(
       reranker,
       rerankOversample: jsonConfig.search?.rerankOversample,
     },
+    quality: jsonConfig.quality,
   };
 }
 

@@ -8,7 +8,7 @@ import { fileURLToPath } from "url";
 export const MONOREPO = fileURLToPath(
   new URL("../../../../../", import.meta.url),
 );
-export const CLI = join(MONOREPO, "packages/virage-core/dist/bin/virage.js");
+export const CLI = join(MONOREPO, "packages/virage-cli/dist/bin/virage.js");
 export const STORE_PKG = "@vivantel/virage-store-test";
 
 export interface TestEnv {

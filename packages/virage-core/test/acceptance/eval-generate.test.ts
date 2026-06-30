@@ -7,7 +7,7 @@ import { writeVirageDb } from "./helpers/fixtures.js";
 
 let dir: string;
 
-describe("virage eval-generate", () => {
+describe("virage quality eval generate", () => {
   beforeAll(() => {
     dir = mkdtempSync(join(tmpdir(), "rag-evalgen-"));
     writeVirageDb(dir, 10);
@@ -17,7 +17,7 @@ describe("virage eval-generate", () => {
 
   it("exits 0 and writes eval-dataset.json", () => {
     const outputFile = join(dir, "eval", "queries.json");
-    const result = runCLI(dir, "eval-generate", "--output", outputFile);
+    const result = runCLI(dir, "quality", "eval", "generate", "--output", outputFile);
     expect(result.status, result.stderr).toBe(0);
     expect(result.stdout + result.stderr).toContain("Eval dataset saved");
     expect(existsSync(outputFile)).toBe(true);

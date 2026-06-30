@@ -136,6 +136,39 @@ export interface EvalDataset {
 }
 
 // ---------------------------------------------------------------------------
+// Quality system config (virage.config.json "quality" section)
+// ---------------------------------------------------------------------------
+
+export interface QualityThresholds {
+  selfRecall?: number;
+  outlierFraction?: number;
+  importResolution?: number;
+  [metric: string]: number | undefined;
+}
+
+export interface QualityWeights {
+  [metricKey: string]: number;
+}
+
+export interface QualityRagBenchConfig {
+  /** Paths or URLs to RAGBench datasets (JSON or TREC qrels). */
+  sources?: string[];
+}
+
+export interface QualityHistoryConfig {
+  dir?: string;
+  maxRuns?: number;
+}
+
+export interface QualityConfig {
+  enabled?: boolean;
+  thresholds?: QualityThresholds;
+  weights?: QualityWeights;
+  ragbench?: QualityRagBenchConfig;
+  history?: QualityHistoryConfig;
+}
+
+// ---------------------------------------------------------------------------
 // LLM judge interface (used by RAGAS runner)
 // ---------------------------------------------------------------------------
 

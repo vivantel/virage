@@ -123,3 +123,15 @@ export type {
   SkillRoutingQuery,
   SkillRoutingEvalResult,
 } from "./eval/skill-routing-eval.js";
+
+// RAGBench integration — standard retrieval benchmark evaluation
+export { loadRagBenchDataset, RagBenchEvaluator } from "./eval/ragbench.js";
+export type {
+  RagBenchDataset,
+  RagBenchQuery,
+  RagBenchResult,
+  QrelEntry,
+} from "./eval/ragbench.js";
+
+// Quality system — 26-metric pipeline self-assessment
+export * from "./quality/index.js";

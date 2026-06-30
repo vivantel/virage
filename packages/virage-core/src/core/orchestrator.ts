@@ -21,6 +21,7 @@ import { RetryOptions, Semaphore, withConcurrency } from "./utils.js";
 import { defaultVirageDb } from "./virage-defaults.js";
 import type { TelemetryConfig } from "../telemetry/types.js";
 import type { Reranker } from "../interfaces/reranker.js";
+import type { QualityConfig } from "../interfaces/quality.js";
 
 export interface RAGPipelineConfig {
   chunkers: ChunkerEntry[];
@@ -70,6 +71,7 @@ export interface RAGPipelineConfig {
     onUploadProgress?: (done: number, total: number) => void;
     onFileComplete?: (done: number, total: number) => void;
   };
+  quality?: QualityConfig;
 }
 
 async function notifyWebhook(
