@@ -304,7 +304,7 @@ jobs:
         env:
           RUSTFLAGS: ${{ matrix.rust-flags }}
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: ${{ matrix.package }}-${{ matrix.platform-name }}
           path: packages/${{ matrix.package }}/*.node
