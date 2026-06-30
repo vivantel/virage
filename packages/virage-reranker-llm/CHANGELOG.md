@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.1.39](https://github.com/vivantel/virage/compare/virage-reranker-llm@v0.1.38...virage-reranker-llm@v0.1.39) (2026-06-30)
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * devDependencies
+    * @vivantel/virage-core bumped from 0.3.0 to 0.3.1
+  * peerDependencies
+    * @vivantel/virage-core bumped from * to 0.3.1
+
 ## [0.1.38](https://github.com/vivantel/virage/compare/virage-reranker-llm@v0.1.37...virage-reranker-llm@v0.1.38) (2026-06-30)
 
 

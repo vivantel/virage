@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.2.1](https://github.com/vivantel/virage/compare/virage-cli@v0.2.0...virage-cli@v0.2.1) (2026-06-30)
+
+
+### Bug Fixes
+
+* **format:** Reformat 10 files with prettier 3.9.4 ([f671170](https://github.com/vivantel/virage/commit/f6711705cc288da907d63ce329a18695fe077808))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @vivantel/virage-agent-claude bumped from 0.2.26 to 0.2.27
+    * @vivantel/virage-core bumped from >=0.3.0 to >=0.3.1
+
 ## [0.2.0](https://github.com/vivantel/virage/compare/virage-cli@v0.1.100...virage-cli@v0.2.0) (2026-06-30)
 
 
