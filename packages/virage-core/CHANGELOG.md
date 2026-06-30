@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0](https://github.com/vivantel/virage/compare/virage-core@v0.2.63...virage-core@v0.3.0) (2026-06-30)
+
+
+### ⚠ BREAKING CHANGES
+
+* consolidate eval/benchmark/eval-suite into virage quality command with 26-metric self-assessment
+
+### Features
+
+* Consolidate eval/benchmark/eval-suite into virage quality command with 26-metric self-assessment ([224f679](https://github.com/vivantel/virage/commit/224f679e4d797532a183def4dec1cff0ccb08443))
+
 ## [0.2.63](https://github.com/vivantel/virage/compare/virage-core@v0.2.62...virage-core@v0.2.63) (2026-06-27)
 
 

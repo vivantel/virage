@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.2.0](https://github.com/vivantel/virage/compare/virage-cli@v0.1.100...virage-cli@v0.2.0) (2026-06-30)
+
+
+### ⚠ BREAKING CHANGES
+
+* consolidate eval/benchmark/eval-suite into virage quality command with 26-metric self-assessment
+
+### Features
+
+* Consolidate eval/benchmark/eval-suite into virage quality command with 26-metric self-assessment ([224f679](https://github.com/vivantel/virage/commit/224f679e4d797532a183def4dec1cff0ccb08443))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @vivantel/virage-core bumped from >=0.2.63 to >=0.3.0
+
 ## [0.1.100](https://github.com/vivantel/virage/compare/virage-cli@v0.1.99...virage-cli@v0.1.100) (2026-06-27)
 
 
