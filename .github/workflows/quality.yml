@@ -20,13 +20,25 @@ jobs:
           node-version: 22
           cache: npm
 
-      - name: Install dependencies (for tsx)
-        run: npm ci
-
-      - name: Install Virage CLI + plugins (published versions)
+      - name: Build Virage packages from source
         run: |
+          mkdir -p /tmp/virage-packs
+          node scripts/patch-lockfile-stubs.cjs
+          npm ci --ignore-scripts
+          npm run build -w packages/virage-core
+          npm run build -w packages/virage-agent-core
+          npm run build -w packages/virage-agent-claude
+          npm run build -w packages/virage-cli
+          npm pack --workspace packages/virage-core --pack-destination /tmp/virage-packs
+          npm pack --workspace packages/virage-cli --pack-destination /tmp/virage-packs
+
+      - name: Install Virage CLI + plugins
+        run: |
+          CORE_TGZ=$(ls /tmp/virage-packs/vivantel-virage-core-*.tgz)
+          CLI_TGZ=$(ls /tmp/virage-packs/vivantel-virage-cli-*.tgz)
           npm install --prefix ./virage-runner \
-            @vivantel/virage-cli@latest \
+            "$CORE_TGZ" \
+            "$CLI_TGZ" \
             @vivantel/virage-embedder-transformers@latest \
             @vivantel/virage-store-lancedb@latest \
             @vivantel/virage-chunker-ce-md@latest \
