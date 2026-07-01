@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.2.72](https://github.com/vivantel/virage/compare/virage-store-chromadb@v0.2.71...virage-store-chromadb@v0.2.72) (2026-07-01)
+
+
+### Features
+
+* **phase3:** Source architecture, label pipeline, and ce-lang chunker scaffold ([21af213](https://github.com/vivantel/virage/commit/21af21399087d1631701de143ef587e3124137bd))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * devDependencies
+    * @vivantel/virage-core bumped from 0.3.5 to 0.3.6
+  * peerDependencies
+    * @vivantel/virage-core bumped from * to 0.3.6
+
 ## [0.2.71](https://github.com/vivantel/virage/compare/virage-store-chromadb@v0.2.70...virage-store-chromadb@v0.2.71) (2026-07-01)
 
 
