@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.2.5](https://github.com/vivantel/virage/compare/virage-cli@v0.2.4...virage-cli@v0.2.5) (2026-07-01)
+
+
+### Features
+
+* **core,cli,ci:** Multi-item cleanup and improvements ([29d3f97](https://github.com/vivantel/virage/commit/29d3f97bdc81eb6e7aa4df4d4037015944c5ff33))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @vivantel/virage-core bumped from >=0.3.3 to >=0.3.4
+
 ## [0.2.4](https://github.com/vivantel/virage/compare/virage-cli@v0.2.3...virage-cli@v0.2.4) (2026-07-01)
 
 

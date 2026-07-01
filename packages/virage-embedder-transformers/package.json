@@ -1,6 +1,6 @@
 {
   "name": "@vivantel/virage-embedder-transformers",
-  "version": "0.2.69",
+  "version": "0.2.70",
   "description": "Local transformers.js embedding provider for @vivantel/rag-core",
   "type": "module",
   "main": "dist/index.js",
@@ -52,7 +52,7 @@
     "@vivantel/virage-core": "*"
   },
   "devDependencies": {
-    "@vivantel/virage-core": "0.3.3",
+    "@vivantel/virage-core": "0.3.4",
     "@types/node": "^26.0.1",
     "typescript": "^6.0.3",
     "vitest": "^4.1.9"
