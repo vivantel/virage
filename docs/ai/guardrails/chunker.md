@@ -60,7 +60,7 @@ Every `ArtifactSet.metadata` MUST include these fields:
 | Field | Type | Notes |
 |-------|------|-------|
 | `sourceFile` | `string` | repo-relative normalized path |
-| `sourceFormat` | `string` | `'md'`, `'pdf'`, `'docx'`, `'latex'`, … |
+| `sourceFormat` | `string` | `'md'`, `'pdf'`, `'docx'`, `'latex'`, `'code'`, … |
 | `byteStart` | `number` | byte offset of chunk start in source file |
 | `byteEnd` | `number` | byte offset one past chunk end |
 | `breadcrumb` | `string[]` | heading ancestry path (empty array if unavailable) |
@@ -68,8 +68,9 @@ Every `ArtifactSet.metadata` MUST include these fields:
 | `chunkIndex` | `number` | 0-based index within this file |
 | `totalChunks` | `number` | total chunks produced from this file |
 | `estimatedTokens` | `number` | `Math.ceil(sparseText.length / 4)` |
+| `labels` | `string[]` | optional — index-time labels from the label pipeline (extension auto-labels, CODEOWNERS, `.virage-labels.json`, path rules, namespace). Injected by `ChunkProcessor` after `chunk()` returns; chunkers may also pre-populate. |
 
-These are populated automatically by `walkToChunks` / `createNativeChunker`.
+Required fields are populated automatically by `walkToChunks` / `createNativeChunker`. `labels` is injected by the orchestrator label pipeline unless the chunker sets them first.
 
 ## Quality Gates
 

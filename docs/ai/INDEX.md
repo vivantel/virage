@@ -228,9 +228,21 @@ Packages with `.tsx` files: `virage-dashboard`. Add to this list if new packages
 | Stage | Class | Responsibility |
 | ----- | ----- | -------------- |
 | 1 | `GitTracker` | Detect changed files since last run |
-| 2 | `ChunkProcessor` | Chunk source files via a `FileChunker` strategy |
+| 2 | `ChunkProcessor` | Chunk source files via a `FileChunker` strategy; inject index-time labels via label pipeline |
 | 3 | `EmbedderProcessor` | Embed chunks via an `EmbeddingProvider` |
 | 4 | `Uploader` | Upload embeddings to a `VectorStore` |
+
+**Label pipeline** (`virage-core/src/core/label-pipeline.ts`) — runs inside `ChunkProcessor` per file, non-fatal:
+
+| Source | Example output |
+| ------ | -------------- |
+| Namespace (config `namespace`) | `"ns:my-project"` |
+| File extension auto-label | `"language:typescript"`, `"format:pdf"` |
+| Provider labels (S3 tags, etc.) | `"team:payments"` |
+| CODEOWNERS (`.github/CODEOWNERS`) | `"team:platform"`, `"owner:alice"` |
+| `.virage-labels.json` directory files | any custom label; `"inherit": false` stops traversal |
+| Global label rules (`chunking.filter.labels`) | glob → label set |
+| Per-chunker label rules (`chunkers[n].labels`) | glob → label set |
 
 **Provider interfaces** (`packages/virage-core/src/interfaces/`):
 
@@ -239,7 +251,11 @@ Packages with `.tsx` files: `virage-dashboard`. Add to this list if new packages
 | `FileChunker` | `virage-code-chunk-chunker`, external plugins (`virage-chunker-ce-*`, `virage-chunker-ee-*`) |
 | `EmbeddingProvider` | `virage-embedder-openai`, `virage-embedder-fastembed`, `virage-embedder-transformers` |
 | `VectorStore` | `virage-store-chromadb`, `virage-store-lancedb`, `virage-store-qdrant`, `virage-store-postgres` |
+| `SourceRepository` | `CliGitSourceRepository` |
+| `SourceProvider` | `CliGitSourceRepository` (also satisfies `SourceRepository`); EE: `virage-source-ee-s3`, `virage-source-ee-gcs`, etc. |
 | `Logger` | built-in console logger in `virage-core` |
+
+`SourceProvider` extends `SourceRepository` with `name: string`, `type: string`, and `listAll(filter?: SourceFilter): AsyncIterable<SourceItem>`. `SourceItem` carries `{ id, path, providerName, labels: string[], meta? }` — labels from the provider (e.g. S3 object tags, CODEOWNERS) are fed into the label pipeline at index time.
 
 **`FileChunker` interface** (all chunker plugins must implement):
 ```typescript
@@ -263,10 +279,22 @@ interface Chunk {
   denseTextHash: string;           // sha256(denseText).slice(0,16) — primary dedup key
   sparseTextGeneratorId: string;   // method fingerprint for sparseText generation
   metadataGeneratorId: string;     // method fingerprint for metadata assembly
-  metadata: ChunkMeta;
+  metadata: ChunkMeta;             // includes labels?: string[] injected by label pipeline
   sourceFile: string;
   commitHash: string;
 }
+```
+
+**`SearchOptions`** (passed to `VectorStore.search()`):
+```typescript
+interface SearchOptions {
+  hybrid?: boolean;
+  hybridAlpha?: number;
+  queryText?: string;
+  labelFilter?: string[];   // RBAC: only return chunks whose labels intersect this set
+}
+```
+`labelFilter` is applied post-retrieval in v1 (all 4 stores: fetch `topK × 4`, filter, return `topK`). Phase 4 will move this to a native store-level WHERE clause.
 ```
 
 **Plugin registry**: packages declare themselves as Virage plugins via `"rag-plugin": "<entrypoint>"` in `package.json`.
@@ -277,7 +305,7 @@ See [docs/decisions/INDEX.md](../decisions/INDEX.md) for the full ADR log.
 
 ## Package development
 
-**Package inventory** (20 packages under `@vivantel/`):
+**Package inventory** (21 packages under `@vivantel/`):
 
 | Package | Type | Published |
 | ------- | ---- | --------- |
@@ -285,7 +313,13 @@ See [docs/decisions/INDEX.md](../decisions/INDEX.md) for the full ADR log.
 | `virage-cli` | CLI entrypoint (`virage` command) | Yes |
 | `virage-mcp` | MCP server | Yes |
 | `virage-dashboard` | Web dashboard (JavaScript) | Yes |
-| `virage-code-chunk-chunker` | Code chunker plugin | Yes |
+| `virage-code-chunk-chunker` | Code chunker plugin (legacy JS) | Yes |
+| `virage-chunker-ce-ast` | ViDoc AST walker + `createNativeChunker` factory | Yes |
+| `virage-chunker-ce-md` | Markdown/MDX chunker (Rust, comrak) | Yes |
+| `virage-chunker-ce-pdf` | PDF chunker (Rust, lopdf) | Yes |
+| `virage-chunker-ce-docx` | DOCX chunker (Rust) | Yes |
+| `virage-chunker-ce-latex` | LaTeX chunker (Rust) | Yes |
+| `virage-chunker-ce-lang` | Multi-language code chunker (Rust, tree-sitter 0.23) | Scaffold — not yet published |
 | `virage-embedder-openai` | OpenAI embedder | Yes |
 | `virage-embedder-fastembed` | FastEmbed embedder | Yes |
 | `virage-embedder-transformers` | Transformers.js embedder | Yes |
@@ -302,6 +336,8 @@ See [docs/decisions/INDEX.md](../decisions/INDEX.md) for the full ADR log.
 | `virage-agent-codex` | OpenAI Codex plugin | Yes |
 | `virage-agent-antigravity` | Google Antigravity plugin | Yes |
 | `virage-skills` | Agent skill files | Yes |
+
+**CE chunker guardrails:** see [`guardrails/chunker.md`](guardrails/chunker.md) and [`guardrails/rust-napi.md`](guardrails/rust-napi.md). `virage-chunker-ce-lang` differs from document chunkers: it takes a file path (not a buffer) and returns `ParseResult { tree, hash, size, modified_ms }` — see rust-napi guardrail for the pattern.
 
 **Shared TypeScript config** (all published packages):
 ```json

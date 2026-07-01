@@ -1,8 +1,10 @@
 # Guardrail: Rust napi-rs Patterns
 
-## napi-rs Function Signature
+## napi-rs Function Signatures
 
-Every `#[napi]` function that returns a ViDoc tree MUST return `String` (JSON-encoded), not a custom type:
+### Document chunkers (buffer-based)
+
+Document chunkers (PDF, DOCX, LaTeX, …) receive the raw file bytes as a `Buffer` and return a JSON-encoded ViDoc tree:
 
 ```rust
 use napi::bindgen_prelude::Buffer;
@@ -20,6 +22,27 @@ pub fn parse_pdf(buf: Buffer) -> napi::Result<String> {
 ```
 
 **Why `String` not a struct?** Returning a Rust struct through napi-rs requires napi-rs to generate JS/TypeScript bindings for it. Returning JSON keeps the Rust↔JS boundary simple and decoupled from TypeScript type evolution.
+
+### Code chunker (`virage-chunker-ce-lang`) — path-based with `ParseResult`
+
+The code chunker uses a `#[napi(object)]` struct so that the file metadata (hash, size, modified timestamp) can be returned alongside the JSON tree without an extra allocation:
+
+```rust
+#[napi(object)]
+pub struct ParseResult {
+    pub tree: String,        // JSON-encoded DocNode tree
+    pub hash: String,        // sha256 hex of file contents
+    pub size: f64,           // file size in bytes
+    pub modified_ms: f64,    // mtime as Unix ms
+}
+
+#[napi]
+pub fn parse_code(path: String) -> napi::Result<ParseResult> {
+    // reads file, detects language from extension, parses with tree-sitter
+}
+```
+
+`read_for_chunker(&path)` (from `virage-vidoc`) handles the file I/O and hashing. Language is detected from the file extension via `Lang::from_extension(ext)`.
 
 ## `virage-vidoc` Path Dependency
 
