@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.2.6](https://github.com/vivantel/virage/compare/virage-cli@v0.2.5...virage-cli@v0.2.6) (2026-07-01)
+
+
+### Features
+
+* **eval:** Add galileo-ai/ragbench HuggingFace retrieval evaluation ([611d39a](https://github.com/vivantel/virage/commit/611d39aebc7061fde5bb8392ae9a482ebf77239d))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @vivantel/virage-core bumped from >=0.3.4 to >=0.3.5
+
 ## [0.2.5](https://github.com/vivantel/virage/compare/virage-cli@v0.2.4...virage-cli@v0.2.5) (2026-07-01)
 
 
