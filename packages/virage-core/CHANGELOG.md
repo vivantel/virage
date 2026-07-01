@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.3](https://github.com/vivantel/virage/compare/virage-core@v0.3.2...virage-core@v0.3.3) (2026-07-01)
+
+
+### Bug Fixes
+
+* **quality:** Read chunks from vector store instead of virage.db ([de0d4c2](https://github.com/vivantel/virage/commit/de0d4c220e884ef689a99d2fe532e348bdcad058))
+
 ## [0.3.2](https://github.com/vivantel/virage/compare/virage-core@v0.3.1...virage-core@v0.3.2) (2026-07-01)
 
 
