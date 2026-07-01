@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1782889450325,
+  "lastUpdate": 1782889762059,
   "repoUrl": "https://github.com/vivantel/virage",
   "entries": {
     "Virage Quality Metrics": [
@@ -136,6 +136,143 @@ window.BENCHMARK_DATA = {
           {
             "name": "LexicalRecall@K",
             "value": 0.442,
+            "unit": "score"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Sergey Strebulaev",
+            "username": "sergemso",
+            "email": "strebulaev@gmail.com"
+          },
+          "committer": {
+            "name": "Sergey Strebulaev",
+            "username": "sergemso",
+            "email": "strebulaev@gmail.com"
+          },
+          "id": "c79fdead5d1467afe5747cd24784dd21bf78ac6e",
+          "message": "fix(ci): switch to gh-pages branch for badge push instead of checkout-into-master\n\nThe previous approach checked out gh-pages files onto master, then tried to\npush master HEAD as gh-pages, which fails after benchmark-action has already\npushed new commits. Switch to gh-pages directly before adding the badge.",
+          "timestamp": "2026-07-01T07:05:25Z",
+          "url": "https://github.com/vivantel/virage/commit/c79fdead5d1467afe5747cd24784dd21bf78ac6e"
+        },
+        "date": 1782889760511,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "Overall Quality",
+            "value": 0.6216,
+            "unit": "score"
+          },
+          {
+            "name": "Chunking",
+            "value": 0.5694,
+            "unit": "score"
+          },
+          {
+            "name": "Cohesion",
+            "value": 0.6414,
+            "unit": "score"
+          },
+          {
+            "name": "Coherence",
+            "value": 1,
+            "unit": "score"
+          },
+          {
+            "name": "Coverage",
+            "value": 0.21,
+            "unit": "score"
+          },
+          {
+            "name": "Metadata Extraction",
+            "value": 0.3587,
+            "unit": "score"
+          },
+          {
+            "name": "Completeness",
+            "value": 0.2485,
+            "unit": "score"
+          },
+          {
+            "name": "BreadcrumbConsistency",
+            "value": 0.5068,
+            "unit": "score"
+          },
+          {
+            "name": "FQNCompleteness",
+            "value": 0,
+            "unit": "score"
+          },
+          {
+            "name": "SiblingIntegrity",
+            "value": 1,
+            "unit": "score"
+          },
+          {
+            "name": "Dense Input Prep",
+            "value": 0.9567,
+            "unit": "score"
+          },
+          {
+            "name": "TextPurity",
+            "value": 0.9936,
+            "unit": "score"
+          },
+          {
+            "name": "EnrichmentQuality",
+            "value": 0.9199,
+            "unit": "score"
+          },
+          {
+            "name": "Dense Embedding",
+            "value": 0.7275,
+            "unit": "score"
+          },
+          {
+            "name": "SelfRecall@K",
+            "value": 0.865,
+            "unit": "score"
+          },
+          {
+            "name": "IntrinsicDimension",
+            "value": 0.1972,
+            "unit": "score"
+          },
+          {
+            "name": "Uniformity",
+            "value": 0.9189,
+            "unit": "score"
+          },
+          {
+            "name": "Isotropy",
+            "value": 0.0754,
+            "unit": "score"
+          },
+          {
+            "name": "OutlierFraction",
+            "value": 0.98,
+            "unit": "score"
+          },
+          {
+            "name": "Sparse Input Prep",
+            "value": 0.8712,
+            "unit": "score"
+          },
+          {
+            "name": "TermCoverage",
+            "value": 0.8712,
+            "unit": "score"
+          },
+          {
+            "name": "Lexical Retrieval",
+            "value": 0.446,
+            "unit": "score"
+          },
+          {
+            "name": "LexicalRecall@K",
+            "value": 0.446,
             "unit": "score"
           }
         ]
