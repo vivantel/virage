@@ -1,0 +1,24 @@
+{
+  "name": "@vivantel/virage-chunker-ce-latex-darwin-arm64",
+  "version": "0.1.5",
+  "description": "macOS arm64 (Apple Silicon) native binary for @vivantel/virage-chunker-ce-latex",
+  "main": "virage_chunker_ce_latex.node",
+  "files": [
+    "virage_chunker_ce_latex.node"
+  ],
+  "os": [
+    "darwin"
+  ],
+  "cpu": [
+    "arm64"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "license": "MIT OR Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/vivantel/virage-chunkers-ce.git",
+    "directory": "packages/virage-chunker-ce-latex/npm/darwin-arm64"
+  }
+}

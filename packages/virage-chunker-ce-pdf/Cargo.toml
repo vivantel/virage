@@ -1,0 +1,20 @@
+[package]
+name    = "virage-chunker-ce-pdf"
+version = "0.1.0"
+edition = "2021"
+description = "PDF chunker for Virage — Rust napi-rs native addon"
+license = "MIT OR Apache-2.0"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+napi        = { workspace = true }
+napi-derive = { workspace = true }
+serde_json  = { workspace = true }
+virage-vidoc = { workspace = true }
+
+lopdf = { version = "0.41", default-features = false }
+
+[build-dependencies]
+napi-build = "2"

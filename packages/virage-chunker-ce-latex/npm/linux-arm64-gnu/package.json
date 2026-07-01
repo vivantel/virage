@@ -1,0 +1,27 @@
+{
+  "name": "@vivantel/virage-chunker-ce-latex-linux-arm64-gnu",
+  "version": "0.1.5",
+  "description": "Linux arm64 (GNU libc) native binary for @vivantel/virage-chunker-ce-latex",
+  "main": "virage_chunker_ce_latex.node",
+  "files": [
+    "virage_chunker_ce_latex.node"
+  ],
+  "os": [
+    "linux"
+  ],
+  "cpu": [
+    "arm64"
+  ],
+  "libc": [
+    "glibc"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "license": "MIT OR Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/vivantel/virage-chunkers-ce.git",
+    "directory": "packages/virage-chunker-ce-latex/npm/linux-arm64-gnu"
+  }
+}

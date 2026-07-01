@@ -1,0 +1,27 @@
+{
+  "name": "@vivantel/virage-chunker-ce-docx-linux-x64-gnu",
+  "version": "0.1.5",
+  "description": "Linux x64 (GNU libc) native binary for @vivantel/virage-chunker-ce-docx",
+  "main": "virage_chunker_ce_docx.node",
+  "files": [
+    "virage_chunker_ce_docx.node"
+  ],
+  "os": [
+    "linux"
+  ],
+  "cpu": [
+    "x64"
+  ],
+  "libc": [
+    "glibc"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "license": "MIT OR Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/vivantel/virage-chunkers-ce.git",
+    "directory": "packages/virage-chunker-ce-docx/npm/linux-x64-gnu"
+  }
+}

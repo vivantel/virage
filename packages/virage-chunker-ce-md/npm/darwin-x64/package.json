@@ -1,0 +1,23 @@
+{
+  "name": "@vivantel/virage-chunker-ce-md-darwin-x64",
+  "version": "0.1.7",
+  "description": "Markdown chunker native binary for darwin-x64",
+  "os": [
+    "darwin"
+  ],
+  "cpu": [
+    "x64"
+  ],
+  "main": "virage_chunker_ce_md.node",
+  "files": [
+    "virage_chunker_ce_md.node"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "license": "MIT OR Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/vivantel/virage-chunkers-ce.git"
+  }
+}
