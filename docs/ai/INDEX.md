@@ -45,13 +45,20 @@ Falls back to direct `.mcp.json` editing when the `claude` CLI is unavailable. T
 
 | Command | What it does |
 | ------- | ------------ |
-| `/plan` | Load and follow the Virage planner skill |
-| `/review` | Load and follow the Virage review skill |
+| `/plan` | Load the Virage planner skill for task breakdown and sequencing |
+| `/review` | Load the Virage `code-guard` skill for code review and security audit |
+| `/doc` | Load the Virage `doc-writer` skill to write or update documentation |
+| `/arch` | Load the Virage `architect` skill for ADR authoring and system design |
+| `/quality` | Run `virage quality` pipeline self-assessment and report metrics |
 | `/rag <query>` | Semantic search via `mcp__virage__search` (requires `virage index` first) |
 | `/index [flags]` | Run `virage index` via Bash (supports `--force`, `--dry-run`, `--watch`, etc.) |
-| `/doc` | Load and follow the Virage doc-writer skill |
-| `/arch` | Load and follow the Virage architect skill |
 | `/usage` | Show per-prompt token usage for the current session |
+
+**`UserPromptSubmit` hook** — installed by `virage init` into `.claude/settings.json`. On every prompt it:
+1. Keyword-matches the prompt to the most relevant skill and outputs a skill summary as context (planner, architect, doc-writer, or code-guard).
+2. Automatically runs `virage query <prompt excerpt> --json --top-k 3` and injects the top RAG results as `# Virage RAG Context` into Claude's context window — no explicit `/rag` call needed.
+
+Both steps fail silently if no index is built yet (graceful degradation via `2>/dev/null || true`).
 
 **MCP tools** exposed by the `virage` MCP server (registered via `claude mcp add virage --scope project`):
 
@@ -64,6 +71,12 @@ Falls back to direct `.mcp.json` editing when the `claude` CLI is unavailable. T
 | `mcp__virage__search` | Semantic search over the indexed knowledge base (spawns `virage query --json`) |
 | `mcp__virage__onboard` | Self-configure Claude Code hooks and MCP registration |
 | `mcp__virage__session_usage` | Parse session log for per-prompt token breakdown |
+
+**Standalone MCP server** (`@vivantel/virage-mcp`) — a separate package not bundled with the Claude plugin. Start it with:
+```bash
+virage-mcp --config virage.config.json
+```
+Exposes a lower-level set of tools (`search`, `list_chunks`, `get_chunk`, `list_source_files`, `get_stats`) suited for non-Claude integrations, custom agents, and programmatic access where you want direct LanceDB access without the skill-routing layer.
 
 ---
 
