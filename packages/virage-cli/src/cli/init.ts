@@ -333,7 +333,9 @@ function generateJsonConfig(
       exclude: buildExcludePatterns(effectiveGroups),
       chunkers,
     },
-    agents: state.agents,
+    agents: state.agents.map((name) => ({
+      package: AGENT_PACKAGES[name] ?? name,
+    })),
     embedder: {
       package: embedderEntry.package,
       config: embedderEntry.defaultConfig,
@@ -779,8 +781,10 @@ export async function runInit(verbosity = 0): Promise<void> {
   // ── Agent plugin configuration ──
   // Re-discover after install so plugins in the new plugin dir are found
   const freshAgentPlugins = await discoverAgentPlugins(cwd);
-  const agentPluginsToRun = freshAgentPlugins.filter((p) =>
-    finalState.agents.includes(p.name),
+  const agentPluginsToRun = freshAgentPlugins.filter(
+    (p) =>
+      finalState.agents.includes(p.name) ||
+      finalState.agents.some((name) => AGENT_PACKAGES[name] === p.packageName),
   );
 
   for (const plugin of agentPluginsToRun) {

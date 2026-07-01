@@ -64,6 +64,7 @@ export async function runEvalSuite(opts: EvalSuiteRunOptions): Promise<void> {
 
   if (opts.json) {
     // Raw JSON output — intentional console.log for machine-readable stdout (guardrail exception)
+    // eslint-disable-next-line no-console
     console.log(JSON.stringify(result, null, 2));
     return;
   }

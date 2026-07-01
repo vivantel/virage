@@ -51,7 +51,6 @@
   "license": "MIT",
   "dependencies": {
     "@inquirer/prompts": "^8.5.2",
-    "@vivantel/virage-agent-claude": "0.2.27",
     "@vivantel/virage-core": ">=0.3.3",
     "@vivantel/virage-skills": "0.1.9",
     "chokidar": "^5.0.0",
@@ -63,6 +62,12 @@
     "express": "^5.2.1",
     "glob": "^13.0.6",
     "ws": "^8.21.0"
+  },
+  "optionalDependencies": {
+    "@vivantel/virage-agent-claude": ">=0.2.27",
+    "@vivantel/virage-agent-copilot": ">=0.1.0",
+    "@vivantel/virage-agent-codex": ">=0.1.0",
+    "@vivantel/virage-agent-antigravity": ">=0.1.0"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

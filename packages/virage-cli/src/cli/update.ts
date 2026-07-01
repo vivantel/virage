@@ -34,8 +34,11 @@ interface VirageConfig {
   embedder?: { package?: string };
   vectorStore?: { package?: string };
   search?: { reranker?: { package?: string } };
-  agents?: string[];
+  /** New format: plugin-spec objects. Old string format is auto-migrated by config-loader. */
+  agents?: Array<{ package: string } | string>;
   pluginVersions?: Record<string, string>;
+  chunking?: { chunkers?: Array<{ package?: string }> };
+  /** @deprecated Use chunking.chunkers. */
   chunkers?: Array<{ strategy?: string; package?: string }>;
 }
 
@@ -109,19 +112,17 @@ async function discoverViragePackages(
       candidates.add(virageConfig.search.reranker.package);
     }
     for (const agent of virageConfig.agents ?? []) {
-      const pkg = AGENT_PACKAGES[agent];
-      if (pkg) candidates.add(pkg);
-    }
-    const CHUNKER_STRATEGY_PACKAGES: Record<string, string> = {
-      codeChunkAst: "@vivantel/virage-code-chunk-chunker",
-    };
-    for (const chunker of virageConfig.chunkers ?? []) {
-      if (chunker.package) {
-        candidates.add(chunker.package);
-      } else if (chunker.strategy) {
-        const pkg = CHUNKER_STRATEGY_PACKAGES[chunker.strategy];
+      if (typeof agent === "string") {
+        const pkg = AGENT_PACKAGES[agent];
         if (pkg) candidates.add(pkg);
+      } else if (agent.package) {
+        candidates.add(agent.package);
       }
+    }
+    for (const chunker of virageConfig.chunking?.chunkers ??
+      virageConfig.chunkers ??
+      []) {
+      if (chunker.package) candidates.add(chunker.package);
     }
   }
 

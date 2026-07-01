@@ -47,14 +47,17 @@ interface JsonSearchConfig {
   rerankOversample?: number;
 }
 
+interface JsonAgentConfig {
+  package: string;
+  options?: Record<string, unknown>;
+}
+
 interface JsonRagConfig {
   chunking: JsonChunkingConfig;
-  /** @deprecated Use chunking.chunkers. Supported for backward compatibility. */
-  chunkers?: JsonChunkerConfig[];
   embedder: JsonProviderConfig;
   vectorStore: JsonProviderConfig;
   source?: JsonProviderConfig;
-  agents?: string[];
+  agents?: JsonAgentConfig[];
   pluginVersions?: Record<string, string>;
   options?: RAGPipelineConfig["options"];
   telemetry?: TelemetryConfig;
@@ -68,10 +71,22 @@ function isPackageName(s: string): boolean {
   return s.startsWith("@") || s.includes("/");
 }
 
+const KNOWN_AGENT_PACKAGES: Record<string, string> = {
+  "claude-code": "@vivantel/virage-agent-claude",
+  copilot: "@vivantel/virage-agent-copilot",
+  codex: "@vivantel/virage-agent-codex",
+  antigravity: "@vivantel/virage-agent-antigravity",
+};
+
 function normalizeConfig(raw: Record<string, unknown>): void {
-  if (!raw.chunking && Array.isArray(raw.chunkers)) {
-    raw.chunking = { chunkers: raw.chunkers };
-    delete raw.chunkers;
+  // Migrate deprecated root-level `agents: string[]` to plugin-spec format.
+  if (
+    Array.isArray(raw.agents) &&
+    raw.agents.some((a) => typeof a === "string")
+  ) {
+    raw.agents = (raw.agents as unknown[]).map((a) =>
+      typeof a === "string" ? { package: KNOWN_AGENT_PACKAGES[a] ?? a } : a,
+    );
   }
 }
 
@@ -80,6 +95,12 @@ function validateJsonConfig(raw: unknown): asserts raw is JsonRagConfig {
     throw new ConfigError("virage.config.json must be a JSON object");
   }
   const c = raw as Record<string, unknown>;
+
+  if (Array.isArray(c.chunkers)) {
+    throw new ConfigError(
+      'Root-level "chunkers" is no longer supported — nest it under "chunking.chunkers".',
+    );
+  }
 
   if (
     !c.chunking ||

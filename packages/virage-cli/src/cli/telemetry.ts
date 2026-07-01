@@ -276,6 +276,7 @@ export async function runTelemetryPreview(verbosity = 0): Promise<void> {
     const flusher = new TelemetryFlusher(db, tel);
     const payload = flusher.buildSessionSummaryPayload(latest.id);
     // Raw JSON output — intentional console.log for machine-readable stdout
+    // eslint-disable-next-line no-console
     console.log(JSON.stringify(payload, null, 2));
   } finally {
     db.close();

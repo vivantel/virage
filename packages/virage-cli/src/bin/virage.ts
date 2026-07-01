@@ -165,10 +165,12 @@ async function runOnce(options: {
     const result = await orchestrator.run();
     renderer.stop();
     if (result.filesProcessed === 0 && result.filesDeleted === 0) {
+      // eslint-disable-next-line no-console
       console.log(
         `${ansi.green}✨ Everything up to date — no files to process.${ansi.reset}`,
       );
     } else {
+      // eslint-disable-next-line no-console
       console.log(`${ansi.green}✨ RAG pipeline complete!${ansi.reset}`);
     }
   } catch (err) {

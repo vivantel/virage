@@ -78,6 +78,7 @@ export async function runQuery(
 
   if (opts.json) {
     // Raw JSON output — intentional console.log for machine-readable stdout
+    // eslint-disable-next-line no-console
     console.log(
       JSON.stringify(
         results.map((r) => ({

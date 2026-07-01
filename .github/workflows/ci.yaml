@@ -214,7 +214,7 @@ jobs:
 
       - uses: actions/setup-node@v6
         with:
-          node-version: 22
+          node-version: lts/*
           cache: npm
 
       - name: Patch lockfile stub version fields
@@ -276,7 +276,7 @@ jobs:
 
       - uses: actions/setup-node@v6
         with:
-          node-version: 22
+          node-version: lts/*
           cache: npm
 
       - name: Patch lockfile stub version fields

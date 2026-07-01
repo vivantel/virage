@@ -18,7 +18,7 @@ export default tseslint.config(
     rules: {
       '@typescript-eslint/no-explicit-any': 'warn',
       '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
-      'no-console': 'off',
+      'no-console': ['warn', { allow: ['warn', 'error'] }],
       'no-undef': 'off'
     }
   },
@@ -27,8 +27,18 @@ export default tseslint.config(
     rules: {
       '@typescript-eslint/no-explicit-any': 'warn',
       '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
-      'no-console': 'off',
+      'no-console': ['warn', { allow: ['warn', 'error'] }],
       'no-undef': 'off'
     }
+  },
+  {
+    // Infrastructure files that implement the output system or terminal control.
+    // These legitimately call console.log / process.stdout directly.
+    files: [
+      'packages/virage-cli/src/output.ts',
+      'packages/virage-cli/src/progress/progress-bar.ts',
+      'packages/virage-cli/src/spinner.ts',
+    ],
+    rules: { 'no-console': 'off' }
   }
 );

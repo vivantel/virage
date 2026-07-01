@@ -61,4 +61,14 @@ out.section("Scanning");  // or out.divider()
 
 ## Raw stdout exceptions
 
-`console.log()` is acceptable **only** for machine-readable output (e.g., `virage query --json` emits raw JSON). Add a comment explaining why.
+`process.stdout.write()` and `console.log()` are acceptable **only** for a command's **primary data output** — the rendered body of the result, not any status message surrounding it. Examples:
+
+| Command | Acceptable pattern |
+|---------|-------------------|
+| `virage query --json` | `console.log(JSON.stringify(results))` |
+| `virage quality` | `process.stdout.write(formatConsole(report))` |
+| `virage quality --json --output file.json` | `process.stdout.write(formatConsole(report))` (table still shown; file gets JSON) |
+
+Add a brief comment at each site explaining it is primary output, not a status message.
+
+`console.log()` with `warn`/`error` overloads is always allowed (ESLint permits `console.warn` and `console.error`). All other `console.*` calls require suppression with `// eslint-disable-next-line no-console`.

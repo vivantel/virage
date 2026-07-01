@@ -28,8 +28,6 @@ jobs:
           node scripts/patch-lockfile-stubs.cjs
           npm ci --ignore-scripts
           npm run build -w packages/virage-core
-          npm run build -w packages/virage-agent-core
-          npm run build -w packages/virage-agent-claude
           npm run build -w packages/virage-cli
           npm pack --workspace packages/virage-core --pack-destination /tmp/virage-packs
           npm pack --workspace packages/virage-cli --pack-destination /tmp/virage-packs

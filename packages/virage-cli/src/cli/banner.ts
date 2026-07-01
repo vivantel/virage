@@ -57,5 +57,6 @@ export function printBanner(
   const configInfo = summary
     ? `  \x1b[2m${summary.chunkerCount} chunker${summary.chunkerCount !== 1 ? "s" : ""} · ${summary.embedder} · ${summary.store}\x1b[0m`
     : "";
+  // eslint-disable-next-line no-console
   console.log(`\x1b[1mVirage\x1b[0m v${version}${configInfo}`);
 }

@@ -60,9 +60,9 @@ export async function runQualityCheck(
       "utf-8",
     );
     out.success(`Report written to ${opts.output}`);
-    if (!opts.json && !opts.markdown) {
-      process.stdout.write(output);
-    }
+    // Always show the human-readable table when output is redirected to a file
+    // so CI logs capture the metrics regardless of --json / --markdown flags.
+    process.stdout.write(formatConsole(report));
   } else {
     process.stdout.write(output);
   }

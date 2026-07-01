@@ -63,7 +63,14 @@ export class GitTracker {
       ...[...IGNORED_DIRS].map((d) => `${d}/**`),
       ...this.excludePatterns,
     ];
-    const files = await glob(this.allPatterns, { nodir: true, ignore });
+    const normalizedPatterns = this.allPatterns.map((p) =>
+      p.split(path.sep).join("/"),
+    );
+    const normalizedIgnore = ignore.map((p) => p.split(path.sep).join("/"));
+    const files = await glob(normalizedPatterns, {
+      nodir: true,
+      ignore: normalizedIgnore,
+    });
     const unique = [...new Set(files)]
       .filter((f) => {
         if (this.excludePatterns.length === 0) return true;

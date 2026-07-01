@@ -106,11 +106,11 @@ All configuration lives in `virage.config.json`. The `$schema` field enables IDE
       "**/dist/**", "**/node_modules/**"
     ],
     "chunkers": [
-      { "patterns": ["**/*.md"], "strategy": "markdownHeaders" },
-      { "patterns": ["src/**/*.ts", "src/**/*.tsx"], "strategy": "codeChunkAst" }
+      { "package": "@vivantel/virage-chunker-ce-md" },
+      { "package": "@vivantel/virage-code-chunk-chunker" }
     ]
   },
-  "agents": ["claude-code"],
+  "agents": [{ "package": "@vivantel/virage-agent-claude" }],
   "embedder": {
     "package": "@vivantel/virage-embedder-fastembed",
     "config": { "model": "BAAI/bge-small-en-v1.5", "dimensions": 384 }
@@ -203,10 +203,10 @@ CE chunkers ship as pre-built native binaries on npm — no Rust toolchain requi
 {
   "chunking": {
     "chunkers": [
-      { "patterns": ["**/*.md"],           "package": "@vivantel/virage-chunker-ce-md" },
-      { "patterns": ["**/*.pdf"],          "package": "@vivantel/virage-chunker-ce-pdf" },
-      { "patterns": ["src/**/*.ts"],       "package": "@vivantel/virage-chunker-ce-ts" },
-      { "patterns": ["**/*.py", "**/*.go"], "strategy": "codeChunkAst" }
+      { "package": "@vivantel/virage-chunker-ce-md" },
+      { "package": "@vivantel/virage-chunker-ce-pdf" },
+      { "package": "@vivantel/virage-chunker-ce-ts" },
+      { "package": "@vivantel/virage-code-chunk-chunker", "include": ["**/*.py", "**/*.go"] }
     ]
   }
 }
