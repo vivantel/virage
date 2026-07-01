@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.4](https://github.com/vivantel/virage/compare/virage-core@v0.3.3...virage-core@v0.3.4) (2026-07-01)
+
+
+### Features
+
+* **core,cli,ci:** Multi-item cleanup and improvements ([29d3f97](https://github.com/vivantel/virage/commit/29d3f97bdc81eb6e7aa4df4d4037015944c5ff33))
+
 ## [0.3.3](https://github.com/vivantel/virage/compare/virage-core@v0.3.2...virage-core@v0.3.3) (2026-07-01)
 
 
