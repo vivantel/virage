@@ -197,9 +197,8 @@ export class Uploader {
       },
       this.logger,
     );
-    // Mark all hashes (including deduped ones) as uploaded so they are excluded
-    // from the next pending-upload query but remain in virage.db for quality assessment.
-    db.markUploaded(chunks.map((e) => e.denseTextHash));
+    // Delete staging rows for ALL hashes (including deduped ones) — SQLite is a pure buffer.
+    db.deleteChunks(chunks.map((e) => e.denseTextHash));
   }
 
   async uploadPending(

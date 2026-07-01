@@ -1,7 +1,7 @@
 /**
  * QualityRunner — orchestrates all 8 pipeline component metric collections.
  *
- * Loads config, samples chunks from VirageDb, runs each component's metrics
+ * Loads config, samples chunks from the vector store, runs each component's metrics
  * in dependency order, aggregates scores, and returns a QualityReport.
  * Optional components (5-8) are skipped gracefully when not configured.
  */
@@ -29,8 +29,6 @@ import { computeLexicalRetrievalMetrics } from "./metrics/lexical-retrieval.js";
 import { computeRerankerInputMetrics } from "./metrics/reranker-input.js";
 import { computeRerankerMetrics } from "./metrics/reranker.js";
 import { loadConfig } from "../config-loader.js";
-import { VirageDb } from "../core/virage-db.js";
-import { defaultVirageDb } from "../core/virage-defaults.js";
 import type { Chunk } from "../interfaces/index.js";
 
 // Component total weights used for overall aggregation
@@ -114,16 +112,17 @@ export async function runQualityAssessment(
 
   await cfg.vectorStore.initialize();
 
-  const db = new VirageDb(defaultVirageDb());
-  let allChunks: Chunk[];
-  try {
-    allChunks = db.getAllChunks();
-  } finally {
-    db.close();
+  if (!cfg.vectorStore.listAll) {
+    throw new Error(
+      "Vector store does not support listAll — cannot run quality assessment.",
+    );
   }
+  const allChunks = (await cfg.vectorStore.listAll()) as unknown as Chunk[];
 
   if (allChunks.length === 0) {
-    throw new Error("No chunks found in virage.db — run `virage index` first.");
+    throw new Error(
+      "No chunks found in vector store — run `virage index` first.",
+    );
   }
 
   const sample = sampleArray(allChunks, sampleSize);

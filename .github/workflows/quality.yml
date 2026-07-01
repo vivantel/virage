@@ -50,7 +50,6 @@ jobs:
           path: |
             .virage/lancedb
             .virage/model-cache
-            .virage/virage.db
           key: rag-eval-${{ github.ref_name }}-${{ github.sha }}
           restore-keys: |
             rag-eval-${{ github.ref_name }}-
@@ -66,7 +65,6 @@ jobs:
           path: |
             .virage/lancedb
             .virage/model-cache
-            .virage/virage.db
           key: rag-eval-${{ github.ref_name }}-${{ github.sha }}
 
       - name: Run quality self-assessment
