@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.28](https://github.com/vivantel/virage/compare/virage-agent-claude@v0.2.27...virage-agent-claude@v0.2.28) (2026-07-01)
+
+
+### Features
+
+* **agent-claude:** Auto-inject RAG context and fix slash command skill names ([54ec1fa](https://github.com/vivantel/virage/commit/54ec1fa68bf4db985d49a415e1e18eb9dde006f7))
+
 ## [0.2.27](https://github.com/vivantel/virage/compare/virage-agent-claude@v0.2.26...virage-agent-claude@v0.2.27) (2026-06-30)
 
 

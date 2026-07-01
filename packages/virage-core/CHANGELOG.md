@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.6](https://github.com/vivantel/virage/compare/virage-core@v0.3.5...virage-core@v0.3.6) (2026-07-01)
+
+
+### Features
+
+* **phase3:** Source architecture, label pipeline, and ce-lang chunker scaffold ([21af213](https://github.com/vivantel/virage/commit/21af21399087d1631701de143ef587e3124137bd))
+
 ## [0.3.5](https://github.com/vivantel/virage/compare/virage-core@v0.3.4...virage-core@v0.3.5) (2026-07-01)
 
 

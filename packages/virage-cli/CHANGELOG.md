@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.2.7](https://github.com/vivantel/virage/compare/virage-cli@v0.2.6...virage-cli@v0.2.7) (2026-07-01)
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @vivantel/virage-core bumped from >=0.3.5 to >=0.3.6
+  * optionalDependencies
+    * @vivantel/virage-agent-claude bumped from >=0.2.27 to >=0.2.28
+
 ## [0.2.6](https://github.com/vivantel/virage/compare/virage-cli@v0.2.5...virage-cli@v0.2.6) (2026-07-01)
 
 
