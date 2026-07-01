@@ -138,8 +138,9 @@ jobs:
 
           BADGE_JSON=$(cat .virage/quality-history/quality-badge.json)
 
-          git fetch origin gh-pages 2>/dev/null || true
-          git checkout gh-pages -- . 2>/dev/null || true
+          # Switch to the latest gh-pages (benchmark-action may have pushed already)
+          git fetch origin gh-pages
+          git checkout gh-pages
 
           mkdir -p badges
           echo "$BADGE_JSON" > badges/quality.json
@@ -149,7 +150,7 @@ jobs:
             echo "Badge unchanged — skipping commit."
           else
             git commit -m "chore(badges): update quality badge [skip ci]"
-            git push origin HEAD:gh-pages
+            git push origin gh-pages
           fi
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
