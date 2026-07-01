@@ -15,6 +15,8 @@ import type {
   RagBenchSummary,
 } from "./interfaces.js";
 import { loadRagBenchDataset, RagBenchEvaluator } from "../eval/ragbench.js";
+import { runHfRagBenchEval } from "../eval/ragbench-hf.js";
+import type { HfRagBenchSummary } from "../eval/ragbench-hf.js";
 import {
   aggregateComponent,
   aggregateOverall,
@@ -195,7 +197,15 @@ export async function runQualityAssessment(
     failFast &&
     components.some((c) => c.metrics.some((m) => m.mustPassPassed === false))
   ) {
-    return buildReport(t0, components, sampleSize, topK, configFile, undefined);
+    return buildReport(
+      t0,
+      components,
+      sampleSize,
+      topK,
+      configFile,
+      undefined,
+      undefined,
+    );
   }
 
   // ─── Component 2: Metadata ────────────────────────────────────────────────
@@ -236,7 +246,15 @@ export async function runQualityAssessment(
     failFast &&
     components.some((c) => c.metrics.some((m) => m.mustPassPassed === false))
   ) {
-    return buildReport(t0, components, sampleSize, topK, configFile, undefined);
+    return buildReport(
+      t0,
+      components,
+      sampleSize,
+      topK,
+      configFile,
+      undefined,
+      undefined,
+    );
   }
 
   // ─── Component 3: Dense Input ─────────────────────────────────────────────
@@ -289,7 +307,15 @@ export async function runQualityAssessment(
     failFast &&
     components.some((c) => c.metrics.some((m) => m.mustPassPassed === false))
   ) {
-    return buildReport(t0, components, sampleSize, topK, configFile, undefined);
+    return buildReport(
+      t0,
+      components,
+      sampleSize,
+      topK,
+      configFile,
+      undefined,
+      undefined,
+    );
   }
 
   // ─── Component 5: Sparse Input (optional) ─────────────────────────────────
@@ -377,7 +403,26 @@ export async function runQualityAssessment(
     ragBench = result;
   }
 
-  return buildReport(t0, components, sampleSize, topK, configFile, ragBench);
+  // ─── RAGBench HuggingFace evaluation (optional) ──────────────────────────
+  let ragBenchHf: HfRagBenchSummary | undefined;
+  if (opts.ragBenchHf) {
+    ragBenchHf = await runHfRagBenchEval(cfg.embedder, {
+      subsets: opts.ragBenchHf.subsets as string[] | undefined,
+      maxRowsPerSubset: opts.ragBenchHf.maxRowsPerSubset ?? 50,
+      topK: opts.ragBenchHf.topK ?? 10,
+      hfToken: opts.ragBenchHf.hfToken,
+    });
+  }
+
+  return buildReport(
+    t0,
+    components,
+    sampleSize,
+    topK,
+    configFile,
+    ragBench,
+    ragBenchHf,
+  );
 }
 
 function buildReport(
@@ -387,6 +432,7 @@ function buildReport(
   topK: number,
   configFile: string,
   ragBench: RagBenchSummary | undefined,
+  ragBenchHf: HfRagBenchSummary | undefined,
 ): QualityReport {
   const mustPassGates = collectMustPassGates(components);
   const overallScore = aggregateOverall(components);
@@ -399,6 +445,7 @@ function buildReport(
     mustPassGates,
     components,
     ...(ragBench ? { ragBench } : {}),
+    ...(ragBenchHf ? { ragBenchHf } : {}),
     sampleSize,
     topK,
     configFile,

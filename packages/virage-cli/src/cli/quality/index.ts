@@ -45,6 +45,21 @@ export function registerQualityCommand(
       true,
     )
     .option("--benchmark <path>", "Include RAGBench evaluation from this path")
+    .option(
+      "--benchmark-hf",
+      "Run HuggingFace galileo-ai/ragbench evaluation (all 12 subsets)",
+      false,
+    )
+    .option(
+      "--benchmark-hf-rows <n>",
+      "Max rows per subset for --benchmark-hf",
+      (v: string) => parseInt(v, 10),
+      50,
+    )
+    .option(
+      "--benchmark-hf-token <token>",
+      "HuggingFace API token for --benchmark-hf (optional)",
+    )
     .option("--history", "Save result to quality history", false)
     .option("--fail-fast", "Exit 1 on any MUST-PASS threshold violation", false)
     .option("--json", "Output results as JSON", false)
@@ -71,6 +86,9 @@ export function registerQualityCommand(
       async (opts: {
         components: boolean;
         benchmark?: string;
+        benchmarkHf: boolean;
+        benchmarkHfRows: number;
+        benchmarkHfToken?: string;
         history: boolean;
         failFast: boolean;
         json: boolean;
@@ -89,6 +107,9 @@ export function registerQualityCommand(
             config: opts.config,
             components: opts.components,
             benchmark: opts.benchmark,
+            benchmarkHf: opts.benchmarkHf,
+            benchmarkHfRows: opts.benchmarkHfRows,
+            benchmarkHfToken: opts.benchmarkHfToken,
             history: opts.history,
             failFast: opts.failFast,
             json: opts.json,

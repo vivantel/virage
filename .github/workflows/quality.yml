@@ -72,6 +72,8 @@ jobs:
             --json \
             --history \
             --fail-fast \
+            --benchmark-hf \
+            --benchmark-hf-rows 50 \
             --output .virage/quality-report.json \
             --config virage.config.ci.json
         continue-on-error: true

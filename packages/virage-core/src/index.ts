@@ -133,5 +133,14 @@ export type {
   QrelEntry,
 } from "./eval/ragbench.js";
 
+// RAGBench HuggingFace integration — 12-domain embedding + retrieval eval
+export { runHfRagBenchEval, HF_RAGBENCH_SUBSETS } from "./eval/ragbench-hf.js";
+export type {
+  HfRagBenchSubset,
+  HfSubsetResult,
+  HfRagBenchSummary,
+  HfRagBenchEvalOptions,
+} from "./eval/ragbench-hf.js";
+
 // Quality system — 26-metric pipeline self-assessment
 export * from "./quality/index.js";

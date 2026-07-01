@@ -78,6 +78,32 @@ export function formatMarkdown(report: QualityReport): string {
     lines.push(``);
   }
 
+  // RAGBench HuggingFace results
+  if (report.ragBenchHf) {
+    const hf = report.ragBenchHf;
+    lines.push(`### RAGBench HuggingFace Evaluation`);
+    lines.push(``);
+    lines.push(
+      `**Subsets:** ${hf.subsets.length} domains | **Total queries:** ${hf.totalQueries} | **Corpus docs:** ${hf.totalCorpusDocs} | **K:** ${hf.topK}`,
+    );
+    lines.push(``);
+    lines.push(
+      `| Subset | Corpus | Queries | MRR@${hf.topK} | NDCG@${hf.topK} | Recall@${hf.topK} | HitRate@${hf.topK} |`,
+    );
+    lines.push(
+      `|--------|--------|---------|--------|---------|----------|---------|`,
+    );
+    for (const s of hf.subsets) {
+      lines.push(
+        `| ${s.subset} | ${s.corpusSize} | ${s.queriesEvaluated} | ${(s.mrrAtK * 100).toFixed(1)}% | ${(s.ndcgAtK * 100).toFixed(1)}% | ${(s.recallAtK * 100).toFixed(1)}% | ${(s.hitRateAtK * 100).toFixed(1)}% |`,
+      );
+    }
+    lines.push(
+      `| **MACRO** | — | **${hf.totalQueries}** | **${(hf.macroMrrAtK * 100).toFixed(1)}%** | **${(hf.macroNdcgAtK * 100).toFixed(1)}%** | **${(hf.macroRecallAtK * 100).toFixed(1)}%** | **${(hf.macroHitRateAtK * 100).toFixed(1)}%** |`,
+    );
+    lines.push(``);
+  }
+
   // Metric details (collapsed)
   lines.push(`<details>`);
   lines.push(`<summary>Metric Details</summary>`);
@@ -218,6 +244,36 @@ export function formatConsole(report: QualityReport): string {
         `  ${name.padEnd(22)} ${scoreColor(val)}${valStr.padEnd(8)}${ansi.reset} ${bar(val, 18)}`,
       );
     }
+    lines.push("");
+  }
+
+  // RAGBench HuggingFace section
+  if (report.ragBenchHf) {
+    const hf = report.ragBenchHf;
+    lines.push(
+      `  ${ansi.bold}RAGBench HF — ${hf.subsets.length} domains (K=${hf.topK}, ${hf.totalCorpusDocs} corpus docs)${ansi.reset}`,
+    );
+    lines.push(`  ${"─".repeat(52)}`);
+    lines.push(
+      `  ${ansi.bold}${"SUBSET".padEnd(14)} ${"MRR".padEnd(7)} ${"NDCG".padEnd(7)} ${"RCL".padEnd(7)} HR${ansi.reset}`,
+    );
+    for (const s of hf.subsets) {
+      const mrr = `${(s.mrrAtK * 100).toFixed(1)}%`;
+      const ndcg = `${(s.ndcgAtK * 100).toFixed(1)}%`;
+      const rcl = `${(s.recallAtK * 100).toFixed(1)}%`;
+      const hr = `${(s.hitRateAtK * 100).toFixed(1)}%`;
+      lines.push(
+        `  ${s.subset.padEnd(14)} ${scoreColor(s.mrrAtK)}${mrr.padEnd(7)}${ansi.reset} ${scoreColor(s.ndcgAtK)}${ndcg.padEnd(7)}${ansi.reset} ${scoreColor(s.recallAtK)}${rcl.padEnd(7)}${ansi.reset} ${scoreColor(s.hitRateAtK)}${hr}${ansi.reset}`,
+      );
+    }
+    lines.push(`  ${"─".repeat(52)}`);
+    const mMrr = `${(hf.macroMrrAtK * 100).toFixed(1)}%`;
+    const mNdcg = `${(hf.macroNdcgAtK * 100).toFixed(1)}%`;
+    const mRcl = `${(hf.macroRecallAtK * 100).toFixed(1)}%`;
+    const mHr = `${(hf.macroHitRateAtK * 100).toFixed(1)}%`;
+    lines.push(
+      `  ${ansi.bold}${"MACRO".padEnd(14)} ${scoreColor(hf.macroMrrAtK)}${mMrr.padEnd(7)}${ansi.reset}${ansi.bold} ${scoreColor(hf.macroNdcgAtK)}${mNdcg.padEnd(7)}${ansi.reset}${ansi.bold} ${scoreColor(hf.macroRecallAtK)}${mRcl.padEnd(7)}${ansi.reset}${ansi.bold} ${scoreColor(hf.macroHitRateAtK)}${mHr}${ansi.reset}`,
+    );
     lines.push("");
   }
 

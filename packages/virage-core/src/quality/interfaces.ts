@@ -4,6 +4,12 @@
  * pipeline feature is disabled in config.
  */
 
+import type {
+  HfRagBenchSubset,
+  HfRagBenchSummary,
+} from "../eval/ragbench-hf.js";
+export type { HfRagBenchSubset, HfRagBenchSummary };
+
 // ─── Per-metric result ────────────────────────────────────────────────────────
 
 export interface MetricResult {
@@ -71,6 +77,7 @@ export interface QualityReport {
   mustPassGates: MustPassGate[];
   components: ComponentResult[];
   ragBench?: RagBenchSummary;
+  ragBenchHf?: HfRagBenchSummary;
   sampleSize: number;
   topK: number;
   configFile: string;
@@ -85,6 +92,12 @@ export interface QualityRunnerOptions {
   topK: number;
   failFast: boolean;
   ragBenchPath?: string;
+  ragBenchHf?: {
+    subsets?: HfRagBenchSubset[];
+    maxRowsPerSubset?: number;
+    topK?: number;
+    hfToken?: string;
+  };
   thresholdOverrides?: Partial<Record<string, number>>;
   weightOverrides?: Partial<Record<string, number>>;
 }

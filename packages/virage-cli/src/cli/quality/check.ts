@@ -13,6 +13,9 @@ export interface QualityCheckOptions {
   config: string;
   components: boolean;
   benchmark?: string;
+  benchmarkHf?: boolean;
+  benchmarkHfRows?: number;
+  benchmarkHfToken?: string;
   history: boolean;
   failFast: boolean;
   json: boolean;
@@ -41,6 +44,14 @@ export async function runQualityCheck(
     topK: opts.k,
     failFast: opts.failFast,
     ...(opts.benchmark ? { ragBenchPath: opts.benchmark } : {}),
+    ...(opts.benchmarkHf
+      ? {
+          ragBenchHf: {
+            maxRowsPerSubset: opts.benchmarkHfRows ?? 50,
+            hfToken: opts.benchmarkHfToken,
+          },
+        }
+      : {}),
   });
 
   // Determine output format
