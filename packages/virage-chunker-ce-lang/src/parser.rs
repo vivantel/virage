@@ -113,13 +113,16 @@ fn is_definition(kind: &str) -> bool {
         | "method"                    // Ruby
         | "class"                     // Ruby
         | "module"                    // Ruby
-        | "singleton_method"          // Ruby
+        | "singleton_method" // Ruby
     )
 }
 
 /// Returns true if this kind is a comment or doc-comment node.
 fn is_comment(kind: &str) -> bool {
-    kind.contains("comment") || kind.contains("doc_comment") || kind == "line_comment" || kind == "block_comment"
+    kind.contains("comment")
+        || kind.contains("doc_comment")
+        || kind == "line_comment"
+        || kind == "block_comment"
 }
 
 // ─── Signature extraction ─────────────────────────────────────────────────────
@@ -133,9 +136,18 @@ fn extract_signature(node: Node, src: &[u8]) -> String {
     for i in 0..node.child_count() {
         if let Some(child) = node.child(i) {
             let ck = child.kind();
-            if matches!(ck, "block" | "statement_block" | "declaration_list"
-                | "class_body" | "enum_body" | "interface_body"
-                | "field_declaration_list" | "body" | "impl_block") {
+            if matches!(
+                ck,
+                "block"
+                    | "statement_block"
+                    | "declaration_list"
+                    | "class_body"
+                    | "enum_body"
+                    | "interface_body"
+                    | "field_declaration_list"
+                    | "body"
+                    | "impl_block"
+            ) {
                 end_byte = child.start_byte();
                 break;
             }
@@ -172,7 +184,10 @@ impl<'a> Walker<'a> {
         while i < count {
             let child = match node.named_child(i) {
                 Some(c) => c,
-                None => { i += 1; continue; }
+                None => {
+                    i += 1;
+                    continue;
+                }
             };
 
             let kind = child.kind();
@@ -215,7 +230,11 @@ impl<'a> Walker<'a> {
 
                 children.push(DocNode {
                     node_type: DocNodeType::Section,
-                    children: if nested.is_empty() { None } else { Some(nested) },
+                    children: if nested.is_empty() {
+                        None
+                    } else {
+                        Some(nested)
+                    },
                     text: if sig.is_empty() { None } else { Some(sig) },
                     attrs: DocNodeAttrs {
                         byte_start: child.start_byte() as u64,
@@ -273,12 +292,19 @@ pub fn parse(src: &[u8], lang: &Lang) -> Result<DocNode, String> {
         .ok_or_else(|| "tree-sitter parse returned None".to_string())?;
 
     let root = tree.root_node();
-    let walker = Walker { src, lang_id: lang.id() };
+    let walker = Walker {
+        src,
+        lang_id: lang.id(),
+    };
     let children = walker.walk_children(root, &[]);
 
     Ok(DocNode {
         node_type: DocNodeType::Document,
-        children: if children.is_empty() { None } else { Some(children) },
+        children: if children.is_empty() {
+            None
+        } else {
+            Some(children)
+        },
         text: None,
         attrs: DocNodeAttrs {
             byte_start: 0,

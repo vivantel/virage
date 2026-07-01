@@ -30,8 +30,8 @@ pub fn parse_code(path: String) -> napi::Result<ParseResult> {
         )
     })?;
 
-    let info = read_for_chunker(&path)
-        .map_err(|e| napi::Error::new(napi::Status::GenericFailure, e))?;
+    let info =
+        read_for_chunker(&path).map_err(|e| napi::Error::new(napi::Status::GenericFailure, e))?;
 
     let doc = parser::parse(&info.bytes, &lang).map_err(|e| {
         napi::Error::new(
