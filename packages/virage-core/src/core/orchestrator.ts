@@ -5,8 +5,10 @@ import { EmbedderProcessor } from "./embedder.js";
 import { Uploader } from "./uploader.js";
 import { VirageDb } from "./virage-db.js";
 import { TelemetryCollector } from "./telemetry.js";
+import { resolveLabels, CodeownersResolver } from "./label-pipeline.js";
 import {
   ChunkerEntry,
+  LabelRule,
   EmbeddingProvider,
   VectorStore,
   Chunk,
@@ -29,6 +31,10 @@ export interface RAGPipelineConfig {
   vectorStore: VectorStore;
   sourceRepository?: SourceRepository;
   excludePatterns?: string[];
+  /** Global label rules applied to every file's label set (from chunking.filter.labels). */
+  globalLabelRules?: LabelRule[];
+  /** Namespace label prepended to every chunk's labels (e.g. "ns:my-project"). */
+  namespace?: string;
   telemetry?: TelemetryConfig;
   search?: {
     hybrid?: boolean;
@@ -257,9 +263,37 @@ export class Orchestrator {
       opts.onEmbedProgress?.(0, sharedTotal);
       opts.onUploadProgress?.(0, sharedTotal);
 
+      // Build label pipeline: extension labels, CODEOWNERS, .virage-labels.json,
+      // global rules, per-chunker rules. Always active — extension labels are
+      // universally useful even when no explicit rules are configured.
+      const rootDir =
+        source instanceof CliGitSourceRepository
+          ? source.rootUri
+          : process.cwd();
+      const codeowners = await CodeownersResolver.fromDir(rootDir).catch(
+        () => null,
+      );
+      const globalRules = this.config.globalLabelRules;
+      const namespace = this.config.namespace;
+
+      const labelResolver = (filePath: string): Promise<string[]> => {
+        const info = currentState.get(filePath);
+        const chunkerEntry = info
+          ? this.config.chunkers.find((e) => e.chunker === info.chunker)
+          : undefined;
+        return resolveLabels(filePath, {
+          rootDir,
+          globalRules,
+          chunkerRules: chunkerEntry?.labels,
+          codeowners: codeowners ?? undefined,
+          namespace,
+        });
+      };
+
       const chunkProcessor = new ChunkProcessor(
         this.config.chunkers.map((e) => e.chunker),
         opts.logger,
+        { resolveLabels: labelResolver },
       );
       const embedder = new EmbedderProcessor(this.config.embedder, {
         rateLimitMs: opts.rateLimitMs,

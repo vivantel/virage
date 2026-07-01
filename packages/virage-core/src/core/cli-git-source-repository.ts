@@ -4,12 +4,24 @@ import path from "path";
 import type { Logger } from "../interfaces/logger.js";
 import { NullLogger } from "../logger/null-logger.js";
 import type { SourceRepository } from "../interfaces/source-repository.js";
+import type {
+  SourceProvider,
+  SourceItem,
+  SourceFilter,
+} from "../interfaces/source-provider.js";
+import { CodeownersResolver } from "./label-pipeline.js";
 
-export class CliGitSourceRepository implements SourceRepository {
+export class CliGitSourceRepository
+  implements SourceRepository, SourceProvider
+{
   private readonly git: SimpleGit;
   private readonly logger: Logger;
   private readonly excludePatterns: string[];
   readonly rootUri: string;
+  readonly name = "git";
+  readonly type = "git";
+
+  private _codeowners: CodeownersResolver | null | undefined = undefined;
 
   constructor(dir: string, logger?: Logger, excludePatterns?: string[]) {
     this.rootUri = dir;
@@ -22,6 +34,71 @@ export class CliGitSourceRepository implements SourceRepository {
     if (this.excludePatterns.length === 0) return false;
     const normalized = filePath.split(path.sep).join("/");
     return this.excludePatterns.some((p) => minimatch(normalized, p));
+  }
+
+  /** Returns the CODEOWNERS resolver for this repo (lazy-loaded, cached). */
+  async getCodeownersResolver(): Promise<CodeownersResolver | null> {
+    if (this._codeowners === undefined) {
+      this._codeowners = await CodeownersResolver.fromDir(this.rootUri);
+    }
+    return this._codeowners;
+  }
+
+  /** Returns CODEOWNERS-derived labels for a file (relative path, forward slashes). */
+  async getCodeownersLabels(filePath: string): Promise<string[]> {
+    const resolver = await this.getCodeownersResolver();
+    return resolver ? resolver.labelsForFile(filePath) : [];
+  }
+
+  /**
+   * Enumerate all tracked files in HEAD as SourceItems.
+   * Labels are pre-populated from CODEOWNERS for each file.
+   */
+  async *listAll(filter?: SourceFilter): AsyncIterable<SourceItem> {
+    const codeowners = await this.getCodeownersResolver();
+
+    // Get all tracked files via ls-tree
+    let treeOutput: string;
+    try {
+      treeOutput = await this.git.raw([
+        "ls-tree",
+        "-r",
+        "HEAD",
+        "--format=%(objectname) %(path)",
+      ]);
+    } catch {
+      return;
+    }
+
+    for (const line of treeOutput.trim().split("\n")) {
+      if (!line) continue;
+      const spaceIdx = line.indexOf(" ");
+      if (spaceIdx < 0) continue;
+      const blobSha = line.slice(0, spaceIdx);
+      const filePath = line.slice(spaceIdx + 1);
+
+      if (this.isExcluded(filePath)) continue;
+
+      const normalized = filePath.split(path.sep).join("/");
+
+      if (filter?.ignore?.some((p) => minimatch(normalized, p, { dot: true })))
+        continue;
+      if (
+        filter?.include &&
+        !filter.include.some((p) => minimatch(normalized, p, { dot: true }))
+      )
+        continue;
+
+      const labels = codeowners ? codeowners.labelsForFile(normalized) : [];
+
+      yield {
+        id: blobSha,
+        path: normalized,
+        providerName: "git",
+        labels,
+        meta: { blobSha },
+      };
+    }
   }
 
   async getCurrentRevision(): Promise<string> {

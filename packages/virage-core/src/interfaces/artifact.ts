@@ -58,6 +58,9 @@ export interface ChunkMeta {
   qualityScore?: number;
   truncated?: boolean;
 
+  // Labels — applied at index time by the label pipeline (path rules, CODEOWNERS, .virage-labels.json)
+  labels?: string[];
+
   // Downstream enrichment (Phase 5+)
   keywords?: string[];
   summary?: string;

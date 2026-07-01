@@ -417,9 +417,33 @@ export class LanceDBVectorStore implements VectorStore {
     const useHybrid =
       options?.hybrid === true && this.ftsIndexCreated && options.queryText;
 
+    const labelFilter = options?.labelFilter;
+
+    /** Post-retrieval predicate that checks both metadata filter and label filter. */
+    const postFilter = (r: VectorSearchResult): boolean => {
+      if (
+        filter &&
+        !Object.entries(filter).every(([k, v]) => r.metadata[k] === v)
+      ) {
+        return false;
+      }
+      if (labelFilter && labelFilter.length > 0) {
+        const chunkLabels = r.metadata["labels"] as string[] | undefined;
+        if (!chunkLabels || !labelFilter.some((l) => chunkLabels.includes(l))) {
+          return false;
+        }
+      }
+      return true;
+    };
+
+    const needsPostFilter =
+      !!filter || (!!labelFilter && labelFilter.length > 0);
+
     if (useHybrid) {
       const fetchLimit = topK * 2;
-      this.logger?.debug(`Hybrid search: topK=${topK}`);
+      this.logger?.debug(
+        `Hybrid search: topK=${topK} labelFilter=${JSON.stringify(labelFilter ?? null)}`,
+      );
       const [vectorResults, ftsResults] = await Promise.all([
         this.vectorSearchInternal(queryEmbedding, fetchLimit),
         this.ftsSearchInternal(options!.queryText!, fetchLimit),
@@ -430,28 +454,22 @@ export class LanceDBVectorStore implements VectorStore {
         topK,
         options?.hybridAlpha ?? 0.6,
       );
-      if (filter) {
-        merged = merged.filter((r) =>
-          Object.entries(filter).every(([k, v]) => r.metadata[k] === v),
-        );
+      if (needsPostFilter) {
+        merged = merged.filter(postFilter);
       }
       return merged.slice(0, topK);
     }
 
-    // Pure vector search path (original)
-    const fetchLimit = filter ? topK * 4 : topK;
+    // Pure vector search path
+    const fetchLimit = needsPostFilter ? topK * 4 : topK;
     this.logger?.debug(
-      `Search: topK=${topK} fetchLimit=${fetchLimit} filter=${JSON.stringify(filter ?? null)}`,
+      `Search: topK=${topK} fetchLimit=${fetchLimit} filter=${JSON.stringify(filter ?? null)} labelFilter=${JSON.stringify(labelFilter ?? null)}`,
     );
     const results = await this.vectorSearchInternal(queryEmbedding, fetchLimit);
 
-    if (!filter) return results;
+    if (!needsPostFilter) return results;
 
-    return results
-      .filter((r) =>
-        Object.entries(filter).every(([k, v]) => r.metadata[k] === v),
-      )
-      .slice(0, topK);
+    return results.filter(postFilter).slice(0, topK);
   }
 
   async readMeta(): Promise<VectorStoreMeta | null> {

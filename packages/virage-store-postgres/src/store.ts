@@ -220,9 +220,20 @@ export class PostgresVectorStore implements VectorStore {
     const alpha = options?.alpha ?? 0.85;
     const beta = options?.beta ?? 0.15;
     const useHybrid = options?.hybrid === true && options.queryText;
+    const labelFilter = options?.labelFilter;
     this.logger?.debug(
-      `Search: topK=${topK}, alpha=${alpha}, beta=${beta}, hybrid=${useHybrid ?? false}`,
+      `Search: topK=${topK}, alpha=${alpha}, beta=${beta}, hybrid=${useHybrid ?? false} labelFilter=${JSON.stringify(labelFilter ?? null)}`,
     );
+
+    const applyLabelFilter = (
+      results: VectorSearchResult[],
+    ): VectorSearchResult[] => {
+      if (!labelFilter || labelFilter.length === 0) return results;
+      return results.filter((r) => {
+        const chunkLabels = r.metadata["labels"] as string[] | undefined;
+        return chunkLabels && labelFilter.some((l) => chunkLabels.includes(l));
+      });
+    };
     const client = await this.pool.connect();
     try {
       await pgvector.registerTypes(client);
@@ -269,10 +280,12 @@ export class PostgresVectorStore implements VectorStore {
 
       if (!useHybrid) {
         const rows = await runVectorQuery();
-        return rows
-          .sort((a, b) => b._composite - a._composite)
-          .slice(0, topK)
-          .map(({ _composite: _, ...rest }) => rest);
+        return applyLabelFilter(
+          rows
+            .sort((a, b) => b._composite - a._composite)
+            .slice(0, topK)
+            .map(({ _composite: _, ...rest }) => rest),
+        );
       }
 
       const runFtsQuery = async (): Promise<VectorSearchResult[]> => {
@@ -314,11 +327,8 @@ export class PostgresVectorStore implements VectorStore {
         .sort((a, b) => b._composite - a._composite)
         .map(({ _composite: _, ...rest }) => rest);
 
-      return rrfMerge(
-        vectorResults,
-        ftsResults,
-        topK,
-        options?.hybridAlpha ?? 0.6,
+      return applyLabelFilter(
+        rrfMerge(vectorResults, ftsResults, topK, options?.hybridAlpha ?? 0.6),
       );
     } finally {
       client.release();

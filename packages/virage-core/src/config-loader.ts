@@ -17,6 +17,20 @@ import type { Logger } from "./interfaces/logger.js";
 
 // ─── JSON config types ────────────────────────────────────────────────────────
 
+interface JsonLabelRule {
+  /** Minimatch glob pattern (relative to source root). */
+  match: string;
+  /** Labels to add when the pattern matches. */
+  add: string[];
+}
+
+interface JsonChunkingFilter {
+  /** Global ignore patterns applied before routing files to any chunker. */
+  ignore?: string[];
+  /** Global label rules applied to every file's label set. */
+  labels?: JsonLabelRule[];
+}
+
 interface JsonChunkerConfig {
   /** npm package name for the chunker plugin (e.g. "@vivantel/virage-chunker-ce-md") */
   package: string;
@@ -26,12 +40,16 @@ interface JsonChunkerConfig {
   include?: string[];
   /** Glob patterns: files matching any of these are skipped for this chunker. */
   ignore?: string[];
+  /** Per-chunker label rules — merged with global rules at index time. */
+  labels?: JsonLabelRule[];
   /** Options forwarded to createChunker(). */
   options?: Record<string, unknown>;
 }
 
 interface JsonChunkingConfig {
   exclude?: string[];
+  /** Global filter: path ignores and label rules applied before any chunker runs. */
+  filter?: JsonChunkingFilter;
   chunkers: JsonChunkerConfig[];
 }
 
@@ -274,7 +292,12 @@ async function loadJsonConfig(
       const chunker = (
         factory as (opts?: Record<string, unknown>) => FileChunker
       )(ch.options ?? {});
-      return { chunker, include: ch.include, ignore: ch.ignore };
+      return {
+        chunker,
+        include: ch.include,
+        ignore: ch.ignore,
+        labels: ch.labels,
+      };
     }),
   );
 
@@ -326,12 +349,17 @@ async function loadJsonConfig(
     );
   }
 
+  const globalLabelRules = jsonConfig.chunking.filter?.labels;
+  const globalIgnore = jsonConfig.chunking.filter?.ignore ?? [];
+  const mergedExclude = [...excludePatterns, ...globalIgnore];
+
   return {
     chunkers,
     embedder,
     vectorStore,
     sourceRepository,
-    excludePatterns,
+    excludePatterns: mergedExclude,
+    globalLabelRules,
     telemetry: jsonConfig.telemetry,
     options: jsonConfig.options,
     search: {

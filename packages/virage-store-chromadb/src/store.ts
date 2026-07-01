@@ -229,12 +229,27 @@ export class ChromaVectorStore implements VectorStore {
     options?: SearchOptions,
   ): Promise<VectorSearchResult[]> {
     const useHybrid = options?.hybrid === true && options.queryText;
-    this.logger?.debug(`Search: topK=${topK} hybrid=${useHybrid ?? false}`);
+    const labelFilter = options?.labelFilter;
+    this.logger?.debug(
+      `Search: topK=${topK} hybrid=${useHybrid ?? false} labelFilter=${JSON.stringify(labelFilter ?? null)}`,
+    );
+
+    const applyLabelFilter = (
+      results: VectorSearchResult[],
+    ): VectorSearchResult[] => {
+      if (!labelFilter || labelFilter.length === 0) return results;
+      return results.filter((r) => {
+        const chunkLabels = r.metadata["labels"] as string[] | undefined;
+        return chunkLabels && labelFilter.some((l) => chunkLabels.includes(l));
+      });
+    };
+
+    const fetchLimit = labelFilter && labelFilter.length > 0 ? topK * 4 : topK;
 
     if (useHybrid) {
       await this.buildMiniSearchIfStale();
       const [vectorResults, miniRaw] = await Promise.all([
-        this.vectorSearchInternal(queryEmbedding, topK * 2),
+        this.vectorSearchInternal(queryEmbedding, fetchLimit),
         Promise.resolve(
           this.miniSearch!.search(options!.queryText!, {
             prefix: true,
@@ -244,7 +259,7 @@ export class ChromaVectorStore implements VectorStore {
       ]);
       const maxScore = miniRaw[0]?.score ?? 1;
       const bm25Results: VectorSearchResult[] = miniRaw
-        .slice(0, topK * 2)
+        .slice(0, fetchLimit)
         .map((r) => ({
           id: r.id as string,
           denseText: "",
@@ -252,14 +267,13 @@ export class ChromaVectorStore implements VectorStore {
           metadata: {},
           similarity: r.score / maxScore,
         }));
-      return rrfMerge(
-        vectorResults,
-        bm25Results,
-        topK,
-        options?.hybridAlpha ?? 0.6,
-      );
+      return applyLabelFilter(
+        rrfMerge(vectorResults, bm25Results, topK, options?.hybridAlpha ?? 0.6),
+      ).slice(0, topK);
     }
 
-    return this.vectorSearchInternal(queryEmbedding, topK);
+    return applyLabelFilter(
+      await this.vectorSearchInternal(queryEmbedding, fetchLimit),
+    ).slice(0, topK);
   }
 }

@@ -190,7 +190,20 @@ export class QdrantVectorStore implements VectorStore {
     options?: SearchOptions,
   ): Promise<VectorSearchResult[]> {
     const useHybrid = options?.hybrid === true && options.queryText;
-    this.logger?.debug(`Search: topK=${topK} hybrid=${useHybrid ?? false}`);
+    const labelFilter = options?.labelFilter;
+    this.logger?.debug(
+      `Search: topK=${topK} hybrid=${useHybrid ?? false} labelFilter=${JSON.stringify(labelFilter ?? null)}`,
+    );
+
+    const applyLabelFilter = (
+      results: VectorSearchResult[],
+    ): VectorSearchResult[] => {
+      if (!labelFilter || labelFilter.length === 0) return results;
+      return results.filter((r) => {
+        const chunkLabels = r.metadata["labels"] as string[] | undefined;
+        return chunkLabels && labelFilter.some((l) => chunkLabels.includes(l));
+      });
+    };
 
     if (useHybrid) {
       const fetchLimit = topK * 2;
@@ -221,21 +234,26 @@ export class QdrantVectorStore implements VectorStore {
         }),
       );
 
-      return rrfMerge(
+      const merged = rrfMerge(
         vectorMapped,
         textMapped,
         topK,
         options?.hybridAlpha ?? 0.6,
       );
+      return applyLabelFilter(merged).slice(0, topK);
     }
 
+    const fetchLimit = labelFilter && labelFilter.length > 0 ? topK * 4 : topK;
     const results = await this.client.search(this.collection, {
       vector: queryEmbedding,
-      limit: topK,
+      limit: fetchLimit,
       with_payload: true,
     });
 
-    return results.map((r) => this.payloadToResult(r));
+    return applyLabelFilter(results.map((r) => this.payloadToResult(r))).slice(
+      0,
+      topK,
+    );
   }
 
   async getIndexStats(): Promise<IndexStats> {

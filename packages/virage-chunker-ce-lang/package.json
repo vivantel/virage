@@ -1,0 +1,56 @@
+{
+  "name": "@vivantel/virage-chunker-ce-lang",
+  "version": "0.1.0",
+  "description": "Multi-language code chunker for Virage — tree-sitter CST → ViDoc AST (Rust, native)",
+  "type": "module",
+  "main": "./dist/index.js",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "files": [
+    "dist",
+    "npm",
+    "*.node"
+  ],
+  "scripts": {
+    "build": "tsc --build",
+    "build:native": "napi build --release --platform",
+    "type-check": "tsc --build --noEmit",
+    "test": "vitest run",
+    "prepublishOnly": "npm run build"
+  },
+  "peerDependencies": {
+    "@vivantel/virage-core": ">=0.2",
+    "@vivantel/virage-chunker-ce-ast": ">=0.1"
+  },
+  "dependencies": {
+    "minimatch": "^10.0.0"
+  },
+  "optionalDependencies": {
+    "@vivantel/virage-chunker-ce-lang-linux-x64-gnu": "0.1.0",
+    "@vivantel/virage-chunker-ce-lang-linux-arm64-gnu": "0.1.0",
+    "@vivantel/virage-chunker-ce-lang-darwin-x64": "0.1.0",
+    "@vivantel/virage-chunker-ce-lang-darwin-arm64": "0.1.0",
+    "@vivantel/virage-chunker-ce-lang-win32-x64-msvc": "0.1.0"
+  },
+  "rag-plugin": {
+    "type": "chunker",
+    "label": "Code (tree-sitter — multi-language)",
+    "key": "code-lang",
+    "defaultConfig": {
+      "maxTokens": 512
+    }
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "license": "MIT OR Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/vivantel/virage.git",
+    "directory": "packages/virage-chunker-ce-lang"
+  }
+}

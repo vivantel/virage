@@ -6,6 +6,7 @@ members = [
   "packages/virage-chunker-ce-md",
   "packages/virage-chunker-ce-docx",
   "packages/virage-chunker-ce-latex",
+  "packages/virage-chunker-ce-lang",
 ]
 
 [workspace.dependencies]

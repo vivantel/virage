@@ -82,9 +82,22 @@ export interface FileChunker {
 }
 
 /**
- * Wraps a FileChunker with optional pipeline-level path filters.
+ * A path-glob → label mapping rule applied by the index-time label pipeline.
+ * Files matching `match` (minimatch, relative to source root) get `add` appended
+ * to their `ChunkMeta.labels`.
+ */
+export interface LabelRule {
+  /** Minimatch glob pattern (relative to source root, e.g. "src/payments/**"). */
+  match: string;
+  /** Labels to add when the pattern matches (e.g. ["team:payments", "pci-scope"]). */
+  add: string[];
+}
+
+/**
+ * Wraps a FileChunker with optional pipeline-level path filters and label rules.
  * `include` and `ignore` are applied by virage-core before routing any file
  * to the chunker; they are independent of the package's built-in `patterns`.
+ * `labels` rules are applied per-chunk after chunking, merging with global rules.
  */
 export interface ChunkerEntry {
   chunker: FileChunker;
@@ -92,6 +105,8 @@ export interface ChunkerEntry {
   include?: string[];
   /** If set, files matching any of these globs are skipped for this chunker. */
   ignore?: string[];
+  /** Per-chunker label rules — merged with global label rules at index time. */
+  labels?: LabelRule[];
 }
 
 export interface ChunkTransformer {

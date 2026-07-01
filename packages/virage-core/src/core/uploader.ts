@@ -33,6 +33,7 @@ export class Uploader {
     chunk: EmbeddedChunk,
     collection?: string,
   ): VectorDocument {
+    const meta = chunk.metadata as unknown as Record<string, unknown>;
     return {
       id: chunk.denseTextHash,
       denseText: chunk.denseText,
@@ -40,7 +41,10 @@ export class Uploader {
       denseTextHash: chunk.denseTextHash,
       sparseTextGeneratorId: chunk.sparseTextGeneratorId,
       metadataGeneratorId: chunk.metadataGeneratorId,
-      metadata: chunk.metadata as unknown as Record<string, unknown>,
+      metadata: meta,
+      labels: Array.isArray(meta["labels"])
+        ? (meta["labels"] as string[])
+        : undefined,
       denseVector: chunk.denseVector,
       sourceFile: chunk.sourceFile,
       commitHash: chunk.commitHash,

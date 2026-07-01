@@ -6,4 +6,5 @@ export * from "./quality.js";
 export * from "./logger.js";
 export * from "./reranker.js";
 export * from "./source-repository.js";
+export * from "./source-provider.js";
 export * from "./suite.js";

@@ -11,13 +11,29 @@ function makeGeneratorId(name: string, version: string, role: string): string {
     .slice(0, 16);
 }
 
+export interface ChunkProcessorOptions {
+  /**
+   * Optional async callback invoked per file to resolve index-time labels.
+   * Receives the normalized file path and returns the label set to inject into
+   * every chunk produced from that file (merged with any labels already set by
+   * the chunker itself).
+   */
+  resolveLabels?: (filePath: string) => Promise<string[]>;
+}
+
 export class ChunkProcessor {
   private chunkers: Map<string, FileChunker>;
   private logger: Logger;
+  private resolveLabels?: (filePath: string) => Promise<string[]>;
 
-  constructor(chunkers: FileChunker[], logger?: Logger) {
+  constructor(
+    chunkers: FileChunker[],
+    logger?: Logger,
+    opts?: ChunkProcessorOptions,
+  ) {
     this.chunkers = new Map(chunkers.map((c) => [c.name, c]));
     this.logger = (logger ?? new NullLogger()).withTag("chunks");
+    this.resolveLabels = opts?.resolveLabels;
   }
 
   async processFile(
@@ -27,6 +43,16 @@ export class ChunkProcessor {
   ): Promise<Chunk[]> {
     const normalizedPath = filePath.replace(/\\/g, "/");
     const chunks = await chunker.chunk(normalizedPath, commitHash);
+
+    // Resolve labels for this file once and inject into every chunk.
+    let fileLabels: string[] | undefined;
+    if (this.resolveLabels && chunks.length > 0) {
+      try {
+        fileLabels = await this.resolveLabels(normalizedPath);
+      } catch {
+        // Label resolution failures are non-fatal
+      }
+    }
 
     for (const chunk of chunks) {
       chunk.sourceFile = normalizedPath;
@@ -58,6 +84,17 @@ export class ChunkProcessor {
           chunker.version ?? "0.0.0",
           "meta",
         );
+      }
+      // Inject labels: merge pipeline-resolved labels with any already set by the chunker.
+      if (fileLabels && fileLabels.length > 0) {
+        const meta = chunk.metadata as unknown as Record<string, unknown>;
+        const existing = meta?.["labels"] as string[] | undefined;
+        const merged = existing
+          ? [...new Set([...existing, ...fileLabels])]
+          : [...fileLabels];
+        if (meta) {
+          meta["labels"] = merged;
+        }
       }
     }
 

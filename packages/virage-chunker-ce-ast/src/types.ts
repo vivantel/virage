@@ -73,6 +73,8 @@ export interface FilterMeta {
   fileHash?: string;
   fileModifiedAt?: string;
   fileSizeBytes?: number;
+  /** Labels applied by the index-time label pipeline (path rules, CODEOWNERS, .virage-labels.json). */
+  labels?: string[];
 }
 
 /**
