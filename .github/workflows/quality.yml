@@ -103,6 +103,12 @@ jobs:
             echo "> ⚠️ Quality report not generated." >> $GITHUB_STEP_SUMMARY
           fi
 
+      # benchmark-action/github-action-benchmark switches to gh-pages, which git
+      # refuses if npm install modified virage-runner/package.json (a tracked file).
+      - name: Restore tracked files before gh-pages switch
+        if: always()
+        run: git checkout -- virage-runner/ 2>/dev/null || true
+
       # ── Benchmark charts (benchmark-action/github-action-benchmark) ────────
       # Reads benchmark-data.json written by `virage quality --history`
       # Pushes results to gh-pages branch → generates charts at
