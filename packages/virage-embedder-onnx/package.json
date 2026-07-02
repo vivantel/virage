@@ -19,6 +19,7 @@
     "build": "tsc --build",
     "build:native": "napi build --release --platform",
     "type-check": "tsc --build --noEmit",
+    "test": "vitest run",
     "prepublishOnly": "npm run build"
   },
   "peerDependencies": {

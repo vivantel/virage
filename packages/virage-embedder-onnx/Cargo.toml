@@ -12,13 +12,17 @@ crate-type = ["cdylib"]
 napi        = { workspace = true }
 napi-derive = { workspace = true }
 
-# ONNX Runtime — "download-binaries" fetches the ORT C API at build time and
-# links it statically, producing a self-contained .node binary with no
-# runtime dependency on a system ORT installation.
-ort         = { version = "2.0.0-rc.12", features = ["download-binaries"] }
+# ort uses load-dynamic by default so `cargo test` links without a system ORT.
+# Production CI builds pass --features download-binaries (see release.yaml)
+# which fetches the ORT static library at build time → self-contained .node.
+ort         = { version = "2.0.0-rc.12", features = ["load-dynamic"] }
 
 # HuggingFace tokenizers — full Rust implementation, no subprocess
 tokenizers  = { version = "0.21", default-features = false, features = ["onig"] }
+
+[features]
+# Activated during CI `napi build --features download-binaries`
+download-binaries = ["ort/download-binaries"]
 
 [build-dependencies]
 napi-build = "2"

@@ -135,7 +135,8 @@ jobs:
         if: matrix.use-cross == true
         run: |
           cd packages/${{ matrix.package }}
-          npx napi build --release --target ${{ matrix.target }}
+          extra_features=$([[ "${{ matrix.package }}" == "virage-embedder-onnx" ]] && echo "--features download-binaries" || echo "")
+          npx napi build --release --target ${{ matrix.target }} $extra_features
         env:
           CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
 
@@ -143,7 +144,8 @@ jobs:
         if: matrix.use-cross != true
         run: |
           cd packages/${{ matrix.package }}
-          npx napi build --release --target ${{ matrix.target }}
+          extra_features=$([[ "${{ matrix.package }}" == "virage-embedder-onnx" ]] && echo "--features download-binaries" || echo "")
+          npx napi build --release --target ${{ matrix.target }} $extra_features
         env:
           RUSTFLAGS: ${{ matrix.rust-flags }}
 
