@@ -108,6 +108,12 @@ export class ChromaVectorStore implements VectorStore {
     });
   }
 
+  async existingHashes(hashes: string[]): Promise<string[]> {
+    if (hashes.length === 0) return [];
+    const result = await this.collection.get({ ids: hashes, include: [] });
+    return result.ids;
+  }
+
   async getCurrentState(): Promise<Map<string, string>> {
     const state = new Map<string, string>();
     let offset = 0;

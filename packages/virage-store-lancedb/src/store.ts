@@ -226,6 +226,18 @@ export class LanceDBVectorStore implements VectorStore {
     await this.table.delete(`source_file IN (${list})`);
   }
 
+  async existingHashes(hashes: string[]): Promise<string[]> {
+    if (hashes.length === 0) return [];
+    const escaped = hashes.map((h) => h.replace(/'/g, "''"));
+    const list = escaped.map((h) => `'${h}'`).join(", ");
+    const rows = (await this.table
+      .query()
+      .select(["id"])
+      .where(`id IN (${list})`)
+      .toArray()) as Record<string, unknown>[];
+    return rows.map((r) => r.id as string);
+  }
+
   async getCurrentState(): Promise<Map<string, string>> {
     const rows = await this.table
       .query()

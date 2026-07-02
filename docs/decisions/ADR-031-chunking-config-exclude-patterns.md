@@ -15,7 +15,7 @@ A related issue: `CliGitSourceRepository` included changed and pending files reg
 
 Introduce a `chunking` wrapper object in the config schema that groups:
 - `chunkers` — the existing array of chunker definitions (now nested)
-- `exclude` — a new optional `string[]` of glob patterns excluded from all chunkers globally
+- `ignore` — a `string[]` of glob patterns excluded from all chunkers globally (originally named `exclude`; renamed to `ignore` in v0.3.6 for consistency with `chunking.filter.ignore` and per-chunker `ignore`)
 
 **Backward compatibility**: configs with `chunkers` at the root are promoted to `chunking.chunkers` at load time by `normalizeConfig()` — before JSON Schema validation runs — so no consumer migration is required.
 

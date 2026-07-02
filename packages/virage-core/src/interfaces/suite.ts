@@ -71,7 +71,7 @@ export interface EvalSuite {
    */
   chunkers?: Record<string, string>;
   /**
-   * Global virage chunking.exclude patterns applied before any chunker runs
+   * Global virage chunking.ignore patterns applied before any chunker runs
    * (binary files, lock files, generated files).
    */
   exclude?: string[];

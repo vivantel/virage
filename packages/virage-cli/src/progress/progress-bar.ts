@@ -23,6 +23,7 @@ interface BarState {
 }
 
 function fmtTime(seconds: number): string {
+  if (seconds === 0) return "0s";
   if (!isFinite(seconds) || isNaN(seconds) || seconds <= 0) return "?";
   if (seconds > 3600)
     return `${Math.floor(seconds / 3600)}h${Math.floor((seconds % 3600) / 60)}m`;
@@ -92,6 +93,7 @@ export class PipelineRenderer {
 
   private filesDone = 0;
   private filesTotal = 0;
+  private embedSkipped = 0;
 
   constructor() {
     if (process.stdout.isTTY) {
@@ -191,6 +193,11 @@ export class PipelineRenderer {
   updateFileIndexed(done: number, total: number): void {
     this.filesDone = done;
     this.filesTotal = total;
+    this.dirty = true;
+  }
+
+  updateSkipped(skipped: number): void {
+    this.embedSkipped = skipped;
     this.dirty = true;
   }
 
@@ -362,14 +369,19 @@ export class PipelineRenderer {
       this.buildBarRow(label, this.bars[key]),
     );
 
-    // Footer: files indexed (upload completion) + elapsed + ETA
+    // Footer: files indexed (upload completion) + skipped + elapsed + ETA
     const filesDone = this.filesDone;
     const filesTotal = this.filesTotal || this.bars.chunk.total;
     const etaMs = this.calcPipelineEta(elapsed);
     const dim = ansi.dim;
     const rst = ansi.reset;
+    const skippedPart =
+      this.embedSkipped > 0
+        ? `  ${dim}│${rst}  ${dim}Skipped:${rst} ${ansi.green}${this.embedSkipped}${ansi.reset} ${dim}(cached)${rst}`
+        : "";
     const footer =
       `${dim}Files indexed:${rst} ${filesDone}/${filesTotal}` +
+      skippedPart +
       `  ${dim}│${rst}  ` +
       `${dim}Elapsed:${rst} ${fmtTime(elapsed / 1000)}` +
       `  ${dim}│${rst}  ` +

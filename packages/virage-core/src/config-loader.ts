@@ -47,7 +47,8 @@ interface JsonChunkerConfig {
 }
 
 interface JsonChunkingConfig {
-  exclude?: string[];
+  /** Global ignore patterns — files matching any of these are skipped by all chunkers. */
+  ignore?: string[];
   /** Global filter: path ignores and label rules applied before any chunker runs. */
   filter?: JsonChunkingFilter;
   chunkers: JsonChunkerConfig[];
@@ -136,15 +137,13 @@ function validateJsonConfig(raw: unknown): asserts raw is JsonRagConfig {
       '"chunking.chunkers" must be a non-empty array in virage.config.json',
     );
   }
-  if (chunking.exclude !== undefined && !Array.isArray(chunking.exclude)) {
-    throw new ConfigError(
-      '"chunking.exclude" must be an array of glob strings',
-    );
+  if (chunking.ignore !== undefined && !Array.isArray(chunking.ignore)) {
+    throw new ConfigError('"chunking.ignore" must be an array of glob strings');
   }
-  if (Array.isArray(chunking.exclude)) {
-    for (let i = 0; i < chunking.exclude.length; i++) {
-      if (typeof chunking.exclude[i] !== "string") {
-        throw new ConfigError(`chunking.exclude[${i}] must be a string`);
+  if (Array.isArray(chunking.ignore)) {
+    for (let i = 0; i < chunking.ignore.length; i++) {
+      if (typeof chunking.ignore[i] !== "string") {
+        throw new ConfigError(`chunking.ignore[${i}] must be a string`);
       }
     }
   }
@@ -263,7 +262,7 @@ async function loadJsonConfig(
   validateJsonConfig(raw);
   const jsonConfig = raw as JsonRagConfig;
 
-  const excludePatterns = jsonConfig.chunking.exclude ?? [];
+  const excludePatterns = jsonConfig.chunking.ignore ?? [];
 
   const chunkers: ChunkerEntry[] = await Promise.all(
     jsonConfig.chunking.chunkers.map(async (ch) => {

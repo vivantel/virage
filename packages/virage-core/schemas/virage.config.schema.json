@@ -16,10 +16,27 @@
       "additionalProperties": false,
       "description": "Chunking configuration: global file exclusions and per-chunker rules.",
       "properties": {
-        "exclude": {
+        "ignore": {
           "type": "array",
           "items": { "type": "string" },
           "description": "Glob patterns for files to exclude globally from all chunkers (e.g. '**/vendor/**', '**/*.min.js')."
+        },
+        "filter": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "Global filter: path ignores and label rules applied before any chunker runs.",
+          "properties": {
+            "ignore": {
+              "type": "array",
+              "items": { "type": "string" },
+              "description": "Additional global ignore patterns (merged with top-level chunking.ignore)."
+            },
+            "labels": {
+              "type": "array",
+              "items": { "$ref": "#/$defs/labelRule" },
+              "description": "Global label rules applied to every file's label set."
+            }
+          }
         },
         "chunkers": {
           "type": "array",
@@ -172,6 +189,22 @@
     }
   },
   "$defs": {
+    "labelRule": {
+      "type": "object",
+      "required": ["match", "add"],
+      "additionalProperties": false,
+      "properties": {
+        "match": {
+          "type": "string",
+          "description": "Minimatch glob pattern (relative to source root)."
+        },
+        "add": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Labels to add when the pattern matches."
+        }
+      }
+    },
     "chunkerItem": {
       "type": "object",
       "required": ["package"],
@@ -195,6 +228,11 @@
           "type": "array",
           "items": { "type": "string" },
           "description": "Glob patterns for files this chunker should skip (e.g. ['CHANGELOG.md']). Applied before the chunker's built-in patterns."
+        },
+        "labels": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/labelRule" },
+          "description": "Per-chunker label rules — merged with global rules at index time."
         },
         "options": {
           "type": "object",

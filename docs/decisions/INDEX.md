@@ -32,7 +32,7 @@
 | ADR-028 | Branch-aware RAG | Accepted | Single DB with branch metadata tagging; per-file dirty detection; `virage query` CLI; `virage install-hooks` | [ADR-028](./ADR-028-branch-aware-rag.md) |
 | ADR-029 | No native subagents for skills | Accepted | Keep static `.md` skill model for all 4 agents; vendor parity over Claude-only subagent dispatch | [ADR-029](./ADR-029-no-native-subagents-skills.md) |
 | ADR-030 | Semver ranges in peerDependencies | Accepted | Published packages declare virage deps as `peerDependencies` with `>=X.Y.Z <X.(Y+1).0` | [ADR-030](./ADR-030-semver-ranges-peer-dependencies.md) |
-| ADR-031 | chunking config section + exclude patterns | Accepted | `chunking.exclude` global glob patterns; `normalizeConfig()` backward compat; `DEFAULT_EXCLUDE_PATTERNS` | [ADR-031](./ADR-031-chunking-config-exclude-patterns.md) |
+| ADR-031 | chunking config section + ignore patterns | Accepted | `chunking.ignore` global glob patterns (renamed from `exclude` in v0.3.6); `normalizeConfig()` backward compat; `DEFAULT_EXCLUDE_PATTERNS` | [ADR-031](./ADR-031-chunking-config-exclude-patterns.md) |
 | ADR-032 | Scanning/chunking performance | Accepted | Parallel untracked hashing; `withConcurrency` chunking; `~/.virage/models` global cache; CUDA support | [ADR-032](./ADR-032-scanning-chunking-performance.md) |
 | ADR-033 | file_revisions table | Accepted | `file_revisions` SQLite table tracks zero-chunk files so they aren't re-processed | [ADR-033](./ADR-033-file-revisions-zero-chunk-tracking.md) |
 | ADR-034 | Sigmoid score calibration | Accepted | `sigmoid(logit)` replaces min-max normalization; `rerankOversample` default 5; `minScore` threshold | [ADR-034](./ADR-034-sigmoid-score-calibration.md) |

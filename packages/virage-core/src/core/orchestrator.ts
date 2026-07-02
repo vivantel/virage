@@ -76,6 +76,7 @@ export interface RAGPipelineConfig {
     onEmbedProgress?: (done: number, total: number) => void;
     onUploadProgress?: (done: number, total: number) => void;
     onFileComplete?: (done: number, total: number) => void;
+    onSkipProgress?: (skipped: number) => void;
   };
   quality?: QualityConfig;
 }
@@ -323,6 +324,7 @@ export class Orchestrator {
 
       let chunksGenerated = 0;
       let chunksEmbedded = 0;
+      let totalSkipped = 0;
       const t2 = Date.now();
 
       let filesIndexed = 0;
@@ -343,6 +345,9 @@ export class Orchestrator {
         const limit = all ? pendingEmbed.length : minEmbedBatch;
         while (pendingEmbed.length >= (all ? 1 : minEmbedBatch)) {
           const batch = pendingEmbed.splice(0, limit);
+          logger.debug(
+            `[embed] ${batch.length} chunk(s) → ${this.config.embedder.name}`,
+          );
           const embedded = await embedder.embedChunks(batch);
           const embeddedAt = Math.floor(Date.now() / 1000);
           for (const chunk of embedded) {
@@ -404,10 +409,32 @@ export class Orchestrator {
           try {
             filesStreamed++;
             db.replaceChunks(file, capturedChunks, info?.commitHash);
-            const alreadyEmbedded = db.getEmbeddedDenseTextHashes(file);
+
+            // Check which hashes already exist in the vector store — skip re-embedding.
+            // Batch size is 2× minEmbedBatch to amortise the round-trip cost.
+            const hashCheckBatchSize = minEmbedBatch * 2;
+            const existingSet = new Set<string>();
+            if (typeof this.config.vectorStore.existingHashes === "function") {
+              const hashes = capturedChunks.map((c) => c.denseTextHash);
+              for (let i = 0; i < hashes.length; i += hashCheckBatchSize) {
+                const slice = hashes.slice(i, i + hashCheckBatchSize);
+                const found =
+                  await this.config.vectorStore.existingHashes(slice);
+                for (const h of found) existingSet.add(h);
+              }
+            } else {
+              // Fallback: SQLite in-session check (no cross-run caching)
+              const alreadyEmbedded = db.getEmbeddedDenseTextHashes(file);
+              for (const h of alreadyEmbedded) existingSet.add(h);
+            }
+
             const chunksToEmbed = capturedChunks.filter(
-              (c) => !alreadyEmbedded.has(c.denseTextHash),
+              (c) => !existingSet.has(c.denseTextHash),
             );
+            const fileSkipped = capturedChunks.length - chunksToEmbed.length;
+            totalSkipped += fileSkipped;
+            if (fileSkipped > 0) opts.onSkipProgress?.(totalSkipped);
+
             pendingEmbed.push(...chunksToEmbed);
             embedTotal += chunksToEmbed.length;
             chunksGenerated += chunksToEmbed.length;
@@ -477,10 +504,14 @@ export class Orchestrator {
         });
       }
 
+      logger.info(
+        `📦 Embedded ${chunksEmbedded} chunk(s)` +
+          (totalSkipped > 0 ? `, skipped ${totalSkipped} (cached)` : ""),
+      );
       telemetry?.recordEmbedding({
         durationMs: embedDuration,
         chunksEmbedded,
-        chunksSkipped: 0,
+        chunksSkipped: totalSkipped,
       });
 
       if (!opts.skipUpload && !opts.dryRun) {

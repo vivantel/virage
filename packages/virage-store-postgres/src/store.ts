@@ -178,6 +178,15 @@ export class PostgresVectorStore implements VectorStore {
     );
   }
 
+  async existingHashes(hashes: string[]): Promise<string[]> {
+    if (hashes.length === 0) return [];
+    const { rows } = await this.pool.query<{ id: string }>(
+      `SELECT id FROM ${this.table} WHERE id = ANY($1::text[])`,
+      [hashes],
+    );
+    return rows.map((r) => r.id);
+  }
+
   async getCurrentState(): Promise<Map<string, string>> {
     const { rows } = await this.pool.query<{
       source_file: string;

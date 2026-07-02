@@ -160,6 +160,7 @@ async function runOnce(options: {
         onUploadProgress: (done, total) => renderer.updateUpload(done, total),
         onFileComplete: (done, total) =>
           renderer.updateFileIndexed(done, total),
+        onSkipProgress: (skipped) => renderer.updateSkipped(skipped),
       },
     });
     const result = await orchestrator.run();

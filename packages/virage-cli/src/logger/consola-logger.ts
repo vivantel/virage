@@ -22,7 +22,10 @@ export class ConsolaLogger implements Logger {
   static create(verbosity: number): ConsolaLogger {
     const level =
       VERBOSITY_LEVELS[Math.min(verbosity, VERBOSITY_LEVELS.length - 1)];
-    const instance = createConsola({ level });
+    const instance = createConsola({
+      level,
+      formatOptions: { date: verbosity >= 2 },
+    });
 
     // FancyReporter.formatLogObj captures `new Error().stack` for trace-type
     // logs and renders it. Patch formatStack to strip consola internals and the

@@ -155,6 +155,13 @@ export interface VectorStore {
   /** Optional: write embedder metadata alongside the index */
   writeMeta?(meta: VectorStoreMeta): Promise<void>;
 
+  /**
+   * Optional: check which of the given denseTextHash values already exist in the store.
+   * Used by the orchestrator to skip re-embedding unchanged chunks across runs.
+   * Returns the subset of hashes that are already stored.
+   */
+  existingHashes?(hashes: string[]): Promise<string[]>;
+
   /** Optional: list all stored documents (without vectors by default for efficiency) */
   listAll?(opts?: {
     limit?: number;

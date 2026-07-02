@@ -221,7 +221,7 @@ Packages with `.tsx` files: `virage-dashboard`. Add to this list if new packages
 | Import extensions | `.js` (required even for `.ts` files) |
 | TypeScript target | ES2022 |
 | Build output | `dist/` (gitignored) |
-| Config format | JSON (`virage.config.json`); `chunking.{exclude,chunkers}` structure; `${ENV_VAR}` expansion |
+| Config format | JSON (`virage.config.json`); `chunking.{ignore,filter,chunkers}` structure; `${ENV_VAR}` expansion |
 
 **Pipeline stages** (in order):
 

@@ -127,6 +127,16 @@ export class QdrantVectorStore implements VectorStore {
     });
   }
 
+  async existingHashes(hashes: string[]): Promise<string[]> {
+    if (hashes.length === 0) return [];
+    const points = await this.client.retrieve(this.collection, {
+      ids: hashes,
+      with_vector: false,
+      with_payload: false,
+    });
+    return points.map((p) => String(p.id));
+  }
+
   async getCurrentState(): Promise<Map<string, string>> {
     const state = new Map<string, string>();
     let offset: string | number | undefined;
