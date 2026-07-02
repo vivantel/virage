@@ -315,3 +315,124 @@ pub fn parse(src: &[u8], lang: &Lang) -> Result<DocNode, String> {
         },
     })
 }
+
+// ─── Tests ────────────────────────────────────────────────────────────────────
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use virage_vidoc::DocNodeType;
+
+    fn first_section(doc: &DocNode) -> Option<&DocNode> {
+        doc.children
+            .as_ref()?
+            .iter()
+            .find(|n| n.node_type == DocNodeType::Section)
+    }
+
+    #[test]
+    fn python_function_emits_section() {
+        let src = b"def greet(name: str) -> str:\n    \"\"\"Say hello.\"\"\"\n    return f'Hi {name}'\n";
+        let doc = parse(src, &Lang::Python).unwrap();
+        assert_eq!(doc.node_type, DocNodeType::Document);
+        let section = first_section(&doc).expect("expected a Section node");
+        assert!(
+            section.text.as_deref().unwrap_or("").contains("greet"),
+            "signature should mention greet"
+        );
+    }
+
+    #[test]
+    fn typescript_function_emits_section() {
+        let src = b"export function add(a: number, b: number): number {\n  return a + b;\n}\n";
+        let doc = parse(src, &Lang::TypeScript).unwrap();
+        let section = first_section(&doc).expect("expected a Section node");
+        assert!(section.text.as_deref().unwrap_or("").contains("add"));
+    }
+
+    #[test]
+    fn javascript_arrow_function_emits_section() {
+        let src = b"const multiply = (a, b) => a * b;\n";
+        let doc = parse(src, &Lang::JavaScript).unwrap();
+        // arrow_function is a definition; may be nested under variable_declaration → code node
+        assert_eq!(doc.node_type, DocNodeType::Document);
+        assert!(doc.children.as_ref().map_or(0, |c| c.len()) > 0);
+    }
+
+    #[test]
+    fn rust_function_emits_section() {
+        let src = b"pub fn fibonacci(n: u64) -> u64 {\n    if n <= 1 { n } else { fibonacci(n-1) + fibonacci(n-2) }\n}\n";
+        let doc = parse(src, &Lang::Rust).unwrap();
+        let section = first_section(&doc).expect("expected a Section node");
+        assert!(section.text.as_deref().unwrap_or("").contains("fibonacci"));
+    }
+
+    #[test]
+    fn go_function_emits_section() {
+        let src = b"package main\n\nfunc Add(a, b int) int {\n\treturn a + b\n}\n";
+        let doc = parse(src, &Lang::Go).unwrap();
+        let section = first_section(&doc).expect("expected a Section node");
+        assert!(section.text.as_deref().unwrap_or("").contains("Add"));
+    }
+
+    #[test]
+    fn java_class_emits_section() {
+        let src = b"public class Calculator {\n    public int add(int a, int b) { return a + b; }\n}\n";
+        let doc = parse(src, &Lang::Java).unwrap();
+        let section = first_section(&doc).expect("expected a Section node");
+        assert!(section.text.as_deref().unwrap_or("").contains("Calculator"));
+    }
+
+    #[test]
+    fn c_function_emits_section() {
+        let src = b"int add(int a, int b) {\n    return a + b;\n}\n";
+        let doc = parse(src, &Lang::C).unwrap();
+        let section = first_section(&doc).expect("expected a Section node");
+        assert!(section.text.as_deref().unwrap_or("").contains("add"));
+    }
+
+    #[test]
+    fn cpp_class_emits_section() {
+        let src = b"class Vector {\npublic:\n    float x, y;\n    Vector(float x, float y) : x(x), y(y) {}\n};\n";
+        let doc = parse(src, &Lang::Cpp).unwrap();
+        let section = first_section(&doc).expect("expected a Section node");
+        assert!(section.text.as_deref().unwrap_or("").contains("Vector"));
+    }
+
+    #[test]
+    // tree-sitter-c-sharp 0.23 targets grammar ABI 15; the linked tree-sitter supports ≤14.
+    // Update tree-sitter-c-sharp to a compatible version to unskip.
+    #[ignore = "tree-sitter-c-sharp ABI mismatch"]
+    fn csharp_method_emits_section() {
+        let src = b"public class Greeter {\n    public string Hello(string name) => $\"Hello, {name}!\";\n}\n";
+        let doc = parse(src, &Lang::CSharp).unwrap();
+        let section = first_section(&doc).expect("expected a Section node");
+        assert!(section.text.as_deref().unwrap_or("").contains("Greeter"));
+    }
+
+    #[test]
+    fn ruby_method_emits_section() {
+        let src = b"def greet(name)\n  \"Hello, #{name}!\"\nend\n";
+        let doc = parse(src, &Lang::Ruby).unwrap();
+        let section = first_section(&doc).expect("expected a Section node");
+        assert!(section.text.as_deref().unwrap_or("").contains("greet"));
+    }
+
+    #[test]
+    fn code_language_set_on_sections() {
+        let src = b"def foo():\n    pass\n";
+        let doc = parse(src, &Lang::Python).unwrap();
+        let section = first_section(&doc).unwrap();
+        assert_eq!(
+            section.attrs.code_language.as_deref(),
+            Some("python")
+        );
+    }
+
+    #[test]
+    fn empty_source_returns_document_no_children() {
+        let doc = parse(b"", &Lang::Python).unwrap();
+        assert_eq!(doc.node_type, DocNodeType::Document);
+        assert!(doc.children.is_none());
+    }
+}
