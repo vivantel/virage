@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
-import { mkdtempSync, writeFileSync, rmSync } from "fs";
+import { mkdtempSync, writeFileSync, readFileSync, rmSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
 import { execSync } from "child_process";
@@ -176,5 +176,86 @@ describe("Orchestrator — two-run embedding cache", () => {
     expect(result2.filesDeleted).toBe(0);
     expect(embedCallCount).toBe(countAfterRun1); // no new embed calls
     expect(store.docCount()).toBe(2); // store unchanged
+  });
+
+  it("chunk-level: unchanged chunks within a modified file are not re-embedded", async () => {
+    // Use a fresh store and db — no state bleed from the first test
+    const store2 = new InMemoryStore();
+    const dbFile2 = join(tmpDir, "embeddings-layer2.db");
+    let embedCount = 0;
+
+    const lineEmbedder: EmbeddingProvider = {
+      name: "mock-embedder",
+      model: "mock-v1",
+      dimensions: 384,
+      async embed(_text: string): Promise<number[]> {
+        embedCount++;
+        return new Array(384).fill(0.1);
+      },
+    };
+
+    // Chunker that splits file content by newlines — each line is its own chunk.
+    const lineChunkerEntry: ChunkerEntry = {
+      chunker: {
+        name: "line-chunker",
+        version: "1.0.0",
+        patterns: ["**/*.txt"],
+        sparseTextGeneratorId: "line-chunker@1.0.0:sparse:0000",
+        metadataGeneratorId: "line-chunker@1.0.0:meta:0000",
+        async chunk(filePath: string, commitHash: string): Promise<Chunk[]> {
+          const lines = readFileSync(filePath, "utf8")
+            .split("\n")
+            .filter(Boolean);
+          return lines.map((line) => ({
+            denseText: line,
+            sparseText: line,
+            denseTextHash: "",
+            sparseTextGeneratorId: "line-chunker@1.0.0:sparse:0000",
+            metadataGeneratorId: "line-chunker@1.0.0:meta:0000",
+            metadata: {},
+            sourceFile: filePath,
+            commitHash,
+          }));
+        },
+      },
+    };
+
+    const makeConfig2 = (): RAGPipelineConfig => ({
+      chunkers: [lineChunkerEntry],
+      embedder: lineEmbedder,
+      vectorStore: store2,
+      options: {
+        embeddingsFile: dbFile2,
+        noBanner: true,
+        minEmbeddingBatchSize: 1,
+        minUploadingBatchSize: 1,
+      },
+    });
+
+    // Add a multi-chunk file: 2 lines → 2 chunks
+    writeFileSync(join(tmpDir, "multi.txt"), "chunk-alpha\nchunk-beta");
+    execSync("git add -A", { cwd: tmpDir, stdio: "pipe" });
+    execSync('git commit -m "add multi.txt"', { cwd: tmpDir, stdio: "pipe" });
+
+    // Run 1: hello.txt (1 line) + world.txt (1 line) + multi.txt (2 lines) = 4 chunks
+    const result1 = await new Orchestrator(makeConfig2()).run();
+    expect(result1.filesProcessed).toBe(3);
+    expect(embedCount).toBe(4);
+
+    // Modify multi.txt: keep chunk-alpha, replace chunk-beta with chunk-gamma
+    writeFileSync(join(tmpDir, "multi.txt"), "chunk-alpha\nchunk-gamma");
+    execSync("git add -A", { cwd: tmpDir, stdio: "pipe" });
+    execSync('git commit -m "modify multi.txt"', {
+      cwd: tmpDir,
+      stdio: "pipe",
+    });
+
+    // Run 2: only multi.txt changed at the file level; within it, chunk-alpha is already
+    // in the vector store (existingHashes returns it) → only chunk-gamma is embedded.
+    const result2 = await new Orchestrator(makeConfig2()).run();
+    expect(result2.filesProcessed).toBe(1); // only multi.txt changed
+    expect(embedCount).toBe(5); // +1 only: chunk-gamma; chunk-alpha was cached
+    // Store: hello(1) + world(1) + multi([alpha,gamma]) = 4; chunk-beta pruned by deleteOrphanedChunks
+    expect(store2.docCount()).toBe(4);
   });
 });
