@@ -144,4 +144,17 @@ describe("virage index — caching and zero-chunk acceptance tests", () => {
     expect(r2.stdout + r2.stderr).toContain("No changes detected");
     expect(readStore().length).toBe(storeCountAfterR1);
   });
+
+  it("8: consecutive run with no changes — second run is a true no-op", () => {
+    // Repo already has docs.md (4 sections) + empty.md, all committed and indexed.
+    // A plain re-run with no disk/git changes must report "No changes detected".
+    const r1 = cli();
+    expect(r1.status, r1.stderr).toBe(0);
+    const storeBefore = readStore().length;
+
+    const r2 = cli();
+    expect(r2.status, r2.stderr).toBe(0);
+    expect(r2.stdout + r2.stderr).toContain("No changes detected");
+    expect(readStore().length).toBe(storeBefore);
+  });
 });

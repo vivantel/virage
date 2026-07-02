@@ -591,6 +591,7 @@ export class VirageDb {
 
   clearAll(): void {
     this.db.prepare("DELETE FROM chunks").run();
+    this.db.prepare("DELETE FROM file_revisions").run();
     this.db.prepare("DELETE FROM meta").run();
   }
 

@@ -134,6 +134,8 @@ export class Orchestrator {
           this.config.embedder.model !== undefined &&
           existingMeta.model !== this.config.embedder.model;
         const dimensionsChanged =
+          existingMeta.providerDimensions != null &&
+          this.config.embedder.dimensions != null &&
           existingMeta.providerDimensions !== this.config.embedder.dimensions;
 
         if (modelChanged || dimensionsChanged) {
