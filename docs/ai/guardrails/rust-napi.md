@@ -1,5 +1,28 @@
 # Guardrail: Rust napi-rs Patterns
 
+## Code quality (Rust lint)
+
+Run these before committing any `.rs` or `Cargo.toml` change. The pre-commit hook does this automatically when those file types are staged, but you should also run manually after edits:
+
+```bash
+npm run rust:fmt   # cargo fmt — auto-formats all workspace crates
+npm run rust:lint  # cargo clippy --workspace -- -D warnings
+```
+
+Or in one shot:
+
+```bash
+npm run rust:fix
+```
+
+**Clippy level:** `-D warnings` — all warnings are treated as errors. Do not suppress warnings with `#[allow(...)]` unless there is a documented reason (e.g., a false positive in napi-rs generated code). Use `#[allow(clippy::too_many_arguments)]` sparingly; prefer extracting a `struct` for option groups instead.
+
+**`cargo fmt`** uses the workspace `rustfmt.toml` (if present) or default settings. Always let `cargo fmt` auto-format — do not hand-format to match what you think `rustfmt` would produce.
+
+**CI:** The `ci.yaml` workflow runs `cargo fmt --check && cargo clippy --workspace -- -D warnings` on every push and PR that touches `.rs` or `Cargo.toml` files.
+
+---
+
 ## napi-rs Function Signatures
 
 ### Document chunkers (buffer-based)

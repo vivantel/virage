@@ -161,12 +161,14 @@ virage pack --output ./archive.tar.gz  # pack LanceDB dir as a shareable .tar.gz
 **Pre-commit fix sequence** (run before every `git add`):
 
 ```bash
+cargo fmt                                        # format Rust (auto-fix)
+cargo clippy --workspace -- -D warnings          # Rust lint — warnings are errors
 npm run fix            # lint:fix + prettier --write (root)
 npm run lint           # eslint check — .ts files only (root)
 npm run type-check     # type-check all workspaces
 ```
 
-Hook: `.claude/settings.json` fires `npm run fix && npm run type-check` automatically before every commit. **Never skip with `--no-verify`.**
+Hook: `.claude/settings.json` fires automatically before every commit. When `.rs` or `.toml` files are staged it runs `cargo fmt && cargo clippy --workspace -- -D warnings` first; then always runs `npm run fix && npm run type-check`. **Never skip with `--no-verify`.**
 
 **⚠️ Root lint misses `.tsx` files.** The root `lint` glob is `packages/*/src/**/*.ts` — `.tsx` is excluded. For any package that has `.tsx` source files, also run the per-package lint before committing:
 
@@ -187,6 +189,9 @@ Packages with `.tsx` files: `virage-dashboard`. Add to this list if new packages
 | `npm run type-check` | type-check all workspaces |
 | `npm run build:all` | build `virage-core` → `virage-agent-core` → all others |
 | `npm test` | run tests in all workspaces |
+| `npm run rust:fmt` | `cargo fmt` — format all Rust source |
+| `npm run rust:lint` | `cargo clippy --workspace -- -D warnings` |
+| `npm run rust:fix` | `cargo fmt && cargo clippy --workspace -- -D warnings` |
 
 **`type-check:ci` exclusions** (JavaScript or non-TS packages, excluded intentionally):
 `virage-dashboard`, `virage-skills`, `virage-store-test`, `virage-mcp`
@@ -199,6 +204,7 @@ Packages with `.tsx` files: `virage-dashboard`. Add to this list if new packages
 5. Never bypass pre-commit hooks
 6. Build order must be respected: `virage-core` → `virage-agent-core` → all others
 7. After any `package.json` change: `npm install` from repo root, commit updated `package-lock.json`
+8. After any `.rs` or `Cargo.toml` change: run `npm run rust:fix` before committing — clippy warnings are treated as errors (`-D warnings`)
 
 **CE chunker package guardrails** (applies to `packages/virage-chunker-ce-*`):
 - See [`guardrails/chunker.md`](guardrails/chunker.md) — plugin contract, ArtifactChunker interface, ChunkMeta fields
