@@ -172,7 +172,7 @@ export class Orchestrator {
 
       const previousState = effectiveForce
         ? new Map<string, string>()
-        : vectorStoreState;
+        : new Map([...db.getFileStates(), ...vectorStoreState]);
 
       const { toProcess, toDelete } = await gitTracker.getChangedFiles(
         previousState,
@@ -218,6 +218,13 @@ export class Orchestrator {
             : ""),
       );
 
+      // Whether the vector store can do targeted per-file orphan cleanup.
+      // When true, toProcess files are NOT pre-deleted; instead stale chunks are
+      // removed after upload via deleteOrphanedChunks (preserving cached hits).
+      const hasOrphanCleanup =
+        typeof this.config.vectorStore.deleteOrphanedChunks === "function";
+      const fileNewHashes = new Map<string, string[]>();
+
       // Delete stale vector store entries before producing new ones
       const uploader = new Uploader(this.config.vectorStore, {
         retry: opts.retry,
@@ -225,7 +232,12 @@ export class Orchestrator {
       });
 
       if (!opts.skipUpload && !opts.dryRun) {
-        await uploader.prepareUpdate(db, toDelete, toProcess, effectiveForce);
+        await uploader.prepareUpdate(
+          db,
+          toDelete,
+          hasOrphanCleanup ? [] : toProcess,
+          effectiveForce,
+        );
         deletedCount = toDelete.length;
       }
 
@@ -409,6 +421,12 @@ export class Orchestrator {
           try {
             filesStreamed++;
             db.replaceChunks(file, capturedChunks, info?.commitHash);
+            if (hasOrphanCleanup) {
+              fileNewHashes.set(
+                file,
+                capturedChunks.map((c) => c.denseTextHash),
+              );
+            }
 
             // Check which hashes already exist in the vector store — skip re-embedding.
             // Batch size is 2× minEmbedBatch to amortise the round-trip cost.
@@ -495,6 +513,11 @@ export class Orchestrator {
       const uploadDuration = Date.now() - t4;
 
       if (!opts.skipUpload && !opts.dryRun) {
+        if (hasOrphanCleanup && !effectiveForce) {
+          for (const [file, hashes] of fileNewHashes) {
+            await this.config.vectorStore.deleteOrphanedChunks!(file, hashes);
+          }
+        }
         await this.config.vectorStore.writeMeta?.({
           providerName: this.config.embedder.name,
           model: this.config.embedder.model,

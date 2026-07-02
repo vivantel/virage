@@ -137,6 +137,23 @@ export class QdrantVectorStore implements VectorStore {
     return points.map((p) => String(p.id));
   }
 
+  async deleteOrphanedChunks(
+    sourceFile: string,
+    keepHashes: string[],
+  ): Promise<void> {
+    if (keepHashes.length === 0) {
+      await this.deleteBySourceFile([sourceFile]);
+      return;
+    }
+    await this.client.delete(this.collection, {
+      wait: true,
+      filter: {
+        must: [{ key: "source_file", match: { value: sourceFile } }],
+        must_not: [{ has_id: keepHashes }],
+      },
+    });
+  }
+
   async getCurrentState(): Promise<Map<string, string>> {
     const state = new Map<string, string>();
     let offset: string | number | undefined;

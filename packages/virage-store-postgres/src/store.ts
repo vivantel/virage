@@ -187,6 +187,20 @@ export class PostgresVectorStore implements VectorStore {
     return rows.map((r) => r.id);
   }
 
+  async deleteOrphanedChunks(
+    sourceFile: string,
+    keepHashes: string[],
+  ): Promise<void> {
+    if (keepHashes.length === 0) {
+      await this.deleteBySourceFile([sourceFile]);
+      return;
+    }
+    await this.pool.query(
+      `DELETE FROM ${this.table} WHERE source_file = $1 AND id != ALL($2::text[])`,
+      [sourceFile, keepHashes],
+    );
+  }
+
   async getCurrentState(): Promise<Map<string, string>> {
     const { rows } = await this.pool.query<{
       source_file: string;

@@ -114,6 +114,22 @@ export class ChromaVectorStore implements VectorStore {
     return result.ids;
   }
 
+  async deleteOrphanedChunks(
+    sourceFile: string,
+    keepHashes: string[],
+  ): Promise<void> {
+    const result = await this.collection.get({
+      where: { source_file: { $eq: sourceFile } },
+      include: [],
+    });
+    const keepSet = new Set(keepHashes);
+    const toDelete = result.ids.filter((id) => !keepSet.has(id));
+    if (toDelete.length > 0) {
+      this.miniSearchStale = true;
+      await this.collection.delete({ ids: toDelete });
+    }
+  }
+
   async getCurrentState(): Promise<Map<string, string>> {
     const state = new Map<string, string>();
     let offset = 0;

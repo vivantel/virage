@@ -162,6 +162,16 @@ export interface VectorStore {
    */
   existingHashes?(hashes: string[]): Promise<string[]>;
 
+  /**
+   * Optional: delete chunks for sourceFile whose id is NOT in keepHashes.
+   * Called after uploading new chunks to remove stale embeddings without
+   * wiping the whole file first (enables existingHashes caching to work).
+   */
+  deleteOrphanedChunks?(
+    sourceFile: string,
+    keepHashes: string[],
+  ): Promise<void>;
+
   /** Optional: list all stored documents (without vectors by default for efficiency) */
   listAll?(opts?: {
     limit?: number;

@@ -16,10 +16,9 @@ export interface FileVectorStoreOptions {
 
 interface StoredDoc {
   id: string;
-  content: string;
+  denseText: string;
   sourceFile: string;
   commitHash: string;
-  contentHash: string;
 }
 
 export class FileVectorStore implements VectorStore {
@@ -55,10 +54,9 @@ export class FileVectorStore implements VectorStore {
       const id = doc.id ?? crypto.randomUUID();
       const row: StoredDoc = {
         id,
-        content: doc.content,
+        denseText: doc.denseText,
         sourceFile: doc.sourceFile,
         commitHash: doc.commitHash,
-        contentHash: doc.contentHash,
       };
       const idx = this.data.findIndex((d) => d.id === id);
       if (idx >= 0) this.data[idx] = row;
@@ -88,6 +86,22 @@ export class FileVectorStore implements VectorStore {
     return state;
   }
 
+  async existingHashes(hashes: string[]): Promise<string[]> {
+    const stored = new Set(this.data.map((d) => d.id));
+    return hashes.filter((h) => stored.has(h));
+  }
+
+  async deleteOrphanedChunks(
+    sourceFile: string,
+    keepHashes: string[],
+  ): Promise<void> {
+    const keepSet = new Set(keepHashes);
+    this.data = this.data.filter(
+      (d) => d.sourceFile !== sourceFile || keepSet.has(d.id),
+    );
+    this._persist();
+  }
+
   async search(
     _queryEmbedding: number[],
     topK: number,
@@ -96,7 +110,8 @@ export class FileVectorStore implements VectorStore {
   ): Promise<VectorSearchResult[]> {
     return this.data.slice(0, topK).map((d) => ({
       id: d.id,
-      content: d.content,
+      denseText: d.denseText,
+      sparseText: d.denseText,
       metadata: {},
       similarity: 1,
     }));

@@ -238,6 +238,19 @@ export class LanceDBVectorStore implements VectorStore {
     return rows.map((r) => r.id as string);
   }
 
+  async deleteOrphanedChunks(
+    sourceFile: string,
+    keepHashes: string[],
+  ): Promise<void> {
+    if (keepHashes.length === 0) {
+      await this.deleteBySourceFile([sourceFile]);
+      return;
+    }
+    const sf = sourceFile.replace(/'/g, "''");
+    const list = keepHashes.map((h) => `'${h.replace(/'/g, "''")}'`).join(", ");
+    await this.table.delete(`source_file = '${sf}' AND id NOT IN (${list})`);
+  }
+
   async getCurrentState(): Promise<Map<string, string>> {
     const rows = await this.table
       .query()

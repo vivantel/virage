@@ -385,7 +385,7 @@ export class PipelineRenderer {
       `  ${dim}│${rst}  ` +
       `${dim}Elapsed:${rst} ${fmtTime(elapsed / 1000)}` +
       `  ${dim}│${rst}  ` +
-      `${dim}ETA:${rst} ${etaMs !== null ? fmtTime(etaMs / 1000) : "?"}`;
+      `${dim}ETA:${rst} ${etaMs !== null ? fmtTime(etaMs / 1000) : "…"}`;
 
     return [header, ...rows, footer];
   }
