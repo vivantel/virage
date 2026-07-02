@@ -75,7 +75,7 @@
   },
   "databases": {
     "minilm-384-ast": {
-      "url": "https://github.com/vivantel/virage/releases/download/eval-db-2026-07-02-eb9122ca/minilm-384-ast.tar.gz",
+      "url": "https://github.com/vivantel/virage/releases/download/eval-db-2026-07-02-ea7173f2/minilm-384-ast.tar.gz",
       "description": "all-MiniLM-L6-v2 384d, AST+Markdown chunking, virage master branch",
       "embedder": {
         "package": "@vivantel/virage-embedder-transformers",
@@ -87,23 +87,23 @@
       "vectorStore": {
         "package": "@vivantel/virage-store-lancedb"
       },
-      "sha256": "2bf78b002c0d7bd71a30a0b95f14f57221971055222b48c4b76cded033ee2099",
+      "sha256": "5ff722dc71c1fd15862b000ea9532c56b799aab442a5824cb566b556da46ce12",
       "pluginVersions": {
         "@vivantel/virage-agent-antigravity": "0.1.11",
-        "@vivantel/virage-agent-claude": "0.2.28",
+        "@vivantel/virage-agent-claude": "0.2.29",
         "@vivantel/virage-agent-codex": "0.1.11",
         "@vivantel/virage-agent-copilot": "0.1.11",
         "@vivantel/virage-agent-core": "0.1.8",
         "@vivantel/virage-chunker-ce-ast": "0.1.14",
-        "@vivantel/virage-chunker-ce-md": "0.1.7",
-        "@vivantel/virage-chunker-ce-md-linux-x64-gnu": "0.1.7",
+        "@vivantel/virage-chunker-ce-md": "0.1.8",
+        "@vivantel/virage-chunker-ce-md-linux-x64-gnu": "0.1.8",
         "@vivantel/virage-cli": "0.2.7",
         "@vivantel/virage-code-chunk-chunker": "0.1.55",
         "@vivantel/virage-core": "0.3.6",
         "@vivantel/virage-embedder-transformers": "0.2.72",
-        "@vivantel/virage-reranker-cross-encoder": "0.1.48",
+        "@vivantel/virage-reranker-cross-encoder": "0.1.49",
         "@vivantel/virage-skills": "0.1.9",
-        "@vivantel/virage-store-lancedb": "0.2.75"
+        "@vivantel/virage-store-lancedb": "0.2.76"
       }
     }
   },
