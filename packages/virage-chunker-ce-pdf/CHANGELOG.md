@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.1.9](https://github.com/vivantel/virage/compare/virage-chunker-ce-pdf@v0.1.8...virage-chunker-ce-pdf@v0.1.9) (2026-07-02)
+
+
+### Documentation
+
+* **packages:** Add group docs + README stubs for all plugins ([65cf8a2](https://github.com/vivantel/virage/commit/65cf8a27f887a11a502979a53d8dc7cde2af4648))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * peerDependencies
+    * @vivantel/virage-core bumped from >=0.2 to >=0.3.7
+    * @vivantel/virage-chunker-ce-ast bumped from >=0.1 to >=0.1.15
+
 ## [0.1.8](https://github.com/vivantel/virage/compare/virage-chunker-ce-pdf@v0.1.7...virage-chunker-ce-pdf@v0.1.8) (2026-06-26)
 
 

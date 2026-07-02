@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.7](https://github.com/vivantel/virage/compare/virage-core@v0.3.6...virage-core@v0.3.7) (2026-07-02)
+
+
+### Features
+
+* **index:** Cache-aware embedding, skipped count display, debug logging, timestamps ([77917f4](https://github.com/vivantel/virage/commit/77917f4621ff935716024f9354b4974192beb4ae))
+
 ## [0.3.6](https://github.com/vivantel/virage/compare/virage-core@v0.3.5...virage-core@v0.3.6) (2026-07-01)
 
 

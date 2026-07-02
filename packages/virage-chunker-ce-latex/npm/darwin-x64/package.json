@@ -1,6 +1,6 @@
 {
   "name": "@vivantel/virage-chunker-ce-latex-darwin-x64",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "description": "macOS x64 native binary for @vivantel/virage-chunker-ce-latex",
   "main": "virage_chunker_ce_latex.node",
   "files": [
