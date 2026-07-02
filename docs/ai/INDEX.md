@@ -393,7 +393,7 @@ Run `npm install --package-lock-only --ignore-scripts` from the repo root and st
 | `package.json` | `optionalDependencies` pointing to each stub at the same version; **then regenerate lockfile** |
 | `release-please.json` | Add `extra-files` entries to keep stub `$.version` and `$.optionalDependencies[*]` in sync on every release |
 | `release.yaml` | Add to `detect-ce-native` pkgs list; add output to `release-please` job; add to `build-ce-native` (handles the build + upload automatically); verify publish in `publish-ce-native` |
-| `ci.yaml` | Add to `paths` filter and matrix (no special native handling needed — CI uses TS tests, not `napi build`) |
+| `ci.yaml` | Add to the `rust-filter` paths-filter step (`changes` job) so Rust changes gate `rust-checks` and `build-ce-native`. If the package uses `ort/download-binaries` or other Cargo features at build time, add a `cargo-features` matrix `include` entry: `{ package: <name>, cargo-features: "--features download-binaries" }` — CI and release build steps use `${{ matrix.cargo-features }}` (no bash `[[...]]` — breaks on Windows). |
 | Lockfile | After setting up all `package.json` files, run `npm install --package-lock-only --ignore-scripts` and commit the result |
 
 **Release mechanics**: release-please reads Conventional Commit messages to determine version bumps. `prepublishOnly` script runs `npm run build && npm test` before publishing.
