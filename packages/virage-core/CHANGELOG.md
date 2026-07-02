@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.10](https://github.com/vivantel/virage/compare/virage-core@v0.3.9...virage-core@v0.3.10) (2026-07-02)
+
+
+### Bug Fixes
+
+* **ci:** Add patch-lockfile-stubs step to publish job ([867d028](https://github.com/vivantel/virage/commit/867d0289e2c1c90f9d2fa977117a90fc9b527cb7))
+
 ## [0.3.9](https://github.com/vivantel/virage/compare/virage-core@v0.3.8...virage-core@v0.3.9) (2026-07-02)
 
 
