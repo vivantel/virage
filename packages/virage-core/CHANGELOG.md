@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.9](https://github.com/vivantel/virage/compare/virage-core@v0.3.8...virage-core@v0.3.9) (2026-07-02)
+
+
+### Bug Fixes
+
+* **core:** Prevent false force-reindex when providerDimensions is null in existing DB ([e053846](https://github.com/vivantel/virage/commit/e053846fdb31311b131dd39e6da60314bee9e33f))
+
 ## [0.3.8](https://github.com/vivantel/virage/compare/virage-core@v0.3.7...virage-core@v0.3.8) (2026-07-02)
 
 
