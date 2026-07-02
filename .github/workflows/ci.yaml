@@ -61,6 +61,12 @@ jobs:
               - 'package.json'
               - 'package-lock.json'
               - '.github/workflows/ci.yaml'
+            virage-embedder-onnx:
+              - 'packages/virage-embedder-onnx/**'
+              - 'eslint.config.js'
+              - 'package.json'
+              - 'package-lock.json'
+              - '.github/workflows/ci.yaml'
             virage-store-postgres:
               - 'packages/virage-store-postgres/**'
               - 'eslint.config.js'
@@ -243,6 +249,7 @@ jobs:
           - virage-chunker-ce-md
           - virage-chunker-ce-docx
           - virage-chunker-ce-latex
+          - virage-embedder-onnx
         platform-name:
           - linux-x64-gnu
           - linux-arm64-gnu
@@ -292,7 +299,8 @@ jobs:
         if: matrix.use-cross == true
         run: |
           cd packages/${{ matrix.package }}
-          npx napi build --release --target ${{ matrix.target }}
+          extra_features=$([[ "${{ matrix.package }}" == "virage-embedder-onnx" ]] && echo "--features download-binaries" || echo "")
+          npx napi build --release --target ${{ matrix.target }} $extra_features
         env:
           CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
 
@@ -300,7 +308,8 @@ jobs:
         if: matrix.use-cross != true
         run: |
           cd packages/${{ matrix.package }}
-          npx napi build --release --target ${{ matrix.target }}
+          extra_features=$([[ "${{ matrix.package }}" == "virage-embedder-onnx" ]] && echo "--features download-binaries" || echo "")
+          npx napi build --release --target ${{ matrix.target }} $extra_features
         env:
           RUSTFLAGS: ${{ matrix.rust-flags }}
 

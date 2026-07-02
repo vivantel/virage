@@ -379,6 +379,23 @@ npm run build:all                        # build all in dependency order
 3. `.github/workflows/ci.yaml` — add package to `paths` filter and matrix
 4. `.github/workflows/release.yaml` — add publish step for the package
 
+**CRITICAL — after any `package.json` change (new deps, new package, version bump):**
+Run `npm install --package-lock-only --ignore-scripts` from the repo root and stage the updated `package-lock.json` in the same commit. A stale lockfile breaks `npm ci` in CI and causes every job to fail with "package.json and package-lock.json are not in sync".
+
+**Adding a native Rust napi-rs package** — checklist (in addition to the above):
+
+| Step | What to do |
+|------|-----------|
+| `Cargo.toml` (workspace) | Add `"packages/<name>"` to `members` array |
+| `Cargo.toml` (package) | `crate-type = ["cdylib"]`; `ort` or heavy C deps: use `load-dynamic` default + `download-binaries` feature; `napi-build` in `[build-dependencies]` |
+| `build.rs` | Standard napi: `napi_build::setup()` |
+| `npm/` stubs | Create `npm/linux-x64-gnu/`, `linux-arm64-gnu/`, `darwin-x64/`, `darwin-arm64/`, `win32-x64-msvc/` each with `package.json` at version matching the package |
+| `package.json` | `optionalDependencies` pointing to each stub at the same version; **then regenerate lockfile** |
+| `release-please.json` | Add `extra-files` entries to keep stub `$.version` and `$.optionalDependencies[*]` in sync on every release |
+| `release.yaml` | Add to `detect-ce-native` pkgs list; add output to `release-please` job; add to `build-ce-native` (handles the build + upload automatically); verify publish in `publish-ce-native` |
+| `ci.yaml` | Add to `paths` filter and matrix (no special native handling needed — CI uses TS tests, not `napi build`) |
+| Lockfile | After setting up all `package.json` files, run `npm install --package-lock-only --ignore-scripts` and commit the result |
+
 **Release mechanics**: release-please reads Conventional Commit messages to determine version bumps. `prepublishOnly` script runs `npm run build && npm test` before publishing.
 
 ---
