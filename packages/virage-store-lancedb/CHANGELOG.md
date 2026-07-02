@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.2.79](https://github.com/vivantel/virage/compare/virage-store-lancedb@v0.2.78...virage-store-lancedb@v0.2.79) (2026-07-02)
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * devDependencies
+    * @vivantel/virage-core bumped from 0.3.9 to 0.3.10
+  * peerDependencies
+    * @vivantel/virage-core bumped from * to 0.3.10
+
 ## [0.2.78](https://github.com/vivantel/virage/compare/virage-store-lancedb@v0.2.77...virage-store-lancedb@v0.2.78) (2026-07-02)
 
 
