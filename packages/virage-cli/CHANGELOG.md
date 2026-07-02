@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.2.8](https://github.com/vivantel/virage/compare/virage-cli@v0.2.7...virage-cli@v0.2.8) (2026-07-02)
+
+
+### Features
+
+* **index:** Cache-aware embedding, skipped count display, debug logging, timestamps ([77917f4](https://github.com/vivantel/virage/commit/77917f4621ff935716024f9354b4974192beb4ae))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @vivantel/virage-core bumped from >=0.3.6 to >=0.3.7
+  * optionalDependencies
+    * @vivantel/virage-agent-claude bumped from >=0.2.28 to >=0.2.29
+
 ## [0.2.7](https://github.com/vivantel/virage/compare/virage-cli@v0.2.6...virage-cli@v0.2.7) (2026-07-01)
 
 

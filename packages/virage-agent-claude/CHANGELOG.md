@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.29](https://github.com/vivantel/virage/compare/virage-agent-claude@v0.2.28...virage-agent-claude@v0.2.29) (2026-07-02)
+
+
+### Documentation
+
+* **packages:** Add group docs + README stubs for all plugins ([65cf8a2](https://github.com/vivantel/virage/commit/65cf8a27f887a11a502979a53d8dc7cde2af4648))
+
 ## [0.2.28](https://github.com/vivantel/virage/compare/virage-agent-claude@v0.2.27...virage-agent-claude@v0.2.28) (2026-07-01)
 
 

@@ -1,6 +1,6 @@
 {
   "name": "@vivantel/virage-chunker-ce-pdf-darwin-x64",
-  "version": "0.1.8",
+  "version": "0.1.9",
   "description": "PDF chunker native binary for darwin-x64",
   "os": [
     "darwin"

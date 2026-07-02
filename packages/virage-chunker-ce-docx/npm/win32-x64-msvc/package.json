@@ -1,6 +1,6 @@
 {
   "name": "@vivantel/virage-chunker-ce-docx-win32-x64-msvc",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "description": "Windows x64 (MSVC) native binary for @vivantel/virage-chunker-ce-docx",
   "main": "virage_chunker_ce_docx.node",
   "files": [

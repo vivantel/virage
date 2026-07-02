@@ -1,6 +1,6 @@
 {
   "name": "@vivantel/virage-chunker-ce-pdf",
-  "version": "0.1.8",
+  "version": "0.1.9",
   "description": "PDF chunker for Virage — text layer extraction via Rust (lopdf)",
   "type": "module",
   "main": "./dist/index.js",
@@ -30,11 +30,11 @@
     "minimatch": "^10.0.0"
   },
   "optionalDependencies": {
-    "@vivantel/virage-chunker-ce-pdf-linux-x64-gnu": "0.1.8",
-    "@vivantel/virage-chunker-ce-pdf-linux-arm64-gnu": "0.1.8",
-    "@vivantel/virage-chunker-ce-pdf-darwin-x64": "0.1.8",
-    "@vivantel/virage-chunker-ce-pdf-darwin-arm64": "0.1.8",
-    "@vivantel/virage-chunker-ce-pdf-win32-x64-msvc": "0.1.8"
+    "@vivantel/virage-chunker-ce-pdf-linux-x64-gnu": "0.1.9",
+    "@vivantel/virage-chunker-ce-pdf-linux-arm64-gnu": "0.1.9",
+    "@vivantel/virage-chunker-ce-pdf-darwin-x64": "0.1.9",
+    "@vivantel/virage-chunker-ce-pdf-darwin-arm64": "0.1.9",
+    "@vivantel/virage-chunker-ce-pdf-win32-x64-msvc": "0.1.9"
   },
   "rag-plugin": {
     "type": "chunker",
