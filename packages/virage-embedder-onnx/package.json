@@ -1,0 +1,48 @@
+{
+  "name": "@vivantel/virage-embedder-onnx",
+  "version": "0.1.0",
+  "description": "ONNX Runtime embedder for Virage — run local embedding models with onnxruntime-node",
+  "type": "module",
+  "main": "./dist/index.js",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "type-check": "tsc --noEmit",
+    "test": "vitest run",
+    "prepublishOnly": "npm run build",
+    "lint": "eslint src/",
+    "lint:fix": "eslint src/ --fix",
+    "format": "prettier --write \"src/**/*.ts\"",
+    "format:check": "prettier --check \"src/**/*.ts\"",
+    "fix": "npm run lint:fix && npm run format"
+  },
+  "peerDependencies": {
+    "@vivantel/virage-core": ">=0.3"
+  },
+  "dependencies": {
+    "onnxruntime-node": "^1.18.0",
+    "tokenizers": "^0.13.0"
+  },
+  "rag-plugin": {
+    "type": "embedder",
+    "label": "ONNX Runtime (local)",
+    "key": "onnx"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "license": "MIT OR Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/vivantel/virage.git",
+    "directory": "packages/virage-embedder-onnx"
+  }
+}
