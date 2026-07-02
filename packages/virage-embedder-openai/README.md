@@ -4,6 +4,8 @@
 
 OpenAI-compatible embedding provider for `@vivantel/virage-core`. Works with OpenAI, Azure OpenAI, Ollama, LM Studio, GitHub Models, and any OpenAI-compatible endpoint.
 
+→ [Monorepo docs: docs/packages/embedders.md](../../docs/packages/embedders.md)
+
 ## Installation
 
 ```bash

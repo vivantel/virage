@@ -4,6 +4,8 @@
 
 LanceDB vector store for [`@vivantel/virage-core`](../rag-core/README.md). Embedded and file-based — no server required. Data lives in a local directory (or LanceDB Cloud with an API key).
 
+→ [Monorepo docs: docs/packages/stores.md](../../docs/packages/stores.md)
+
 ## Installation
 
 ```bash

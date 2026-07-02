@@ -4,6 +4,8 @@
 
 ChromaDB vector store for [`@vivantel/virage-core`](../rag-core/README.md). Works with a locally-running Chroma server or hosted Chroma Cloud.
 
+→ [Monorepo docs: docs/packages/stores.md](../../docs/packages/stores.md)
+
 ## Installation
 
 ```bash

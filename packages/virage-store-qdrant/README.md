@@ -2,6 +2,8 @@
 
 Qdrant vector store for [`@vivantel/virage-core`](../rag-core/README.md). Works with both local Qdrant instances and Qdrant Cloud (SaaS).
 
+→ [Monorepo docs: docs/packages/stores.md](../../docs/packages/stores.md)
+
 ## Installation
 
 ```bash

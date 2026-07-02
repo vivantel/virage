@@ -2,6 +2,8 @@
 
 Claude Code agent plugin for the [Virage RAG pipeline](https://github.com/vivantel/virage).
 
+→ [Monorepo docs: docs/packages/agents.md](../../docs/packages/agents.md)
+
 ## What it does
 
 - **Init-time**: `virage init` calls this plugin's `configure()` to copy static files from `plugin-config/` into `.claude/` (commands, skills, etc.) and register the Virage MCP server in `.mcp.json`

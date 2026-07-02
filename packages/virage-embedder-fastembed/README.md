@@ -4,6 +4,8 @@
 
 Fast, local ONNX-based embedding provider for `@vivantel/virage-core` using [FastEmbed](https://github.com/Anush008/fastembed-js). No API key required.
 
+→ [Monorepo docs: docs/packages/embedders.md](../../docs/packages/embedders.md)
+
 ## Installation
 
 ```bash

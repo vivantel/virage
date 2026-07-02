@@ -4,6 +4,8 @@
 
 Local, offline embedding provider for `@vivantel/virage-core` using `@huggingface/transformers`. No API key required — models run entirely on your machine.
 
+→ [Monorepo docs: docs/packages/embedders.md](../../docs/packages/embedders.md)
+
 ## Installation
 
 ```bash
