@@ -1,0 +1,61 @@
+name: CE Subtree Export
+
+# Maintains the `ce-subtree` orphan branch whose root mirrors the CE package
+# layout consumed by virage-chunkers-ee via git subtree pull.
+# Triggered on changes to any CE package or crate, and on demand.
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - 'packages/virage-chunker-ce-**'
+      - 'packages/virage-embedder-onnx/**'
+      - 'crates/virage-vidoc/**'
+  workflow_dispatch:
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.RELEASE_TOKEN }}
+
+      - name: Configure git
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Build ce-subtree orphan branch
+        run: |
+          set -euo pipefail
+
+          tmp=$(mktemp -d)
+          mkdir -p "$tmp/packages" "$tmp/crates"
+
+          for pkg in packages/virage-chunker-ce-ast packages/virage-chunker-ce-ts \
+                     packages/virage-chunker-ce-pdf packages/virage-chunker-ce-md \
+                     packages/virage-chunker-ce-docx packages/virage-chunker-ce-latex \
+                     packages/virage-embedder-onnx; do
+            cp -r "$pkg" "$tmp/$pkg"
+          done
+          cp -r crates/virage-vidoc "$tmp/crates/virage-vidoc"
+
+          HEAD_SHORT=$(git rev-parse --short HEAD)
+
+          git checkout --orphan ce-subtree-tmp
+          git rm -rf . --quiet
+
+          cp -r "$tmp/." .
+          rm -rf "$tmp"
+
+          git add packages/ crates/
+          git commit -m "chore: ce-subtree export from $HEAD_SHORT"
+
+          git branch -D ce-subtree 2>/dev/null || true
+          git branch -m ce-subtree
+          git push origin ce-subtree --force-with-lease
