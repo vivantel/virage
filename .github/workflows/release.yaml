@@ -213,6 +213,9 @@ jobs:
       - name: Sync lock file for workspace version bumps
         run: npm install --package-lock-only --ignore-scripts
 
+      - name: Patch native platform stub versions in lock file
+        run: node scripts/patch-lockfile-stubs.cjs
+
       - name: Install dependencies
         run: npm ci ${{ contains(fromJSON('["virage-embedder-transformers","virage-embedder-fastembed","virage-store-postgres","virage-store-lancedb","virage-store-chromadb"]'), matrix.package) && '--ignore-scripts' || '' }}
 

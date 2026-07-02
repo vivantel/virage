@@ -6,11 +6,14 @@ set -euo pipefail
 
 # Regenerate lockfile metadata (no install, no scripts) and check for drift.
 npm install --package-lock-only --ignore-scripts --silent 2>/dev/null
+# Patch native platform-stub version fields — mirrors what the CI publish job does
+# so local lockfile stays consistent with what CI expects.
+node scripts/patch-lockfile-stubs.cjs 2>/dev/null || true
 
 if ! git diff --quiet package-lock.json; then
   echo ""
   echo "pre-push: package-lock.json is out of sync with package.json."
-  echo "  Run: npm install --package-lock-only --ignore-scripts"
+  echo "  Run: npm install --package-lock-only --ignore-scripts && node scripts/patch-lockfile-stubs.cjs"
   echo "  Then: git add package-lock.json && git commit -m 'chore: sync package-lock.json'"
   echo ""
   # Restore to HEAD so the working tree stays clean
