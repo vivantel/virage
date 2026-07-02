@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.2.74](https://github.com/vivantel/virage/compare/virage-embedder-transformers@v0.2.73...virage-embedder-transformers@v0.2.74) (2026-07-02)
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * devDependencies
+    * @vivantel/virage-core bumped from 0.3.7 to 0.3.8
+  * peerDependencies
+    * @vivantel/virage-core bumped from * to 0.3.8
+
 ## [0.2.73](https://github.com/vivantel/virage/compare/virage-embedder-transformers@v0.2.72...virage-embedder-transformers@v0.2.73) (2026-07-02)
 
 
