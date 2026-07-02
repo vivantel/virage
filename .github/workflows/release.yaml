@@ -1,21 +1,17 @@
-name: Release
+name: Release & Publish
 
 on:
   push:
     branches:
       - master
 
-permissions:
-  contents: write
-  pull-requests: write
-  issues: write
-  packages: write
-  pages: write
-  id-token: write
-
 jobs:
   release-please:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
     outputs:
       virage-core: ${{ steps.release.outputs['packages/virage-core--release_created'] }}
       virage-embedder-openai: ${{ steps.release.outputs['packages/virage-embedder-openai--release_created'] }}
@@ -98,6 +94,7 @@ jobs:
           - { platform-name: darwin-x64,      os: macos-latest,   target: x86_64-apple-darwin,      rust-flags: "-C link-arg=-undefined -C link-arg=dynamic_lookup" }
           - { platform-name: darwin-arm64,    os: macos-latest,   target: aarch64-apple-darwin,     rust-flags: "-C link-arg=-undefined -C link-arg=dynamic_lookup" }
           - { platform-name: win32-x64-msvc,  os: windows-latest, target: x86_64-pc-windows-msvc }
+          - { package: virage-embedder-onnx,  cargo-features: "--features download-binaries" }
 
     runs-on: ${{ matrix.os }}
 
@@ -135,8 +132,7 @@ jobs:
         if: matrix.use-cross == true
         run: |
           cd packages/${{ matrix.package }}
-          extra_features=$([[ "${{ matrix.package }}" == "virage-embedder-onnx" ]] && echo "--features download-binaries" || echo "")
-          npx napi build --release --target ${{ matrix.target }} $extra_features
+          npx napi build --release --target ${{ matrix.target }} ${{ matrix.cargo-features }}
         env:
           CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
 
@@ -144,8 +140,7 @@ jobs:
         if: matrix.use-cross != true
         run: |
           cd packages/${{ matrix.package }}
-          extra_features=$([[ "${{ matrix.package }}" == "virage-embedder-onnx" ]] && echo "--features download-binaries" || echo "")
-          npx napi build --release --target ${{ matrix.target }} $extra_features
+          npx napi build --release --target ${{ matrix.target }} ${{ matrix.cargo-features }}
         env:
           RUSTFLAGS: ${{ matrix.rust-flags }}
 
@@ -219,7 +214,7 @@ jobs:
         run: npm install --package-lock-only --ignore-scripts
 
       - name: Install dependencies
-        run: npm ci ${{ contains('virage-embedder-transformers virage-embedder-fastembed virage-store-postgres virage-store-lancedb virage-store-chromadb', matrix.package) && '--ignore-scripts' || '' }}
+        run: npm ci ${{ contains(fromJSON('["virage-embedder-transformers","virage-embedder-fastembed","virage-store-postgres","virage-store-lancedb","virage-store-chromadb"]'), matrix.package) && '--ignore-scripts' || '' }}
 
       - name: Build virage-core (dependency)
         if: ${{ matrix.package != 'virage-core' && matrix.package != 'virage-dashboard' }}
@@ -251,7 +246,7 @@ jobs:
 
 
   publish-ce-native:
-    name: Publish CE native chunkers
+    name: Publish CE native packages
     needs: [release-please, detect-ce-native, build-ce-native]
     if: |
       always() &&
@@ -297,7 +292,8 @@ jobs:
             done
           done
 
-      - name: Build virage-chunker-ce-ast (dependency)
+      - name: Build virage-chunker-ce-ast (dependency for CE chunkers)
+        if: contains(join(fromJSON(needs.detect-ce-native.outputs.native_packages), ','), 'virage-chunker-ce-')
         run: npm run build --workspace packages/virage-chunker-ce-ast
 
       - name: Build TS for native packages

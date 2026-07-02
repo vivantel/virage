@@ -3,14 +3,13 @@ name: Quality Self-Assessment
 on:
   workflow_dispatch:
 
-permissions:
-  contents: write
-  deployments: write
-
 jobs:
   quality:
     name: Pipeline Quality Assessment
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      deployments: write
 
     steps:
       - uses: actions/checkout@v7
@@ -48,10 +47,10 @@ jobs:
           path: |
             .virage/lancedb
             .virage/model-cache
-          key: rag-eval-${{ github.ref_name }}-${{ github.sha }}
+          key: quality-self-assessment-${{ github.ref_name }}-${{ github.sha }}
           restore-keys: |
-            rag-eval-${{ github.ref_name }}-
-            rag-eval-
+            quality-self-assessment-${{ github.ref_name }}-
+            quality-self-assessment-
 
       - name: Index knowledge base
         run: ./virage-runner/node_modules/.bin/virage index --config virage.config.ci.json
@@ -63,7 +62,7 @@ jobs:
           path: |
             .virage/lancedb
             .virage/model-cache
-          key: rag-eval-${{ github.ref_name }}-${{ github.sha }}
+          key: quality-self-assessment-${{ github.ref_name }}-${{ github.sha }}
 
       - name: Run quality self-assessment
         run: |
@@ -80,7 +79,7 @@ jobs:
         id: quality_run
 
       - name: Upload quality report artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: always()
         with:
           name: quality-report

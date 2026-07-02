@@ -1,12 +1,16 @@
-name: Run Virage Pipeline
+name: Virage Index Pipeline
 
 on:
   push:
     branches: [master]
 
+concurrency:
+  group: virage-index-pipeline
+  cancel-in-progress: false
+
 jobs:
   virage-update:
-    name: Virage Pipeline
+    name: Virage Index Pipeline
     runs-on: ubuntu-latest
     permissions:
       contents: read

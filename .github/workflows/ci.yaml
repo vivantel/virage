@@ -31,6 +31,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       packages: ${{ steps.filter.outputs.changes }}
+      rust-changed: ${{ steps.rust-filter.outputs.changed }}
     steps:
       - uses: actions/checkout@v7
       - uses: dorny/paths-filter@v4
@@ -63,6 +64,8 @@ jobs:
               - '.github/workflows/ci.yaml'
             virage-embedder-onnx:
               - 'packages/virage-embedder-onnx/**'
+              - 'Cargo.toml'
+              - 'Cargo.lock'
               - 'eslint.config.js'
               - 'package.json'
               - 'package-lock.json'
@@ -193,14 +196,36 @@ jobs:
               - 'Cargo.toml'
               - 'Cargo.lock'
               - '.github/workflows/ci.yaml'
+            virage-reranker-cross-encoder:
+              - 'packages/virage-reranker-cross-encoder/**'
+              - 'eslint.config.js'
+              - 'package.json'
+              - 'package-lock.json'
+              - '.github/workflows/ci.yaml'
+            virage-reranker-llm:
+              - 'packages/virage-reranker-llm/**'
+              - 'eslint.config.js'
+              - 'package.json'
+              - 'package-lock.json'
+              - '.github/workflows/ci.yaml'
+
+      - uses: dorny/paths-filter@v4
+        id: rust-filter
+        with:
+          filters: |
+            changed:
+              - 'packages/virage-chunker-ce-*/**'
+              - 'packages/virage-embedder-onnx/**'
+              - 'crates/**'
+              - 'Cargo.toml'
+              - 'Cargo.lock'
+              - 'rust-toolchain.toml'
 
   rust-checks:
-    name: Rust lint (CE chunkers)
+    name: Rust lint (CE native packages)
     runs-on: ubuntu-latest
-    if: |
-      contains(github.event.head_commit.modified, 'packages/virage-chunker-ce-') ||
-      contains(github.event.head_commit.modified, 'crates/') ||
-      github.event_name == 'pull_request'
+    needs: changes
+    if: needs.changes.outputs.rust-changed == 'true' || github.event_name == 'pull_request'
     steps:
       - uses: actions/checkout@v7
 
@@ -239,8 +264,8 @@ jobs:
 
   build-ce-native:
     name: ${{ matrix.package }} / ${{ matrix.platform-name }} (PR)
-    if: github.event_name == 'pull_request'
-    needs: rust-checks
+    if: github.event_name == 'pull_request' && needs.changes.outputs.rust-changed == 'true'
+    needs: [rust-checks, changes]
     strategy:
       fail-fast: false
       matrix:
@@ -262,6 +287,7 @@ jobs:
           - { platform-name: darwin-x64,      os: macos-latest,   target: x86_64-apple-darwin,      rust-flags: "-C link-arg=-undefined -C link-arg=dynamic_lookup" }
           - { platform-name: darwin-arm64,    os: macos-latest,   target: aarch64-apple-darwin,     rust-flags: "-C link-arg=-undefined -C link-arg=dynamic_lookup" }
           - { platform-name: win32-x64-msvc,  os: windows-latest, target: x86_64-pc-windows-msvc }
+          - { package: virage-embedder-onnx,  cargo-features: "--features download-binaries" }
 
     runs-on: ${{ matrix.os }}
 
@@ -299,8 +325,7 @@ jobs:
         if: matrix.use-cross == true
         run: |
           cd packages/${{ matrix.package }}
-          extra_features=$([[ "${{ matrix.package }}" == "virage-embedder-onnx" ]] && echo "--features download-binaries" || echo "")
-          npx napi build --release --target ${{ matrix.target }} $extra_features
+          npx napi build --release --target ${{ matrix.target }} ${{ matrix.cargo-features }}
         env:
           CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
 
@@ -308,8 +333,7 @@ jobs:
         if: matrix.use-cross != true
         run: |
           cd packages/${{ matrix.package }}
-          extra_features=$([[ "${{ matrix.package }}" == "virage-embedder-onnx" ]] && echo "--features download-binaries" || echo "")
-          npx napi build --release --target ${{ matrix.target }} $extra_features
+          npx napi build --release --target ${{ matrix.target }} ${{ matrix.cargo-features }}
         env:
           RUSTFLAGS: ${{ matrix.rust-flags }}
 
@@ -334,8 +358,6 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v7
-        with:
-          fetch-depth: 0
 
       - name: Setup Node.js
         uses: actions/setup-node@v6
@@ -363,7 +385,7 @@ jobs:
         run: npm run build --workspace packages/virage-agent-claude
 
       - name: Patch lockfile stub version fields (CE native packages)
-        if: contains(fromJSON('["virage-chunker-ce-pdf","virage-chunker-ce-md","virage-chunker-ce-docx","virage-chunker-ce-latex"]'), matrix.package)
+        if: contains(fromJSON('["virage-chunker-ce-pdf","virage-chunker-ce-md","virage-chunker-ce-docx","virage-chunker-ce-latex","virage-embedder-onnx"]'), matrix.package)
         run: node scripts/patch-lockfile-stubs.cjs
 
       - name: Build virage-chunker-ce-ast (required by CE native chunkers and virage-chunker-ce-ts)

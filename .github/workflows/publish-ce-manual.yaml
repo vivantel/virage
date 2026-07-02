@@ -1,4 +1,4 @@
-name: Publish CE packages (emergency, TS only)
+name: Manual Publish: CE TS Packages
 
 on:
   workflow_dispatch:
