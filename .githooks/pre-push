@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+# Abort push if package-lock.json is out of sync with package.json files.
+# Catches the case where peer-dep version specs drifted without a lockfile regeneration.
+
+set -euo pipefail
+
+# Regenerate lockfile metadata (no install, no scripts) and check for drift.
+npm install --package-lock-only --ignore-scripts --silent 2>/dev/null
+
+if ! git diff --quiet package-lock.json; then
+  echo ""
+  echo "pre-push: package-lock.json is out of sync with package.json."
+  echo "  Run: npm install --package-lock-only --ignore-scripts"
+  echo "  Then: git add package-lock.json && git commit -m 'chore: sync package-lock.json'"
+  echo ""
+  # Restore to HEAD so the working tree stays clean
+  git checkout package-lock.json
+  exit 1
+fi
