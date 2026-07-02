@@ -41,6 +41,27 @@
       "draft": false,
       "prerelease": false
     },
+    "packages/virage-embedder-onnx": {
+      "package-name": "@vivantel/virage-embedder-onnx",
+      "changelog-path": "CHANGELOG.md",
+      "release-type": "node",
+      "bump-minor-pre-major": true,
+      "bump-patch-for-minor-pre-major": true,
+      "draft": false,
+      "prerelease": false,
+      "extra-files": [
+        { "type": "json", "path": "npm/linux-x64-gnu/package.json", "jsonpath": "$.version" },
+        { "type": "json", "path": "npm/linux-arm64-gnu/package.json", "jsonpath": "$.version" },
+        { "type": "json", "path": "npm/darwin-x64/package.json", "jsonpath": "$.version" },
+        { "type": "json", "path": "npm/darwin-arm64/package.json", "jsonpath": "$.version" },
+        { "type": "json", "path": "npm/win32-x64-msvc/package.json", "jsonpath": "$.version" },
+        { "type": "json", "path": "package.json", "jsonpath": "$.optionalDependencies['@vivantel/virage-embedder-onnx-linux-x64-gnu']" },
+        { "type": "json", "path": "package.json", "jsonpath": "$.optionalDependencies['@vivantel/virage-embedder-onnx-linux-arm64-gnu']" },
+        { "type": "json", "path": "package.json", "jsonpath": "$.optionalDependencies['@vivantel/virage-embedder-onnx-darwin-x64']" },
+        { "type": "json", "path": "package.json", "jsonpath": "$.optionalDependencies['@vivantel/virage-embedder-onnx-darwin-arm64']" },
+        { "type": "json", "path": "package.json", "jsonpath": "$.optionalDependencies['@vivantel/virage-embedder-onnx-win32-x64-msvc']" }
+      ]
+    },
     "packages/virage-store-postgres": {
       "package-name": "@vivantel/virage-store-postgres",
       "changelog-path": "CHANGELOG.md",

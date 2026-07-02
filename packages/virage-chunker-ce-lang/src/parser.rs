@@ -332,7 +332,8 @@ mod tests {
 
     #[test]
     fn python_function_emits_section() {
-        let src = b"def greet(name: str) -> str:\n    \"\"\"Say hello.\"\"\"\n    return f'Hi {name}'\n";
+        let src =
+            b"def greet(name: str) -> str:\n    \"\"\"Say hello.\"\"\"\n    return f'Hi {name}'\n";
         let doc = parse(src, &Lang::Python).unwrap();
         assert_eq!(doc.node_type, DocNodeType::Document);
         let section = first_section(&doc).expect("expected a Section node");
@@ -377,7 +378,8 @@ mod tests {
 
     #[test]
     fn java_class_emits_section() {
-        let src = b"public class Calculator {\n    public int add(int a, int b) { return a + b; }\n}\n";
+        let src =
+            b"public class Calculator {\n    public int add(int a, int b) { return a + b; }\n}\n";
         let doc = parse(src, &Lang::Java).unwrap();
         let section = first_section(&doc).expect("expected a Section node");
         assert!(section.text.as_deref().unwrap_or("").contains("Calculator"));
@@ -423,10 +425,7 @@ mod tests {
         let src = b"def foo():\n    pass\n";
         let doc = parse(src, &Lang::Python).unwrap();
         let section = first_section(&doc).unwrap();
-        assert_eq!(
-            section.attrs.code_language.as_deref(),
-            Some("python")
-        );
+        assert_eq!(section.attrs.code_language.as_deref(), Some("python"));
     }
 
     #[test]

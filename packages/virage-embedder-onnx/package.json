@@ -1,7 +1,7 @@
 {
   "name": "@vivantel/virage-embedder-onnx",
   "version": "0.1.0",
-  "description": "ONNX Runtime embedder for Virage — run local embedding models with onnxruntime-node",
+  "description": "ONNX Runtime embedder for Virage — run local embedding models entirely in Rust (napi-rs)",
   "type": "module",
   "main": "./dist/index.js",
   "exports": {
@@ -11,29 +11,29 @@
     }
   },
   "files": [
-    "dist"
+    "dist",
+    "npm",
+    "*.node"
   ],
   "scripts": {
-    "build": "tsc",
-    "type-check": "tsc --noEmit",
-    "test": "vitest run",
-    "prepublishOnly": "npm run build",
-    "lint": "eslint src/",
-    "lint:fix": "eslint src/ --fix",
-    "format": "prettier --write \"src/**/*.ts\"",
-    "format:check": "prettier --check \"src/**/*.ts\"",
-    "fix": "npm run lint:fix && npm run format"
+    "build": "tsc --build",
+    "build:native": "napi build --release --platform",
+    "type-check": "tsc --build --noEmit",
+    "prepublishOnly": "npm run build"
   },
   "peerDependencies": {
-    "@vivantel/virage-core": ">=0.3"
+    "@vivantel/virage-core": ">=0.2"
   },
-  "dependencies": {
-    "onnxruntime-node": "^1.18.0",
-    "tokenizers": "^0.13.0"
+  "optionalDependencies": {
+    "@vivantel/virage-embedder-onnx-linux-x64-gnu": "0.1.0",
+    "@vivantel/virage-embedder-onnx-linux-arm64-gnu": "0.1.0",
+    "@vivantel/virage-embedder-onnx-darwin-x64": "0.1.0",
+    "@vivantel/virage-embedder-onnx-darwin-arm64": "0.1.0",
+    "@vivantel/virage-embedder-onnx-win32-x64-msvc": "0.1.0"
   },
   "rag-plugin": {
     "type": "embedder",
-    "label": "ONNX Runtime (local)",
+    "label": "ONNX Runtime (local, Rust)",
     "key": "onnx"
   },
   "publishConfig": {

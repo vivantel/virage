@@ -1,0 +1,24 @@
+[package]
+name    = "virage-embedder-onnx"
+version = "0.1.0"
+edition = "2021"
+description = "ONNX Runtime embedder for Virage — run local embedding models entirely in Rust"
+license = "MIT OR Apache-2.0"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+napi        = { workspace = true }
+napi-derive = { workspace = true }
+
+# ONNX Runtime — "download-binaries" fetches the ORT C API at build time and
+# links it statically, producing a self-contained .node binary with no
+# runtime dependency on a system ORT installation.
+ort         = { version = "2.0.0-rc.12", features = ["download-binaries"] }
+
+# HuggingFace tokenizers — full Rust implementation, no subprocess
+tokenizers  = { version = "0.21", default-features = false, features = ["onig"] }
+
+[build-dependencies]
+napi-build = "2"

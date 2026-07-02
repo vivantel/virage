@@ -21,6 +21,7 @@ jobs:
       virage-embedder-openai: ${{ steps.release.outputs['packages/virage-embedder-openai--release_created'] }}
       virage-embedder-transformers: ${{ steps.release.outputs['packages/virage-embedder-transformers--release_created'] }}
       virage-embedder-fastembed: ${{ steps.release.outputs['packages/virage-embedder-fastembed--release_created'] }}
+      virage-embedder-onnx: ${{ steps.release.outputs['packages/virage-embedder-onnx--release_created'] }}
       virage-store-postgres: ${{ steps.release.outputs['packages/virage-store-postgres--release_created'] }}
       virage-store-qdrant: ${{ steps.release.outputs['packages/virage-store-qdrant--release_created'] }}
       virage-store-lancedb: ${{ steps.release.outputs['packages/virage-store-lancedb--release_created'] }}
@@ -68,6 +69,7 @@ jobs:
           if [[ "${{ needs.release-please.outputs.virage-chunker-ce-md }}" == "true" ]]; then pkgs+=("virage-chunker-ce-md"); fi
           if [[ "${{ needs.release-please.outputs.virage-chunker-ce-docx }}" == "true" ]]; then pkgs+=("virage-chunker-ce-docx"); fi
           if [[ "${{ needs.release-please.outputs.virage-chunker-ce-latex }}" == "true" ]]; then pkgs+=("virage-chunker-ce-latex"); fi
+          if [[ "${{ needs.release-please.outputs.virage-embedder-onnx }}" == "true" ]]; then pkgs+=("virage-embedder-onnx"); fi
           if [[ ${#pkgs[@]} -gt 0 ]]; then
             echo "has_native=true" >> "$GITHUB_OUTPUT"
             echo "native_packages=$(printf '%s\n' "${pkgs[@]}" | jq -R . | jq -sc .)" >> "$GITHUB_OUTPUT"
@@ -164,6 +166,7 @@ jobs:
           if [[ "${{ needs.release-please.outputs.virage-embedder-openai }}" == "true" ]]; then packages+=("virage-embedder-openai"); fi
           if [[ "${{ needs.release-please.outputs.virage-embedder-transformers }}" == "true" ]]; then packages+=("virage-embedder-transformers"); fi
           if [[ "${{ needs.release-please.outputs.virage-embedder-fastembed }}" == "true" ]]; then packages+=("virage-embedder-fastembed"); fi
+          # virage-embedder-onnx is a native Rust addon — published via publish-ce-native
           if [[ "${{ needs.release-please.outputs.virage-store-postgres }}" == "true" ]]; then packages+=("virage-store-postgres"); fi
           if [[ "${{ needs.release-please.outputs.virage-store-qdrant }}" == "true" ]]; then packages+=("virage-store-qdrant"); fi
           if [[ "${{ needs.release-please.outputs.virage-store-lancedb }}" == "true" ]]; then packages+=("virage-store-lancedb"); fi

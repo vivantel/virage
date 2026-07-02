@@ -1,0 +1,15 @@
+{
+  "name": "@vivantel/virage-embedder-onnx-linux-x64-gnu",
+  "version": "0.1.0",
+  "description": "ONNX embedder native binary for linux-x64-gnu",
+  "os": ["linux"],
+  "cpu": ["x64"],
+  "main": "virage_embedder_onnx.node",
+  "files": ["virage_embedder_onnx.node"],
+  "publishConfig": { "access": "public" },
+  "license": "MIT OR Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/vivantel/virage.git"
+  }
+}
