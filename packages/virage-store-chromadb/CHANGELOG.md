@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.2.74](https://github.com/vivantel/virage/compare/virage-store-chromadb@v0.2.73...virage-store-chromadb@v0.2.74) (2026-07-02)
+
+
+### Bug Fixes
+
+* Repair existingHashes caching, zero-chunk loop, and ETA display ([4a32312](https://github.com/vivantel/virage/commit/4a32312e05d377669eafa4ed91b5085798f6a7ba))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * devDependencies
+    * @vivantel/virage-core bumped from 0.3.7 to 0.3.8
+  * peerDependencies
+    * @vivantel/virage-core bumped from * to 0.3.8
+
 ## [0.2.73](https://github.com/vivantel/virage/compare/virage-store-chromadb@v0.2.72...virage-store-chromadb@v0.2.73) (2026-07-02)
 
 

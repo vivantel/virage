@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.8](https://github.com/vivantel/virage/compare/virage-core@v0.3.7...virage-core@v0.3.8) (2026-07-02)
+
+
+### Bug Fixes
+
+* Repair existingHashes caching, zero-chunk loop, and ETA display ([4a32312](https://github.com/vivantel/virage/commit/4a32312e05d377669eafa4ed91b5085798f6a7ba))
+
 ## [0.3.7](https://github.com/vivantel/virage/compare/virage-core@v0.3.6...virage-core@v0.3.7) (2026-07-02)
 
 

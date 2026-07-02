@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.2.77](https://github.com/vivantel/virage/compare/virage-store-lancedb@v0.2.76...virage-store-lancedb@v0.2.77) (2026-07-02)
+
+
+### Bug Fixes
+
+* Repair existingHashes caching, zero-chunk loop, and ETA display ([4a32312](https://github.com/vivantel/virage/commit/4a32312e05d377669eafa4ed91b5085798f6a7ba))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * devDependencies
+    * @vivantel/virage-core bumped from 0.3.7 to 0.3.8
+  * peerDependencies
+    * @vivantel/virage-core bumped from * to 0.3.8
+
 ## [0.2.76](https://github.com/vivantel/virage/compare/virage-store-lancedb@v0.2.75...virage-store-lancedb@v0.2.76) (2026-07-02)
 
 

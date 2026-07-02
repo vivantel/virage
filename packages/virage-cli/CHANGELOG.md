@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.2.9](https://github.com/vivantel/virage/compare/virage-cli@v0.2.8...virage-cli@v0.2.9) (2026-07-02)
+
+
+### Bug Fixes
+
+* Repair existingHashes caching, zero-chunk loop, and ETA display ([4a32312](https://github.com/vivantel/virage/commit/4a32312e05d377669eafa4ed91b5085798f6a7ba))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @vivantel/virage-core bumped from >=0.3.7 to >=0.3.8
+
 ## [0.2.8](https://github.com/vivantel/virage/compare/virage-cli@v0.2.7...virage-cli@v0.2.8) (2026-07-02)
 
 
