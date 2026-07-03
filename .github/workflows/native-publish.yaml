@@ -1,0 +1,178 @@
+name: Build & Publish Native Packages
+
+on:
+  push:
+    tags:
+      - 'virage-chunker-ce-*@v*'
+      - 'virage-embedder-onnx@v*'
+  workflow_dispatch:
+    inputs:
+      package:
+        description: 'Package name (e.g. virage-chunker-ce-lang)'
+        required: true
+        type: string
+
+jobs:
+  detect:
+    runs-on: ubuntu-latest
+    outputs:
+      package: ${{ steps.detect.outputs.package }}
+    steps:
+      - id: detect
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "package=${{ inputs.package }}" >> "$GITHUB_OUTPUT"
+          else
+            tag="${GITHUB_REF#refs/tags/}"
+            echo "package=${tag%@v*}" >> "$GITHUB_OUTPUT"
+          fi
+
+  build:
+    name: ${{ needs.detect.outputs.package }} / ${{ matrix.platform-name }}
+    needs: detect
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        platform-name:
+          - linux-x64-gnu
+          - linux-arm64-gnu
+          - darwin-x64
+          - darwin-arm64
+          - win32-x64-msvc
+        include:
+          - { platform-name: linux-x64-gnu,   os: ubuntu-latest,  target: x86_64-unknown-linux-gnu }
+          - { platform-name: linux-arm64-gnu, os: ubuntu-latest,  target: aarch64-unknown-linux-gnu, use-cross: true }
+          - { platform-name: darwin-x64,      os: macos-latest,   target: x86_64-apple-darwin,      rust-flags: "-C link-arg=-undefined -C link-arg=dynamic_lookup" }
+          - { platform-name: darwin-arm64,    os: macos-latest,   target: aarch64-apple-darwin,     rust-flags: "-C link-arg=-undefined -C link-arg=dynamic_lookup" }
+          - { platform-name: win32-x64-msvc,  os: windows-latest, target: x86_64-pc-windows-msvc }
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - uses: actions/cache@v6
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-${{ matrix.target }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: lts/*
+          cache: npm
+
+      - name: Patch lockfile stub version fields
+        run: node scripts/patch-lockfile-stubs.cjs
+
+      - run: npm ci --omit=optional
+
+      - name: Install cross-compilation toolchain (ARM64 Linux)
+        if: matrix.use-cross == true
+        run: sudo apt-get install -y gcc-aarch64-linux-gnu
+
+      - name: Build (cross — ARM64 Linux)
+        if: matrix.use-cross == true
+        run: |
+          pkg="${{ needs.detect.outputs.package }}"
+          cargo_flags=""
+          [[ "$pkg" == "virage-embedder-onnx" ]] && cargo_flags="--features download-binaries"
+          cd "packages/$pkg"
+          npx napi build --release --target ${{ matrix.target }} $cargo_flags
+        env:
+          CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
+
+      - name: Build (native)
+        if: matrix.use-cross != true
+        run: |
+          pkg="${{ needs.detect.outputs.package }}"
+          cargo_flags=""
+          [[ "$pkg" == "virage-embedder-onnx" ]] && cargo_flags="--features download-binaries"
+          cd "packages/$pkg"
+          npx napi build --release --target ${{ matrix.target }} $cargo_flags
+        env:
+          RUSTFLAGS: ${{ matrix.rust-flags }}
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: ${{ needs.detect.outputs.package }}-${{ matrix.platform-name }}
+          path: packages/${{ needs.detect.outputs.package }}/*.node
+          if-no-files-found: error
+
+  publish:
+    name: Publish ${{ needs.detect.outputs.package }}
+    needs: [detect, build]
+    if: always() && needs.build.result == 'success'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: lts/*
+          registry-url: https://registry.npmjs.org
+          cache: npm
+
+      - name: Patch lockfile stub version fields
+        run: node scripts/patch-lockfile-stubs.cjs
+
+      - run: npm ci --omit=optional
+
+      - name: Download binary artifacts
+        uses: actions/download-artifact@v8
+        with:
+          path: binaries/
+
+      - name: Place binaries into npm/ dirs
+        run: |
+          pkg="${{ needs.detect.outputs.package }}"
+          lib_name=$(echo "$pkg" | tr '-' '_')
+          for platform in linux-x64-gnu linux-arm64-gnu darwin-x64 darwin-arm64 win32-x64-msvc; do
+            artifact_dir="binaries/${pkg}-${platform}"
+            node_file=$(ls "$artifact_dir"/*.node 2>/dev/null | head -1)
+            if [ -z "$node_file" ]; then
+              echo "ERROR: missing .node for $pkg / $platform"
+              exit 1
+            fi
+            cp "$node_file" "packages/$pkg/npm/$platform/${lib_name}.node"
+          done
+
+      - name: Build virage-chunker-ce-ast (dependency for CE chunkers)
+        if: startsWith(needs.detect.outputs.package, 'virage-chunker-ce-')
+        run: npm run build --workspace packages/virage-chunker-ce-ast
+
+      - name: Build TS wrapper
+        run: npm run build --workspace packages/${{ needs.detect.outputs.package }}
+
+      - name: Publish platform stubs and main package
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          pkg="${{ needs.detect.outputs.package }}"
+          pkg_name=$(node -p "require('./packages/${pkg}/package.json').name")
+          version=$(node -p "require('./packages/${pkg}/package.json').version")
+
+          for platform in linux-x64-gnu linux-arm64-gnu darwin-x64 darwin-arm64 win32-x64-msvc; do
+            stub_name="${pkg_name}-${platform}"
+            if npm view "${stub_name}@${version}" version 2>/dev/null | grep -qF "${version}"; then
+              echo "ℹ️  ${stub_name}@${version} already on npm — skipping"
+            else
+              npm publish "packages/${pkg}/npm/${platform}/" --access public
+            fi
+          done
+
+          if npm view "${pkg_name}@${version}" version 2>/dev/null | grep -qF "${version}"; then
+            echo "ℹ️  ${pkg_name}@${version} already on npm — skipping"
+          else
+            npm publish --workspace "packages/${pkg}" --access public
+          fi

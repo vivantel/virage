@@ -52,106 +52,6 @@ jobs:
           manifest-file: .release-please-manifest.json
 
 
-  detect-ce-native:
-    needs: release-please
-    runs-on: ubuntu-latest
-    outputs:
-      has_native: ${{ steps.detect.outputs.has_native }}
-      native_packages: ${{ steps.detect.outputs.native_packages }}
-    steps:
-      - id: detect
-        run: |
-          pkgs=()
-          if [[ "${{ needs.release-please.outputs.virage-chunker-ce-pdf }}" == "true" ]]; then pkgs+=("virage-chunker-ce-pdf"); fi
-          if [[ "${{ needs.release-please.outputs.virage-chunker-ce-md }}" == "true" ]]; then pkgs+=("virage-chunker-ce-md"); fi
-          if [[ "${{ needs.release-please.outputs.virage-chunker-ce-docx }}" == "true" ]]; then pkgs+=("virage-chunker-ce-docx"); fi
-          if [[ "${{ needs.release-please.outputs.virage-chunker-ce-latex }}" == "true" ]]; then pkgs+=("virage-chunker-ce-latex"); fi
-          if [[ "${{ needs.release-please.outputs.virage-chunker-ce-lang }}" == "true" ]]; then pkgs+=("virage-chunker-ce-lang"); fi
-          if [[ "${{ needs.release-please.outputs.virage-embedder-onnx }}" == "true" ]]; then pkgs+=("virage-embedder-onnx"); fi
-          if [[ ${#pkgs[@]} -gt 0 ]]; then
-            echo "has_native=true" >> "$GITHUB_OUTPUT"
-            echo "native_packages=$(printf '%s\n' "${pkgs[@]}" | jq -R . | jq -sc .)" >> "$GITHUB_OUTPUT"
-          else
-            echo "has_native=false" >> "$GITHUB_OUTPUT"
-            echo "native_packages=[]" >> "$GITHUB_OUTPUT"
-          fi
-
-  build-ce-native:
-    name: ${{ matrix.package }} / ${{ matrix.platform-name }}
-    needs: [release-please, detect-ce-native]
-    if: needs.detect-ce-native.outputs.has_native == 'true'
-    strategy:
-      fail-fast: false
-      matrix:
-        package: ${{ fromJson(needs.detect-ce-native.outputs.native_packages) }}
-        platform-name:
-          - linux-x64-gnu
-          - linux-arm64-gnu
-          - darwin-x64
-          - darwin-arm64
-          - win32-x64-msvc
-        include:
-          - { platform-name: linux-x64-gnu,   os: ubuntu-latest,  target: x86_64-unknown-linux-gnu }
-          - { platform-name: linux-arm64-gnu, os: ubuntu-latest,  target: aarch64-unknown-linux-gnu, use-cross: true }
-          - { platform-name: darwin-x64,      os: macos-latest,   target: x86_64-apple-darwin,      rust-flags: "-C link-arg=-undefined -C link-arg=dynamic_lookup" }
-          - { platform-name: darwin-arm64,    os: macos-latest,   target: aarch64-apple-darwin,     rust-flags: "-C link-arg=-undefined -C link-arg=dynamic_lookup" }
-          - { platform-name: win32-x64-msvc,  os: windows-latest, target: x86_64-pc-windows-msvc }
-          - { package: virage-embedder-onnx,  cargo-features: "--features download-binaries" }
-
-    runs-on: ${{ matrix.os }}
-
-    steps:
-      - uses: actions/checkout@v7
-
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: ${{ matrix.target }}
-
-      - uses: actions/cache@v6
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-${{ matrix.target }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-
-      - uses: actions/setup-node@v6
-        with:
-          node-version: lts/*
-          cache: npm
-
-      - name: Patch lockfile stub version fields
-        run: node scripts/patch-lockfile-stubs.cjs
-
-      - run: npm ci --omit=optional
-
-      - name: Install cross-compilation toolchain (ARM64 Linux)
-        if: matrix.use-cross == true
-        run: sudo apt-get install -y gcc-aarch64-linux-gnu
-
-      - name: Build (cross — ARM64 Linux)
-        if: matrix.use-cross == true
-        run: |
-          cd packages/${{ matrix.package }}
-          npx napi build --release --target ${{ matrix.target }} ${{ matrix.cargo-features }}
-        env:
-          CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
-
-      - name: Build (native)
-        if: matrix.use-cross != true
-        run: |
-          cd packages/${{ matrix.package }}
-          npx napi build --release --target ${{ matrix.target }} ${{ matrix.cargo-features }}
-        env:
-          RUSTFLAGS: ${{ matrix.rust-flags }}
-
-      - uses: actions/upload-artifact@v7
-        with:
-          name: ${{ matrix.package }}-${{ matrix.platform-name }}
-          path: packages/${{ matrix.package }}/*.node
-          if-no-files-found: error
-
   compute-publish-matrix:
     needs: release-please
     runs-on: ubuntu-latest
@@ -165,7 +65,7 @@ jobs:
           if [[ "${{ needs.release-please.outputs.virage-embedder-openai }}" == "true" ]]; then packages+=("virage-embedder-openai"); fi
           if [[ "${{ needs.release-please.outputs.virage-embedder-transformers }}" == "true" ]]; then packages+=("virage-embedder-transformers"); fi
           if [[ "${{ needs.release-please.outputs.virage-embedder-fastembed }}" == "true" ]]; then packages+=("virage-embedder-fastembed"); fi
-          # virage-embedder-onnx is a native Rust addon — published via publish-ce-native
+          # virage-embedder-onnx is a native Rust addon — published via native-publish.yaml (tag-triggered)
           if [[ "${{ needs.release-please.outputs.virage-store-postgres }}" == "true" ]]; then packages+=("virage-store-postgres"); fi
           if [[ "${{ needs.release-please.outputs.virage-store-qdrant }}" == "true" ]]; then packages+=("virage-store-qdrant"); fi
           if [[ "${{ needs.release-please.outputs.virage-store-lancedb }}" == "true" ]]; then packages+=("virage-store-lancedb"); fi
@@ -183,7 +83,7 @@ jobs:
           if [[ "${{ needs.release-please.outputs.virage-reranker-cross-encoder }}" == "true" ]]; then packages+=("virage-reranker-cross-encoder"); fi
           if [[ "${{ needs.release-please.outputs.virage-reranker-llm }}" == "true" ]]; then packages+=("virage-reranker-llm"); fi
           if [[ "${{ needs.release-please.outputs.virage-git-isomorphic }}" == "true" ]]; then packages+=("virage-git-isomorphic"); fi
-          # CE pure-TS packages (native ones are published via publish-ce-native)
+          # CE pure-TS packages (native ones are published via native-publish.yaml)
           if [[ "${{ needs.release-please.outputs.virage-chunker-ce-ast }}" == "true" ]]; then packages+=("virage-chunker-ce-ast"); fi
           if [[ "${{ needs.release-please.outputs.virage-chunker-ce-ts }}" == "true" ]]; then packages+=("virage-chunker-ce-ts"); fi
           if [[ ${#packages[@]} -gt 0 ]]; then
@@ -249,87 +149,6 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
-
-  publish-ce-native:
-    name: Publish CE native packages
-    needs: [release-please, detect-ce-native, build-ce-native]
-    if: |
-      always() &&
-      needs.detect-ce-native.outputs.has_native == 'true' &&
-      needs.build-ce-native.result != 'failure'
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      id-token: write
-
-    steps:
-      - uses: actions/checkout@v7
-
-      - uses: actions/setup-node@v6
-        with:
-          node-version: lts/*
-          registry-url: https://registry.npmjs.org
-          cache: npm
-
-      - name: Patch lockfile stub version fields
-        run: node scripts/patch-lockfile-stubs.cjs
-
-      - run: npm ci --omit=optional
-
-      - name: Download binary artifacts
-        uses: actions/download-artifact@v8
-        with:
-          path: binaries/
-
-      - name: Place binaries into npm/ dirs
-        run: |
-          set -e
-          for pkg in $(echo '${{ needs.detect-ce-native.outputs.native_packages }}' | jq -r '.[]'); do
-            lib_name=$(echo "$pkg" | tr '-' '_')
-            for platform in linux-x64-gnu linux-arm64-gnu darwin-x64 darwin-arm64 win32-x64-msvc; do
-              artifact_dir="binaries/${pkg}-${platform}"
-              node_file=$(ls "$artifact_dir"/*.node 2>/dev/null | head -1)
-              if [ -z "$node_file" ]; then
-                echo "ERROR: missing .node for $pkg / $platform"
-                exit 1
-              fi
-              cp "$node_file" "packages/$pkg/npm/$platform/${lib_name}.node"
-            done
-          done
-
-      - name: Build virage-chunker-ce-ast (dependency for CE chunkers)
-        if: contains(join(fromJSON(needs.detect-ce-native.outputs.native_packages), ','), 'virage-chunker-ce-')
-        run: npm run build --workspace packages/virage-chunker-ce-ast
-
-      - name: Build TS for native packages
-        run: |
-          for pkg in $(echo '${{ needs.detect-ce-native.outputs.native_packages }}' | jq -r '.[]'); do
-            npm run build --workspace "packages/$pkg"
-          done
-
-      - name: Publish platform stubs and native packages
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: |
-          for pkg in $(echo '${{ needs.detect-ce-native.outputs.native_packages }}' | jq -r '.[]'); do
-            pkg_name=$(node -p "require('./packages/${pkg}/package.json').name")
-            version=$(node -p "require('./packages/${pkg}/package.json').version")
-
-            for platform in linux-x64-gnu linux-arm64-gnu darwin-x64 darwin-arm64 win32-x64-msvc; do
-              stub_name="${pkg_name}-${platform}"
-              if npm view "${stub_name}@${version}" version 2>/dev/null | grep -qF "${version}"; then
-                echo "ℹ️  ${stub_name}@${version} already on npm — skipping"
-              else
-                npm publish "packages/${pkg}/npm/${platform}/" --access public
-              fi
-            done
-
-            if npm view "${pkg_name}@${version}" version 2>/dev/null | grep -qF "${version}"; then
-              echo "ℹ️  ${pkg_name}@${version} already on npm — skipping"
-            else
-              npm publish --workspace "packages/${pkg}" --access public
-            fi
-          done
 
   publish-github-packages:
     name: Publish @vivantel/virage-core to GitHub Packages
