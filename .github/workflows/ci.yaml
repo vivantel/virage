@@ -387,7 +387,7 @@ jobs:
         run: npm run build --workspace packages/virage-agent-claude
 
       - name: Patch lockfile stub version fields (CE native packages)
-        if: contains(fromJSON('["virage-chunker-ce-pdf","virage-chunker-ce-md","virage-chunker-ce-docx","virage-chunker-ce-latex","virage-embedder-onnx"]'), matrix.package)
+        if: contains(fromJSON('["virage-chunker-ce-pdf","virage-chunker-ce-md","virage-chunker-ce-docx","virage-chunker-ce-latex","virage-chunker-ce-lang","virage-embedder-onnx"]'), matrix.package)
         run: node scripts/patch-lockfile-stubs.cjs
 
       - name: Build virage-chunker-ce-ast (required by CE native chunkers and virage-chunker-ce-ts)
