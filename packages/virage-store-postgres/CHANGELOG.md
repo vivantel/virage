@@ -1,5 +1,25 @@
 # Changelog
 
+## [0.3.0](https://github.com/vivantel/virage/compare/virage-store-postgres@v0.2.75...virage-store-postgres@v0.3.0) (2026-07-03)
+
+
+### ⚠ BREAKING CHANGES
+
+* virage.config.json must be migrated to providers+fileSets schema
+
+### Features
+
+* Config schema V2 — providers+fileSets, tags, DB migrations, plugin optionsSchema ([0c2cab2](https://github.com/vivantel/virage/commit/0c2cab22c9f41a52c6c9eef497b1d8be0f5f410e))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * devDependencies
+    * @vivantel/virage-core bumped from 0.3.10 to 0.4.0
+  * peerDependencies
+    * @vivantel/virage-core bumped from * to 0.4.0
+
 ## [0.2.75](https://github.com/vivantel/virage/compare/virage-store-postgres@v0.2.74...virage-store-postgres@v0.2.75) (2026-07-02)
 
 
