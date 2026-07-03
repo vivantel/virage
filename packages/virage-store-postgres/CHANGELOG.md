@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.3.1](https://github.com/vivantel/virage/compare/virage-store-postgres@v0.3.0...virage-store-postgres@v0.3.1) (2026-07-03)
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * devDependencies
+    * @vivantel/virage-core bumped from 0.4.0 to 0.4.1
+  * peerDependencies
+    * @vivantel/virage-core bumped from * to 0.4.1
+
 ## [0.3.0](https://github.com/vivantel/virage/compare/virage-store-postgres@v0.2.75...virage-store-postgres@v0.3.0) (2026-07-03)
 
 

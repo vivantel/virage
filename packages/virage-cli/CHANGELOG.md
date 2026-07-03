@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.3.1](https://github.com/vivantel/virage/compare/virage-cli@v0.3.0...virage-cli@v0.3.1) (2026-07-03)
+
+
+### Features
+
+* **init,index:** Ce-lang chunkers, onnx default embedder, index throughput stats ([54f2c72](https://github.com/vivantel/virage/commit/54f2c7212d85b9d2b2bfe40b0592c09481e7aded))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @vivantel/virage-core bumped from >=0.4.0 to >=0.4.1
+
 ## [0.3.0](https://github.com/vivantel/virage/compare/virage-cli@v0.2.11...virage-cli@v0.3.0) (2026-07-03)
 
 
