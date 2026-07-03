@@ -1,6 +1,6 @@
 {
   "name": "@vivantel/virage-chunker-ce-lang",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Multi-language code chunker for Virage — tree-sitter CST → ViDoc AST (Rust, native)",
   "type": "module",
   "main": "./dist/index.js",
@@ -30,11 +30,11 @@
     "minimatch": "^10.0.0"
   },
   "optionalDependencies": {
-    "@vivantel/virage-chunker-ce-lang-linux-x64-gnu": "0.1.0",
-    "@vivantel/virage-chunker-ce-lang-linux-arm64-gnu": "0.1.0",
-    "@vivantel/virage-chunker-ce-lang-darwin-x64": "0.1.0",
-    "@vivantel/virage-chunker-ce-lang-darwin-arm64": "0.1.0",
-    "@vivantel/virage-chunker-ce-lang-win32-x64-msvc": "0.1.0"
+    "@vivantel/virage-chunker-ce-lang-linux-x64-gnu": "0.1.1",
+    "@vivantel/virage-chunker-ce-lang-linux-arm64-gnu": "0.1.1",
+    "@vivantel/virage-chunker-ce-lang-darwin-x64": "0.1.1",
+    "@vivantel/virage-chunker-ce-lang-darwin-arm64": "0.1.1",
+    "@vivantel/virage-chunker-ce-lang-win32-x64-msvc": "0.1.1"
   },
   "rag-plugin": {
     "type": "chunker",
