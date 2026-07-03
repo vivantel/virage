@@ -50,16 +50,17 @@ function centerInWidth(text: string, width: number, fill = " "): string {
 
 function renderBar(value: number, total: number): string {
   const fillCount =
-    total > 0
-      ? Math.min(BAR_WIDTH, Math.floor((value / total) * BAR_WIDTH))
-      : 0;
+    total === 0
+      ? BAR_WIDTH
+      : Math.min(BAR_WIDTH, Math.floor((value / total) * BAR_WIDTH));
   const fill = ansi.cyan + "█".repeat(fillCount) + ansi.reset;
   const empty = ansi.gray + "░".repeat(BAR_WIDTH - fillCount) + ansi.reset;
   return fill + empty;
 }
 
 function renderPct(value: number, total: number): string {
-  const pct = total > 0 ? Math.min(100, Math.floor((value / total) * 100)) : 0;
+  const pct =
+    total === 0 ? 100 : Math.min(100, Math.floor((value / total) * 100));
   const color = pct >= 100 ? ansi.green : ansi.yellow;
   return color + String(pct).padStart(3) + "%" + ansi.reset;
 }
@@ -94,6 +95,11 @@ export class PipelineRenderer {
   private filesDone = 0;
   private filesTotal = 0;
   private embedSkipped = 0;
+
+  private chunkingStats: { files: number; bytes: number; ms: number } | null =
+    null;
+  private embeddingStats: { chunks: number; bytes: number; ms: number } | null =
+    null;
 
   constructor() {
     if (process.stdout.isTTY) {
@@ -198,6 +204,16 @@ export class PipelineRenderer {
 
   updateSkipped(skipped: number): void {
     this.embedSkipped = skipped;
+    this.dirty = true;
+  }
+
+  setChunkingStats(files: number, bytes: number, ms: number): void {
+    this.chunkingStats = { files, bytes, ms };
+    this.dirty = true;
+  }
+
+  setEmbeddingStats(chunks: number, bytes: number, ms: number): void {
+    this.embeddingStats = { chunks, bytes, ms };
     this.dirty = true;
   }
 
@@ -369,25 +385,53 @@ export class PipelineRenderer {
       this.buildBarRow(label, this.bars[key]),
     );
 
-    // Footer: files indexed (upload completion) + skipped + elapsed + ETA
+    // Footer: files indexed + chunk stats + elapsed + ETA
     const filesDone = this.filesDone;
     const filesTotal = this.filesTotal || this.bars.chunk.total;
     const etaMs = this.calcPipelineEta(elapsed);
     const dim = ansi.dim;
     const rst = ansi.reset;
-    const skippedPart =
-      this.embedSkipped > 0
-        ? `  ${dim}│${rst}  ${dim}Skipped:${rst} ${ansi.green}${this.embedSkipped}${ansi.reset} ${dim}(cached)${rst}`
+    const chunksEmbedded = this.bars.embed.value;
+    const chunksSkipped = this.embedSkipped;
+    const chunksPart =
+      chunksEmbedded + chunksSkipped > 0
+        ? `  ${dim}│${rst}  ${dim}Chunks:${rst} ${chunksEmbedded} embedded / ${ansi.green}${chunksSkipped}${ansi.reset} skipped`
         : "";
     const footer =
       `${dim}Files indexed:${rst} ${filesDone}/${filesTotal}` +
-      skippedPart +
+      chunksPart +
       `  ${dim}│${rst}  ` +
       `${dim}Elapsed:${rst} ${fmtTime(elapsed / 1000)}` +
       `  ${dim}│${rst}  ` +
       `${dim}ETA:${rst} ${etaMs !== null ? fmtTime(etaMs / 1000) : "…"}`;
 
-    return [header, ...rows, footer];
+    const lines: string[] = [header, ...rows, footer];
+
+    // Throughput summary row — shown once chunking/embedding stats are available
+    if (this.chunkingStats !== null || this.embeddingStats !== null) {
+      const parts: string[] = [];
+      if (this.chunkingStats !== null) {
+        const { files, bytes, ms } = this.chunkingStats;
+        const secs = ms / 1000;
+        const filesPerSec = secs > 0 ? (files / secs).toFixed(1) : "—";
+        const mbPerSec = secs > 0 ? (bytes / 1_000_000 / secs).toFixed(1) : "—";
+        parts.push(
+          `${dim}Chunking:${rst} ${filesPerSec} files/s  ${mbPerSec} MB/s`,
+        );
+      }
+      if (this.embeddingStats !== null) {
+        const { chunks, bytes, ms } = this.embeddingStats;
+        const secs = ms / 1000;
+        const chunksPerSec = secs > 0 ? (chunks / secs).toFixed(1) : "—";
+        const mbPerSec = secs > 0 ? (bytes / 1_000_000 / secs).toFixed(1) : "—";
+        parts.push(
+          `${dim}Embedding:${rst} ${chunksPerSec} chunks/s  ${mbPerSec} MB/s`,
+        );
+      }
+      lines.push(parts.join(`  ${dim}│${rst}  `));
+    }
+
+    return lines;
   }
 
   private calcPipelineEta(elapsedMs: number): number | null {

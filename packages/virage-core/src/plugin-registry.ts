@@ -61,6 +61,17 @@ export const BUILT_IN_PLUGINS: PluginEntry[] = [
   },
   {
     type: "embedder",
+    label: "ONNX Runtime (local, Rust — no API key required)",
+    key: "onnx",
+    package: "@vivantel/virage-embedder-onnx",
+    envVars: [],
+    defaultConfig: {
+      model: "Xenova/all-MiniLM-L6-v2",
+      dimensions: 384,
+    },
+  },
+  {
+    type: "embedder",
     label: "Custom (implement the EmbeddingProvider interface yourself)",
     key: "custom",
     package: "@your-org/rag-embedder-custom",

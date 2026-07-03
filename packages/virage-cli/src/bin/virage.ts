@@ -161,6 +161,10 @@ async function runOnce(options: {
         onFileComplete: (done, total) =>
           renderer.updateFileIndexed(done, total),
         onSkipProgress: (skipped) => renderer.updateSkipped(skipped),
+        onChunkingComplete: (files, bytes, ms) =>
+          renderer.setChunkingStats(files, bytes, ms),
+        onEmbeddingComplete: (chunks, bytes, ms) =>
+          renderer.setEmbeddingStats(chunks, bytes, ms),
       },
     });
     const result = await orchestrator.run();

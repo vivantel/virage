@@ -71,6 +71,16 @@ export interface RAGPipelineConfig {
     onUploadProgress?: (done: number, total: number) => void;
     onFileComplete?: (done: number, total: number) => void;
     onSkipProgress?: (skipped: number) => void;
+    onChunkingComplete?: (
+      files: number,
+      bytes: number,
+      durationMs: number,
+    ) => void;
+    onEmbeddingComplete?: (
+      chunks: number,
+      bytes: number,
+      durationMs: number,
+    ) => void;
   };
   quality?: QualityConfig;
 }
@@ -170,10 +180,8 @@ export class Orchestrator {
         ? new Map<string, string>()
         : new Map([...db.getFileStates(), ...vectorStoreState]);
 
-      const { toProcess, toDelete } = await gitTracker.getChangedFiles(
-        previousState,
-        currentState,
-      );
+      const { toProcess, toDelete, unchanged } =
+        await gitTracker.getChangedFiles(previousState, currentState);
 
       const gitDuration = Date.now() - t1;
       logger.verbose(`Git tracking done in ${gitDuration}ms`);
@@ -206,6 +214,7 @@ export class Orchestrator {
 
       logger.info(
         `📊 ${toProcess.length} to process, ${toDelete.length} to delete` +
+          (unchanged.length > 0 ? `, ${unchanged.length} unchanged` : "") +
           (pendingEmbed.length > 0
             ? `, ${pendingEmbed.length} embed-pending`
             : "") +
@@ -302,6 +311,8 @@ export class Orchestrator {
       let chunksGenerated = 0;
       let chunksEmbedded = 0;
       let totalSkipped = 0;
+      let totalChunkBytes = 0;
+      let totalEmbedBytes = 0;
       const t2 = Date.now();
 
       let filesIndexed = 0;
@@ -385,6 +396,10 @@ export class Orchestrator {
           }
           try {
             filesStreamed++;
+            totalChunkBytes += capturedChunks.reduce(
+              (s, c) => s + c.denseText.length,
+              0,
+            );
             db.replaceChunks(file, capturedChunks, info?.commitHash);
             if (hasOrphanCleanup) {
               fileNewHashes.set(
@@ -418,6 +433,10 @@ export class Orchestrator {
             totalSkipped += fileSkipped;
             if (fileSkipped > 0) opts.onSkipProgress?.(totalSkipped);
 
+            totalEmbedBytes += chunksToEmbed.reduce(
+              (s, c) => s + c.denseText.length,
+              0,
+            );
             pendingEmbed.push(...chunksToEmbed);
             embedTotal += chunksToEmbed.length;
             chunksGenerated += chunksToEmbed.length;
@@ -458,6 +477,11 @@ export class Orchestrator {
       }
 
       const chunkDuration = Date.now() - t2;
+      opts.onChunkingComplete?.(
+        toProcess.length,
+        totalChunkBytes,
+        chunkDuration,
+      );
       telemetry?.recordChunking({
         durationMs: chunkDuration,
         filesProcessed: toProcess.length,
@@ -472,6 +496,11 @@ export class Orchestrator {
       const t3 = Date.now();
       await flushEmbed(true);
       const embedDuration = Date.now() - t3;
+      opts.onEmbeddingComplete?.(
+        chunksEmbedded,
+        totalEmbedBytes,
+        embedDuration,
+      );
 
       const t4 = Date.now();
       await flushUpload(true);

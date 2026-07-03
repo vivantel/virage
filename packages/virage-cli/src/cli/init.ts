@@ -538,7 +538,7 @@ export async function runInit(verbosity = 0): Promise<void> {
       case 3: {
         const choice = await selectWithBack({
           message: "Which embedding provider?",
-          default: "transformers",
+          default: "onnx",
           choices: registry.embedders.map((e) => ({
             name: e.label,
             value: e.key,
