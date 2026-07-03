@@ -1,0 +1,23 @@
+{
+  "name": "@vivantel/virage-chunker-ce-lang-darwin-arm64",
+  "version": "0.1.0",
+  "description": "Code chunker (tree-sitter) native binary for darwin-arm64",
+  "os": [
+    "darwin"
+  ],
+  "cpu": [
+    "arm64"
+  ],
+  "main": "virage_chunker_ce_lang.node",
+  "files": [
+    "virage_chunker_ce_lang.node"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "license": "MIT OR Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/vivantel/virage-chunkers-ce.git"
+  }
+}

@@ -41,6 +41,7 @@ jobs:
       virage-chunker-ce-md: ${{ steps.release.outputs['packages/virage-chunker-ce-md--release_created'] }}
       virage-chunker-ce-docx: ${{ steps.release.outputs['packages/virage-chunker-ce-docx--release_created'] }}
       virage-chunker-ce-latex: ${{ steps.release.outputs['packages/virage-chunker-ce-latex--release_created'] }}
+      virage-chunker-ce-lang: ${{ steps.release.outputs['packages/virage-chunker-ce-lang--release_created'] }}
     steps:
       - name: Run Release Please
         id: release
@@ -65,6 +66,7 @@ jobs:
           if [[ "${{ needs.release-please.outputs.virage-chunker-ce-md }}" == "true" ]]; then pkgs+=("virage-chunker-ce-md"); fi
           if [[ "${{ needs.release-please.outputs.virage-chunker-ce-docx }}" == "true" ]]; then pkgs+=("virage-chunker-ce-docx"); fi
           if [[ "${{ needs.release-please.outputs.virage-chunker-ce-latex }}" == "true" ]]; then pkgs+=("virage-chunker-ce-latex"); fi
+          if [[ "${{ needs.release-please.outputs.virage-chunker-ce-lang }}" == "true" ]]; then pkgs+=("virage-chunker-ce-lang"); fi
           if [[ "${{ needs.release-please.outputs.virage-embedder-onnx }}" == "true" ]]; then pkgs+=("virage-embedder-onnx"); fi
           if [[ ${#pkgs[@]} -gt 0 ]]; then
             echo "has_native=true" >> "$GITHUB_OUTPUT"

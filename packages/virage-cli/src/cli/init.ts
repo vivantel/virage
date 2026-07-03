@@ -208,8 +208,7 @@ function getRequiredPackages(
     pkgs.add(embedderEntry.package);
   if (storeEntry && storeEntry.key !== "custom") pkgs.add(storeEntry.package);
   for (const g of state.groups) {
-    if (g.strategy.startsWith("@") || g.strategy.includes("/"))
-      pkgs.add(g.strategy);
+    pkgs.add(g.package);
   }
   if (state.reranker && RERANKER_PACKAGES[state.reranker])
     pkgs.add(RERANKER_PACKAGES[state.reranker]);
@@ -282,14 +281,9 @@ function generateJsonConfig(
       : [EXT_GROUPS.find((g) => g.name === "typescript")!];
 
   const fileSets = effectiveGroups.map((g) => {
-    const isPackage = g.strategy.startsWith("@") || g.strategy.includes("/");
-    const chunkerEntry: Record<string, unknown> = {
-      package: isPackage
-        ? g.strategy
-        : `@vivantel/virage-chunker-${g.strategy}`,
-    };
-    if (g.strategyOptions && Object.keys(g.strategyOptions).length > 0)
-      chunkerEntry.options = g.strategyOptions;
+    const chunkerEntry: Record<string, unknown> = { package: g.package };
+    if (g.options && Object.keys(g.options).length > 0)
+      chunkerEntry.options = g.options;
     const fileSet: Record<string, unknown> = {
       name: g.name,
       include: g.exts.map((e) => `**/*${e}`),
@@ -472,7 +466,7 @@ export async function runInit(verbosity = 0): Promise<void> {
           const confirmed = await checkboxWithBack({
             message: "Detected file types — select which to index:",
             choices: detectedGroups.map((g) => ({
-              name: `${g.name} (${g.exts.join(", ")}) → ${g.strategy}`,
+              name: `${g.name} (${g.exts.join(", ")}) → ${g.package}`,
               value: g.name,
               checked: true,
             })),
@@ -485,11 +479,11 @@ export async function runInit(verbosity = 0): Promise<void> {
             confirmed.includes(g.name),
           );
         } else {
-          out.info("No known file types detected. Choose strategies manually:");
+          out.info("No known file types detected. Choose file types manually:");
           const chosen = await checkboxWithBack({
-            message: "Which chunking strategies do you need?",
+            message: "Which file types do you need?",
             choices: EXT_GROUPS.map((g) => ({
-              name: `${g.name} (${g.strategy})`,
+              name: `${g.name} (${g.package})`,
               value: g.name,
             })),
           });
@@ -735,12 +729,8 @@ export async function runInit(verbosity = 0): Promise<void> {
 
     const pinnedVersions = new Map(
       finalState.groups
-        .filter(
-          (g) =>
-            g.version &&
-            (g.strategy.startsWith("@") || g.strategy.includes("/")),
-        )
-        .map((g) => [g.strategy, g.version!]),
+        .filter((g) => g.version != null)
+        .map((g) => [g.package, g.version!]),
     );
     const versions = await Promise.all(
       pkgs.map((pkg) =>

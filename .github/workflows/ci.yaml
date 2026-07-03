@@ -408,3 +408,19 @@ jobs:
 
       - name: Build
         run: npm run build --workspace packages/${{ matrix.package }}
+
+      - name: Verify EXT_GROUPS packages are published on npm
+        if: matrix.package == 'virage-cli'
+        run: |
+          node --input-type=module <<'EOF'
+          import { EXT_GROUPS } from './packages/virage-cli/dist/cli/file-detect.js';
+          import { spawnSync } from 'child_process';
+          const pkgs = [...new Set(EXT_GROUPS.map(g => g.package))];
+          let failed = false;
+          for (const p of pkgs) {
+            const r = spawnSync('npm', ['view', p, 'version'], { encoding: 'utf8' });
+            if (r.status !== 0) { console.error('NOT PUBLISHED:', p); failed = true; }
+            else console.log('ok:', p);
+          }
+          if (failed) process.exit(1);
+          EOF
