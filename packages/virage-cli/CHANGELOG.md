@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.2](https://github.com/vivantel/virage/compare/virage-cli@v0.3.1...virage-cli@v0.3.2) (2026-07-03)
+
+
+### Features
+
+* **virage-cli:** Replace strategy/strategyOptions with package/options in ExtGroup ([7b535d0](https://github.com/vivantel/virage/commit/7b535d0aa389e349cbe64f0c7461b4a022f0cd3c))
+
 ## [0.3.1](https://github.com/vivantel/virage/compare/virage-cli@v0.3.0...virage-cli@v0.3.1) (2026-07-03)
 
 
