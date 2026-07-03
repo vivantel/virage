@@ -79,6 +79,7 @@ jobs:
 
       - name: Build (cross — ARM64 Linux)
         if: matrix.use-cross == true
+        shell: bash
         run: |
           pkg="${{ needs.detect.outputs.package }}"
           cargo_flags=""
@@ -90,6 +91,7 @@ jobs:
 
       - name: Build (native)
         if: matrix.use-cross != true
+        shell: bash
         run: |
           pkg="${{ needs.detect.outputs.package }}"
           cargo_flags=""
