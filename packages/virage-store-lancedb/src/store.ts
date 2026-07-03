@@ -442,7 +442,7 @@ export class LanceDBVectorStore implements VectorStore {
     const useHybrid =
       options?.hybrid === true && this.ftsIndexCreated && options.queryText;
 
-    const labelFilter = options?.labelFilter;
+    const tagFilter = options?.tagFilter;
 
     /** Post-retrieval predicate that checks both metadata filter and label filter. */
     const postFilter = (r: VectorSearchResult): boolean => {
@@ -452,22 +452,21 @@ export class LanceDBVectorStore implements VectorStore {
       ) {
         return false;
       }
-      if (labelFilter && labelFilter.length > 0) {
-        const chunkLabels = r.metadata["labels"] as string[] | undefined;
-        if (!chunkLabels || !labelFilter.some((l) => chunkLabels.includes(l))) {
+      if (tagFilter && tagFilter.length > 0) {
+        const chunkLabels = r.metadata["tags"] as string[] | undefined;
+        if (!chunkLabels || !tagFilter.some((l) => chunkLabels.includes(l))) {
           return false;
         }
       }
       return true;
     };
 
-    const needsPostFilter =
-      !!filter || (!!labelFilter && labelFilter.length > 0);
+    const needsPostFilter = !!filter || (!!tagFilter && tagFilter.length > 0);
 
     if (useHybrid) {
       const fetchLimit = topK * 2;
       this.logger?.debug(
-        `Hybrid search: topK=${topK} labelFilter=${JSON.stringify(labelFilter ?? null)}`,
+        `Hybrid search: topK=${topK} tagFilter=${JSON.stringify(tagFilter ?? null)}`,
       );
       const [vectorResults, ftsResults] = await Promise.all([
         this.vectorSearchInternal(queryEmbedding, fetchLimit),
@@ -488,7 +487,7 @@ export class LanceDBVectorStore implements VectorStore {
     // Pure vector search path
     const fetchLimit = needsPostFilter ? topK * 4 : topK;
     this.logger?.debug(
-      `Search: topK=${topK} fetchLimit=${fetchLimit} filter=${JSON.stringify(filter ?? null)} labelFilter=${JSON.stringify(labelFilter ?? null)}`,
+      `Search: topK=${topK} fetchLimit=${fetchLimit} filter=${JSON.stringify(filter ?? null)} tagFilter=${JSON.stringify(tagFilter ?? null)}`,
     );
     const results = await this.vectorSearchInternal(queryEmbedding, fetchLimit);
 

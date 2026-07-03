@@ -6,8 +6,25 @@ export {
   type HNSWParams,
 } from "./store.js";
 
+import { z } from "zod";
 import type { VectorStore } from "@vivantel/virage-core";
 import { PostgresVectorStore } from "./store.js";
+
+export const optionsSchema = z.object({
+  connectionString: z
+    .string()
+    .min(1)
+    .describe("PostgreSQL connection string (postgresql://...)"),
+  table: z.string().optional().describe("Override default table name"),
+  dimensions: z
+    .number()
+    .int()
+    .positive()
+    .optional()
+    .describe("Embedding dimensions (inferred from embedder)"),
+  ssl: z.boolean().optional(),
+});
+export type PluginOptions = z.infer<typeof optionsSchema>;
 
 /** Factory used by the JSON config loader. */
 export function createVectorStore(

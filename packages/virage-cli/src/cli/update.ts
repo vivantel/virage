@@ -31,15 +31,15 @@ interface PackageJson {
 }
 
 interface VirageConfig {
-  embedder?: { package?: string };
-  vectorStore?: { package?: string };
+  providers?: {
+    embedder?: { package?: string };
+    vectorStore?: { package?: string };
+    reranker?: { package?: string };
+    source?: { package?: string };
+  };
   search?: { reranker?: { package?: string } };
-  /** New format: plugin-spec objects. Old string format is auto-migrated by config-loader. */
   agents?: Array<{ package: string } | string>;
-  pluginVersions?: Record<string, string>;
-  chunking?: { chunkers?: Array<{ package?: string }> };
-  /** @deprecated Use chunking.chunkers. */
-  chunkers?: Array<{ strategy?: string; package?: string }>;
+  fileSets?: Array<{ chunkers?: Array<{ package?: string }> }>;
 }
 
 const AGENT_PACKAGES: Record<string, string> = {
@@ -102,11 +102,17 @@ async function discoverViragePackages(
   // Config-first: read virage.config.json to discover required packages
   const virageConfig = await readVirageConfig(configPath);
   if (virageConfig) {
-    if (virageConfig.embedder?.package) {
-      candidates.add(virageConfig.embedder.package);
+    if (virageConfig.providers?.embedder?.package) {
+      candidates.add(virageConfig.providers.embedder.package);
     }
-    if (virageConfig.vectorStore?.package) {
-      candidates.add(virageConfig.vectorStore.package);
+    if (virageConfig.providers?.vectorStore?.package) {
+      candidates.add(virageConfig.providers.vectorStore.package);
+    }
+    if (virageConfig.providers?.reranker?.package) {
+      candidates.add(virageConfig.providers.reranker.package);
+    }
+    if (virageConfig.providers?.source?.package) {
+      candidates.add(virageConfig.providers.source.package);
     }
     if (virageConfig.search?.reranker?.package) {
       candidates.add(virageConfig.search.reranker.package);
@@ -119,10 +125,10 @@ async function discoverViragePackages(
         candidates.add(agent.package);
       }
     }
-    for (const chunker of virageConfig.chunking?.chunkers ??
-      virageConfig.chunkers ??
-      []) {
-      if (chunker.package) candidates.add(chunker.package);
+    for (const fileSet of virageConfig.fileSets ?? []) {
+      for (const chunker of fileSet.chunkers ?? []) {
+        if (chunker.package) candidates.add(chunker.package);
+      }
     }
   }
 

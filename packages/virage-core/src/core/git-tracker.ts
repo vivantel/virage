@@ -1,5 +1,5 @@
 import { glob } from "glob";
-import { ChunkerEntry, FileChunker } from "../interfaces/index.js";
+import { ChunkerEntry } from "../interfaces/index.js";
 import type { SourceRepository } from "../interfaces/source-repository.js";
 import type { Logger } from "../interfaces/logger.js";
 import { NullLogger } from "../logger/null-logger.js";
@@ -9,22 +9,22 @@ import { IGNORED_DIRS } from "./virage-defaults.js";
 
 export class GitTracker {
   private source: SourceRepository;
-  private chunkers: ChunkerEntry[];
+  private entries: ChunkerEntry[];
   private allPatterns: string[];
   private logger: Logger;
-  private excludePatterns: string[];
+  private globalIgnore: string[];
 
   constructor(
-    chunkers: ChunkerEntry[],
+    entries: ChunkerEntry[],
     source: SourceRepository,
     logger?: Logger,
-    excludePatterns?: string[],
+    globalIgnore?: string[],
   ) {
-    this.chunkers = chunkers;
+    this.entries = entries;
     this.source = source;
-    this.allPatterns = chunkers.flatMap((e) => e.chunker.patterns);
+    this.allPatterns = entries.flatMap((e) => e.chunker.patterns);
     this.logger = (logger ?? new NullLogger()).withTag("git");
-    this.excludePatterns = excludePatterns ?? [];
+    this.globalIgnore = globalIgnore ?? [];
   }
 
   /** Returns the current git branch name, or "HEAD" when detached. */
@@ -32,8 +32,9 @@ export class GitTracker {
     return (await this.source.getContext?.()) ?? "HEAD";
   }
 
-  private getChunkerForFile(filePath: string): FileChunker | null {
-    for (const entry of this.chunkers) {
+  private getEntriesForFile(filePath: string): ChunkerEntry[] {
+    const matched: ChunkerEntry[] = [];
+    for (const entry of this.entries) {
       if (
         entry.include &&
         !entry.include.some((p) => this.matchesPattern(filePath, p))
@@ -43,13 +44,10 @@ export class GitTracker {
       if (
         entry.chunker.patterns.some((p) => this.matchesPattern(filePath, p))
       ) {
-        this.logger.trace(
-          `Matched ${filePath} → chunker "${entry.chunker.name}"`,
-        );
-        return entry.chunker;
+        matched.push(entry);
       }
     }
-    return null;
+    return matched;
   }
 
   private matchesPattern(filePath: string, pattern: string): boolean {
@@ -61,7 +59,7 @@ export class GitTracker {
   async getAllTrackedFiles(): Promise<string[]> {
     const ignore = [
       ...[...IGNORED_DIRS].map((d) => `${d}/**`),
-      ...this.excludePatterns,
+      ...this.globalIgnore,
     ];
     const normalizedPatterns = this.allPatterns.map((p) =>
       p.split(path.sep).join("/"),
@@ -73,15 +71,15 @@ export class GitTracker {
     });
     const unique = [...new Set(files)]
       .filter((f) => {
-        if (this.excludePatterns.length === 0) return true;
+        if (this.globalIgnore.length === 0) return true;
         const normalized = f.split(path.sep).join("/");
-        return !this.excludePatterns.some((p) => minimatch(normalized, p));
+        return !this.globalIgnore.some((p) => minimatch(normalized, p));
       })
       .sort();
     this.logger.debug(
       `Scanned ${unique.length} file(s) matching ${this.allPatterns.length} pattern(s)` +
-        (this.excludePatterns.length > 0
-          ? ` (${this.excludePatterns.length} exclude pattern(s) applied)`
+        (this.globalIgnore.length > 0
+          ? ` (${this.globalIgnore.length} global ignore pattern(s) applied)`
           : ""),
     );
     return unique;
@@ -89,7 +87,7 @@ export class GitTracker {
 
   async getCurrentState(
     onProgress?: (done: number, total: number) => void,
-  ): Promise<Map<string, { commitHash: string; chunker: FileChunker }>> {
+  ): Promise<Map<string, { commitHash: string; entries: ChunkerEntry[] }>> {
     const allFiles = await this.getAllTrackedFiles();
     const revisionMap = await this.source.getFileRevisions(
       allFiles,
@@ -99,14 +97,17 @@ export class GitTracker {
 
     const state = new Map<
       string,
-      { commitHash: string; chunker: FileChunker }
+      { commitHash: string; entries: ChunkerEntry[] }
     >();
 
     for (const file of allFiles) {
       const revision = revisionMap.get(file) ?? currentRevision;
-      const chunker = this.getChunkerForFile(file);
-      if (chunker) {
-        state.set(file, { commitHash: revision, chunker });
+      const fileEntries = this.getEntriesForFile(file);
+      if (fileEntries.length > 0) {
+        this.logger.trace(
+          `Matched ${file} → ${fileEntries.length} chunker(s): ${fileEntries.map((e) => e.chunkerKey).join(", ")}`,
+        );
+        state.set(file, { commitHash: revision, entries: fileEntries });
       }
     }
 
@@ -115,7 +116,7 @@ export class GitTracker {
 
   async getChangedFiles(
     previousState: Map<string, string>,
-    currentState?: Map<string, { commitHash: string; chunker: FileChunker }>,
+    currentState?: Map<string, { commitHash: string; entries: ChunkerEntry[] }>,
   ): Promise<{
     toProcess: string[];
     toDelete: string[];

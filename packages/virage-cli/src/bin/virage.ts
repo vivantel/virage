@@ -247,7 +247,7 @@ program
       const { default: chokidar } = await import("chokidar");
       const cfg = await loadConfig(cmdOpts.config, logger).catch(() => null);
       const patterns: string[] = cfg
-        ? cfg.chunkers.flatMap((e) => e.chunker.patterns)
+        ? cfg.fileSetEntries.flatMap((e) => e.chunker.patterns)
         : [];
 
       const watched = [cmdOpts.config, ...patterns];

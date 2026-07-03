@@ -81,7 +81,7 @@ describe("runStoreStats", () => {
     vi.mocked(loadConfig).mockResolvedValue({
       vectorStore: store,
       embedder: {} as never,
-      chunkers: [],
+      fileSetEntries: [],
     } as never);
 
     await expect(
@@ -102,7 +102,7 @@ describe("runStoreStats", () => {
     vi.mocked(loadConfig).mockResolvedValue({
       vectorStore: store,
       embedder: {} as never,
-      chunkers: [],
+      fileSetEntries: [],
     } as never);
 
     await runStoreStats({ config: "./virage.config.json" });
@@ -141,7 +141,7 @@ describe("runStorePerf", () => {
     vi.mocked(loadConfig).mockResolvedValue({
       vectorStore: store,
       embedder: {} as never,
-      chunkers: [],
+      fileSetEntries: [],
     } as never);
 
     await expect(
@@ -162,7 +162,7 @@ describe("runStorePerf", () => {
     vi.mocked(loadConfig).mockResolvedValue({
       vectorStore: store,
       embedder: {} as never,
-      chunkers: [],
+      fileSetEntries: [],
     } as never);
 
     await runStorePerf({ config: "./virage.config.json", timeframeHours: 24 });

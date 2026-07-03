@@ -107,6 +107,10 @@ describe("Orchestrator — two-run embedding cache", () => {
         ];
       },
     },
+    fileSetTags: [],
+    tagRules: [],
+    chunkerKey: "@test/mock-chunker",
+    fileSetName: "default",
   };
 
   beforeAll(() => {
@@ -145,7 +149,7 @@ describe("Orchestrator — two-run embedding cache", () => {
 
   function makeConfig(): RAGPipelineConfig {
     return {
-      chunkers: [mockChunkerEntry],
+      fileSetEntries: [mockChunkerEntry],
       embedder: mockEmbedder,
       vectorStore: store,
       options: {
@@ -218,10 +222,14 @@ describe("Orchestrator — two-run embedding cache", () => {
           }));
         },
       },
+      fileSetTags: [],
+      tagRules: [],
+      chunkerKey: "@test/line-chunker",
+      fileSetName: "default",
     };
 
     const makeConfig2 = (): RAGPipelineConfig => ({
-      chunkers: [lineChunkerEntry],
+      fileSetEntries: [lineChunkerEntry],
       embedder: lineEmbedder,
       vectorStore: store2,
       options: {

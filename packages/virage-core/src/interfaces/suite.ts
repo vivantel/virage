@@ -11,10 +11,10 @@ export interface DatabaseSpec {
   description?: string;
   /** SHA-256 hex digest for integrity verification */
   sha256?: string;
-  /** Embedder package and config used when building this database */
-  embedder?: { package: string; config?: Record<string, unknown> };
-  /** Vector store package used when building this database */
-  vectorStore?: { package: string; config?: Record<string, unknown> };
+  /** Embedder package and options used when building this database */
+  embedder?: { package: string; options?: Record<string, unknown> };
+  /** Vector store package and options used when building this database */
+  vectorStore?: { package: string; options?: Record<string, unknown> };
   /** Per-fileset chunker strategy overrides (partial, merges with suite.chunkers) */
   chunkers?: Record<string, string>;
   /** Plugin versions captured at build time for cache-key stability */

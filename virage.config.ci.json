@@ -1,27 +1,34 @@
 {
   "$schema": "./packages/virage-core/schemas/virage.config.schema.json",
-  "chunking": {
-    "chunkers": [
-      {
-        "package": "@vivantel/virage-chunker-ce-md",
-        "version": "^0.1.3",
-        "ignore": ["CHANGELOG.md"]
+  "providers": {
+    "embedder": {
+      "package": "@vivantel/virage-embedder-transformers",
+      "options": {
+        "model": "Xenova/all-MiniLM-L6-v2",
+        "dimensions": 384,
+        "cacheDir": ".virage/model-cache"
       }
-    ]
-  },
-  "embedder": {
-    "package": "@vivantel/virage-embedder-transformers",
-    "config": {
-      "model": "Xenova/all-MiniLM-L6-v2",
-      "dimensions": 384,
-      "cacheDir": ".virage/model-cache"
+    },
+    "vectorStore": {
+      "package": "@vivantel/virage-store-lancedb",
+      "options": {
+        "uri": ".virage/lancedb",
+        "dimensions": 384
+      }
     }
   },
-  "vectorStore": {
-    "package": "@vivantel/virage-store-lancedb",
-    "config": {
-      "uri": ".virage/lancedb",
-      "dimensions": 384
+  "fileSets": [
+    {
+      "name": "markdown",
+      "include": ["**/*.md"],
+      "ignore": ["CHANGELOG.md", "**/CHANGELOG.md"],
+      "chunkers": [
+        {
+          "package": "@vivantel/virage-chunker-ce-md",
+          "packageVersion": "^0.1.3"
+        }
+      ]
     }
-  }
+  ],
+  "ignore": ["**/node_modules/**", "**/dist/**", "**/target/**"]
 }

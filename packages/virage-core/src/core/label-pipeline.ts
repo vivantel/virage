@@ -2,7 +2,7 @@ import { readFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { dirname, join, extname } from "node:path";
 import { minimatch } from "minimatch";
-import type { LabelRule } from "../interfaces/chunker.js";
+import type { TagRule as LabelRule } from "../interfaces/chunker.js";
 
 // ─── Extension auto-labels ────────────────────────────────────────────────────
 

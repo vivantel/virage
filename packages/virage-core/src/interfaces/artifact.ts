@@ -58,8 +58,11 @@ export interface ChunkMeta {
   qualityScore?: number;
   truncated?: boolean;
 
-  // Labels — applied at index time by the label pipeline (path rules, CODEOWNERS, .virage-labels.json)
-  labels?: string[];
+  // Tags — applied at index time from fileSet.tags and fileSet.tagRules (ADR-046)
+  tags?: string[];
+
+  // Identifies the chunker package that produced this chunk (ADR-044)
+  chunkerKey?: string;
 
   // Downstream enrichment (Phase 5+)
   keywords?: string[];

@@ -13,7 +13,13 @@ const mockChunker: FileChunker = {
   patterns: ["**/*.txt"],
   chunk: vi.fn().mockResolvedValue([]),
 };
-const mockEntry: ChunkerEntry = { chunker: mockChunker };
+const mockEntry: ChunkerEntry = {
+  chunker: mockChunker,
+  fileSetTags: [],
+  tagRules: [],
+  chunkerKey: "@test/chunker",
+  fileSetName: "default",
+};
 
 const mockEmbedder: EmbeddingProvider = {
   name: "mock",
@@ -34,7 +40,7 @@ function makeConfig(
   overrides?: Partial<RAGPipelineConfig["options"]>,
 ): RAGPipelineConfig {
   return {
-    chunkers: [mockEntry],
+    fileSetEntries: [mockEntry],
     embedder: mockEmbedder,
     vectorStore: mockVectorStore,
     options: {
@@ -79,7 +85,7 @@ describe("Orchestrator", () => {
 
   it("should fall back to default embeddingsDb when not specified", () => {
     const config: RAGPipelineConfig = {
-      chunkers: [mockEntry],
+      fileSetEntries: [mockEntry],
       embedder: mockEmbedder,
       vectorStore: mockVectorStore,
     };
@@ -91,7 +97,7 @@ describe("Orchestrator", () => {
   it("should use VIRAGE_DIR env var as default path prefix", () => {
     vi.stubEnv("VIRAGE_DIR", "/custom/dir");
     const config: RAGPipelineConfig = {
-      chunkers: [mockEntry],
+      fileSetEntries: [mockEntry],
       embedder: mockEmbedder,
       vectorStore: mockVectorStore,
     };

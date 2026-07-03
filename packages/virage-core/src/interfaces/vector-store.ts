@@ -35,12 +35,12 @@ export interface VectorDocument {
   metadata: Record<string, unknown>;
 
   /**
-   * RBAC labels for store-level access filtering.
-   * Set by the index-time label pipeline; stored as a queryable field alongside
-   * metadata_json so the store can apply WHERE labels && ARRAY[allowed] pre-filter.
-   * Sourced from ChunkMeta.labels and must stay in sync with metadata.labels.
+   * Tags for store-level access filtering (ADR-046).
+   * Set by the index-time tag pipeline from fileSet.tags and fileSet.tagRules.
+   * Stored alongside metadata_json so the store can apply WHERE tags && ARRAY[allowed].
+   * Sourced from ChunkMeta.tags and must stay in sync with metadata.tags.
    */
-  labels?: string[];
+  tags?: string[];
 
   /** Dense embedding vector of denseText. */
   denseVector: number[];
@@ -64,7 +64,7 @@ export interface ListedDocument {
   sparseTextGeneratorId: string;
   metadataGeneratorId: string;
   metadata: Record<string, unknown>;
-  labels?: string[];
+  tags?: string[];
   sourceFile: string;
   commitHash: string;
   /** Included only when listAll is called with includeVectors: true. */
@@ -97,11 +97,11 @@ export interface SearchOptions {
   /** Metadata key-value pairs to filter results (e.g. `{ branch: "main" }`). Applied as post-filter. */
   filter?: Record<string, unknown>;
   /**
-   * RBAC label filter — only chunks whose labels array intersects this set are returned.
+   * Tag filter — only chunks whose tags array intersects this set are returned (ADR-046).
    * Store adapters apply this at the earliest feasible point (WHERE clause if supported,
-   * otherwise post-retrieval). Undefined = no label filtering (admin/unprotected mode).
+   * otherwise post-retrieval). Undefined = no tag filtering (admin/unprotected mode).
    */
-  labelFilter?: string[];
+  tagFilter?: string[];
   /** Enable BM25 + vector hybrid search with Reciprocal Rank Fusion. Requires queryText. Default: false. */
   hybrid?: boolean;
   /** Blend weight for hybrid search: 0 = pure BM25, 1 = pure vector. Default: 0.6. */

@@ -23,18 +23,20 @@ function readConfigSummary(configPath: string): RawConfigSummary | null {
   try {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const raw = JSON.parse(readFileSync(configPath, "utf8")) as any;
-    const chunkerCount = Array.isArray(
-      (raw.chunking as { chunkers?: unknown } | undefined)?.chunkers,
-    )
-      ? (raw.chunking as { chunkers: unknown[] }).chunkers.length
+    const fileSets = raw.fileSets as
+      Array<{ chunkers?: unknown[] }> | undefined;
+    const chunkerCount = fileSets
+      ? fileSets.reduce((sum, fs) => sum + (fs.chunkers?.length ?? 0), 0)
       : 0;
     const embedder =
-      (raw.embedder?.package as string | undefined)?.split("/").pop() ??
-      "unknown";
+      (raw.providers?.embedder?.package as string | undefined)
+        ?.split("/")
+        .pop() ?? "unknown";
     const store =
-      (raw.vectorStore?.package as string | undefined)?.split("/").pop() ??
-      "unknown";
-    const noBanner = raw.options?.noBanner as boolean | undefined;
+      (raw.providers?.vectorStore?.package as string | undefined)
+        ?.split("/")
+        .pop() ?? "unknown";
+    const noBanner = raw.pipeline?.noBanner as boolean | undefined;
     return { chunkerCount, embedder, store, noBanner };
   } catch {
     return null;

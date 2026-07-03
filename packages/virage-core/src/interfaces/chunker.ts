@@ -82,22 +82,34 @@ export interface FileChunker {
 }
 
 /**
- * A path-glob → label mapping rule applied by the index-time label pipeline.
- * Files matching `match` (minimatch, relative to source root) get `add` appended
- * to their `ChunkMeta.labels`.
+ * A path-glob → tag mapping rule applied at index time within a fileSet (ADR-043, ADR-046).
+ * Files matching `match` (minimatch glob, relative to source root) get `add` appended
+ * to their `ChunkMeta.tags`.
  */
-export interface LabelRule {
+export interface TagRule {
   /** Minimatch glob pattern (relative to source root, e.g. "src/payments/**"). */
   match: string;
-  /** Labels to add when the pattern matches (e.g. ["team:payments", "pci-scope"]). */
+  /** Tags to add when the pattern matches (e.g. ["team:payments", "pci-scope"]). */
   add: string[];
 }
 
+/** Template value: inline minijinja string or a path to a .jinja file (ADR-045). */
+export type TemplateValue = string | { file: string };
+
+/** Per-chunker output templates applied post-chunking, pre-embedding (ADR-045). */
+export interface ChunkerTemplate {
+  /** minijinja template replacing denseText. No-op until virage-renderer-minijinja ships. */
+  denseText?: TemplateValue;
+  /** minijinja template replacing sparseText. No-op until virage-renderer-minijinja ships. */
+  sparseText?: TemplateValue;
+}
+
 /**
- * Wraps a FileChunker with optional pipeline-level path filters and label rules.
- * `include` and `ignore` are applied by virage-core before routing any file
- * to the chunker; they are independent of the package's built-in `patterns`.
- * `labels` rules are applied per-chunk after chunking, merging with global rules.
+ * Wraps a FileChunker with fileSet-level metadata and pipeline-level path filters.
+ * One ChunkerEntry is created per (fileSet × chunkerConfig) pair during config load.
+ * `include` and `ignore` are the fileSet's patterns; they are applied by the GitTracker
+ * and ChunkProcessor before routing files to the chunker.
+ * `fileSetTags` and `tagRules` drive the tag pipeline (ADR-043, ADR-046).
  */
 export interface ChunkerEntry {
   chunker: FileChunker;
@@ -105,8 +117,16 @@ export interface ChunkerEntry {
   include?: string[];
   /** If set, files matching any of these globs are skipped for this chunker. */
   ignore?: string[];
-  /** Per-chunker label rules — merged with global label rules at index time. */
-  labels?: LabelRule[];
+  /** Pre-computed from fileSet.tags — injected into every chunk from this fileSet. */
+  fileSetTags: string[];
+  /** fileSet.tagRules — applied per-file based on minimatch glob matching. */
+  tagRules: TagRule[];
+  /** The npm package name of the chunker — stored as ChunkMeta.chunkerKey (ADR-044). */
+  chunkerKey: string;
+  /** Per-chunker output templates (ADR-045). No-op until renderer ships. */
+  templates?: ChunkerTemplate;
+  /** Name of the fileSet this entry belongs to. */
+  fileSetName: string;
 }
 
 export interface ChunkTransformer {

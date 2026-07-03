@@ -251,22 +251,22 @@ export class ChromaVectorStore implements VectorStore {
     options?: SearchOptions,
   ): Promise<VectorSearchResult[]> {
     const useHybrid = options?.hybrid === true && options.queryText;
-    const labelFilter = options?.labelFilter;
+    const tagFilter = options?.tagFilter;
     this.logger?.debug(
-      `Search: topK=${topK} hybrid=${useHybrid ?? false} labelFilter=${JSON.stringify(labelFilter ?? null)}`,
+      `Search: topK=${topK} hybrid=${useHybrid ?? false} tagFilter=${JSON.stringify(tagFilter ?? null)}`,
     );
 
     const applyLabelFilter = (
       results: VectorSearchResult[],
     ): VectorSearchResult[] => {
-      if (!labelFilter || labelFilter.length === 0) return results;
+      if (!tagFilter || tagFilter.length === 0) return results;
       return results.filter((r) => {
-        const chunkLabels = r.metadata["labels"] as string[] | undefined;
-        return chunkLabels && labelFilter.some((l) => chunkLabels.includes(l));
+        const chunkLabels = r.metadata["tags"] as string[] | undefined;
+        return chunkLabels && tagFilter.some((l) => chunkLabels.includes(l));
       });
     };
 
-    const fetchLimit = labelFilter && labelFilter.length > 0 ? topK * 4 : topK;
+    const fetchLimit = tagFilter && tagFilter.length > 0 ? topK * 4 : topK;
 
     if (useHybrid) {
       await this.buildMiniSearchIfStale();

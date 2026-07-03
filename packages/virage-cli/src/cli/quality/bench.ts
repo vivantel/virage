@@ -180,7 +180,7 @@ export async function runBenchmarkChunker(
     return;
   }
 
-  for (const { chunker } of cfg.chunkers) {
+  for (const { chunker } of cfg.fileSetEntries) {
     const matchedFiles = resolvedFiles!.filter((f) =>
       chunker.patterns.some((p) => matchesPattern(f, p)),
     );

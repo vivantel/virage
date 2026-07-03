@@ -55,7 +55,8 @@
   },
   "dependencies": {
     "chromadb": "^3.4.3",
-    "minisearch": "^7.0.0"
+    "minisearch": "^7.0.0",
+    "zod": "^3.24.0"
   },
   "peerDependencies": {
     "@vivantel/virage-core": "*"

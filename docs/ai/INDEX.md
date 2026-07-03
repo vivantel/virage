@@ -214,6 +214,15 @@ Packages with `.tsx` files: `virage-dashboard`. Add to this list if new packages
 **Dashboard guardrails** (applies to `packages/virage-dashboard/` and `packages/virage-cli/src/cli/dashboard.ts`):
 - See [`guardrails/dashboard.md`](guardrails/dashboard.md) — data sources (LanceDB vs SQLite), PipelineLog op-filtering, WebSocket conventions, SearchResult fields, testing patterns
 
+**Config schema guardrails** (applies when changing `VirageConfigJson`, `ZodVirageConfig`, or `virage.config.schema.json`):
+- See [`guardrails/config-schema.md`](guardrails/config-schema.md) — providers + fileSets schema, tag vocabulary, update checklist (ADR-041/043/046)
+
+**Plugin schema guardrails** (applies when adding or modifying plugin options):
+- See [`guardrails/plugin-schema.md`](guardrails/plugin-schema.md) — optionsSchema export convention, required vs optional fields, PluginOptions type (ADR-047)
+
+**Database migration guardrails** (applies when changing `VirageDb` schema):
+- See [`guardrails/virage-db.md`](guardrails/virage-db.md) — MIGRATIONS array, forward-only, deprecated entities, ADD COLUMN IF NOT EXISTS (ADR-042)
+
 ---
 
 ## Architecture state
@@ -227,28 +236,23 @@ Packages with `.tsx` files: `virage-dashboard`. Add to this list if new packages
 | Import extensions | `.js` (required even for `.ts` files) |
 | TypeScript target | ES2022 |
 | Build output | `dist/` (gitignored) |
-| Config format | JSON (`virage.config.json`); `chunking.{ignore,filter,chunkers}` structure; `${ENV_VAR}` expansion |
+| Config format | JSON (`virage.config.json`); `providers` + `fileSets` structure (V2, ADR-041/043); `${ENV_VAR}` expansion |
 
 **Pipeline stages** (in order):
 
 | Stage | Class | Responsibility |
 | ----- | ----- | -------------- |
 | 1 | `GitTracker` | Detect changed files since last run |
-| 2 | `ChunkProcessor` | Chunk source files via a `FileChunker` strategy; inject index-time labels via label pipeline |
+| 2 | `ChunkProcessor` | Chunk source files via all matching `ChunkerEntry[]`; inject tags from fileSet.tags + fileSet.tagRules |
 | 3 | `EmbedderProcessor` | Embed chunks via an `EmbeddingProvider` |
 | 4 | `Uploader` | Upload embeddings to a `VectorStore` |
 
-**Label pipeline** (`virage-core/src/core/label-pipeline.ts`) — runs inside `ChunkProcessor` per file, non-fatal:
+**Tag pipeline** (`virage-core/src/core/tag-pipeline.ts`) — runs inside `ChunkProcessor` per file (ADR-046):
 
-| Source | Example output |
-| ------ | -------------- |
-| Namespace (config `namespace`) | `"ns:my-project"` |
-| File extension auto-label | `"language:typescript"`, `"format:pdf"` |
-| Provider labels (S3 tags, etc.) | `"team:payments"` |
-| CODEOWNERS (`.github/CODEOWNERS`) | `"team:platform"`, `"owner:alice"` |
-| `.virage-labels.json` directory files | any custom label; `"inherit": false` stops traversal |
-| Global label rules (`chunking.filter.labels`) | glob → label set |
-| Per-chunker label rules (`chunkers[n].labels`) | glob → label set |
+| Source | Example tags |
+| ------ | ------------ |
+| `fileSets[].tags` (direct injection) | `"lang:typescript"`, `"format:markdown"` |
+| `fileSets[].tagRules` (glob-based) | `{ match: "src/payments/**", add: ["team:payments", "pci-scope"] }` |
 
 **Provider interfaces** (`packages/virage-core/src/interfaces/`):
 
@@ -261,7 +265,7 @@ Packages with `.tsx` files: `virage-dashboard`. Add to this list if new packages
 | `SourceProvider` | `CliGitSourceRepository` (also satisfies `SourceRepository`); EE: `virage-source-ee-s3`, `virage-source-ee-gcs`, etc. |
 | `Logger` | built-in console logger in `virage-core` |
 
-`SourceProvider` extends `SourceRepository` with `name: string`, `type: string`, and `listAll(filter?: SourceFilter): AsyncIterable<SourceItem>`. `SourceItem` carries `{ id, path, providerName, labels: string[], meta? }` — labels from the provider (e.g. S3 object tags, CODEOWNERS) are fed into the label pipeline at index time.
+`SourceProvider` extends `SourceRepository` with `name: string`, `type: string`, and `listAll(filter?: SourceFilter): AsyncIterable<SourceItem>`. `SourceItem` carries `{ id, path, providerName, tags: string[], meta? }` — tags from the provider (e.g. S3 object tags) are merged with fileSet tags at index time.
 
 **`FileChunker` interface** (all chunker plugins must implement):
 ```typescript

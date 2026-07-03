@@ -18,11 +18,27 @@ export {
   type OllamaPresetOptions,
 } from "./presets.js";
 
+import { z } from "zod";
 import type { EmbeddingProvider } from "@vivantel/virage-core";
 import {
   OpenAICompatibleEmbedder,
   type OpenAICompatibleEmbedderOptions,
 } from "./embedder.js";
+
+export const optionsSchema = z.object({
+  apiKey: z.string().min(1).describe("OpenAI-compatible API key"),
+  model: z.string().min(1).describe("Embedding model name"),
+  dimensions: z
+    .number()
+    .int()
+    .positive()
+    .optional()
+    .describe("Output vector dimensions"),
+  baseURL: z.string().url().optional().describe("Custom API base URL"),
+  organizationId: z.string().optional(),
+  maxRetries: z.number().int().nonnegative().optional(),
+});
+export type PluginOptions = z.infer<typeof optionsSchema>;
 
 /** Factory used by the JSON config loader. */
 export function createEmbedder(

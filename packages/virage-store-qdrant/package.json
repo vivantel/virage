@@ -45,7 +45,8 @@
     "directory": "packages/virage-store-qdrant"
   },
   "dependencies": {
-    "@qdrant/js-client-rest": "^1.18.0"
+    "@qdrant/js-client-rest": "^1.18.0",
+    "zod": "^3.24.0"
   },
   "peerDependencies": {
     "@vivantel/virage-core": "*"

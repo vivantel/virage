@@ -63,7 +63,7 @@ function makeMockConfig() {
       dimensions: 384,
       embed: vi.fn().mockResolvedValue(Array(384).fill(0)),
     },
-    chunkers: [],
+    fileSetEntries: [],
   };
 }
 

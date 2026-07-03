@@ -1,3 +1,4 @@
+// See docs/ai/guardrails/virage-db.md and ADR-042 before modifying schema.
 import { existsSync, mkdirSync, readFileSync, readdirSync } from "fs";
 import { dirname, join } from "path";
 import Database from "better-sqlite3";
@@ -193,6 +194,72 @@ CREATE INDEX IF NOT EXISTS idx_sq_occurred ON search_queries(occurred_at);
 CREATE INDEX IF NOT EXISTS idx_sq_hash ON search_queries(query_hash);
 `;
 
+const SCHEMA_MIGRATIONS_DDL = `
+CREATE TABLE IF NOT EXISTS schema_migrations (
+  version INTEGER PRIMARY KEY,
+  applied_at TEXT NOT NULL
+) STRICT;
+`;
+
+// Each entry is (version, up). Append new entries to add migrations — NEVER edit existing ones.
+// See docs/ai/guardrails/virage-db.md and ADR-042.
+const MIGRATIONS: Array<{
+  version: number;
+  up: (db: Database.Database) => void;
+}> = [
+  {
+    version: 1,
+    up: (db) => {
+      // Old-schema detection: chunks table with 'content' or 'context_text' columns
+      // is the pre-four-artifact schema. Drop and require re-index.
+      const chunksTableRow = db
+        .prepare(
+          "SELECT name FROM sqlite_master WHERE type='table' AND name='chunks'",
+        )
+        .get() as { name: string } | undefined;
+      if (chunksTableRow) {
+        const cols = db.pragma("table_info(chunks)") as Array<{ name: string }>;
+        if (
+          cols.some((c) => c.name === "content" || c.name === "context_text")
+        ) {
+          db.exec("DROP TABLE IF EXISTS chunks");
+          db.exec("DROP INDEX IF EXISTS idx_source_file");
+          console.warn("[virage] chunks schema changed: re-index required.");
+        }
+      }
+      db.exec(META_DDL);
+      db.exec(CHUNKS_DDL);
+      db.exec(FILE_REVISIONS_DDL);
+      db.exec(EXPERIMENT_RUNS_DDL);
+      db.exec(EVAL_DATASETS_DDL);
+      db.exec(PIPELINE_RUNS_DDL);
+      db.exec(TELEMETRY_DDL);
+      db.exec(SEARCH_QUERIES_DDL);
+    },
+  },
+  // Add new migrations here. Never edit the entries above.
+];
+
+function runMigrations(db: Database.Database): void {
+  db.exec(SCHEMA_MIGRATIONS_DDL);
+  const getApplied = db.prepare<[], { version: number }>(
+    "SELECT version FROM schema_migrations ORDER BY version",
+  );
+  const appliedVersions = new Set(getApplied.all().map((r) => r.version));
+  const insertMigration = db.prepare(
+    "INSERT INTO schema_migrations (version, applied_at) VALUES (?, ?)",
+  );
+  const runAll = db.transaction(() => {
+    for (const migration of MIGRATIONS) {
+      if (!appliedVersions.has(migration.version)) {
+        migration.up(db);
+        insertMigration.run(migration.version, new Date().toISOString());
+      }
+    }
+  });
+  runAll();
+}
+
 export interface SearchQueryRow {
   id: string;
   occurred_at: string;
@@ -212,33 +279,7 @@ export class VirageDb {
     mkdirSync(dirname(dbPath), { recursive: true });
     this.db = new Database(dbPath);
     this.db.pragma("journal_mode = WAL");
-    this.db.exec(META_DDL);
-
-    // Old-schema detection: chunks table with a 'content' column is the pre-four-artifact schema.
-    // No migration — drop and require re-index.
-    const chunksTableRow = this.db
-      .prepare(
-        "SELECT name FROM sqlite_master WHERE type='table' AND name='chunks'",
-      )
-      .get() as { name: string } | undefined;
-    if (chunksTableRow) {
-      const cols = this.db.pragma("table_info(chunks)") as Array<{
-        name: string;
-      }>;
-      if (cols.some((c) => c.name === "content" || c.name === "context_text")) {
-        this.db.exec("DROP TABLE IF EXISTS chunks");
-        this.db.exec("DROP INDEX IF EXISTS idx_source_file");
-        console.warn("[virage] chunks schema changed: re-index required.");
-      }
-    }
-
-    this.db.exec(CHUNKS_DDL);
-    this.db.exec(FILE_REVISIONS_DDL);
-    this.db.exec(EXPERIMENT_RUNS_DDL);
-    this.db.exec(EVAL_DATASETS_DDL);
-    this.db.exec(PIPELINE_RUNS_DDL);
-    this.db.exec(TELEMETRY_DDL);
-    this.db.exec(SEARCH_QUERIES_DDL);
+    runMigrations(this.db);
   }
 
   getMeta(): EmbeddingsMeta | null {

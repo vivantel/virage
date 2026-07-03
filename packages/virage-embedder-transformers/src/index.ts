@@ -5,11 +5,28 @@ export {
 } from "./embedder.js";
 export { benchmarkEmbedder, type BenchmarkResult } from "./benchmark.js";
 
+import { z } from "zod";
 import type { EmbeddingProvider } from "@vivantel/virage-core";
 import {
   TransformersEmbedder,
   type TransformersEmbedderOptions,
 } from "./embedder.js";
+
+export const optionsSchema = z.object({
+  model: z.string().min(1).describe("HuggingFace model name or local path"),
+  dimensions: z
+    .number()
+    .int()
+    .positive()
+    .optional()
+    .describe("Output vector dimensions"),
+  device: z.enum(["cpu", "webgpu", "cuda"]).optional().default("cpu"),
+  cacheDir: z
+    .string()
+    .optional()
+    .describe("Directory to cache downloaded models"),
+});
+export type PluginOptions = z.infer<typeof optionsSchema>;
 
 /** Factory used by the JSON config loader. */
 export function createEmbedder(

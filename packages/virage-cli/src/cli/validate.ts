@@ -34,19 +34,22 @@ export async function runValidate(
   out.section("📂 Scanning files");
   let hasWarnings = false;
 
+  const globalIgnore = config.globalIgnore ?? [];
   const excludeIgnore = [
     ...[...IGNORED_DIRS].map((d) => `${d}/**`),
-    ...(config.excludePatterns ?? []),
+    ...globalIgnore,
   ];
 
-  for (const entry of config.chunkers) {
+  for (const entry of config.fileSetEntries) {
     const files = await glob(entry.chunker.patterns, {
       nodir: true,
       ignore: excludeIgnore,
     });
     const unique = [...new Set(files)];
     const patternsDisplay = entry.chunker.patterns.join(", ");
-    out.dim(`  Chunker: ${entry.chunker.name} (patterns: ${patternsDisplay})`);
+    out.dim(
+      `  Chunker: ${entry.chunkerKey} fileSet: ${entry.fileSetName} (patterns: ${patternsDisplay})`,
+    );
 
     if (unique.length === 0) {
       out.warn(`  No files matched — check your patterns`);
@@ -57,18 +60,14 @@ export async function runValidate(
   }
 
   const gitTracker = new GitTracker(
-    config.chunkers,
-    new CliGitSourceRepository(
-      process.cwd(),
-      undefined,
-      config.excludePatterns,
-    ),
+    config.fileSetEntries,
+    new CliGitSourceRepository(process.cwd(), undefined, globalIgnore),
     undefined,
-    config.excludePatterns,
+    globalIgnore,
   );
   const allFiles = await gitTracker.getAllTrackedFiles();
   out.dim(
-    `  Total: ${allFiles.length} file(s) tracked across ${config.chunkers.length} chunker(s)`,
+    `  Total: ${allFiles.length} file(s) tracked across ${config.fileSetEntries.length} chunker(s)`,
   );
 
   out.section("🔌 Checking vector store");
@@ -85,7 +84,9 @@ export async function runValidate(
   if (detectedGroups.length === 0) {
     out.dim("  No known file types detected in project");
   } else {
-    const allPatterns = config.chunkers.flatMap((e) => e.chunker.patterns);
+    const allPatterns = config.fileSetEntries.flatMap(
+      (e) => e.chunker.patterns,
+    );
     for (const group of detectedGroups) {
       const covered = group.exts.some((ext) =>
         allPatterns.some((p) => p.includes(`*${ext}`) || p.includes(`${ext}`)),

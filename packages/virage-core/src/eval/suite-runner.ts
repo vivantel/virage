@@ -68,21 +68,19 @@ export interface SuiteRunOptions {
 }
 
 function extractConfigFields(rawConfig: RawRecord, topK: number): ConfigFields {
+  const providers = rawConfig.providers as RawRecord | undefined;
   return {
     topK,
-    embedderPackage: (rawConfig.embedder as RawRecord | undefined)?.package,
+    embedderPackage: (providers?.embedder as RawRecord | undefined)?.package,
     embedderModel: (
-      (rawConfig.embedder as RawRecord | undefined)?.config as
+      (providers?.embedder as RawRecord | undefined)?.options as
         RawRecord | undefined
     )?.model,
-    vectorStorePackage: (rawConfig.vectorStore as RawRecord | undefined)
+    vectorStorePackage: (providers?.vectorStore as RawRecord | undefined)
       ?.package,
     searchHybrid: (rawConfig.search as RawRecord | undefined)?.hybrid ?? false,
     searchHybridAlpha: (rawConfig.search as RawRecord | undefined)?.hybridAlpha,
-    rerankerPackage: (
-      (rawConfig.search as RawRecord | undefined)?.reranker as
-        RawRecord | undefined
-    )?.package,
+    rerankerPackage: (providers?.reranker as RawRecord | undefined)?.package,
     pluginVersions: rawConfig.pluginVersions,
   };
 }
@@ -170,9 +168,17 @@ function buildRawConfigFromSuite(
   );
 
   return {
-    chunking: { exclude: suite.exclude ?? [], chunkers: chunkerEntries },
-    embedder: db.embedder,
-    vectorStore: db.vectorStore,
+    providers: {
+      embedder: db.embedder,
+      vectorStore: db.vectorStore,
+    },
+    fileSets: chunkerEntries.map((entry, i) => ({
+      name: Object.keys(effectiveChunkers)[i] ?? `fileset-${i}`,
+      include: entry.include as string[] | undefined,
+      ignore: entry.ignore as string[] | undefined,
+      chunkers: [{ package: entry.package as string }],
+    })),
+    ignore: suite.exclude,
     ...(variant.search ? { search: variant.search } : {}),
     ...(db.pluginVersions ? { pluginVersions: db.pluginVersions } : {}),
   };
@@ -317,11 +323,12 @@ export async function runSuite(
       logger.verbose(`Plugins ready`);
     }
 
-    // Patch vectorStore.config.uri to point at the extracted DB
-    const vectorStore = rawConfig.vectorStore as RawRecord | undefined;
+    // Patch providers.vectorStore.options.uri to point at the extracted DB
+    const providers = rawConfig.providers as RawRecord | undefined;
+    const vectorStore = providers?.vectorStore as RawRecord | undefined;
     if (vectorStore) {
-      vectorStore.config = {
-        ...(vectorStore.config as RawRecord | undefined),
+      vectorStore.options = {
+        ...(vectorStore.options as RawRecord | undefined),
         uri: lancedbDir,
       };
     }

@@ -281,26 +281,21 @@ function generateJsonConfig(
       ? state.groups
       : [EXT_GROUPS.find((g) => g.name === "typescript")!];
 
-  const chunkers = effectiveGroups.map((g) => {
+  const fileSets = effectiveGroups.map((g) => {
     const isPackage = g.strategy.startsWith("@") || g.strategy.includes("/");
-    if (isPackage) {
-      const entry: Record<string, unknown> = {
-        package: g.strategy,
-        include: g.exts.map((e) => `**/*${e}`),
-      };
-      if (g.strategyOptions && Object.keys(g.strategyOptions).length > 0)
-        entry.options = g.strategyOptions;
-      return entry;
-    }
-    // Built-in alias (token, wholeFile, semantic) — legacy format; normalizeConfig handles it
-    const entry: Record<string, unknown> = {
-      name: g.name,
-      patterns: g.exts.map((e) => `**/*${e}`),
-      strategy: g.strategy,
+    const chunkerEntry: Record<string, unknown> = {
+      package: isPackage
+        ? g.strategy
+        : `@vivantel/virage-chunker-${g.strategy}`,
     };
     if (g.strategyOptions && Object.keys(g.strategyOptions).length > 0)
-      entry.strategyOptions = g.strategyOptions;
-    return entry;
+      chunkerEntry.options = g.strategyOptions;
+    const fileSet: Record<string, unknown> = {
+      name: g.name,
+      include: g.exts.map((e) => `**/*${e}`),
+      chunkers: [chunkerEntry],
+    };
+    return fileSet;
   });
 
   const embedderEntry = registry.embedders.find(
@@ -308,56 +303,54 @@ function generateJsonConfig(
   )!;
   const storeEntry = registry.stores.find((s) => s.key === state.vectorStore)!;
 
-  const resolvedStoreConfig =
+  const resolvedStoreOptions =
     storeEntry.key === "lancedb"
       ? { ...storeEntry.defaultConfig, uri: `${getVirageDir()}/lancedb` }
       : storeEntry.defaultConfig;
 
-  const rerankerConfig =
+  const rerankerRef =
     state.reranker === "cross-encoder"
       ? {
           package: "@vivantel/virage-reranker-cross-encoder",
-          config: { model: "Xenova/ms-marco-MiniLM-L-6-v2", topK: 5 },
+          options: { model: "Xenova/ms-marco-MiniLM-L-6-v2", topK: 5 },
         }
       : state.reranker === "llm"
         ? {
             package: "@vivantel/virage-reranker-llm",
-            config: { model: "claude-haiku-4-5", topK: 5 },
+            options: { model: "claude-haiku-4-5", topK: 5 },
           }
         : undefined;
+
+  const providers: Record<string, unknown> = {
+    embedder: {
+      package: embedderEntry.package,
+      options: embedderEntry.defaultConfig,
+    },
+    vectorStore: {
+      package: storeEntry.package,
+      options: resolvedStoreOptions,
+    },
+  };
+  if (rerankerRef) providers.reranker = rerankerRef;
 
   const config: Record<string, unknown> = {
     $schema:
       "https://unpkg.com/@vivantel/virage-core/schemas/virage.config.schema.json",
-    chunking: {
-      exclude: buildExcludePatterns(effectiveGroups),
-      chunkers,
-    },
+    providers,
+    fileSets,
+    ignore: buildExcludePatterns(effectiveGroups),
     agents: state.agents.map((name) => ({
       package: AGENT_PACKAGES[name] ?? name,
     })),
-    embedder: {
-      package: embedderEntry.package,
-      config: embedderEntry.defaultConfig,
-    },
-    vectorStore: {
-      package: storeEntry.package,
-      config: resolvedStoreConfig,
-    },
   };
 
   const searchConfig: Record<string, unknown> = {};
-  if (rerankerConfig) searchConfig.reranker = rerankerConfig;
   if (state.hybrid) {
     searchConfig.hybrid = true;
     searchConfig.hybridAlpha = state.hybridAlpha ?? 0.6;
   }
   if (Object.keys(searchConfig).length > 0) {
     config.search = searchConfig;
-  }
-
-  if (Object.keys(state.pluginVersions).length > 0) {
-    config.pluginVersions = state.pluginVersions;
   }
 
   config.installScope = state.installScope;

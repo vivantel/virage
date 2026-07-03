@@ -5,10 +5,8 @@ import { EmbedderProcessor } from "./embedder.js";
 import { Uploader } from "./uploader.js";
 import { VirageDb } from "./virage-db.js";
 import { TelemetryCollector } from "./telemetry.js";
-import { resolveLabels, CodeownersResolver } from "./label-pipeline.js";
 import {
   ChunkerEntry,
-  LabelRule,
   EmbeddingProvider,
   VectorStore,
   Chunk,
@@ -26,15 +24,13 @@ import type { Reranker } from "../interfaces/reranker.js";
 import type { QualityConfig } from "../interfaces/quality.js";
 
 export interface RAGPipelineConfig {
-  chunkers: ChunkerEntry[];
+  /** Flat list: one entry per (fileSet × chunker) pair (ADR-043). */
+  fileSetEntries: ChunkerEntry[];
   embedder: EmbeddingProvider;
   vectorStore: VectorStore;
   sourceRepository?: SourceRepository;
-  excludePatterns?: string[];
-  /** Global label rules applied to every file's label set (from chunking.filter.labels). */
-  globalLabelRules?: LabelRule[];
-  /** Namespace label prepended to every chunk's labels (e.g. "ns:my-project"). */
-  namespace?: string;
+  /** Global ignore patterns applied before routing files to any fileSet. */
+  globalIgnore?: string[];
   telemetry?: TelemetryConfig;
   search?: {
     hybrid?: boolean;
@@ -44,8 +40,6 @@ export interface RAGPipelineConfig {
     rerankOversample?: number;
   };
   options?: {
-    /** @deprecated No longer used; chunks.json has been removed. */
-    chunksFile?: string;
     embeddingsFile?: string;
     force?: boolean;
     skipUpload?: boolean;
@@ -154,15 +148,15 @@ export class Orchestrator {
       // Git tracking
       logger.info("📂 Scanning for changes...");
       const t1 = Date.now();
-      const excludePatterns = this.config.excludePatterns ?? [];
+      const globalIgnore = this.config.globalIgnore ?? [];
       const source =
         this.config.sourceRepository ??
-        new CliGitSourceRepository(process.cwd(), opts.logger, excludePatterns);
+        new CliGitSourceRepository(process.cwd(), opts.logger, globalIgnore);
       const gitTracker = new GitTracker(
-        this.config.chunkers,
+        this.config.fileSetEntries,
         source,
         opts.logger,
-        excludePatterns,
+        globalIgnore,
       );
       const [currentState, currentBranch, vectorStoreState] = await Promise.all(
         [
@@ -278,38 +272,7 @@ export class Orchestrator {
       opts.onEmbedProgress?.(0, sharedTotal);
       opts.onUploadProgress?.(0, sharedTotal);
 
-      // Build label pipeline: extension labels, CODEOWNERS, .virage-labels.json,
-      // global rules, per-chunker rules. Always active — extension labels are
-      // universally useful even when no explicit rules are configured.
-      const rootDir =
-        source instanceof CliGitSourceRepository
-          ? source.rootUri
-          : process.cwd();
-      const codeowners = await CodeownersResolver.fromDir(rootDir).catch(
-        () => null,
-      );
-      const globalRules = this.config.globalLabelRules;
-      const namespace = this.config.namespace;
-
-      const labelResolver = (filePath: string): Promise<string[]> => {
-        const info = currentState.get(filePath);
-        const chunkerEntry = info
-          ? this.config.chunkers.find((e) => e.chunker === info.chunker)
-          : undefined;
-        return resolveLabels(filePath, {
-          rootDir,
-          globalRules,
-          chunkerRules: chunkerEntry?.labels,
-          codeowners: codeowners ?? undefined,
-          namespace,
-        });
-      };
-
-      const chunkProcessor = new ChunkProcessor(
-        this.config.chunkers.map((e) => e.chunker),
-        opts.logger,
-        { resolveLabels: labelResolver },
-      );
+      const chunkProcessor = new ChunkProcessor(opts.logger);
       const embedder = new EmbedderProcessor(this.config.embedder, {
         rateLimitMs: opts.rateLimitMs,
         batchSize: opts.batchSize,
@@ -395,10 +358,10 @@ export class Orchestrator {
         let newChunks: Chunk[] = [];
         if (info) {
           try {
-            newChunks = await chunkProcessor.processFile(
+            newChunks = await chunkProcessor.processEntries(
               file,
               info.commitHash,
-              info.chunker,
+              info.entries,
             );
             void currentBranch; // branch tracking removed from ChunkMeta
           } catch (err) {

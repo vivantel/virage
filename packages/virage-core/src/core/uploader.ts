@@ -42,8 +42,8 @@ export class Uploader {
       sparseTextGeneratorId: chunk.sparseTextGeneratorId,
       metadataGeneratorId: chunk.metadataGeneratorId,
       metadata: meta,
-      labels: Array.isArray(meta["labels"])
-        ? (meta["labels"] as string[])
+      tags: Array.isArray(meta["tags"])
+        ? (meta["tags"] as string[])
         : undefined,
       denseVector: chunk.denseVector,
       sourceFile: chunk.sourceFile,

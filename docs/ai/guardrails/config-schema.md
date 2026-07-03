@@ -1,0 +1,75 @@
+# Config Schema Evolution Rules
+
+> See ADR-041, ADR-043, and ADR-046 before making any config schema changes.
+
+The Virage config schema (`VirageConfigJson`) is defined in three places that must stay in sync:
+1. `packages/virage-core/src/config-schema.ts` — Zod schema (source of truth)
+2. `packages/virage-core/schemas/virage.config.schema.json` — JSON Schema for editor autocomplete
+3. `docs/packages/*.md` — documentation examples
+
+## Rules
+
+### Any config shape change requires an ADR
+
+Even adding a single optional field. ADRs are immutable once Accepted — create a new one, don't edit old ones.
+
+### After changing `VirageConfigJson`
+
+In order:
+1. Update `ZodVirageConfig` in `config-schema.ts` (Zod schema).
+2. Update `virage.config.schema.json` (JSON Schema Draft-07).
+3. Update `docs/packages/*.md` examples to show the new field.
+4. Update `docs/ai/INDEX.md` config format section.
+5. Update `virage.config.json` and `virage.config.ci.json` if the field is relevant.
+
+### Tag vocabulary
+
+- Use `tags: string[]` everywhere. Never use `labels` — that term was retired in ADR-046.
+- Tag naming convention: `"namespace:value"` (colon separator).
+  - Language: `"lang:typescript"`, `"lang:rust"`, `"lang:python"`
+  - Format: `"format:markdown"`, `"format:pdf"`
+  - Team: `"team:payments"`, `"team:platform"`
+  - Custom: any `"key:value"` string is valid
+- Tags are stored verbatim in `ChunkMeta.tags`; the claim-to-label mapping for RBAC is a future EE `rbac.claimMap` feature.
+
+### FileSet field additions
+
+When adding a new field to `FileSetConfig` or `ChunkerConfig`:
+1. Add it as optional (`?.`) in both the TypeScript interface and Zod schema.
+2. Update this doc with the new field and its semantics.
+3. Update `docs/packages/chunkers.md` (for chunker fields) or `docs/packages/*.md` (for fileset-level).
+
+### Plugin config vs. pipeline config
+
+- Plugin-specific options always live in `providers.*.options`, `fileSets[].chunkers[].options`, or `agents[].options`.
+- Pipeline tuning (concurrency, batch sizes, etc.) lives in `pipeline`.
+- Never put orchestrator settings inside a plugin's `options` block.
+
+## Current schema shape (as of ADR-043)
+
+```
+VirageConfigJson
+├── providers              (required)
+│   ├── embedder           PluginRef (required)
+│   ├── vectorStore        PluginRef (required)
+│   ├── reranker?          PluginRef
+│   └── source?            PluginRef
+├── fileSets               FileSetConfig[] (required, non-empty)
+│   ├── name               string
+│   ├── source?            PluginRef (per-fileSet source override)
+│   ├── include?           string[]
+│   ├── ignore?            string[]
+│   ├── tags?              string[]  ← direct tag injection for all files
+│   ├── tagRules?          TagRule[] ← per-file glob-based tag injection
+│   └── chunkers           ChunkerConfig[] (required, non-empty)
+│       ├── package        string
+│       ├── packageVersion? string
+│       ├── options?       Record<string, unknown>
+│       └── templates?     ChunkerTemplate
+├── ignore?                string[]  ← global patterns
+├── search?                SearchConfig
+├── agents?                PluginRef[]
+├── pipeline?              PipelineOptions (chunkConcurrency, batchSize, etc.)
+├── telemetry?             TelemetryConfig
+└── quality?               QualityConfig
+```

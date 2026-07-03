@@ -1,7 +1,8 @@
-import { Chunk, FileChunker } from "../interfaces/index.js";
+import { Chunk, ChunkerEntry } from "../interfaces/index.js";
 import type { Logger } from "../interfaces/logger.js";
 import { NullLogger } from "../logger/null-logger.js";
 import { computeDenseTextHash } from "./chunk-utils.js";
+import { resolveFileTags } from "./tag-pipeline.js";
 import { createHash } from "node:crypto";
 
 function makeGeneratorId(name: string, version: string, role: string): string {
@@ -11,99 +12,102 @@ function makeGeneratorId(name: string, version: string, role: string): string {
     .slice(0, 16);
 }
 
-export interface ChunkProcessorOptions {
-  /**
-   * Optional async callback invoked per file to resolve index-time labels.
-   * Receives the normalized file path and returns the label set to inject into
-   * every chunk produced from that file (merged with any labels already set by
-   * the chunker itself).
-   */
-  resolveLabels?: (filePath: string) => Promise<string[]>;
-}
-
 export class ChunkProcessor {
-  private chunkers: Map<string, FileChunker>;
   private logger: Logger;
-  private resolveLabels?: (filePath: string) => Promise<string[]>;
 
-  constructor(
-    chunkers: FileChunker[],
-    logger?: Logger,
-    opts?: ChunkProcessorOptions,
-  ) {
-    this.chunkers = new Map(chunkers.map((c) => [c.name, c]));
+  constructor(logger?: Logger) {
     this.logger = (logger ?? new NullLogger()).withTag("chunks");
-    this.resolveLabels = opts?.resolveLabels;
   }
 
-  async processFile(
+  async processEntries(
     filePath: string,
     commitHash: string,
-    chunker: FileChunker,
+    entries: ChunkerEntry[],
   ): Promise<Chunk[]> {
     const normalizedPath = filePath.replace(/\\/g, "/");
-    const chunks = await chunker.chunk(normalizedPath, commitHash);
+    const allChunks: Chunk[] = [];
 
-    // Resolve labels for this file once and inject into every chunk.
-    let fileLabels: string[] | undefined;
-    if (this.resolveLabels && chunks.length > 0) {
+    for (const entry of entries) {
+      let chunks: Chunk[];
       try {
-        fileLabels = await this.resolveLabels(normalizedPath);
-      } catch {
-        // Label resolution failures are non-fatal
+        chunks = await entry.chunker.chunk(normalizedPath, commitHash);
+      } catch (err) {
+        this.logger.error(
+          `Chunker "${entry.chunkerKey}" failed on ${normalizedPath}: ${
+            err instanceof Error ? err.message : String(err)
+          }`,
+        );
+        continue;
       }
-    }
 
-    for (const chunk of chunks) {
-      chunk.sourceFile = normalizedPath;
-      chunk.commitHash = commitHash;
-      // Legacy adapter: chunkers built against virage-chunker-ce-ast <0.2 returned
-      // `content` instead of `denseText`/`sparseText`. Bridge that here so the
-      // published packages continue to work until they are updated and republished.
-      const raw = chunk as unknown as Record<string, unknown>;
-      if (!chunk.denseText && typeof raw["content"] === "string") {
-        chunk.denseText = raw["content"] as string;
-      }
-      if (!chunk.sparseText && typeof raw["content"] === "string") {
-        chunk.sparseText = raw["content"] as string;
-      }
-      // Safety net: compute denseTextHash if missing.
-      if (!chunk.denseTextHash && chunk.denseText) {
-        chunk.denseTextHash = computeDenseTextHash(chunk.denseText);
-      }
-      if (!chunk.sparseTextGeneratorId) {
-        chunk.sparseTextGeneratorId = makeGeneratorId(
-          chunker.name,
-          chunker.version ?? "0.0.0",
-          "sparse",
-        );
-      }
-      if (!chunk.metadataGeneratorId) {
-        chunk.metadataGeneratorId = makeGeneratorId(
-          chunker.name,
-          chunker.version ?? "0.0.0",
-          "meta",
-        );
-      }
-      // Inject labels: merge pipeline-resolved labels with any already set by the chunker.
-      if (fileLabels && fileLabels.length > 0) {
+      const fileTags = resolveFileTags(
+        normalizedPath,
+        entry.fileSetTags,
+        entry.tagRules,
+      );
+
+      for (const chunk of chunks) {
+        chunk.sourceFile = normalizedPath;
+        chunk.commitHash = commitHash;
+
+        // Legacy adapter: chunkers built against virage-chunker-ce-ast <0.2
+        const raw = chunk as unknown as Record<string, unknown>;
+        if (!chunk.denseText && typeof raw["content"] === "string") {
+          chunk.denseText = raw["content"] as string;
+        }
+        if (!chunk.sparseText && typeof raw["content"] === "string") {
+          chunk.sparseText = raw["content"] as string;
+        }
+
+        if (!chunk.denseTextHash && chunk.denseText) {
+          chunk.denseTextHash = computeDenseTextHash(chunk.denseText);
+        }
+        if (!chunk.sparseTextGeneratorId) {
+          chunk.sparseTextGeneratorId = makeGeneratorId(
+            entry.chunker.name,
+            entry.chunker.version ?? "0.0.0",
+            "sparse",
+          );
+        }
+        if (!chunk.metadataGeneratorId) {
+          chunk.metadataGeneratorId = makeGeneratorId(
+            entry.chunker.name,
+            entry.chunker.version ?? "0.0.0",
+            "meta",
+          );
+        }
+
+        // Inject tags (ADR-043, ADR-046)
         const meta = chunk.metadata as unknown as Record<string, unknown>;
-        const existing = meta?.["labels"] as string[] | undefined;
-        const merged = existing
-          ? [...new Set([...existing, ...fileLabels])]
-          : [...fileLabels];
+        if (fileTags.length > 0 && meta) {
+          const existing = meta["tags"] as string[] | undefined;
+          meta["tags"] = existing
+            ? [...new Set([...existing, ...fileTags])]
+            : [...fileTags];
+        }
+
+        // Set chunkerKey (ADR-044)
         if (meta) {
-          meta["labels"] = merged;
+          meta["chunkerKey"] = entry.chunkerKey;
+        }
+
+        // Apply templates (ADR-045) — no-op stub until virage-renderer-minijinja ships
+        if (entry.templates) {
+          this.logger.debug(
+            `[templates] ${entry.chunkerKey} → templates configured but renderer not available; skipping`,
+          );
         }
       }
+
+      allChunks.push(...chunks);
     }
 
-    return chunks;
+    return allChunks;
   }
 
   async processFiles(
     files: string[],
-    fileState: Map<string, { commitHash: string; chunker: FileChunker }>,
+    fileState: Map<string, { commitHash: string; entries: ChunkerEntry[] }>,
     onProgress?: (completed: number, total: number) => void,
   ): Promise<Chunk[]> {
     const allChunks: Chunk[] = [];
@@ -114,27 +118,22 @@ export class ChunkProcessor {
       const info = fileState.get(filePath);
 
       if (!info) {
-        this.logger.warn(`⚠️ No chunker for: ${filePath}`);
+        this.logger.warn(`⚠️ No chunker entries for: ${filePath}`);
         continue;
       }
 
       this.logger.verbose(`[${i + 1}/${files.length}] ${filePath}`);
 
       try {
-        const chunks = await this.processFile(
+        const chunks = await this.processEntries(
           filePath,
           info.commitHash,
-          info.chunker,
+          info.entries,
         );
 
         if (chunks.length > 0) {
           allChunks.push(...chunks);
           this.logger.verbose(`  ✅ ${chunks.length} chunk(s)`);
-          for (let j = 0; j < chunks.length; j++) {
-            this.logger.debug(
-              `  Chunk ${j}: denseTextHash=${chunks[j].denseTextHash} len=${chunks[j].denseText.length}`,
-            );
-          }
         } else {
           this.logger.warn(`  ⚠️ No chunks generated`);
         }

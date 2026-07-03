@@ -243,18 +243,18 @@ export class PostgresVectorStore implements VectorStore {
     const alpha = options?.alpha ?? 0.85;
     const beta = options?.beta ?? 0.15;
     const useHybrid = options?.hybrid === true && options.queryText;
-    const labelFilter = options?.labelFilter;
+    const tagFilter = options?.tagFilter;
     this.logger?.debug(
-      `Search: topK=${topK}, alpha=${alpha}, beta=${beta}, hybrid=${useHybrid ?? false} labelFilter=${JSON.stringify(labelFilter ?? null)}`,
+      `Search: topK=${topK}, alpha=${alpha}, beta=${beta}, hybrid=${useHybrid ?? false} tagFilter=${JSON.stringify(tagFilter ?? null)}`,
     );
 
     const applyLabelFilter = (
       results: VectorSearchResult[],
     ): VectorSearchResult[] => {
-      if (!labelFilter || labelFilter.length === 0) return results;
+      if (!tagFilter || tagFilter.length === 0) return results;
       return results.filter((r) => {
-        const chunkLabels = r.metadata["labels"] as string[] | undefined;
-        return chunkLabels && labelFilter.some((l) => chunkLabels.includes(l));
+        const chunkLabels = r.metadata["tags"] as string[] | undefined;
+        return chunkLabels && tagFilter.some((l) => chunkLabels.includes(l));
       });
     };
     const client = await this.pool.connect();
