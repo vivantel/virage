@@ -14,7 +14,24 @@ const suite = JSON.parse(readFileSync('eval/suites/retrieval-quality.suite.json'
 
 // Resolve the effective chunking config for a database using suite-level
 // filesets (immutable) and merging suite + db chunker strategy maps.
-// Emits ADR-038 package-based format: { package, include?, ignore? }
+// Returns V2 format: { fileSets, ignore }
+function generateFileSets(suite, db) {
+  const effectiveChunkers = { ...(suite.chunkers ?? {}), ...(db.chunkers ?? {}) };
+  const fileSets = Object.entries(effectiveChunkers).map(([filesetName, packageName]) => {
+    const fileset = suite.filesets?.[filesetName];
+    if (!fileset) throw new Error(`Unknown fileset "${filesetName}" referenced in chunkers`);
+    const entry = {
+      name: filesetName,
+      chunkers: [{ package: packageName }],
+    };
+    if (fileset.include?.length) entry.include = fileset.include;
+    if (fileset.exclude?.length) entry.ignore = fileset.exclude;
+    return entry;
+  });
+  return { fileSets, ignore: suite.exclude ?? [] };
+}
+
+// Legacy helper used only for index-signature computation (unchanged).
 function generateChunking(suite, db) {
   const effectiveChunkers = { ...(suite.chunkers ?? {}), ...(db.chunkers ?? {}) };
   const chunkers = Object.entries(effectiveChunkers).map(([filesetName, packageName]) => {
@@ -77,24 +94,27 @@ for (const { hash, sig, dbNames, representativeDb: db } of sigGroups.values()) {
   const lancedbPath = `.virage/lancedb-${hash}`;
   const tempConfigPath = `.virage/eval-configs/config-${hash}.json`;
 
-  const chunking = generateChunking(suite, db);
+  const { fileSets, ignore } = generateFileSets(suite, db);
 
   const tempConfig = {
-    chunking,
-    embedder: {
-      ...db.embedder,
-      config: {
-        ...db.embedder.config,
-        cacheDir: '.virage/model-cache',
+    providers: {
+      embedder: {
+        package: db.embedder.package,
+        options: {
+          ...db.embedder.config,
+          cacheDir: '.virage/model-cache',
+        },
+      },
+      vectorStore: {
+        package: db.vectorStore.package,
+        options: {
+          ...db.vectorStore.config,
+          uri: lancedbPath,
+        },
       },
     },
-    vectorStore: {
-      ...db.vectorStore,
-      config: {
-        ...db.vectorStore.config,
-        uri: lancedbPath,
-      },
-    },
+    fileSets,
+    ...(ignore.length > 0 ? { ignore } : {}),
   };
 
   writeFileSync(tempConfigPath, JSON.stringify(tempConfig, null, 2) + '\n');
