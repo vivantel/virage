@@ -116,15 +116,32 @@ async function downloadIfMissing(
   mkdirSync(dir, { recursive: true });
 
   const base = `https://huggingface.co/${modelId}/resolve/main`;
-  for (const [url, dest] of [
-    [`${base}/model.onnx`, paths.modelPath],
-    [`${base}/tokenizer.json`, paths.tokenizerPath],
-  ] as [string, string][]) {
-    if (existsSync(dest)) continue;
+
+  if (!existsSync(paths.modelPath)) {
+    // Try root model.onnx first; fall back to onnx/ subdir (Xenova-format repos)
+    const candidates = [`${base}/model.onnx`, `${base}/onnx/model.onnx`];
+    let saved = false;
+    for (const url of candidates) {
+      log(`Downloading ${url}`);
+      const res = await fetch(url);
+      if (res.ok) {
+        await writeFile(paths.modelPath, Buffer.from(await res.arrayBuffer()));
+        saved = true;
+        break;
+      }
+    }
+    if (!saved)
+      throw new Error(
+        `Failed to download model for ${modelId}: tried ${candidates.join(", ")}`,
+      );
+  }
+
+  if (!existsSync(paths.tokenizerPath)) {
+    const url = `${base}/tokenizer.json`;
     log(`Downloading ${url}`);
     const res = await fetch(url);
     if (!res.ok) throw new Error(`Failed to download ${url}: ${res.status}`);
-    await writeFile(dest, Buffer.from(await res.arrayBuffer()));
+    await writeFile(paths.tokenizerPath, Buffer.from(await res.arrayBuffer()));
   }
 }
 

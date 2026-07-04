@@ -35,7 +35,11 @@
   "rag-plugin": {
     "type": "embedder",
     "label": "ONNX Runtime (local, Rust)",
-    "key": "onnx"
+    "key": "onnx",
+    "defaultConfig": {
+      "model": "Xenova/all-MiniLM-L6-v2",
+      "dimensions": 384
+    }
   },
   "publishConfig": {
     "access": "public"
