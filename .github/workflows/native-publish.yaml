@@ -192,22 +192,28 @@ jobs:
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          # npm registry may take a moment to propagate newly published packages.
-          for resolve_attempt in 1 2 3; do
-            npm install --package-lock-only --ignore-scripts --silent && break
-            echo "Registry not yet consistent, waiting 30s (attempt $resolve_attempt)..."
-            sleep 30
-          done
-          node scripts/patch-lockfile-stubs.cjs
-
-          git diff --quiet package-lock.json && exit 0
-          git add package-lock.json
+          # Tag-triggered checkouts land in detached HEAD; move to master explicitly.
+          git fetch origin master
+          git checkout -B master origin/master
 
           for push_attempt in 1 2 3 4 5; do
-            git commit -m "chore: sync package-lock.json [skip ci]" && \
-              git push && exit 0
-            echo "Push attempt $push_attempt failed, rebasing..."
+            # npm registry may take a moment to propagate newly published packages.
+            for resolve_attempt in 1 2 3; do
+              npm install --package-lock-only --ignore-scripts --silent && break
+              echo "Registry not yet consistent, waiting 30s (attempt $resolve_attempt)..."
+              sleep 30
+            done
+            node scripts/patch-lockfile-stubs.cjs
+
+            git diff --quiet package-lock.json && exit 0
+            git add package-lock.json
+            git commit -m "chore: sync package-lock.json [skip ci]"
+            git push origin master && exit 0
+
+            echo "Push attempt $push_attempt failed, re-syncing..."
             git reset HEAD~1
-            git pull --rebase
+            git checkout -- package-lock.json
+            git fetch origin master
+            git rebase origin/master
           done
           exit 1
