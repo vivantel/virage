@@ -39,6 +39,8 @@ export class LanceDBVectorStore implements VectorStore {
   private metaTable: any;
   private logger: Logger | null = null;
   private ftsIndexCreated = false;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private lancedbModule: any = null;
 
   constructor(options: LanceDBVectorStoreOptions) {
     if (!options.uri) {
@@ -68,6 +70,7 @@ export class LanceDBVectorStore implements VectorStore {
     }
     // Dynamic import to avoid native-module issues at load time
     const lancedb = await import("@lancedb/lancedb");
+    this.lancedbModule = lancedb;
 
     this.db = this.apiKey
       ? await lancedb.connect(this.uri, { apiKey: this.apiKey })
@@ -92,6 +95,7 @@ export class LanceDBVectorStore implements VectorStore {
     const tableNames: string[] = await this.db.tableNames();
     const metaTableName = `${this.tableName}_meta`;
 
+    let tableJustCreated = false;
     if (tableNames.includes(this.tableName)) {
       const existing = await this.db.openTable(this.tableName);
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -126,45 +130,56 @@ export class LanceDBVectorStore implements VectorStore {
           await this.db.dropTable(metaTableName);
         }
         this.table = await this.db.createEmptyTable(this.tableName, schema);
+        tableJustCreated = true;
       } else {
         this.table = existing;
       }
     } else {
       this.table = await this.db.createEmptyTable(this.tableName, schema);
+      tableJustCreated = true;
     }
     this.logger?.debug(`Table "${this.tableName}" ready (${this.dimensions}d)`);
 
     // Create FTS index for hybrid search.
-    // When opening a pre-built archive the index already exists and createIndex
-    // throws — probe listIndices() to detect that case so ftsIndexCreated is set
-    // correctly even when the store is initialised from a downloaded archive.
-    try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      await (this.table as any).createIndex("sparse_text", {
-        config: lancedb.Index.fts(),
-      });
-      this.ftsIndexCreated = true;
-      this.logger?.debug("FTS index created on 'sparse_text'");
-    } catch {
-      // createIndex throws when the index already exists; check the index list
-      // to distinguish "already there" from a genuine failure.
-      try {
-        const indices: Array<{ name?: string; indexType?: string }> =
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          await (this.table as any).listIndices();
-        this.ftsIndexCreated = indices.some(
-          (i) =>
-            i.indexType?.toUpperCase() === "FTS" ||
-            i.name?.toLowerCase().includes("sparse_text"),
-        );
-      } catch {
-        this.ftsIndexCreated = false;
-      }
+    // LanceDB 0.30.0+: createIndex on an empty table starts a background job that
+    // never terminates, blocking subsequent queries. Defer to first upsert() instead.
+    if (tableJustCreated) {
+      this.ftsIndexCreated = false;
       this.logger?.debug(
-        this.ftsIndexCreated
-          ? "FTS index already exists on 'sparse_text'"
-          : "FTS index not available",
+        "New empty table — deferring FTS index creation to first upsert",
       );
+    } else {
+      // When opening a pre-built archive the index already exists and createIndex
+      // throws — probe listIndices() to detect that case so ftsIndexCreated is set
+      // correctly even when the store is initialised from a downloaded archive.
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        await (this.table as any).createIndex("sparse_text", {
+          config: lancedb.Index.fts(),
+        });
+        this.ftsIndexCreated = true;
+        this.logger?.debug("FTS index created on 'sparse_text'");
+      } catch {
+        // createIndex throws when the index already exists; check the index list
+        // to distinguish "already there" from a genuine failure.
+        try {
+          const indices: Array<{ name?: string; indexType?: string }> =
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            await (this.table as any).listIndices();
+          this.ftsIndexCreated = indices.some(
+            (i) =>
+              i.indexType?.toUpperCase() === "FTS" ||
+              i.name?.toLowerCase().includes("sparse_text"),
+          );
+        } catch {
+          this.ftsIndexCreated = false;
+        }
+        this.logger?.debug(
+          this.ftsIndexCreated
+            ? "FTS index already exists on 'sparse_text'"
+            : "FTS index not available",
+        );
+      }
     }
 
     const metaSchema = new Schema([
@@ -214,6 +229,24 @@ export class LanceDBVectorStore implements VectorStore {
       .whenMatchedUpdateAll()
       .whenNotMatchedInsertAll()
       .execute(rows);
+
+    // Create FTS index after the first batch of data is inserted — deferred from
+    // initialize() to avoid the LanceDB 0.30.0 hang on empty-table createIndex.
+    if (!this.ftsIndexCreated && this.lancedbModule) {
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        await (this.table as any).createIndex("sparse_text", {
+          config: this.lancedbModule.Index.fts(),
+        });
+        this.ftsIndexCreated = true;
+        this.logger?.debug(
+          "FTS index created on 'sparse_text' (deferred from empty-table init)",
+        );
+      } catch {
+        // Concurrent upsert or re-init already created it — that's fine.
+        this.ftsIndexCreated = true;
+      }
+    }
   }
 
   async deleteBySourceFile(sourceFiles: string[]): Promise<void> {
