@@ -210,6 +210,7 @@ Packages with `.tsx` files: `virage-dashboard`. Add to this list if new packages
 - See [`guardrails/chunker.md`](guardrails/chunker.md) — plugin contract, ArtifactChunker interface, ChunkMeta fields
 - See [`guardrails/rust-napi.md`](guardrails/rust-napi.md) — napi-rs patterns, virage-vidoc usage, build steps
 - See [`guardrails/release-ce.md`](guardrails/release-ce.md) — CE publishing process, platform stubs, version bumping
+- See [`guardrails/native-publish-chain.md`](guardrails/native-publish-chain.md) — workflow chain invariants, patcher spread trap, production feature flags, race condition coverage, debug guide
 
 **Dashboard guardrails** (applies to `packages/virage-dashboard/` and `packages/virage-cli/src/cli/dashboard.ts`):
 - See [`guardrails/dashboard.md`](guardrails/dashboard.md) — data sources (LanceDB vs SQLite), PipelineLog op-filtering, WebSocket conventions, SearchResult fields, testing patterns

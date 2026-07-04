@@ -6,6 +6,11 @@ on:
       - 'virage-chunker-ce-*@v*'
       - 'virage-embedder-onnx@v*'
   workflow_dispatch:
+
+concurrency:
+  group: native-publish-lockfile-sync
+  cancel-in-progress: false
+
     inputs:
       package:
         description: 'Package name (e.g. virage-chunker-ce-lang)'
@@ -193,15 +198,15 @@ jobs:
           # npm registry may take a moment to propagate newly published packages.
           for resolve_attempt in 1 2 3; do
             npm install --package-lock-only --ignore-scripts --silent && break
-            echo "Registry not yet consistent, waiting 10s (attempt $resolve_attempt)..."
-            sleep 10
+            echo "Registry not yet consistent, waiting 30s (attempt $resolve_attempt)..."
+            sleep 30
           done
           node scripts/patch-lockfile-stubs.cjs
 
           git diff --quiet package-lock.json && exit 0
           git add package-lock.json
 
-          for push_attempt in 1 2 3; do
+          for push_attempt in 1 2 3 4 5; do
             git commit -m "chore: sync package-lock.json [skip ci]" && \
               git push && exit 0
             echo "Push attempt $push_attempt failed, rebasing..."

@@ -46,11 +46,13 @@ for (const [pkgPath, pkgEntry] of Object.entries(packages)) {
     const stubPath = `${pkgPath}/node_modules/${depName}`;
     const stubEntry = packages[stubPath];
     if (stubEntry !== undefined) {
-      // Always rebuild with version first to match npm's canonical key order.
-      // Prevents the lockfile oscillating between key orderings on each npm install.
-      const normalized = { version: depVersion, ...stubEntry };
-      if (JSON.stringify(normalized) !== JSON.stringify(stubEntry) ||
-          stubEntry.version !== depVersion) {
+      // Destructure out any existing version so the spread cannot override depVersion.
+      // { version: depVersion, ...stubEntry } is buggy when stubEntry.version exists —
+      // the spread key wins and the old version is written back.
+      const { version: _sv, ...restStub } = stubEntry;
+      const normalized = { version: depVersion, ...restStub };
+      if (stubEntry.version !== depVersion ||
+          JSON.stringify(normalized) !== JSON.stringify(stubEntry)) {
         packages[stubPath] = normalized;
         changed = true;
       }
@@ -59,7 +61,8 @@ for (const [pkgPath, pkgEntry] of Object.entries(packages)) {
     const hoistedPath = `node_modules/${depName}`;
     const hoistedEntry = packages[hoistedPath];
     if (hoistedEntry !== undefined && hoistedEntry.version !== depVersion) {
-      packages[hoistedPath] = { version: depVersion, ...hoistedEntry };
+      const { version: _hv, ...restHoisted } = hoistedEntry;
+      packages[hoistedPath] = { version: depVersion, ...restHoisted };
       changed = true;
     }
   }
