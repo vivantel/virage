@@ -261,6 +261,21 @@ jobs:
       - name: Rust linting
         run: cargo clippy --workspace -- -D warnings
 
+      - name: Check production feature sets
+        run: |
+          # Each entry: "package|flags"
+          # Add a line here whenever a native package uses non-default production flags.
+          checks=(
+            "virage-embedder-onnx|--no-default-features --features download-binaries"
+          )
+          for entry in "${checks[@]}"; do
+            pkg="${entry%%|*}"
+            flags="${entry##*|}"
+            echo "::group::cargo check -p $pkg $flags"
+            cargo check -p "$pkg" $flags
+            echo "::endgroup::"
+          done
+
       - name: Build CE native (linux-x64 validation)
         run: cargo build --release
 
