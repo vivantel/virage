@@ -29,7 +29,7 @@ default = ["load-dynamic"]
 load-dynamic = ["ort/load-dynamic", "ort/std", "ort/api-24"]
 # Prod: used with --no-default-features so load-dynamic is absent.
 # Downloads ORT 1.24.2 from cdn.pyke.io at build time and statically links it.
-download-binaries = ["ort/download-binaries", "ort/std", "ort/api-24"]
+download-binaries = ["ort/download-binaries", "ort/std", "ort/api-24", "ort/tls-native"]
 
 [build-dependencies]
 napi-build = "2"
