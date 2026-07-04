@@ -6,16 +6,15 @@ on:
       - 'virage-chunker-ce-*@v*'
       - 'virage-embedder-onnx@v*'
   workflow_dispatch:
-
-concurrency:
-  group: native-publish-lockfile-sync
-  cancel-in-progress: false
-
     inputs:
       package:
         description: 'Package name (e.g. virage-chunker-ce-lang)'
         required: true
         type: string
+
+concurrency:
+  group: native-publish-lockfile-sync
+  cancel-in-progress: false
 
 jobs:
   detect:
