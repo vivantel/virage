@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.8](https://github.com/vivantel/virage/compare/virage-chunker-ce-latex@v0.1.7...virage-chunker-ce-latex@v0.1.8) (2026-07-04)
+
+
+### Bug Fixes
+
+* **chunker:** Add platform stub fallback to native binary loader ([2a97856](https://github.com/vivantel/virage/commit/2a97856bb532607c17e96bfe127a527ed60d6176))
+
 ## [0.1.7](https://github.com/vivantel/virage/compare/virage-chunker-ce-latex@v0.1.6...virage-chunker-ce-latex@v0.1.7) (2026-07-04)
 
 
