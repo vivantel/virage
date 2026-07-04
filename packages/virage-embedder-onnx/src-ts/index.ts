@@ -15,6 +15,8 @@ const PLATFORM_STUBS: Record<string, string> = {
   "win32-x64": "@vivantel/virage-embedder-onnx-win32-x64-msvc",
 };
 
+const DOWNLOAD_TIMEOUT_MS = 5 * 60 * 1000;
+
 interface NativeEmbedder {
   embed(text: string): Float32Array;
   embedBatch(texts: string[]): Float32Array;
@@ -105,9 +107,41 @@ function cachedModelPaths(
   };
 }
 
+async function downloadWithProgress(
+  url: string,
+  dest: string,
+  onProgress: ((loaded: number, total: number) => void) | undefined,
+  log: (msg: string) => void,
+): Promise<boolean> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), DOWNLOAD_TIMEOUT_MS);
+  try {
+    log(`Downloading ${url}`);
+    const res = await fetch(url, { signal: controller.signal });
+    if (!res.ok) return false;
+    const total = Number(res.headers.get("content-length") ?? 0);
+    const reader = res.body!.getReader();
+    const { writeFile } = await import("node:fs/promises");
+    const chunks: Uint8Array[] = [];
+    let loaded = 0;
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      chunks.push(value);
+      loaded += value.byteLength;
+      onProgress?.(loaded, total);
+    }
+    await writeFile(dest, Buffer.concat(chunks));
+    return true;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 async function downloadIfMissing(
   modelId: string,
   paths: { modelPath: string; tokenizerPath: string },
+  onProgress: ((loaded: number, total: number) => void) | undefined,
   log: (msg: string) => void,
 ): Promise<void> {
   const { mkdirSync } = await import("node:fs");
@@ -122,13 +156,17 @@ async function downloadIfMissing(
     const candidates = [`${base}/model.onnx`, `${base}/onnx/model.onnx`];
     let saved = false;
     for (const url of candidates) {
-      log(`Downloading ${url}`);
-      const res = await fetch(url);
-      if (res.ok) {
-        await writeFile(paths.modelPath, Buffer.from(await res.arrayBuffer()));
-        saved = true;
-        break;
-      }
+      // Scale model download to 0–90% of the progress range
+      const wrappedProgress = onProgress
+        ? (loaded: number, total: number) => onProgress(loaded * 9, total * 10)
+        : undefined;
+      saved = await downloadWithProgress(
+        url,
+        paths.modelPath,
+        wrappedProgress,
+        log,
+      );
+      if (saved) break;
     }
     if (!saved)
       throw new Error(
@@ -139,9 +177,18 @@ async function downloadIfMissing(
   if (!existsSync(paths.tokenizerPath)) {
     const url = `${base}/tokenizer.json`;
     log(`Downloading ${url}`);
-    const res = await fetch(url);
-    if (!res.ok) throw new Error(`Failed to download ${url}: ${res.status}`);
-    await writeFile(paths.tokenizerPath, Buffer.from(await res.arrayBuffer()));
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), DOWNLOAD_TIMEOUT_MS);
+    try {
+      const res = await fetch(url, { signal: controller.signal });
+      if (!res.ok) throw new Error(`Failed to download ${url}: ${res.status}`);
+      await writeFile(
+        paths.tokenizerPath,
+        Buffer.from(await res.arrayBuffer()),
+      );
+    } finally {
+      clearTimeout(timer);
+    }
   }
 }
 
@@ -166,7 +213,9 @@ export class OnnxEmbedder implements EmbeddingProvider {
     this.logger = logger.withTag("onnx-embedder");
   }
 
-  async preWarm(): Promise<void> {
+  async preWarm(
+    onProgress?: (loaded: number, total: number) => void,
+  ): Promise<void> {
     if (this.native) return;
 
     const local = resolveLocalModel(this.opts.model, this.opts.tokenizerPath);
@@ -184,11 +233,15 @@ export class OnnxEmbedder implements EmbeddingProvider {
       await downloadIfMissing(
         this.opts.model,
         paths,
+        onProgress,
         (msg) => this.logger?.verbose(msg) ?? console.log(msg),
       );
     }
 
-    this.logger?.debug(`Loading ONNX model: ${paths.modelPath}`);
+    // Yield to the event loop so the progress bar can re-render before the
+    // synchronous NAPI constructor blocks it.
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    this.logger?.verbose(`Loading ONNX model: ${paths.modelPath}`);
     const binding = loadBinding();
     this.native = new binding.OnnxEmbedder(
       paths.modelPath,
@@ -199,6 +252,7 @@ export class OnnxEmbedder implements EmbeddingProvider {
       this.opts.normalize,
     );
     this.logger?.debug(`ONNX session ready (dims=${this.dimensions})`);
+    onProgress?.(1, 1);
   }
 
   async embed(text: string): Promise<number[]> {
