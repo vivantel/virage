@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.2](https://github.com/vivantel/virage/compare/virage-embedder-onnx@v1.0.1...virage-embedder-onnx@v1.0.2) (2026-07-04)
+
+
+### Bug Fixes
+
+* **virage-embedder-onnx:** Wire onProgress in preWarm, stream download with progress and timeout ([0f17f15](https://github.com/vivantel/virage/commit/0f17f15cafb15cb0b8b7f152685d8691aaad454d))
+
 ## [1.0.1](https://github.com/vivantel/virage/compare/virage-embedder-onnx@v1.0.0...virage-embedder-onnx@v1.0.1) (2026-07-04)
 
 

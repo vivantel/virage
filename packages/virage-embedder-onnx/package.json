@@ -1,6 +1,6 @@
 {
   "name": "@vivantel/virage-embedder-onnx",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "ONNX Runtime embedder for Virage — run local embedding models entirely in Rust (napi-rs)",
   "type": "module",
   "main": "./dist/index.js",
@@ -26,11 +26,11 @@
     "@vivantel/virage-core": ">=0.2"
   },
   "optionalDependencies": {
-    "@vivantel/virage-embedder-onnx-linux-x64-gnu": "1.0.1",
-    "@vivantel/virage-embedder-onnx-linux-arm64-gnu": "1.0.1",
-    "@vivantel/virage-embedder-onnx-darwin-x64": "1.0.1",
-    "@vivantel/virage-embedder-onnx-darwin-arm64": "1.0.1",
-    "@vivantel/virage-embedder-onnx-win32-x64-msvc": "1.0.1"
+    "@vivantel/virage-embedder-onnx-linux-x64-gnu": "1.0.2",
+    "@vivantel/virage-embedder-onnx-linux-arm64-gnu": "1.0.2",
+    "@vivantel/virage-embedder-onnx-darwin-x64": "1.0.2",
+    "@vivantel/virage-embedder-onnx-darwin-arm64": "1.0.2",
+    "@vivantel/virage-embedder-onnx-win32-x64-msvc": "1.0.2"
   },
   "rag-plugin": {
     "type": "embedder",
