@@ -8,7 +8,6 @@ const require = createRequire(import.meta.url);
 const PLATFORM_STUBS: Record<string, string> = {
   "linux-x64": "@vivantel/virage-chunker-ce-md-linux-x64-gnu",
   "linux-arm64": "@vivantel/virage-chunker-ce-md-linux-arm64-gnu",
-  "darwin-x64": "@vivantel/virage-chunker-ce-md-darwin-x64",
   "darwin-arm64": "@vivantel/virage-chunker-ce-md-darwin-arm64",
   "win32-x64": "@vivantel/virage-chunker-ce-md-win32-x64-msvc",
 };
