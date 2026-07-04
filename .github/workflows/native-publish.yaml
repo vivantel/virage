@@ -83,7 +83,7 @@ jobs:
         run: |
           pkg="${{ needs.detect.outputs.package }}"
           cargo_flags=""
-          [[ "$pkg" == "virage-embedder-onnx" ]] && cargo_flags="--features download-binaries"
+          [[ "$pkg" == "virage-embedder-onnx" ]] && cargo_flags="--no-default-features --features download-binaries"
           cd "packages/$pkg"
           npx napi build --release --target ${{ matrix.target }} $cargo_flags
         env:
@@ -95,7 +95,7 @@ jobs:
         run: |
           pkg="${{ needs.detect.outputs.package }}"
           cargo_flags=""
-          [[ "$pkg" == "virage-embedder-onnx" ]] && cargo_flags="--features download-binaries"
+          [[ "$pkg" == "virage-embedder-onnx" ]] && cargo_flags="--no-default-features --features download-binaries"
           cd "packages/$pkg"
           npx napi build --release --target ${{ matrix.target }} $cargo_flags
         env:

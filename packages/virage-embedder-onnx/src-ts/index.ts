@@ -31,6 +31,7 @@ interface NativeBinding {
     maxLength?: number,
     pooling?: string,
     normalize?: boolean,
+    log?: (msg: string, level: number) => void,
   ) => NativeEmbedder;
 }
 
@@ -241,7 +242,14 @@ export class OnnxEmbedder implements EmbeddingProvider {
     // Yield to the event loop so the progress bar can re-render before the
     // synchronous NAPI constructor blocks it.
     await new Promise<void>((resolve) => setImmediate(resolve));
-    this.logger?.verbose(`Loading ONNX model: ${paths.modelPath}`);
+    const log = this.logger
+      ? (msg: string, level: number) => {
+          if (level <= 1) this.logger!.verbose(msg);
+          else if (level <= 2) this.logger!.debug(msg);
+          else if (level <= 3) this.logger!.trace(msg);
+          else this.logger!.silly(msg);
+        }
+      : undefined;
     const binding = loadBinding();
     this.native = new binding.OnnxEmbedder(
       paths.modelPath,
@@ -250,8 +258,8 @@ export class OnnxEmbedder implements EmbeddingProvider {
       this.opts.maxSequenceLength,
       this.opts.pooling,
       this.opts.normalize,
+      log,
     );
-    this.logger?.debug(`ONNX session ready (dims=${this.dimensions})`);
     onProgress?.(1, 1);
   }
 

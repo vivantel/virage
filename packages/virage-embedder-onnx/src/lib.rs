@@ -29,17 +29,30 @@ impl OnnxEmbedder {
         max_length: Option<u32>,
         pooling: Option<String>,
         normalize: Option<bool>,
+        log: Option<Function<(String, u32), ()>>,
     ) -> napi::Result<Self> {
-        let session = Session::builder()
-            .map_err(|e| napi::Error::from_reason(e.to_string()))?
+        let emit = |level: u32, msg: &str| {
+            if let Some(ref f) = log {
+                let _ = f.call((msg.to_owned(), level));
+            }
+        };
+
+        emit(3, "ORT: initializing session builder");
+        let mut builder =
+            Session::builder().map_err(|e| napi::Error::from_reason(e.to_string()))?;
+
+        emit(2, &format!("ORT: loading model from {model_path}"));
+        let session = builder
             .commit_from_file(&model_path)
             .map_err(|e| napi::Error::from_reason(e.to_string()))?;
 
+        emit(3, &format!("ORT: loading tokenizer from {tokenizer_path}"));
         let tokenizer = Tokenizer::from_file(&tokenizer_path)
             .map_err(|e| napi::Error::from_reason(e.to_string()))?;
 
         let pooling = parse_pooling(pooling.as_deref());
 
+        emit(1, &format!("ORT: embedder ready (dims={dimensions})"));
         Ok(Self {
             session,
             tokenizer,

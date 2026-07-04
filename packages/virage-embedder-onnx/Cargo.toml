@@ -12,17 +12,24 @@ crate-type = ["cdylib"]
 napi        = { workspace = true }
 napi-derive = { workspace = true }
 
-# ort uses load-dynamic by default so `cargo test` links without a system ORT.
-# Production CI builds pass --features download-binaries (see release.yaml)
-# which fetches the ORT static library at build time → self-contained .node.
-ort         = { version = "2.0.0-rc.12", features = ["load-dynamic"] }
+# default-features=false so our [features] section controls everything.
+# With load-dynamic (default): ort-sys/disable-linking is set → no ORT link dep at all
+#   → cargo build/test/clippy work without system ORT.
+# With --no-default-features --features download-binaries (production napi build):
+#   ORT 1.24.2 is downloaded from cdn.pyke.io at build time and statically linked
+#   → the .node file is self-contained, no runtime dlopen needed.
+ort         = { version = "2.0.0-rc.12", default-features = false }
 
 # HuggingFace tokenizers — full Rust implementation, no subprocess
 tokenizers  = { version = "0.21", default-features = false, features = ["onig"] }
 
 [features]
-# Activated during CI `napi build --features download-binaries`
-download-binaries = ["ort/download-binaries"]
+# Dev/lint: dlopen at runtime, no link-time ORT dep. Default so cargo build/clippy work anywhere.
+default = ["load-dynamic"]
+load-dynamic = ["ort/load-dynamic", "ort/std", "ort/api-24"]
+# Prod: used with --no-default-features so load-dynamic is absent.
+# Downloads ORT 1.24.2 from cdn.pyke.io at build time and statically links it.
+download-binaries = ["ort/download-binaries", "ort/std", "ort/api-24"]
 
 [build-dependencies]
 napi-build = "2"

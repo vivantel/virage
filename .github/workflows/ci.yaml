@@ -289,7 +289,7 @@ jobs:
           - { platform-name: darwin-x64,      os: macos-latest,   target: x86_64-apple-darwin,      rust-flags: "-C link-arg=-undefined -C link-arg=dynamic_lookup" }
           - { platform-name: darwin-arm64,    os: macos-latest,   target: aarch64-apple-darwin,     rust-flags: "-C link-arg=-undefined -C link-arg=dynamic_lookup" }
           - { platform-name: win32-x64-msvc,  os: windows-latest, target: x86_64-pc-windows-msvc }
-          - { package: virage-embedder-onnx,  cargo-features: "--features download-binaries" }
+          - { package: virage-embedder-onnx,  cargo-features: "--no-default-features --features download-binaries" }
 
     runs-on: ${{ matrix.os }}
 
