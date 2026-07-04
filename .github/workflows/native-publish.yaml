@@ -149,6 +149,10 @@ jobs:
             cp "$node_file" "packages/$pkg/npm/$platform/${lib_name}.node"
           done
 
+      - name: Build virage-core (dependency for embedders)
+        if: startsWith(needs.detect.outputs.package, 'virage-embedder-')
+        run: npm run build --workspace packages/virage-core
+
       - name: Build virage-chunker-ce-ast (dependency for CE chunkers)
         if: startsWith(needs.detect.outputs.package, 'virage-chunker-ce-')
         run: npm run build --workspace packages/virage-chunker-ce-ast
