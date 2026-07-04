@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.3](https://github.com/vivantel/virage/compare/virage-embedder-onnx@v1.0.2...virage-embedder-onnx@v1.0.3) (2026-07-04)
+
+
+### Bug Fixes
+
+* **virage-embedder-onnx:** Statically link ORT; add Rust-side logging callback ([c45d7cd](https://github.com/vivantel/virage/commit/c45d7cd973a3f9ac52dca5eb6467d704db1854be))
+
 ## [1.0.2](https://github.com/vivantel/virage/compare/virage-embedder-onnx@v1.0.1...virage-embedder-onnx@v1.0.2) (2026-07-04)
 
 
