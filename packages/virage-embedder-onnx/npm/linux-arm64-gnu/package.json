@@ -1,6 +1,6 @@
 {
   "name": "@vivantel/virage-embedder-onnx-linux-arm64-gnu",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "ONNX embedder native binary for linux-arm64-gnu",
   "os": [
     "linux"

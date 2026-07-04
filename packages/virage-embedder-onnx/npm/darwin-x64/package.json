@@ -1,6 +1,6 @@
 {
   "name": "@vivantel/virage-embedder-onnx-darwin-x64",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "ONNX embedder native binary for darwin-x64",
   "os": [
     "darwin"
