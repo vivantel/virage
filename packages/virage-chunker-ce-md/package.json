@@ -32,7 +32,6 @@
   "optionalDependencies": {
     "@vivantel/virage-chunker-ce-md-linux-x64-gnu": "0.1.8",
     "@vivantel/virage-chunker-ce-md-linux-arm64-gnu": "0.1.8",
-    "@vivantel/virage-chunker-ce-md-darwin-x64": "0.1.8",
     "@vivantel/virage-chunker-ce-md-darwin-arm64": "0.1.8",
     "@vivantel/virage-chunker-ce-md-win32-x64-msvc": "0.1.8"
   },

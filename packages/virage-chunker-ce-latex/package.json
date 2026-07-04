@@ -32,7 +32,6 @@
   "optionalDependencies": {
     "@vivantel/virage-chunker-ce-latex-linux-x64-gnu": "0.1.6",
     "@vivantel/virage-chunker-ce-latex-linux-arm64-gnu": "0.1.6",
-    "@vivantel/virage-chunker-ce-latex-darwin-x64": "0.1.6",
     "@vivantel/virage-chunker-ce-latex-darwin-arm64": "0.1.6",
     "@vivantel/virage-chunker-ce-latex-win32-x64-msvc": "0.1.6"
   },

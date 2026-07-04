@@ -32,7 +32,6 @@
   "optionalDependencies": {
     "@vivantel/virage-chunker-ce-pdf-linux-x64-gnu": "0.1.9",
     "@vivantel/virage-chunker-ce-pdf-linux-arm64-gnu": "0.1.9",
-    "@vivantel/virage-chunker-ce-pdf-darwin-x64": "0.1.9",
     "@vivantel/virage-chunker-ce-pdf-darwin-arm64": "0.1.9",
     "@vivantel/virage-chunker-ce-pdf-win32-x64-msvc": "0.1.9"
   },
