@@ -45,15 +45,21 @@ for (const [pkgPath, pkgEntry] of Object.entries(packages)) {
 
     const stubPath = `${pkgPath}/node_modules/${depName}`;
     const stubEntry = packages[stubPath];
-    if (stubEntry !== undefined && stubEntry.version !== depVersion) {
-      stubEntry.version = depVersion;
-      changed = true;
+    if (stubEntry !== undefined) {
+      // Always rebuild with version first to match npm's canonical key order.
+      // Prevents the lockfile oscillating between key orderings on each npm install.
+      const normalized = { version: depVersion, ...stubEntry };
+      if (JSON.stringify(normalized) !== JSON.stringify(stubEntry) ||
+          stubEntry.version !== depVersion) {
+        packages[stubPath] = normalized;
+        changed = true;
+      }
     }
 
     const hoistedPath = `node_modules/${depName}`;
     const hoistedEntry = packages[hoistedPath];
     if (hoistedEntry !== undefined && hoistedEntry.version !== depVersion) {
-      hoistedEntry.version = depVersion;
+      packages[hoistedPath] = { version: depVersion, ...hoistedEntry };
       changed = true;
     }
   }

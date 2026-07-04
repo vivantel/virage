@@ -1,15 +1,26 @@
 #!/usr/bin/env bash
-# Abort push if package-lock.json is out of sync with package.json files.
-# Catches the case where peer-dep version specs drifted without a lockfile regeneration.
+# Abort push if native platform-stub versions in package-lock.json are out of sync
+# with their optionalDependency pins in package.json.
 # Also checks that each native package compiles cleanly with its production feature set.
 
 set -euo pipefail
 
-# Regenerate lockfile metadata (no install, no scripts) and check for drift.
-npm install --package-lock-only --ignore-scripts --silent 2>/dev/null
-# Patch native platform-stub version fields — mirrors what the CI publish job does
-# so local lockfile stays consistent with what CI expects.
+# Patch native platform-stub version fields. If anything changed, the lockfile
+# is out of sync and must be committed before pushing.
+# We do NOT run `npm install --package-lock-only` here — that rewrites cosmetic
+# key ordering across the whole file and triggers false positives every push.
 node scripts/patch-lockfile-stubs.cjs 2>/dev/null || true
+
+if ! git diff --quiet package-lock.json; then
+  echo ""
+  echo "pre-push: package-lock.json stub versions are out of sync with package.json."
+  echo "  Run: node scripts/patch-lockfile-stubs.cjs"
+  echo "  Then: git add package-lock.json && git commit -m 'chore: sync package-lock.json'"
+  echo ""
+  # Restore to HEAD so the working tree stays clean
+  git checkout package-lock.json
+  exit 1
+fi
 
 # Check production feature sets for native packages.
 # Add a line here whenever a native package uses non-default production flags.
@@ -30,14 +41,3 @@ for entry in "${prod_checks[@]}"; do
     fi
   fi
 done
-
-if ! git diff --quiet package-lock.json; then
-  echo ""
-  echo "pre-push: package-lock.json is out of sync with package.json."
-  echo "  Run: npm install --package-lock-only --ignore-scripts && node scripts/patch-lockfile-stubs.cjs"
-  echo "  Then: git add package-lock.json && git commit -m 'chore: sync package-lock.json'"
-  echo ""
-  # Restore to HEAD so the working tree stays clean
-  git checkout package-lock.json
-  exit 1
-fi
