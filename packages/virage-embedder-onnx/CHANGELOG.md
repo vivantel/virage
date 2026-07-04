@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.4](https://github.com/vivantel/virage/compare/virage-embedder-onnx@v1.0.3...virage-embedder-onnx@v1.0.4) (2026-07-04)
+
+
+### Bug Fixes
+
+* **virage-embedder-onnx:** Add tls-native to download-binaries feature for ORT download ([148a323](https://github.com/vivantel/virage/commit/148a323a6d32f2e18daec4406b0317480243b698))
+
 ## [1.0.3](https://github.com/vivantel/virage/compare/virage-embedder-onnx@v1.0.2...virage-embedder-onnx@v1.0.3) (2026-07-04)
 
 
