@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.11](https://github.com/vivantel/virage/compare/virage-chunker-ce-pdf@v0.1.10...virage-chunker-ce-pdf@v0.1.11) (2026-07-04)
+
+
+### Bug Fixes
+
+* **chunker:** Add platform stub fallback to native binary loader ([2a97856](https://github.com/vivantel/virage/commit/2a97856bb532607c17e96bfe127a527ed60d6176))
+
 ## [0.1.10](https://github.com/vivantel/virage/compare/virage-chunker-ce-pdf@v0.1.9...virage-chunker-ce-pdf@v0.1.10) (2026-07-04)
 
 

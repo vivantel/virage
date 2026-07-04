@@ -1,6 +1,6 @@
 {
   "name": "@vivantel/virage-chunker-ce-lang-win32-x64-msvc",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "Code chunker (tree-sitter) native binary for win32-x64-msvc",
   "os": [
     "win32"
