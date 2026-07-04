@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.5](https://github.com/vivantel/virage/compare/virage-embedder-onnx@v1.0.4...virage-embedder-onnx@v1.0.5) (2026-07-04)
+
+
+### Bug Fixes
+
+* **ci:** Drop darwin-x64; fix linux-arm64 cross-compile toolchain ([3edcf13](https://github.com/vivantel/virage/commit/3edcf130e77e0eeb6115eb72613efad5e6b93a26))
+
 ## [1.0.4](https://github.com/vivantel/virage/compare/virage-embedder-onnx@v1.0.3...virage-embedder-onnx@v1.0.4) (2026-07-04)
 
 
