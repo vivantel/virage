@@ -13,7 +13,7 @@ on:
         type: string
 
 concurrency:
-  group: native-publish-lockfile-sync
+  group: native-publish-${{ github.event_name == 'workflow_dispatch' && inputs.package || github.ref }}
   cancel-in-progress: false
 
 jobs:
