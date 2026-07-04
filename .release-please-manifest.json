@@ -22,10 +22,10 @@
   "packages/virage-git-isomorphic": "0.1.44",
   "packages/virage-chunker-ce-ast": "0.1.20",
   "packages/virage-chunker-ce-ts": "0.1.4",
-  "packages/virage-chunker-ce-pdf": "0.1.9",
-  "packages/virage-chunker-ce-md": "0.1.8",
-  "packages/virage-chunker-ce-docx": "0.1.6",
-  "packages/virage-chunker-ce-latex": "0.1.6",
-  "packages/virage-embedder-onnx": "1.0.4",
-  "packages/virage-chunker-ce-lang": "0.1.1"
+  "packages/virage-chunker-ce-pdf": "0.1.10",
+  "packages/virage-chunker-ce-md": "0.1.9",
+  "packages/virage-chunker-ce-docx": "0.1.7",
+  "packages/virage-chunker-ce-latex": "0.1.7",
+  "packages/virage-embedder-onnx": "1.0.5",
+  "packages/virage-chunker-ce-lang": "0.1.2"
 }

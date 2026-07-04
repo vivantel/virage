@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.9](https://github.com/vivantel/virage/compare/virage-chunker-ce-md@v0.1.8...virage-chunker-ce-md@v0.1.9) (2026-07-04)
+
+
+### Bug Fixes
+
+* **ci:** Drop darwin-x64; fix linux-arm64 cross-compile toolchain ([3edcf13](https://github.com/vivantel/virage/commit/3edcf130e77e0eeb6115eb72613efad5e6b93a26))
+
 ## [0.1.8](https://github.com/vivantel/virage/compare/virage-chunker-ce-md@v0.1.7...virage-chunker-ce-md@v0.1.8) (2026-07-02)
 
 
