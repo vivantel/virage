@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.2](https://github.com/vivantel/virage/compare/virage-store-lancedb@v0.3.1...virage-store-lancedb@v0.3.2) (2026-07-04)
+
+
+### Bug Fixes
+
+* **lancedb:** Defer FTS index creation on empty tables to avoid hang ([2864df9](https://github.com/vivantel/virage/commit/2864df9dc384a15c656e6114318874d99ad6561e))
+
 ## [0.3.1](https://github.com/vivantel/virage/compare/virage-store-lancedb@v0.3.0...virage-store-lancedb@v0.3.1) (2026-07-03)
 
 
