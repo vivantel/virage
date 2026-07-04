@@ -75,7 +75,7 @@
   },
   "databases": {
     "minilm-384-ast": {
-      "url": "https://github.com/vivantel/virage/releases/download/eval-db-2026-07-04-c45d7cd9/minilm-384-ast.tar.gz",
+      "url": "https://github.com/vivantel/virage/releases/download/eval-db-2026-07-04-57feb844/minilm-384-ast.tar.gz",
       "description": "all-MiniLM-L6-v2 384d, AST+Markdown chunking, virage master branch",
       "embedder": {
         "package": "@vivantel/virage-embedder-transformers",
@@ -87,7 +87,7 @@
       "vectorStore": {
         "package": "@vivantel/virage-store-lancedb"
       },
-      "sha256": "f644798b3d5eefe9419b91d6b9d299cf03a96cc91b457c4bada930fbf252c04a",
+      "sha256": "231a90d9376562ec611c397a795990c8709a26930b5d788f0d50634e705ae738",
       "pluginVersions": {
         "@vivantel/virage-agent-antigravity": "0.1.11",
         "@vivantel/virage-agent-claude": "0.2.29",
