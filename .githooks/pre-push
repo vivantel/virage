@@ -1,23 +1,21 @@
 #!/usr/bin/env bash
-# Abort push if native platform-stub versions in package-lock.json are out of sync
-# with their optionalDependency pins in package.json.
-# Also checks that each native package compiles cleanly with its production feature set.
+# Abort push if package-lock.json is out of sync with package.json files.
+# Catches the case where a developer bumped a version locally without running npm install.
+# Also checks that native packages compile with their production feature sets.
 
 set -euo pipefail
 
-# Patch native platform-stub version fields. If anything changed, the lockfile
-# is out of sync and must be committed before pushing.
-# We do NOT run `npm install --package-lock-only` here — that rewrites cosmetic
-# key ordering across the whole file and triggers false positives every push.
+# Regenerate lockfile metadata and patch stub versions, then check for drift.
+# The committed lockfile is kept canonical by native-publish.yaml post-publish,
+# so this only fires when there is genuine local drift.
+npm install --package-lock-only --ignore-scripts --silent 2>/dev/null
 node scripts/patch-lockfile-stubs.cjs 2>/dev/null || true
 
 if ! git diff --quiet package-lock.json; then
   echo ""
-  echo "pre-push: package-lock.json stub versions are out of sync with package.json."
-  echo "  Run: node scripts/patch-lockfile-stubs.cjs"
-  echo "  Then: git add package-lock.json && git commit -m 'chore: sync package-lock.json'"
+  echo "pre-push: package-lock.json is out of sync with package.json."
+  echo "  Run: npm install --ignore-scripts && git add package-lock.json && git commit -m 'chore: sync package-lock.json'"
   echo ""
-  # Restore to HEAD so the working tree stays clean
   git checkout package-lock.json
   exit 1
 fi
@@ -32,12 +30,12 @@ for entry in "${prod_checks[@]}"; do
   flags="${entry##*|}"
   if git diff --name-only HEAD@{1} HEAD 2>/dev/null | grep -q "packages/$pkg/\|Cargo"; then
     echo "pre-push: checking $pkg production features ($flags)..."
-    if ! cargo check -p "$pkg" $flags --quiet 2>&1; then
+    cargo check -p "$pkg" $flags --quiet || {
       echo ""
       echo "pre-push: $pkg fails to compile with production flags: $flags"
       echo "  Fix the Rust code or feature definitions before pushing."
       echo ""
       exit 1
-    fi
+    }
   fi
 done

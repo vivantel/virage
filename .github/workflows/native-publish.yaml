@@ -113,11 +113,13 @@ jobs:
     if: always() && needs.build.result == 'success'
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write
       id-token: write
 
     steps:
       - uses: actions/checkout@v7
+        with:
+          token: ${{ secrets.RELEASE_TOKEN }}
 
       - uses: actions/setup-node@v6
         with:
@@ -182,3 +184,28 @@ jobs:
           else
             npm publish --workspace "packages/${pkg}" --access public
           fi
+
+      - name: Sync lockfile post-publish
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # npm registry may take a moment to propagate newly published packages.
+          for resolve_attempt in 1 2 3; do
+            npm install --package-lock-only --ignore-scripts --silent && break
+            echo "Registry not yet consistent, waiting 10s (attempt $resolve_attempt)..."
+            sleep 10
+          done
+          node scripts/patch-lockfile-stubs.cjs
+
+          git diff --quiet package-lock.json && exit 0
+          git add package-lock.json
+
+          for push_attempt in 1 2 3; do
+            git commit -m "chore: sync package-lock.json [skip ci]" && \
+              git push && exit 0
+            echo "Push attempt $push_attempt failed, rebasing..."
+            git reset HEAD~1
+            git pull --rebase
+          done
+          exit 1
