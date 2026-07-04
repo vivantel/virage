@@ -90,6 +90,40 @@ When adding a new native package with non-default production features, add it to
 
 ---
 
+## Native binary loader pattern (mandatory for all CE chunkers)
+
+Every CE chunker's `src-ts/index.ts` **must** use a two-step loader: try the local `.node`
+file first (works for `napi build` dev builds), then fall back to the platform-specific
+optional stub package (required for npm-installed packages, where the `.node` binary lives
+in `@vivantel/virage-chunker-ce-X-darwin-arm64`, not next to `dist/`).
+
+```ts
+import { platform, arch } from "node:process";
+import { createRequire } from "node:module";
+const require = createRequire(import.meta.url);
+
+const PLATFORM_STUBS: Record<string, string> = {
+  "linux-x64": "@vivantel/virage-chunker-ce-X-linux-x64-gnu",
+  "linux-arm64": "@vivantel/virage-chunker-ce-X-linux-arm64-gnu",
+  "darwin-arm64": "@vivantel/virage-chunker-ce-X-darwin-arm64",
+  "win32-x64": "@vivantel/virage-chunker-ce-X-win32-x64-msvc",
+};
+
+function loadBinding() {
+  try { return require("./virage_chunker_ce_X.node"); } catch {}
+  const key = `${platform}-${arch}`;
+  const stub = PLATFORM_STUBS[key];
+  if (stub) { try { return require(stub); } catch {} }
+  const hint = stub ? `\n  npm install ${stub}` : "";
+  throw new Error(`[@vivantel/virage-chunker-ce-X] Native binary not found for ${key}.${hint}`);
+}
+```
+
+Do NOT use `loadBinding: () => require("./virage_chunker_ce_X.node")` inline — this omits
+the stub fallback and breaks every user who installed the package from npm.
+
+---
+
 ## Adding a new native package — checklist
 
 - [ ] Add `[lib] crate-type = ["cdylib"]` to its `Cargo.toml`
