@@ -5,7 +5,7 @@
   "packages/virage-embedder-fastembed": "0.3.1",
   "packages/virage-store-postgres": "0.3.1",
   "packages/virage-store-qdrant": "0.3.1",
-  "packages/virage-store-lancedb": "0.3.1",
+  "packages/virage-store-lancedb": "0.3.2",
   "packages/virage-store-chromadb": "0.3.1",
   "packages/virage-agent-core": "0.1.8",
   "packages/virage-agent-claude": "0.2.29",
