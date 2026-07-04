@@ -1,6 +1,6 @@
 {
   "name": "@vivantel/virage-embedder-onnx-win32-x64-msvc",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "ONNX embedder native binary for win32-x64-msvc",
   "os": [
     "win32"

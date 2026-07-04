@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.1](https://github.com/vivantel/virage/compare/virage-embedder-onnx@v1.0.0...virage-embedder-onnx@v1.0.1) (2026-07-04)
+
+
+### Bug Fixes
+
+* **virage-embedder-onnx:** Add defaultConfig to rag-plugin metadata; try onnx/ subdir for model download ([07d9e3e](https://github.com/vivantel/virage/commit/07d9e3e98180b6b072196542d893d02a92099da3))
+
 ## 1.0.0 (2026-07-02)
 
 
