@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.5](https://github.com/vivantel/virage/compare/virage-cli@v0.3.4...virage-cli@v0.3.5) (2026-07-05)
+
+
+### Features
+
+* **cli:** Add Done/Rate columns to pipeline progress table ([0d68f86](https://github.com/vivantel/virage/commit/0d68f8692edd77de4374796858d44d1b9e255895))
+
 ## [0.3.4](https://github.com/vivantel/virage/compare/virage-cli@v0.3.3...virage-cli@v0.3.4) (2026-07-05)
 
 
