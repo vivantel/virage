@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.3.3](https://github.com/vivantel/virage/compare/virage-cli@v0.3.2...virage-cli@v0.3.3) (2026-07-05)
+
+
+### Features
+
+* **cli:** Deep ocean update — uninstall, update flags, index fixes, V2 docs ([07685ce](https://github.com/vivantel/virage/commit/07685ce88e6b44449f23b1ff5cc92f66290a5118))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @vivantel/virage-core bumped from >=0.4.1 to >=0.4.2
+
 ## [0.3.2](https://github.com/vivantel/virage/compare/virage-cli@v0.3.1...virage-cli@v0.3.2) (2026-07-03)
 
 
