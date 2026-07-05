@@ -1,8 +1,10 @@
 export { ansi } from "../ansi.js";
 import { ansi, SPINNER_FRAMES } from "../ansi.js";
-const BAR_WIDTH = 36;
+const BAR_WIDTH = 36; // model-loading phase bar width
+const PIPELINE_BAR_WIDTH = 28; // pipeline table bar (fits 80-col terminals)
 const RENDER_INTERVAL_MS = 80;
 const LABEL_WIDTH = 13; // "Chunks sliced" is the longest label
+const DONE_WIDTH = 14; // "490/490 files" = 13 chars
 
 export interface ProgressBar {
   update(current: number): void;
@@ -49,13 +51,11 @@ function centerInWidth(text: string, width: number, fill = " "): string {
   return fill.repeat(left) + text + fill.repeat(pad - left);
 }
 
-function renderBar(value: number, total: number): string {
+function renderBar(value: number, total: number, width = BAR_WIDTH): string {
   const fillCount =
-    total === 0
-      ? BAR_WIDTH
-      : Math.min(BAR_WIDTH, Math.floor((value / total) * BAR_WIDTH));
+    total === 0 ? width : Math.min(width, Math.floor((value / total) * width));
   const fill = ansi.cyan + "█".repeat(fillCount) + ansi.reset;
-  const empty = ansi.gray + "░".repeat(BAR_WIDTH - fillCount) + ansi.reset;
+  const empty = ansi.gray + "░".repeat(width - fillCount) + ansi.reset;
   return fill + empty;
 }
 
@@ -101,6 +101,9 @@ export class PipelineRenderer {
     null;
   private embeddingStats: { chunks: number; bytes: number; ms: number } | null =
     null;
+
+  private chunkPhaseT0 = 0; // epoch when first chunk progress seen (for live rate)
+  private embedPhaseT0 = 0; // epoch when first embed progress seen (for live rate)
 
   constructor() {
     if (process.stdout.isTTY) {
@@ -183,11 +186,13 @@ export class PipelineRenderer {
   }
 
   updateChunk(value: number, total: number): void {
+    if (this.chunkPhaseT0 === 0 && value > 0) this.chunkPhaseT0 = Date.now();
     this.bars.chunk = { value: Math.max(this.bars.chunk.value, value), total };
     this.dirty = true;
   }
 
   updateEmbed(value: number, total: number): void {
+    if (this.embedPhaseT0 === 0 && value > 0) this.embedPhaseT0 = Date.now();
     this.bars.embed = { value: Math.max(this.bars.embed.value, value), total };
     this.dirty = true;
   }
@@ -378,62 +383,121 @@ export class PipelineRenderer {
     ];
   }
 
+  private liveChunkRate(): string {
+    if (this.chunkingStats !== null) {
+      const { files, ms } = this.chunkingStats;
+      const secs = ms / 1000;
+      return secs > 0 ? `${(files / secs).toFixed(1)} f/s` : "—";
+    }
+    if (this.chunkPhaseT0 === 0 || this.bars.chunk.value === 0) return "—";
+    const secs = (Date.now() - this.chunkPhaseT0) / 1000;
+    return secs > 1 ? `${(this.bars.chunk.value / secs).toFixed(1)} f/s` : "…";
+  }
+
+  private liveEmbedRate(): string {
+    if (this.embeddingStats !== null) {
+      const { chunks, ms } = this.embeddingStats;
+      const secs = ms / 1000;
+      return secs > 0 ? `${Math.round(chunks / secs)} ch/s` : "—";
+    }
+    if (this.embedPhaseT0 === 0 || this.bars.embed.value === 0) return "—";
+    const secs = (Date.now() - this.embedPhaseT0) / 1000;
+    return secs > 1 ? `${Math.round(this.bars.embed.value / secs)} ch/s` : "…";
+  }
+
   private buildPipeline(): string[] {
     const elapsed = Date.now() - this.startTime;
     const sep = ` ${ansi.dim}│${ansi.reset} `;
+    const dim = ansi.dim;
+    const rst = ansi.reset;
 
-    // Header row
+    // Header: 4 columns — Operation | Progress | Done | Rate
     const barHeader =
       "[" +
       ansi.dim +
-      centerInWidth(" Progress ", BAR_WIDTH, "─") +
+      centerInWidth(" Progress ", PIPELINE_BAR_WIDTH, "─") +
       ansi.reset +
-      "]" +
-      "     "; // 5 spaces matches body's " NNN%"
+      "]     "; // 5 spaces aligns with " NNN%"
     const header =
       ansi.bold +
       "Operation".padEnd(LABEL_WIDTH) +
       ansi.reset +
       sep +
-      barHeader;
+      barHeader +
+      sep +
+      dim +
+      "Done".padEnd(DONE_WIDTH) +
+      rst +
+      sep +
+      dim +
+      "Rate" +
+      rst;
 
-    const labels: Array<[string, "chunk" | "embed" | "upload"]> = [
-      ["Chunks sliced", "chunk"],
-      ["Embedding", "embed"],
-      ["Uploading", "upload"],
+    // Count strings per phase
+    const chunkDone = this.bars.chunk.value;
+    const chunkTotal = this.bars.chunk.total;
+    const chunkCount =
+      chunkTotal > 0
+        ? chunkDone >= chunkTotal
+          ? `${chunkDone} files`
+          : `${chunkDone}/${chunkTotal} files`
+        : chunkDone > 0
+          ? `${chunkDone} files`
+          : "—";
+
+    const embedDone = this.bars.embed.value;
+    const embedTotal = this.bars.embed.total;
+    const embedCount =
+      embedTotal > 0
+        ? embedDone >= embedTotal
+          ? `${embedDone} chunks`
+          : `${embedDone}/${embedTotal}`
+        : embedDone > 0
+          ? `${embedDone} chunks`
+          : "—";
+
+    const uploadDone = this.bars.upload.value;
+    const uploadTotal = this.bars.upload.total;
+    const uploadCount =
+      uploadTotal > 0
+        ? uploadDone >= uploadTotal
+          ? `${uploadDone} docs`
+          : `${uploadDone}/${uploadTotal}`
+        : uploadDone > 0
+          ? `${uploadDone} docs`
+          : "—";
+
+    const rows = [
+      this.buildBarRow(
+        "Chunks sliced".padEnd(LABEL_WIDTH),
+        this.bars.chunk,
+        chunkCount,
+        this.liveChunkRate(),
+      ),
+      this.buildBarRow(
+        "Embedding".padEnd(LABEL_WIDTH),
+        this.bars.embed,
+        embedCount,
+        this.liveEmbedRate(),
+      ),
+      this.buildBarRow(
+        "Uploading".padEnd(LABEL_WIDTH),
+        this.bars.upload,
+        uploadCount,
+        "—",
+      ),
     ];
-    const rows = labels.map(([label, key]) =>
-      this.buildBarRow(label.padEnd(LABEL_WIDTH), this.bars[key]),
-    );
 
-    const filesDone = this.filesDone;
-    const filesTotal = this.filesTotal || this.bars.chunk.total;
+    // Footer: elapsed + ETA
     const etaMs = this.calcPipelineEta(elapsed);
-    const dim = ansi.dim;
-    const rst = ansi.reset;
-    const chunksEmbedded = this.bars.embed.value;
-    const chunksSkipped = this.embedSkipped;
-
-    // Row 1: files + chunks (skip skipped count when zero)
-    const chunksPart =
-      chunksEmbedded + chunksSkipped > 0
-        ? `  ${dim}│${rst}  ${dim}Chunks:${rst} ${chunksEmbedded} embedded` +
-          (chunksSkipped > 0
-            ? ` / ${ansi.green}${chunksSkipped}${ansi.reset} skipped`
-            : "")
-        : "";
-    const summaryRow =
-      `${dim}Files:${rst} ${filesDone}/${filesTotal}` + chunksPart;
-
-    // Row 2: elapsed + ETA
     const elapsedRow =
       `${dim}Elapsed:${rst} ${fmtTime(elapsed / 1000)}` +
       `  ${dim}│${rst}  ` +
       `${dim}ETA:${rst} ${etaMs !== null ? fmtTime(etaMs / 1000) : "…"}`;
 
-    const lines: string[] = [header, ...rows, summaryRow, elapsedRow];
+    const lines: string[] = [header, ...rows, elapsedRow];
 
-    // Throughput row — shown once chunking/embedding stats are available
+    // Throughput summary — shown once final stats are available
     if (this.chunkingStats !== null || this.embeddingStats !== null) {
       const parts: string[] = [];
       if (this.chunkingStats !== null) {
@@ -442,7 +506,7 @@ export class PipelineRenderer {
         const filesPerSec = secs > 0 ? (files / secs).toFixed(1) : "—";
         const mbPerSec = secs > 0 ? (bytes / 1_000_000 / secs).toFixed(1) : "—";
         parts.push(
-          `${dim}Chunks sliced:${rst} ${filesPerSec} files/s  ${mbPerSec} MB/s`,
+          `${dim}Chunks sliced:${rst} ${filesPerSec} f/s  ${mbPerSec} MB/s`,
         );
       }
       if (this.embeddingStats !== null) {
@@ -451,10 +515,10 @@ export class PipelineRenderer {
         const chunksPerSec = secs > 0 ? (chunks / secs).toFixed(1) : "—";
         const mbPerSec = secs > 0 ? (bytes / 1_000_000 / secs).toFixed(1) : "—";
         parts.push(
-          `${dim}Embedding:${rst} ${chunksPerSec} chunks/s  ${mbPerSec} MB/s`,
+          `${dim}Embedding:${rst} ${chunksPerSec} ch/s  ${mbPerSec} MB/s`,
         );
       }
-      lines.push(parts.join(`  ${dim}│${rst}  `));
+      if (parts.length > 0) lines.push(parts.join(`  ${dim}│${rst}  `));
     }
 
     return lines;
@@ -475,12 +539,30 @@ export class PipelineRenderer {
     return null;
   }
 
-  private buildBarRow(label: string, bar: BarState): string {
+  private buildBarRow(
+    label: string,
+    bar: BarState,
+    count: string,
+    rate: string,
+  ): string {
     const { value, total } = bar;
     const sep = ` ${ansi.dim}│${ansi.reset} `;
     const barContent =
-      "[" + renderBar(value, total) + "] " + renderPct(value, total);
-    return ansi.bold + label + ansi.reset + sep + barContent;
+      "[" +
+      renderBar(value, total, PIPELINE_BAR_WIDTH) +
+      "] " +
+      renderPct(value, total);
+    return (
+      ansi.bold +
+      label +
+      ansi.reset +
+      sep +
+      barContent +
+      sep +
+      count.padEnd(DONE_WIDTH) +
+      sep +
+      rate
+    );
   }
 }
 
