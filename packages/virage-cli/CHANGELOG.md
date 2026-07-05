@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.3.6](https://github.com/vivantel/virage/compare/virage-cli@v0.3.5...virage-cli@v0.3.6) (2026-07-05)
+
+
+### Bug Fixes
+
+* **cli:** Polish progress table UX and log format ([d39b128](https://github.com/vivantel/virage/commit/d39b1280a37473ac517f9b7d8efeb1c4bebcc471))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @vivantel/virage-core bumped from >=0.4.3 to >=0.4.4
+
 ## [0.3.5](https://github.com/vivantel/virage/compare/virage-cli@v0.3.4...virage-cli@v0.3.5) (2026-07-05)
 
 
