@@ -13,6 +13,7 @@ import {
   getVirageDir,
   DEFAULT_EXCLUDE_PATTERNS,
   COMMUNITY_TELEMETRY_ENDPOINT,
+  VIRAGE_CONFIG_SCHEMA_VERSION,
 } from "@vivantel/virage-core";
 import type { PluginRegistry } from "@vivantel/virage-core";
 import {
@@ -330,7 +331,7 @@ function generateJsonConfig(
   const config: Record<string, unknown> = {
     $schema:
       "https://unpkg.com/@vivantel/virage-core/schemas/virage.config.schema.json",
-    version: "1.0.0",
+    version: VIRAGE_CONFIG_SCHEMA_VERSION,
     providers,
     fileSets,
     ignore: buildExcludePatterns(effectiveGroups),
@@ -347,6 +348,8 @@ function generateJsonConfig(
   if (Object.keys(searchConfig).length > 0) {
     config.search = searchConfig;
   }
+
+  config.installScope = state.installScope;
 
   config.telemetry = {
     enabled: true,

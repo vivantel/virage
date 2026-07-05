@@ -134,12 +134,20 @@ const ZodAgentRef = ZodPluginRef;
 
 // ─── Top-level config ─────────────────────────────────────────────────────────
 
+export const VIRAGE_CONFIG_SCHEMA_VERSION = "1.0.0";
+
 export const ZodVirageConfig = z.object({
   $schema: z.string().optional(),
   version: z
     .string()
     .describe(
       "Config schema version (semver). Bump when making breaking changes to this file.",
+    )
+    .optional(),
+  installScope: z
+    .enum(["local", "global"])
+    .describe(
+      "Where plugins and embedding/reranker model files are installed and loaded from. Set by 'virage init'.",
     )
     .optional(),
   providers: ZodProvidersConfig,

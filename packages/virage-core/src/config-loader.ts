@@ -1,6 +1,7 @@
 import { readFile } from "fs/promises";
 import { existsSync } from "fs";
-import { resolve } from "path";
+import { dirname, join, resolve } from "path";
+import { homedir } from "os";
 import { ZodVirageConfig } from "./config-schema.js";
 import type { VirageConfigJson, PluginRef } from "./config-schema.js";
 import { RAGPipelineConfig } from "./core/orchestrator.js";
@@ -122,6 +123,14 @@ async function loadJsonConfig(
       `Invalid virage config at ${configPath}:\n${detail}`,
       { cause: err },
     );
+  }
+
+  // Derive plugin and model base dir from installScope, unless already overridden
+  if (config.installScope && !process.env["VIRAGE_DIR"]) {
+    process.env["VIRAGE_DIR"] =
+      config.installScope === "global"
+        ? join(homedir(), ".virage")
+        : resolve(dirname(configPath), ".virage");
   }
 
   // Resolve providers

@@ -15,6 +15,11 @@
       "type": "string",
       "description": "Config schema version (semver). Bump when making breaking changes to this file."
     },
+    "installScope": {
+      "type": "string",
+      "enum": ["local", "global"],
+      "description": "Where plugins and embedding/reranker model files are installed and loaded from. Set by 'virage init'."
+    },
     "providers": {
       "$ref": "#/$defs/providersConfig"
     },

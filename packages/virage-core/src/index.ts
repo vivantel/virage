@@ -52,6 +52,7 @@ export {
   IGNORED_DIRS,
   DEFAULT_EXCLUDE_PATTERNS,
 } from "./core/virage-defaults.js";
+export { VIRAGE_CONFIG_SCHEMA_VERSION } from "./config-schema.js";
 
 // Embeddings I/O
 export {

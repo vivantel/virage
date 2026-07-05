@@ -382,7 +382,7 @@ npm run build:all                        # build all in dependency order
 | `ci.yaml` | Push / PR to any branch | Build, type-check, lint, test (path-filtered) |
 | `release.yaml` | Push to `master` | release-please version bump + npm publish |
 | `automerge-release-please.yaml` | release-please PRs | Auto-merge release PRs |
-| `virage-update.yaml` | Push to `master` | Re-index the Virage repo via `virage update` |
+| `virage-index-pipeline.yaml` | Push to `master` | Re-index the Virage repo via `virage index --config virage.config.ci.json` |
 | `rag-eval.yml` | Manual / schedule | RAG quality evaluation runs |
 
 **Adding a new publishable package** — update these 4 files:
