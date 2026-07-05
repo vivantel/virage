@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.3.4](https://github.com/vivantel/virage/compare/virage-cli@v0.3.3...virage-cli@v0.3.4) (2026-07-05)
+
+
+### Bug Fixes
+
+* **cli:** Polish virage index progress and logging ([8502c50](https://github.com/vivantel/virage/commit/8502c50b82287fcc4c649b9842e8bfd57d6d7942))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @vivantel/virage-core bumped from >=0.4.2 to >=0.4.3
+
 ## [0.3.3](https://github.com/vivantel/virage/compare/virage-cli@v0.3.2...virage-cli@v0.3.3) (2026-07-05)
 
 
