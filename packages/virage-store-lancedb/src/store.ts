@@ -204,9 +204,6 @@ export class LanceDBVectorStore implements VectorStore {
   }
 
   async upsert(documents: VectorDocument[]): Promise<void> {
-    this.logger?.verbose(
-      `Upserting ${documents.length} docs into "${this.tableName}"`,
-    );
     const rows = documents.map((doc) => ({
       id: doc.id ?? doc.denseTextHash,
       dense_text: doc.denseText,
@@ -220,15 +217,15 @@ export class LanceDBVectorStore implements VectorStore {
       commit_hash: doc.commitHash,
     }));
 
-    this.logger?.trace(
-      `  Row IDs: ${rows.map((r) => r.id.slice(0, 8)).join(", ")}`,
-    );
-
+    const upsertT0 = Date.now();
     await this.table
       .mergeInsert("id")
       .whenMatchedUpdateAll()
       .whenNotMatchedInsertAll()
       .execute(rows);
+    this.logger?.verbose(
+      `Upserted ${rows.length} docs into "${this.tableName}" — ${Date.now() - upsertT0}ms`,
+    );
 
     // Create FTS index after the first batch of data is inserted — deferred from
     // initialize() to avoid the LanceDB 0.30.0 hang on empty-table createIndex.

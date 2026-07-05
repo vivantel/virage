@@ -313,6 +313,7 @@ export class Orchestrator {
       let totalSkipped = 0;
       let totalChunkBytes = 0;
       let totalEmbedBytes = 0;
+      let embedTotalMs = 0;
       const t2 = Date.now();
 
       let filesIndexed = 0;
@@ -333,10 +334,11 @@ export class Orchestrator {
         const limit = all ? pendingEmbed.length : minEmbedBatch;
         while (pendingEmbed.length >= (all ? 1 : minEmbedBatch)) {
           const batch = pendingEmbed.splice(0, limit);
-          logger.debug(
-            `[embed] ${batch.length} chunk(s) → ${this.config.embedder.name}`,
-          );
+          const batchT0 = Date.now();
           const embedded = await embedder.embedChunks(batch);
+          const batchMs = Date.now() - batchT0;
+          embedTotalMs += batchMs;
+          logger.debug(`[embed] ${batch.length} chunk(s) in ${batchMs}ms`);
           const embeddedAt = Math.floor(Date.now() / 1000);
           for (const chunk of embedded) {
             db.updateDenseVector(
@@ -500,11 +502,10 @@ export class Orchestrator {
       // Flush remaining pending embed and upload
       const t3 = Date.now();
       await flushEmbed(true);
-      const embedDuration = Date.now() - t3;
       opts.onEmbeddingComplete?.(
         chunksEmbedded,
         totalEmbedBytes,
-        embedDuration,
+        embedTotalMs || Date.now() - t3,
       );
 
       const t4 = Date.now();
@@ -531,7 +532,7 @@ export class Orchestrator {
           (totalSkipped > 0 ? `, skipped ${totalSkipped} (cached)` : ""),
       );
       telemetry?.recordEmbedding({
-        durationMs: embedDuration,
+        durationMs: embedTotalMs || Date.now() - t3,
         chunksEmbedded,
         chunksSkipped: totalSkipped,
       });
