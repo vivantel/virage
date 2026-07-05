@@ -169,13 +169,22 @@ export class Orchestrator {
         opts.logger,
         globalIgnore,
       );
-      const [currentState, currentBranch, vectorStoreState] = await Promise.all(
-        [
+      const [currentState, currentBranch, rawVectorStoreState] =
+        await Promise.all([
           gitTracker.getCurrentState(opts.onScanProgress),
           gitTracker.getCurrentBranch(),
           this.config.vectorStore.getCurrentState(),
-        ],
-      );
+        ]);
+
+      // Normalise legacy absolute paths from old LanceDB rows to relative POSIX paths
+      // so they overlap correctly with SQLite entries and getChangedFiles comparisons.
+      const cwd = process.cwd().replace(/\\/g, "/");
+      const vectorStoreState = new Map<string, string>();
+      for (const [k, v] of rawVectorStoreState) {
+        let p = k.replace(/\\/g, "/");
+        if (p.startsWith(cwd + "/")) p = p.slice(cwd.length + 1);
+        vectorStoreState.set(p, v);
+      }
 
       const previousState = effectiveForce
         ? new Map<string, string>()
@@ -226,16 +235,18 @@ export class Orchestrator {
 
       // Safety guard: refuse mass deletion without explicit --force to prevent
       // accidental wipes from config pattern changes or path format mismatches.
+      // Use currentState.size as denominator — previousState may be inflated by
+      // legacy absolute-path entries that don't overlap with current relative paths.
       if (toDelete.length >= 10 && !effectiveForce && !opts.dryRun) {
         const deletionFraction =
-          previousState.size > 0 ? toDelete.length / previousState.size : 1;
+          currentState.size > 0 ? toDelete.length / currentState.size : 1;
         if (deletionFraction >= 0.5) {
           const preview = toDelete
             .slice(0, 5)
             .map((f) => `  ${f}`)
             .join("\n");
           throw new RagError(
-            `Refusing to delete ${toDelete.length}/${previousState.size} indexed source files without --force.\n` +
+            `Refusing to delete ${toDelete.length}/${currentState.size} indexed source files without --force.\n` +
               `First 5 files that would be deleted:\n${preview}\n` +
               `Run with --force (-f) to confirm, or check your config for pattern changes.`,
           );
