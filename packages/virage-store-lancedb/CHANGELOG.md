@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.3.5](https://github.com/vivantel/virage/compare/virage-store-lancedb@v0.3.4...virage-store-lancedb@v0.3.5) (2026-07-05)
+
+
+### Bug Fixes
+
+* **cli:** Polish progress table UX and log format ([d39b128](https://github.com/vivantel/virage/commit/d39b1280a37473ac517f9b7d8efeb1c4bebcc471))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * devDependencies
+    * @vivantel/virage-core bumped from 0.4.3 to 0.4.4
+  * peerDependencies
+    * @vivantel/virage-core bumped from * to 0.4.4
+
 ## [0.3.4](https://github.com/vivantel/virage/compare/virage-store-lancedb@v0.3.3...virage-store-lancedb@v0.3.4) (2026-07-05)
 
 
