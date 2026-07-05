@@ -201,14 +201,17 @@ export class PipelineRenderer {
 
   updateEmbed(value: number, total: number): void {
     if (this.embedPhaseT0 === 0 && value > 0) this.embedPhaseT0 = Date.now();
-    this.bars.embed = { value: Math.max(this.bars.embed.value, value), total };
+    this.bars.embed = {
+      value: Math.max(this.bars.embed.value, value),
+      total: Math.max(this.bars.embed.total, total),
+    };
     this.dirty = true;
   }
 
   updateUpload(value: number, total: number): void {
     this.bars.upload = {
       value: Math.max(this.bars.upload.value, value),
-      total,
+      total: Math.max(this.bars.upload.total, total),
     };
     this.dirty = true;
   }
@@ -465,13 +468,15 @@ export class PipelineRenderer {
     const embedCount =
       embedDone === 0 && this.embedSkipped > 0 && embedTotal <= 1
         ? `${this.embedSkipped} cached`
-        : embedTotal > 0
-          ? embedDone >= embedTotal
-            ? `${embedDone} chunks`
-            : `${embedDone}/${embedTotal}`
-          : embedDone > 0
-            ? `${embedDone} chunks`
-            : "—";
+        : embedDone === 0 && embedTotal <= 1
+          ? "—"
+          : embedTotal > 0
+            ? embedDone >= embedTotal
+              ? `${embedDone} chunks`
+              : `${embedDone}/${embedTotal}`
+            : embedDone > 0
+              ? `${embedDone} chunks`
+              : "—";
 
     const uploadDone = this.bars.upload.value;
     const uploadTotal = this.bars.upload.total;
