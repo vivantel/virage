@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.5](https://github.com/vivantel/virage/compare/virage-core@v0.4.4...virage-core@v0.4.5) (2026-07-05)
+
+
+### Bug Fixes
+
+* **cli:** Polish round 3 — processed message, query logging, safety guard ([a5c6476](https://github.com/vivantel/virage/commit/a5c647613b918545e4eec97bb19887504f746cd0))
+
 ## [0.4.4](https://github.com/vivantel/virage/compare/virage-core@v0.4.3...virage-core@v0.4.4) (2026-07-05)
 
 

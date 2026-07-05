@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.3.7](https://github.com/vivantel/virage/compare/virage-cli@v0.3.6...virage-cli@v0.3.7) (2026-07-05)
+
+
+### Bug Fixes
+
+* **cli:** Polish round 3 — processed message, query logging, safety guard ([a5c6476](https://github.com/vivantel/virage/commit/a5c647613b918545e4eec97bb19887504f746cd0))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @vivantel/virage-core bumped from >=0.4.4 to >=0.4.5
+
 ## [0.3.6](https://github.com/vivantel/virage/compare/virage-cli@v0.3.5...virage-cli@v0.3.6) (2026-07-05)
 
 
