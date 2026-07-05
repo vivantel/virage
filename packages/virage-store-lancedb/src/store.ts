@@ -223,8 +223,8 @@ export class LanceDBVectorStore implements VectorStore {
       .whenMatchedUpdateAll()
       .whenNotMatchedInsertAll()
       .execute(rows);
-    this.logger?.verbose(
-      `Upserted ${rows.length} docs into "${this.tableName}" — ${Date.now() - upsertT0}ms`,
+    this.logger?.debug(
+      `[lancedb] Upserted ${rows.length} docs into "${this.tableName}" — ${Date.now() - upsertT0}ms`,
     );
 
     // Create FTS index after the first batch of data is inserted — deferred from

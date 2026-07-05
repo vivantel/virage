@@ -314,7 +314,7 @@ export class Orchestrator {
       let totalChunkBytes = 0;
       let totalEmbedBytes = 0;
       let embedTotalMs = 0;
-      const t2 = Date.now();
+      let chunkActiveMs = 0; // net time inside processEntries calls, excludes backpressure waits
 
       let filesIndexed = 0;
 
@@ -371,11 +371,13 @@ export class Orchestrator {
         let newChunks: Chunk[] = [];
         if (info) {
           try {
+            const chunkT0 = Date.now();
             newChunks = await chunkProcessor.processEntries(
               file,
               info.commitHash,
               info.entries,
             );
+            chunkActiveMs += Date.now() - chunkT0;
             void currentBranch; // branch tracking removed from ChunkMeta
           } catch (err) {
             logger.error(
@@ -483,14 +485,13 @@ export class Orchestrator {
         throw firstEmbedError;
       }
 
-      const chunkDuration = Date.now() - t2;
       opts.onChunkingComplete?.(
         toProcess.length,
         totalChunkBytes,
-        chunkDuration,
+        chunkActiveMs,
       );
       telemetry?.recordChunking({
-        durationMs: chunkDuration,
+        durationMs: chunkActiveMs,
         filesProcessed: toProcess.length,
         chunksGenerated,
         errors: 0,

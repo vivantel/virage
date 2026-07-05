@@ -59,6 +59,14 @@ function renderBar(value: number, total: number, width = BAR_WIDTH): string {
   return fill + empty;
 }
 
+function fmtSpeed(bytes: number, ms: number): string {
+  if (ms <= 0) return "—";
+  const bytesPerSec = (bytes / ms) * 1000;
+  if (bytesPerSec >= 1_000_000)
+    return `${(bytesPerSec / 1_000_000).toFixed(1)} MB/s`;
+  return `${(bytesPerSec / 1_000).toFixed(0)} KB/s`;
+}
+
 function renderPct(value: number, total: number): string {
   const pct =
     total === 0 ? 100 : Math.min(100, Math.floor((value / total) * 100));
@@ -297,15 +305,18 @@ export class PipelineRenderer {
 
       let out = "";
       if (this.ephemeralLines > 0) {
-        out += `\x1b[${this.ephemeralLines}A`;
+        // Erase the entire old block before re-rendering so any line-count
+        // change (e.g. throughput row appearing) never leaves ghost content.
+        out += `\x1b[${this.ephemeralLines}A\x1b[J`;
+        this.ephemeralLines = 0;
       }
       for (const msg of this.logBuffer) {
         const line = msg.endsWith("\n") ? msg.slice(0, -1) : msg;
-        out += line + "\x1b[K\n";
+        out += line + "\n";
       }
       this.logBuffer = [];
       for (const line of phaseLines) {
-        out += line + "\x1b[K\n";
+        out += line + "\n";
       }
       process.stdout.write(out);
       this.ephemeralLines = phaseLines.length;
@@ -387,22 +398,26 @@ export class PipelineRenderer {
     if (this.chunkingStats !== null) {
       const { files, ms } = this.chunkingStats;
       const secs = ms / 1000;
-      return secs > 0 ? `${(files / secs).toFixed(1)} f/s` : "—";
+      return secs > 0 ? `${(files / secs).toFixed(1)} files/s` : "—";
     }
     if (this.chunkPhaseT0 === 0 || this.bars.chunk.value === 0) return "—";
     const secs = (Date.now() - this.chunkPhaseT0) / 1000;
-    return secs > 1 ? `${(this.bars.chunk.value / secs).toFixed(1)} f/s` : "…";
+    return secs > 1
+      ? `${(this.bars.chunk.value / secs).toFixed(1)} files/s`
+      : "…";
   }
 
   private liveEmbedRate(): string {
     if (this.embeddingStats !== null) {
       const { chunks, ms } = this.embeddingStats;
       const secs = ms / 1000;
-      return secs > 0 ? `${Math.round(chunks / secs)} ch/s` : "—";
+      return secs > 0 ? `${Math.round(chunks / secs)} chunks/s` : "—";
     }
     if (this.embedPhaseT0 === 0 || this.bars.embed.value === 0) return "—";
     const secs = (Date.now() - this.embedPhaseT0) / 1000;
-    return secs > 1 ? `${Math.round(this.bars.embed.value / secs)} ch/s` : "…";
+    return secs > 1
+      ? `${Math.round(this.bars.embed.value / secs)} chunks/s`
+      : "…";
   }
 
   private buildPipeline(): string[] {
@@ -469,7 +484,7 @@ export class PipelineRenderer {
 
     const rows = [
       this.buildBarRow(
-        "Chunks sliced".padEnd(LABEL_WIDTH),
+        "Chunking".padEnd(LABEL_WIDTH),
         this.bars.chunk,
         chunkCount,
         this.liveChunkRate(),
@@ -488,12 +503,15 @@ export class PipelineRenderer {
       ),
     ];
 
-    // Footer: elapsed + ETA
+    // Footer: elapsed + ETA (ETA hidden once pipeline is done)
     const etaMs = this.calcPipelineEta(elapsed);
-    const elapsedRow =
-      `${dim}Elapsed:${rst} ${fmtTime(elapsed / 1000)}` +
-      `  ${dim}│${rst}  ` +
-      `${dim}ETA:${rst} ${etaMs !== null ? fmtTime(etaMs / 1000) : "…"}`;
+    const etaPart =
+      etaMs === null
+        ? `  ${dim}│${rst}  ${dim}ETA:${rst} …`
+        : etaMs > 0
+          ? `  ${dim}│${rst}  ${dim}ETA:${rst} ${fmtTime(etaMs / 1000)}`
+          : "";
+    const elapsedRow = `${dim}Elapsed:${rst} ${fmtTime(elapsed / 1000)}${etaPart}`;
 
     const lines: string[] = [header, ...rows, elapsedRow];
 
@@ -503,19 +521,19 @@ export class PipelineRenderer {
       if (this.chunkingStats !== null) {
         const { files, bytes, ms } = this.chunkingStats;
         const secs = ms / 1000;
-        const filesPerSec = secs > 0 ? (files / secs).toFixed(1) : "—";
-        const mbPerSec = secs > 0 ? (bytes / 1_000_000 / secs).toFixed(1) : "—";
+        const filesPerSec =
+          secs > 0 ? `${(files / secs).toFixed(1)} files/s` : "—";
         parts.push(
-          `${dim}Chunks sliced:${rst} ${filesPerSec} f/s  ${mbPerSec} MB/s`,
+          `${dim}Chunking:${rst} ${filesPerSec}  ${fmtSpeed(bytes, ms)}`,
         );
       }
       if (this.embeddingStats !== null) {
         const { chunks, bytes, ms } = this.embeddingStats;
         const secs = ms / 1000;
-        const chunksPerSec = secs > 0 ? (chunks / secs).toFixed(1) : "—";
-        const mbPerSec = secs > 0 ? (bytes / 1_000_000 / secs).toFixed(1) : "—";
+        const chunksPerSec =
+          secs > 0 ? `${Math.round(chunks / secs)} chunks/s` : "—";
         parts.push(
-          `${dim}Embedding:${rst} ${chunksPerSec} ch/s  ${mbPerSec} MB/s`,
+          `${dim}Embedding:${rst} ${chunksPerSec}  ${fmtSpeed(bytes, ms)}`,
         );
       }
       if (parts.length > 0) lines.push(parts.join(`  ${dim}│${rst}  `));
