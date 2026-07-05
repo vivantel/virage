@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.2](https://github.com/vivantel/virage/compare/virage-core@v0.4.1...virage-core@v0.4.2) (2026-07-05)
+
+
+### Features
+
+* **cli:** Deep ocean update — uninstall, update flags, index fixes, V2 docs ([07685ce](https://github.com/vivantel/virage/commit/07685ce88e6b44449f23b1ff5cc92f66290a5118))
+
 ## [0.4.1](https://github.com/vivantel/virage/compare/virage-core@v0.4.0...virage-core@v0.4.1) (2026-07-03)
 
 

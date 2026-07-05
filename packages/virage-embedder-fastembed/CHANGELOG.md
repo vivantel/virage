@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.3.2](https://github.com/vivantel/virage/compare/virage-embedder-fastembed@v0.3.1...virage-embedder-fastembed@v0.3.2) (2026-07-05)
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * devDependencies
+    * @vivantel/virage-core bumped from 0.4.1 to 0.4.2
+  * peerDependencies
+    * @vivantel/virage-core bumped from * to 0.4.2
+
 ## [0.3.1](https://github.com/vivantel/virage/compare/virage-embedder-fastembed@v0.3.0...virage-embedder-fastembed@v0.3.1) (2026-07-03)
 
 
