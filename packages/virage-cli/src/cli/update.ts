@@ -252,6 +252,7 @@ interface PackageStatus {
 export async function runUpdate(
   configPath: string,
   verbosity = 0,
+  opts: { force?: boolean; yes?: boolean } = {},
 ): Promise<void> {
   const out = createOut(verbosity);
   const cwd = process.cwd();
@@ -322,22 +323,29 @@ export async function runUpdate(
     return;
   }
 
-  // Let user pick which packages to update
-  const toUpdate = await checkbox({
-    message: "Select packages to update:",
-    choices: statuses.map((s) => ({
-      name: s.outdated
-        ? `${s.name}  (${s.current} → ${s.latest})`
-        : s.latest === "unknown"
-          ? `${s.name}  (${s.current}, latest unknown)`
-          : `${s.name}  (${s.current}, up to date)`,
-      value: s.name,
-      checked: true,
-    })),
-  });
+  // Let user pick which packages to update (skipped with --yes)
+  let toUpdate: string[];
+  if (opts.yes) {
+    toUpdate = statuses.map((s) => s.name);
+    out.dim("Updating all packages (--yes).");
+  } else {
+    toUpdate = await checkbox({
+      message: "Select packages to update:",
+      choices: statuses.map((s) => ({
+        name: s.outdated
+          ? `${s.name}  (${s.current} → ${s.latest})`
+          : s.latest === "unknown"
+            ? `${s.name}  (${s.current}, latest unknown)`
+            : `${s.name}  (${s.current}, up to date)`,
+        value: s.name,
+        checked: true,
+      })),
+    });
+  }
 
   if (toUpdate.length > 0) {
     const pm = await detectPackageManager(cwd);
+    const forceArgs = opts.force ? ["--force"] : [];
 
     // Split packages by install location
     const selectedStatuses = statuses.filter((s) => toUpdate.includes(s.name));
@@ -362,12 +370,13 @@ export async function runUpdate(
         localPluginPkgs,
         localPluginDir,
       );
-      out.dim(`\nRunning: ${cmd} ${args.join(" ")}`);
+      const fullArgs = [...args, ...forceArgs];
+      out.dim(`\nRunning: ${cmd} ${fullArgs.join(" ")}`);
       try {
-        await runInstall(cmd, args);
+        await runInstall(cmd, fullArgs);
       } catch {
         out.error("Local plugin update failed. Try running manually:");
-        out.dim(`  ${cmd} ${args.join(" ")}`);
+        out.dim(`  ${cmd} ${fullArgs.join(" ")}`);
         updateFailed = true;
       }
     }
@@ -379,12 +388,13 @@ export async function runUpdate(
         globalPluginPkgs,
         globalPluginDir,
       );
-      out.dim(`\nRunning: ${cmd} ${args.join(" ")}`);
+      const fullArgs = [...args, ...forceArgs];
+      out.dim(`\nRunning: ${cmd} ${fullArgs.join(" ")}`);
       try {
-        await runInstall(cmd, args);
+        await runInstall(cmd, fullArgs);
       } catch {
         out.error("Global plugin update failed. Try running manually:");
-        out.dim(`  ${cmd} ${args.join(" ")}`);
+        out.dim(`  ${cmd} ${fullArgs.join(" ")}`);
         updateFailed = true;
       }
     }
@@ -393,12 +403,13 @@ export async function runUpdate(
       const { cmd, args } = isGlobal
         ? buildGlobalInstallCommand(pm, nodeModulesPkgs)
         : buildInstallCommand(pm, nodeModulesPkgs);
-      out.dim(`\nRunning: ${cmd} ${args.join(" ")}`);
+      const fullArgs = [...args, ...forceArgs];
+      out.dim(`\nRunning: ${cmd} ${fullArgs.join(" ")}`);
       try {
-        await runInstall(cmd, args);
+        await runInstall(cmd, fullArgs);
       } catch {
         out.error("Update failed. Try running manually:");
-        out.dim(`  ${cmd} ${args.join(" ")}`);
+        out.dim(`  ${cmd} ${fullArgs.join(" ")}`);
         updateFailed = true;
       }
     }

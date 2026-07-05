@@ -35,7 +35,7 @@ Use `virage update` to update installed plugins and resync agent configs.
 
 ## Commands
 
-Every top-level command has a single-key alias — use `virage --help` to see all of them.
+Every top-level command has a single-key alias — use `virage --help` to see all of them. For full per-command reference see [docs/cli/](../../docs/cli/).
 
 ### Pipeline
 
@@ -46,13 +46,14 @@ Every top-level command has a single-key alias — use `virage --help` to see al
 | `virage validate` | `val` | Validate config without running the pipeline |
 | `virage query <text>` | `q` | Semantic search over the indexed knowledge base |
 
-### Setup & updates
+### Setup & lifecycle
 
 | Command | Alias | Description |
 |---------|-------|-------------|
 | `virage init` | — | Interactive wizard: configure embedder, vector store, re-ranker, hybrid search, and agent plugins; installs all selected plugins |
-| `virage update` | `up` | Check for outdated plugins, update selected ones, and resync agent configs |
+| `virage update` | `up` | Check for outdated plugins, update selected ones, and resync agent configs (`--force` reinstalls; `--yes` skips selection) |
 | `virage install-hooks` | `hooks` | Install git hooks for auto-indexing on pull/branch switch |
+| `virage uninstall` | `un` | Remove git hooks, plugin dirs, embeddings DB, config, and optionally the global CLI |
 
 ### Agent utilities
 

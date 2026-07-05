@@ -91,9 +91,10 @@ npm test -w @vivantel/<pkg>            # unit tests for one package
 npm run build -w @vivantel/<pkg>       # build one package
 npm run build:with-dashboard -w @vivantel/virage-cli  # CLI build including dashboard UI
 virage init                            # interactive wizard: config, agents, embedder, vector store, re-ranker, hybrid search; installs all plugins to ~/.virage/plugins or $PROJECT_DIR/.virage/plugins
-virage update (up)                     # update virage plugins from plugin dirs + node_modules + re-run agent configure + sync skills
+virage update (up) [-f] [-y]           # update virage plugins; --force reinstalls even at latest; --yes skips interactive selection
 virage query (q) "<text>"             # semantic search; prints search mode after banner (--json, --top-k, --branch, --hybrid, --rerank)
 virage install-hooks (hooks)           # install post-merge & post-checkout git hooks for auto-indexing
+virage uninstall (un) [--yes]          # full cleanup: hooks, plugin dirs, DB, config, global CLI
 virage dashboard (d) [--verbose]       # start local RAG monitoring dashboard
 virage quality (ql)                    # 26-metric pipeline self-assessment (default action)
 virage quality --json                  # machine-readable JSON report
@@ -126,6 +127,7 @@ virage pack --output ./archive.tar.gz  # pack LanceDB dir as a shareable .tar.gz
 | `query` | `q` |
 | `dashboard` | `d` |
 | `install-hooks` | `hooks` |
+| `uninstall` | `un` |
 | `usage` | `use` |
 | `read-skill-summary` | `skill` |
 | `quality` | `ql` |
@@ -215,8 +217,13 @@ Packages with `.tsx` files: `virage-dashboard`. Add to this list if new packages
 **Dashboard guardrails** (applies to `packages/virage-dashboard/` and `packages/virage-cli/src/cli/dashboard.ts`):
 - See [`guardrails/dashboard.md`](guardrails/dashboard.md) — data sources (LanceDB vs SQLite), PipelineLog op-filtering, WebSocket conventions, SearchResult fields, testing patterns
 
+**CLI command docs** (`docs/cli/`):
+- User-facing reference for every `virage <command>`. When adding a CLI flag or new command, update `docs/cli/<command>.md` in the same commit.
+- See [`guardrails/cli/command-docs.md`](guardrails/cli/command-docs.md) for the template and maintenance rules.
+
 **Config schema guardrails** (applies when changing `VirageConfigJson`, `ZodVirageConfig`, or `virage.config.schema.json`):
 - See [`guardrails/config-schema.md`](guardrails/config-schema.md) — providers + fileSets schema, tag vocabulary, update checklist (ADR-041/043/046)
+- Full user-facing config reference: [`docs/cli/config.md`](../../docs/cli/config.md)
 
 **Plugin schema guardrails** (applies when adding or modifying plugin options):
 - See [`guardrails/plugin-schema.md`](guardrails/plugin-schema.md) — optionsSchema export convention, required vs optional fields, PluginOptions type (ADR-047)

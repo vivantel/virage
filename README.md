@@ -74,9 +74,16 @@ Monorepo for the **Virage** ecosystem — a Git-aware RAG pipeline that turns yo
 
 ## Quick start
 
-Install the CLI globally:
+Install the CLI globally (requires Node.js LTS):
 
 ```bash
+# Unix / macOS / Linux
+curl -fsSL https://raw.githubusercontent.com/vivantel/virage/master/scripts/install.sh | bash
+
+# Windows (PowerShell)
+irm https://raw.githubusercontent.com/vivantel/virage/master/scripts/install.ps1 | iex
+
+# Or directly with npm
 npm install -g @vivantel/virage-cli
 ```
 
@@ -95,50 +102,40 @@ virage index
 
 ## Configuration
 
-All configuration lives in `virage.config.json`. The `$schema` field enables IDE autocomplete and inline validation. `${ENV_VAR}` patterns are expanded from the environment at runtime. `pluginVersions` records the exact versions installed by `virage init` / `virage update`.
+All configuration lives in `virage.config.json`. The `$schema` field enables IDE autocomplete and inline validation. `${ENV_VAR}` patterns are expanded from the environment at runtime.
 
 ```json
 {
   "$schema": "https://unpkg.com/@vivantel/virage-core/schemas/virage.config.schema.json",
-  "chunking": {
-    "exclude": [
-      "**/vendor/**", "**/*.min.js", "**/*.lock",
-      "**/dist/**", "**/node_modules/**"
-    ],
-    "chunkers": [
-      { "package": "@vivantel/virage-chunker-ce-md" },
-      { "package": "@vivantel/virage-code-chunk-chunker" }
-    ]
+  "version": "2.0.0",
+  "providers": {
+    "embedder": {
+      "package": "@vivantel/virage-embedder-fastembed",
+      "options": { "model": "BAAI/bge-small-en-v1.5", "dimensions": 384 }
+    },
+    "vectorStore": {
+      "package": "@vivantel/virage-store-lancedb",
+      "options": { "uri": ".virage/lancedb" }
+    }
   },
+  "fileSets": [
+    {
+      "name": "main",
+      "include": ["src/**", "docs/**"],
+      "ignore": ["**/node_modules/**", "**/dist/**"],
+      "chunkers": [
+        { "package": "@vivantel/virage-chunker-ce-md" },
+        { "package": "@vivantel/virage-code-chunk-chunker" }
+      ]
+    }
+  ],
   "agents": [{ "package": "@vivantel/virage-agent-claude" }],
-  "embedder": {
-    "package": "@vivantel/virage-embedder-fastembed",
-    "config": { "model": "BAAI/bge-small-en-v1.5", "dimensions": 384 }
-  },
-  "vectorStore": {
-    "package": "@vivantel/virage-store-lancedb",
-    "config": { "uri": ".virage/lancedb" }
-  },
-  "search": {
-    "hybrid": true,
-    "hybridAlpha": 0.6
-  },
-  "pluginVersions": {
-    "@vivantel/virage-embedder-fastembed": "0.2.66",
-    "@vivantel/virage-store-lancedb": "0.2.70",
-    "@vivantel/virage-code-chunk-chunker": "0.1.50",
-    "@vivantel/virage-agent-claude": "0.2.27"
-  },
-  "options": {
-    "rateLimitMs": 200,
-    "batchSize": 20
-  }
+  "search": { "hybrid": true, "hybridAlpha": 0.6 },
+  "pipeline": { "rateLimitMs": 200, "batchSize": 20 }
 }
 ```
 
-The `chunking` section replaces the old root-level `chunkers` array. Old configs with `chunkers` at the root are automatically normalized at load time — no manual migration required. `virage init` always generates the new format.
-
-**`chunking.exclude`** accepts glob patterns applied to all chunkers before any file is processed. `virage init` seeds this with sensible per-ecosystem defaults (Node, Java, .NET, Go, C/C++). Per-chunker exclusions remain available as `ignorePatterns` inside each chunker entry.
+Run `virage init` to generate a config interactively. See [docs/cli/config.md](docs/cli/config.md) for the full config reference.
 
 ## CLI commands
 
@@ -167,7 +164,10 @@ Commands:
   store             Vector store diagnostics
   telemetry         Manage telemetry settings and data
   install-hooks (hooks)  Install git hooks for auto-indexing
+  uninstall   (un)  Remove virage artefacts and optionally the global CLI
 ```
+
+See [docs/cli/](docs/cli/) for per-command reference.
 
 `virage index` flags:
 

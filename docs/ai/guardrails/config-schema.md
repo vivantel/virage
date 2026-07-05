@@ -13,12 +13,16 @@ The Virage config schema (`VirageConfigJson`) is defined in three places that mu
 
 Even adding a single optional field. ADRs are immutable once Accepted — create a new one, don't edit old ones.
 
+### Bump `version` on breaking changes
+
+When removing or renaming a required field, bump `config.version` to the next minor or major semver (e.g. `"2.0.0"` → `"2.1.0"`). Add a migration note in the schema file and in `docs/cli/config.md`.
+
 ### After changing `VirageConfigJson`
 
 In order:
 1. Update `ZodVirageConfig` in `config-schema.ts` (Zod schema).
 2. Update `virage.config.schema.json` (JSON Schema Draft-07).
-3. Update `docs/packages/*.md` examples to show the new field.
+3. Update `docs/cli/config.md` and `docs/packages/*.md` examples.
 4. Update `docs/ai/INDEX.md` config format section.
 5. Update `virage.config.json` and `virage.config.ci.json` if the field is relevant.
 
@@ -49,6 +53,8 @@ When adding a new field to `FileSetConfig` or `ChunkerConfig`:
 
 ```
 VirageConfigJson
+├── $schema?               string (IDE autocomplete)
+├── version?               string (semver — bump on breaking changes)
 ├── providers              (required)
 │   ├── embedder           PluginRef (required)
 │   ├── vectorStore        PluginRef (required)
@@ -69,7 +75,9 @@ VirageConfigJson
 ├── ignore?                string[]  ← global patterns
 ├── search?                SearchConfig
 ├── agents?                PluginRef[]
-├── pipeline?              PipelineOptions (chunkConcurrency, batchSize, etc.)
+├── pipeline?              PipelineOptions (see docs/cli/config.md for all fields and defaults)
 ├── telemetry?             TelemetryConfig
 └── quality?               QualityConfig
 ```
+
+Full config reference: [docs/cli/config.md](../../cli/config.md)

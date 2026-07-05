@@ -410,20 +410,25 @@ export class Orchestrator {
 
             // Check which hashes already exist in the vector store — skip re-embedding.
             // Batch size is 2× minEmbedBatch to amortise the round-trip cost.
+            // Skipped when effectiveForce=true: force means re-embed everything.
             const hashCheckBatchSize = minEmbedBatch * 2;
             const existingSet = new Set<string>();
-            if (typeof this.config.vectorStore.existingHashes === "function") {
-              const hashes = capturedChunks.map((c) => c.denseTextHash);
-              for (let i = 0; i < hashes.length; i += hashCheckBatchSize) {
-                const slice = hashes.slice(i, i + hashCheckBatchSize);
-                const found =
-                  await this.config.vectorStore.existingHashes(slice);
-                for (const h of found) existingSet.add(h);
+            if (!effectiveForce) {
+              if (
+                typeof this.config.vectorStore.existingHashes === "function"
+              ) {
+                const hashes = capturedChunks.map((c) => c.denseTextHash);
+                for (let i = 0; i < hashes.length; i += hashCheckBatchSize) {
+                  const slice = hashes.slice(i, i + hashCheckBatchSize);
+                  const found =
+                    await this.config.vectorStore.existingHashes(slice);
+                  for (const h of found) existingSet.add(h);
+                }
+              } else {
+                // Fallback: SQLite in-session check (no cross-run caching)
+                const alreadyEmbedded = db.getEmbeddedDenseTextHashes(file);
+                for (const h of alreadyEmbedded) existingSet.add(h);
               }
-            } else {
-              // Fallback: SQLite in-session check (no cross-run caching)
-              const alreadyEmbedded = db.getEmbeddedDenseTextHashes(file);
-              for (const h of alreadyEmbedded) existingSet.add(h);
             }
 
             const chunksToEmbed = capturedChunks.filter(

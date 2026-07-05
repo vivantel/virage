@@ -27,6 +27,7 @@ import { runDashboard } from "../cli/dashboard.js";
 import { runCheck } from "../cli/check.js";
 import { runQuery } from "../cli/query-cmd.js";
 import { runInstallHooks } from "../cli/install-hooks.js";
+import { runUninstall } from "../cli/uninstall.js";
 import { runPack } from "../cli/pack.js";
 import { registerQualityCommand } from "../cli/quality/index.js";
 import {
@@ -139,6 +140,9 @@ async function runOnce(options: {
     const cfg = await loadConfig(options.config, pipelineLogger);
     const modelName = cfg.embedder.model ?? "embedding model";
 
+    let finalEmbedded = 0;
+    let finalSkipped = 0;
+
     const orchestrator = new Orchestrator({
       ...cfg,
       options: {
@@ -156,11 +160,17 @@ async function runOnce(options: {
           renderer.updateModelProgress(loaded, total),
         onPreWarmDone: () => renderer.startPipeline(),
         onChunkProgress: (done, total) => renderer.updateChunk(done, total),
-        onEmbedProgress: (done, total) => renderer.updateEmbed(done, total),
+        onEmbedProgress: (done, total) => {
+          finalEmbedded = done;
+          renderer.updateEmbed(done, total);
+        },
         onUploadProgress: (done, total) => renderer.updateUpload(done, total),
         onFileComplete: (done, total) =>
           renderer.updateFileIndexed(done, total),
-        onSkipProgress: (skipped) => renderer.updateSkipped(skipped),
+        onSkipProgress: (skipped) => {
+          finalSkipped = skipped;
+          renderer.updateSkipped(skipped);
+        },
         onChunkingComplete: (files, bytes, ms) =>
           renderer.setChunkingStats(files, bytes, ms),
         onEmbeddingComplete: (chunks, bytes, ms) =>
@@ -169,6 +179,14 @@ async function runOnce(options: {
     });
     const result = await orchestrator.run();
     renderer.stop();
+    if (finalEmbedded > 0 || finalSkipped > 0) {
+      // eslint-disable-next-line no-console
+      console.log(
+        `${ansi.cyan}📦 Embedded ${finalEmbedded} chunk(s)` +
+          (finalSkipped > 0 ? `, skipped ${finalSkipped} (cached)` : "") +
+          ansi.reset,
+      );
+    }
     if (result.filesProcessed === 0 && result.filesDeleted === 0) {
       // eslint-disable-next-line no-console
       console.log(
@@ -301,10 +319,18 @@ program
     "Update virage ecosystem packages (embedders, chunkers, agent plugins)",
   )
   .option("-c, --config <path>", "Path to config file", "./virage.config.json")
-  .action(async (opts: { config: string }) => {
+  .option("-f, --force", "Force npm reinstall even if packages are at latest")
+  .option(
+    "-y, --yes",
+    "Non-interactive: skip selection and update all packages",
+  )
+  .action(async (opts: { config: string; force?: boolean; yes?: boolean }) => {
     const verbose = program.opts<{ verbose: number }>().verbose;
     try {
-      await runUpdate(opts.config, verbose);
+      await runUpdate(opts.config, verbose, {
+        force: opts.force,
+        yes: opts.yes,
+      });
     } catch (error) {
       if ((error as NodeJS.ErrnoException).name === "ExitPromptError") {
         createOut(0).dim("\nCancelled.");
@@ -682,6 +708,31 @@ program
         verbosity: verbose,
       });
     } catch (error) {
+      handleError(error);
+    }
+  });
+
+program
+  .command("uninstall")
+  .alias("un")
+  .description(
+    "Remove virage artefacts: git hooks, plugin directories, embeddings DB, config, and global CLI",
+  )
+  .option("-y, --yes", "Skip all confirmation prompts and assume yes")
+  .option("-c, --config <path>", "Path to config file", "./virage.config.json")
+  .action(async (cmdOpts: { yes?: boolean; config: string }) => {
+    const verbose = program.opts<{ verbose: number }>().verbose;
+    try {
+      await runUninstall({
+        yes: cmdOpts.yes,
+        config: cmdOpts.config,
+        verbosity: verbose,
+      });
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).name === "ExitPromptError") {
+        createOut(0).dim("\nCancelled.");
+        process.exit(0);
+      }
       handleError(error);
     }
   });

@@ -1,34 +1,40 @@
 {
   "$schema": "../../packages/virage-core/schemas/virage.config.schema.json",
-  "chunking": {
-    "chunkers": [
-      {
-        "package": "@vivantel/virage-chunker-ce-md",
-        "include": ["docs/**/*.md", "docs/**/*.mdx"]
-      },
-      {
-        "package": "@vivantel/virage-code-chunk-chunker",
-        "include": ["src/**/*.ts", "src/**/*.tsx"]
+  "version": "2.0.0",
+  "providers": {
+    "embedder": {
+      "package": "@vivantel/virage-embedder-openai",
+      "options": {
+        "apiKey": "${OPENAI_API_KEY}",
+        "model": "text-embedding-3-small",
+        "dimensions": 1536
       }
-    ]
-  },
-  "embedder": {
-    "package": "@vivantel/virage-embedder-openai",
-    "config": {
-      "apiKey": "${OPENAI_API_KEY}",
-      "model": "text-embedding-3-small",
-      "dimensions": 1536
+    },
+    "vectorStore": {
+      "package": "@vivantel/virage-store-qdrant",
+      "options": {
+        "url": "${QDRANT_URL}",
+        "apiKey": "${QDRANT_API_KEY}"
+      }
     }
   },
-  "vectorStore": {
-    "package": "@vivantel/virage-store-qdrant",
-    "config": {
-      "url": "${QDRANT_URL}",
-      "apiKey": "${QDRANT_API_KEY}"
+  "fileSets": [
+    {
+      "name": "docs",
+      "include": ["docs/**/*.md", "docs/**/*.mdx"],
+      "chunkers": [
+        { "package": "@vivantel/virage-chunker-ce-md" }
+      ]
+    },
+    {
+      "name": "source",
+      "include": ["src/**/*.ts", "src/**/*.tsx"],
+      "chunkers": [
+        { "package": "@vivantel/virage-code-chunk-chunker" }
+      ]
     }
-  },
-  "options": {
-    "chunksFile": "./docs/rag/chunks.json",
+  ],
+  "pipeline": {
     "embeddingsFile": "./docs/rag/embeddings.json"
   }
 }

@@ -7,6 +7,7 @@ These guardrails describe the conventions established by the CLI output system r
 | Any CLI command's output (status messages, section headers, dividers) | [`output.md`](output.md) |
 | A long-running async operation in a CLI command | [`spinner.md`](spinner.md) |
 | Telemetry events for CLI commands | [`telemetry.md`](telemetry.md) |
+| Writing or updating user-facing command docs in `docs/cli/` | [`command-docs.md`](command-docs.md) |
 
 ## Quick rules (load the full doc for details)
 

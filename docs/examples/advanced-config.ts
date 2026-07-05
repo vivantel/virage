@@ -1,87 +1,85 @@
 /**
- * Advanced RAG config showing all available options.
+ * Advanced virage.config.json equivalent in TypeScript (V2 API).
+ * In practice, use virage.config.json directly — this file shows the full shape.
  */
-import type {
-  RAGPipelineConfig,
-  EmbeddingProvider,
-  VectorStore,
-  VectorSearchResult,
-} from "@vivantel/virage-core";
-import {
-  createChunker,
-  markdownHeadersStrategy,
-  tokenStrategy,
-  semanticStrategy,
-  wholeFileStrategy,
-} from "@vivantel/virage-core";
+import type { VirageConfigJson } from "@vivantel/virage-core";
 
-// Stubbed providers — replace with real implementations
-const embedder: EmbeddingProvider = {
-  name: "my-provider",
-  dimensions: 1536,
-  async embed(text: string): Promise<number[]> {
-    void text;
-    throw new Error("Not implemented");
-  },
-  async embedBatch(texts: string[]): Promise<number[][]> {
-    void texts;
-    throw new Error("Not implemented");
-  },
-  async healthCheck(): Promise<boolean> {
-    return true;
-  },
-};
+const config: VirageConfigJson = {
+  $schema:
+    "https://unpkg.com/@vivantel/virage-core/schemas/virage.config.schema.json",
+  version: "2.0.0",
 
-const vectorStore: VectorStore = {
-  name: "my-store",
-  async initialize() {},
-  async upsert(_docs) {},
-  async deleteBySourceFile(_files) {},
-  async getCurrentState() {
-    return new Map();
+  providers: {
+    embedder: {
+      package: "@vivantel/virage-embedder-openai",
+      packageVersion: "~0.2.55",
+      options: {
+        apiKey: "${OPENAI_API_KEY}",
+        model: "text-embedding-3-small",
+        dimensions: 1536,
+      },
+    },
+    vectorStore: {
+      package: "@vivantel/virage-store-lancedb",
+      packageVersion: "~0.2.70",
+      options: { uri: ".virage/lancedb" },
+    },
+    reranker: {
+      package: "@vivantel/virage-reranker-cohere",
+      options: { apiKey: "${COHERE_API_KEY}" },
+    },
   },
-  async search(_embedding, _topK): Promise<VectorSearchResult[]> {
-    return [];
-  },
-};
 
-const config: RAGPipelineConfig = {
-  chunkers: [
-    // Different .md directories can use different strategies
-    createChunker({
-      patterns: ["docs/**/*.md"],
-      strategy: markdownHeadersStrategy(),
-    }),
-    createChunker({
-      patterns: ["rules/**/*.md"],
-      strategy: wholeFileStrategy(),
-    }),
-    createChunker({ patterns: ["blog/**/*.md"], strategy: semanticStrategy() }),
-    createChunker({
-      patterns: ["src/**/*.ts", "src/**/*.tsx"],
-      strategy: tokenStrategy({ maxTokens: 400, overlap: 40 }),
-    }),
+  fileSets: [
+    {
+      name: "docs",
+      include: ["docs/**/*.md", "docs/**/*.mdx"],
+      ignore: ["docs/internal/**"],
+      tags: ["format:markdown"],
+      tagRules: [{ match: "docs/api/**", add: ["team:platform"] }],
+      chunkers: [
+        {
+          package: "@vivantel/virage-chunker-ce-md",
+          packageVersion: "~0.1.10",
+        },
+      ],
+    },
+    {
+      name: "source",
+      include: ["src/**/*.ts", "src/**/*.tsx"],
+      ignore: ["src/**/*.test.ts", "src/**/*.spec.ts"],
+      tags: ["lang:typescript"],
+      tagRules: [
+        { match: "src/payments/**", add: ["team:payments", "pci-scope"] },
+      ],
+      chunkers: [
+        {
+          package: "@vivantel/virage-code-chunk-chunker",
+          packageVersion: "~0.1.50",
+        },
+      ],
+    },
   ],
-  embedder,
-  vectorStore,
-  options: {
-    // File paths for intermediate state (committed to git for incremental updates)
-    chunksFile: "./docs/rag/chunks.json",
-    embeddingsFile: "./docs/rag/embeddings.json",
 
-    // Milliseconds to wait between individual embed() calls (avoids rate limits)
+  ignore: ["**/node_modules/**", "**/dist/**", "**/*.min.js", "**/*.lock"],
+
+  agents: [{ package: "@vivantel/virage-agent-claude" }],
+
+  search: {
+    hybrid: true,
+    hybridAlpha: 0.6,
+    rerankOversample: 3,
+  },
+
+  pipeline: {
     rateLimitMs: 200,
-
-    // Use provider.embedBatch() when chunk count exceeds this threshold
     batchSize: 20,
-
-    // Skip uploading to the vector store (useful for CI that only re-chunks)
-    // skipUpload: true,
-
-    // Re-process everything even if commit hashes haven't changed
+    concurrency: 4,
+    minEmbeddingBatchSize: 10,
+    minUploadingBatchSize: 20,
+    // embeddingsFile: "./docs/rag/embeddings.json",
     // force: true,
-
-    // Show what would change without actually uploading
+    // skipUpload: true,
     // dryRun: true,
   },
 };

@@ -54,19 +54,80 @@ const ZodSearchConfig = z.object({
 });
 
 const ZodPipelineOptions = z.object({
-  embeddingsFile: z.string().optional(),
-  force: z.boolean().optional(),
-  skipUpload: z.boolean().optional(),
-  dryRun: z.boolean().optional(),
-  rateLimitMs: z.number().nonnegative().optional(),
-  batchSize: z.number().int().positive().optional(),
-  maxBatchChars: z.number().int().positive().optional(),
-  concurrency: z.number().int().positive().optional(),
-  chunkConcurrency: z.number().int().positive().optional(),
-  minEmbeddingBatchSize: z.number().int().positive().optional(),
-  minUploadingBatchSize: z.number().int().positive().optional(),
-  maxPendingFiles: z.number().int().positive().optional(),
-  noBanner: z.boolean().optional(),
+  embeddingsFile: z
+    .string()
+    .describe(
+      "Path to a pre-computed embeddings JSON file (skip embedding step)",
+    )
+    .optional(),
+  force: z
+    .boolean()
+    .describe(
+      "Re-embed all chunks even if they are already in the vector store",
+    )
+    .optional(),
+  skipUpload: z
+    .boolean()
+    .describe("Embed but do not upload to the vector store")
+    .optional(),
+  dryRun: z
+    .boolean()
+    .describe("Show what would change without writing anything")
+    .optional(),
+  rateLimitMs: z
+    .number()
+    .nonnegative()
+    .describe("Minimum milliseconds between embedding API calls (default: 0)")
+    .optional(),
+  batchSize: z
+    .number()
+    .int()
+    .positive()
+    .describe("Max chunks per embedding API request")
+    .optional(),
+  maxBatchChars: z
+    .number()
+    .int()
+    .positive()
+    .describe("Max total characters per embedding API request")
+    .optional(),
+  concurrency: z
+    .number()
+    .int()
+    .positive()
+    .describe("Number of files processed in parallel")
+    .optional(),
+  chunkConcurrency: z
+    .number()
+    .int()
+    .positive()
+    .describe("Number of chunking workers per file")
+    .optional(),
+  minEmbeddingBatchSize: z
+    .number()
+    .int()
+    .positive()
+    .describe(
+      "Minimum chunks to accumulate before sending an embedding request (default: 10)",
+    )
+    .optional(),
+  minUploadingBatchSize: z
+    .number()
+    .int()
+    .positive()
+    .describe(
+      "Minimum chunks to accumulate before uploading to the vector store (default: 20)",
+    )
+    .optional(),
+  maxPendingFiles: z
+    .number()
+    .int()
+    .positive()
+    .describe(
+      "Backpressure limit: max files queued for chunking before pausing file reads",
+    )
+    .optional(),
+  noBanner: z.boolean().describe("Suppress the startup banner").optional(),
 });
 
 const ZodAgentRef = ZodPluginRef;
@@ -75,6 +136,12 @@ const ZodAgentRef = ZodPluginRef;
 
 export const ZodVirageConfig = z.object({
   $schema: z.string().optional(),
+  version: z
+    .string()
+    .describe(
+      "Config schema version (semver). Bump when making breaking changes to this file.",
+    )
+    .optional(),
   providers: ZodProvidersConfig,
   fileSets: z
     .array(ZodFileSetConfig)

@@ -2,249 +2,305 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://github.com/vivantel/virage/schemas/virage.config.schema.json",
   "title": "Virage Pipeline Config",
-  "description": "Declarative JSON configuration for @vivantel/virage-core",
+  "description": "Declarative JSON configuration for @vivantel/virage-core (V2 — providers + fileSets)",
   "type": "object",
-  "required": ["chunking", "embedder", "vectorStore"],
+  "required": ["providers", "fileSets"],
   "additionalProperties": false,
   "properties": {
     "$schema": {
-      "type": "string"
+      "type": "string",
+      "description": "URL to this JSON Schema for IDE autocomplete."
     },
-    "chunking": {
-      "type": "object",
-      "required": ["chunkers"],
-      "additionalProperties": false,
-      "description": "Chunking configuration: global file exclusions and per-chunker rules.",
-      "properties": {
-        "ignore": {
-          "type": "array",
-          "items": { "type": "string" },
-          "description": "Glob patterns for files to exclude globally from all chunkers (e.g. '**/vendor/**', '**/*.min.js')."
-        },
-        "filter": {
-          "type": "object",
-          "additionalProperties": false,
-          "description": "Global filter: path ignores and label rules applied before any chunker runs.",
-          "properties": {
-            "ignore": {
-              "type": "array",
-              "items": { "type": "string" },
-              "description": "Additional global ignore patterns (merged with top-level chunking.ignore)."
-            },
-            "labels": {
-              "type": "array",
-              "items": { "$ref": "#/$defs/labelRule" },
-              "description": "Global label rules applied to every file's label set."
-            }
-          }
-        },
-        "chunkers": {
-          "type": "array",
-          "minItems": 1,
-          "items": { "$ref": "#/$defs/chunkerItem" }
-        }
-      }
+    "version": {
+      "type": "string",
+      "description": "Config schema version (semver). Bump when making breaking changes to this file."
     },
-    "embedder": {
-      "type": "object",
-      "required": ["package"],
-      "additionalProperties": false,
-      "properties": {
-        "package": {
-          "type": "string",
-          "description": "npm package that exports createEmbedder(config). E.g. '@vivantel/virage-embedder-openai'"
-        },
-        "config": {
-          "type": "object",
-          "description": "Config passed to the package's createEmbedder() factory. Supports ${ENV_VAR} expansion.",
-          "additionalProperties": true
-        }
-      }
+    "providers": {
+      "$ref": "#/$defs/providersConfig"
     },
-    "vectorStore": {
-      "type": "object",
-      "required": ["package"],
-      "additionalProperties": false,
-      "properties": {
-        "package": {
-          "type": "string",
-          "description": "npm package that exports createVectorStore(config). E.g. '@vivantel/virage-store-postgres'"
-        },
-        "config": {
-          "type": "object",
-          "description": "Config passed to the package's createVectorStore() factory. Supports ${ENV_VAR} expansion.",
-          "additionalProperties": true
-        }
-      }
+    "fileSets": {
+      "type": "array",
+      "minItems": 1,
+      "description": "Named groups of files to index. At least one entry is required.",
+      "items": { "$ref": "#/$defs/fileSetConfig" }
+    },
+    "ignore": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Global glob patterns excluded from all file sets (e.g. '**/node_modules/**')."
+    },
+    "search": {
+      "$ref": "#/$defs/searchConfig"
     },
     "agents": {
       "type": "array",
-      "items": { "type": "string" },
-      "description": "Coding agent plugin names selected during init (e.g. [\"claude-code\", \"copilot\"])."
+      "items": { "$ref": "#/$defs/pluginRef" },
+      "description": "Agent plugins to configure (e.g. Claude Code, Copilot)."
     },
-    "search": {
+    "pipeline": {
+      "$ref": "#/$defs/pipelineOptions"
+    },
+    "telemetry": {
+      "type": "object",
+      "description": "Telemetry configuration (provider-specific).",
+      "additionalProperties": true
+    },
+    "quality": {
+      "type": "object",
+      "description": "Quality pipeline configuration.",
+      "additionalProperties": true
+    }
+  },
+  "$defs": {
+    "pluginRef": {
+      "type": "object",
+      "required": ["package"],
+      "additionalProperties": false,
+      "description": "Reference to a virage plugin package.",
+      "properties": {
+        "package": {
+          "type": "string",
+          "minLength": 1,
+          "description": "npm package name (e.g. '@vivantel/virage-embedder-fastembed')."
+        },
+        "packageVersion": {
+          "type": "string",
+          "description": "Pinned version range (e.g. '~0.2.55'). Managed by virage update."
+        },
+        "options": {
+          "type": "object",
+          "description": "Plugin-specific options. Supports ${ENV_VAR} expansion in string values.",
+          "additionalProperties": true
+        }
+      }
+    },
+    "providersConfig": {
+      "type": "object",
+      "required": ["embedder", "vectorStore"],
+      "additionalProperties": false,
+      "description": "Provider plugins for embedding, vector storage, re-ranking, and file sourcing.",
+      "properties": {
+        "embedder": {
+          "allOf": [{ "$ref": "#/$defs/pluginRef" }],
+          "description": "Embedding model plugin (e.g. '@vivantel/virage-embedder-fastembed')."
+        },
+        "vectorStore": {
+          "allOf": [{ "$ref": "#/$defs/pluginRef" }],
+          "description": "Vector store plugin (e.g. '@vivantel/virage-store-lancedb')."
+        },
+        "reranker": {
+          "allOf": [{ "$ref": "#/$defs/pluginRef" }],
+          "description": "Optional re-ranker plugin for post-retrieval result reordering."
+        },
+        "source": {
+          "allOf": [{ "$ref": "#/$defs/pluginRef" }],
+          "description": "Optional global source provider. Overrides the default local-filesystem source for all file sets."
+        }
+      }
+    },
+    "searchConfig": {
       "type": "object",
       "additionalProperties": false,
-      "description": "Optional retrieval configuration: hybrid search and re-ranking.",
+      "description": "Search behaviour configuration.",
       "properties": {
         "hybrid": {
           "type": "boolean",
-          "description": "Enable BM25 + vector hybrid search with Reciprocal Rank Fusion. Default: false."
+          "description": "Enable hybrid search (dense + sparse BM25/FTS). Default: false."
         },
         "hybridAlpha": {
           "type": "number",
           "minimum": 0,
           "maximum": 1,
-          "description": "Blend weight for hybrid search: 0 = pure BM25, 1 = pure vector. Default: 0.6."
+          "description": "Blend weight: 0 = pure sparse, 1 = pure dense. Default: 0.5."
         },
-        "reranker": {
-          "type": "object",
-          "required": ["package"],
-          "additionalProperties": false,
-          "description": "Optional post-retrieval re-ranker plugin.",
-          "properties": {
-            "package": {
-              "type": "string",
-              "description": "npm package that exports createReranker(config). E.g. '@vivantel/virage-reranker-cross-encoder'"
-            },
-            "config": {
-              "type": "object",
-              "additionalProperties": true,
-              "description": "Config passed to createReranker(). Supports ${ENV_VAR} expansion."
-            }
-          }
+        "rerankOversample": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Fetch topK × rerankOversample candidates before re-ranking. Default: 3."
         }
       }
     },
-    "pluginVersions": {
+    "fileSetConfig": {
       "type": "object",
-      "description": "Installed plugin package versions, recorded by virage init/update.",
-      "additionalProperties": {
-        "type": "string"
-      }
-    },
-    "installScope": {
-      "type": "string",
-      "enum": ["local", "global"],
-      "description": "Plugin installation scope chosen during virage init (local = .virage/plugins, global = ~/.virage/plugins)."
-    },
-    "options": {
-      "type": "object",
+      "required": ["name", "chunkers"],
       "additionalProperties": false,
+      "description": "A named group of files to index with specific chunkers.",
       "properties": {
-        "force": { "type": "boolean" },
-        "skipUpload": { "type": "boolean" },
-        "dryRun": { "type": "boolean" },
-        "rateLimitMs": { "type": "number" },
-        "batchSize": { "type": "number" },
-        "maxBatchChars": { "type": "number" },
-        "concurrency": { "type": "number" },
-        "chunkConcurrency": {
-          "type": "number",
-          "description": "Number of files to chunk concurrently. Defaults to the number of logical CPU cores."
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Unique name for this file set."
         },
-        "minIngestionBatchSize": {
-          "type": "integer",
-          "minimum": 1,
-          "description": "Deprecated. Use minUploadingBatchSize instead."
+        "source": {
+          "allOf": [{ "$ref": "#/$defs/pluginRef" }],
+          "description": "Per-fileSet source provider override (overrides providers.source for this set)."
         },
-        "minEmbeddingBatchSize": {
-          "type": "integer",
-          "minimum": 1,
-          "description": "Minimum pending-chunk queue size before triggering an embedding run. Default: 10."
+        "include": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Glob patterns to include (e.g. ['src/**/*.ts'])."
         },
-        "minUploadingBatchSize": {
-          "type": "integer",
-          "minimum": 1,
-          "description": "Minimum embedded-chunk queue size before triggering an upload batch. Default: 20."
+        "ignore": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Glob patterns to exclude for this file set."
         },
-        "noBanner": {
-          "type": "boolean",
-          "description": "Suppress the startup banner. Can also be set via VIRAGE_NO_BANNER=1 environment variable."
+        "tags": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Tags injected into every chunk from this file set (e.g. ['lang:typescript'])."
         },
-        "maxPendingFiles": {
-          "type": "integer",
-          "minimum": 1,
-          "description": "Max files whose chunks may be queued ahead of embedding before chunk workers pause. Default: minEmbeddingBatchSize × 3."
+        "tagRules": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/tagRule" },
+          "description": "Per-file glob-based tag injection rules."
         },
-        "telemetry": { "type": "boolean" },
-        "notifications": {
-          "type": "object",
-          "additionalProperties": false,
-          "properties": {
-            "webhookUrl": { "type": "string" }
-          }
+        "chunkers": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/chunkerConfig" },
+          "description": "One or more chunker plugins for this file set."
         }
       }
     },
-    "source": {
-      "type": "object",
-      "required": ["package"],
-      "additionalProperties": false,
-      "description": "Optional custom source repository plugin.",
-      "properties": {
-        "package": { "type": "string" },
-        "config": { "type": "object", "additionalProperties": true }
-      }
-    }
-  },
-  "$defs": {
-    "labelRule": {
+    "tagRule": {
       "type": "object",
       "required": ["match", "add"],
       "additionalProperties": false,
+      "description": "Inject tags into chunks from files matching a glob pattern.",
       "properties": {
         "match": {
           "type": "string",
+          "minLength": 1,
           "description": "Minimatch glob pattern (relative to source root)."
         },
         "add": {
           "type": "array",
           "items": { "type": "string" },
-          "description": "Labels to add when the pattern matches."
+          "description": "Tags to add when the pattern matches."
         }
       }
     },
-    "chunkerItem": {
+    "chunkerConfig": {
       "type": "object",
       "required": ["package"],
       "additionalProperties": false,
-      "description": "Package-based chunker entry (ADR-038). The package declares which file types it handles via its built-in patterns.",
+      "description": "A chunker plugin entry.",
       "properties": {
         "package": {
           "type": "string",
-          "description": "npm package name for the chunker plugin (e.g. '@vivantel/virage-chunker-ce-md')."
+          "minLength": 1,
+          "description": "npm package name for the chunker (e.g. '@vivantel/virage-code-chunk-chunker')."
         },
-        "version": {
+        "packageVersion": {
           "type": "string",
-          "description": "Semver range or exact version (e.g. '^0.1.3'). Informational — used for generator ID traceability."
-        },
-        "include": {
-          "type": "array",
-          "items": { "type": "string" },
-          "description": "Glob patterns scoping this chunker to a subset of files (e.g. ['docs/**']). If omitted, the chunker's built-in patterns apply to all matching files."
-        },
-        "ignore": {
-          "type": "array",
-          "items": { "type": "string" },
-          "description": "Glob patterns for files this chunker should skip (e.g. ['CHANGELOG.md']). Applied before the chunker's built-in patterns."
-        },
-        "labels": {
-          "type": "array",
-          "items": { "$ref": "#/$defs/labelRule" },
-          "description": "Per-chunker label rules — merged with global rules at index time."
+          "description": "Pinned version range. Managed by virage update."
         },
         "options": {
           "type": "object",
-          "description": "Options forwarded to the package's createChunker() factory (chunker behavior: maxTokens, overlap, etc.).",
-          "properties": {
-            "maxTokens": { "type": "number" },
-            "minTokens": { "type": "number" },
-            "overlap": { "type": "number" },
-            "adaptiveSize": { "type": "boolean" },
-            "recursive": { "type": "boolean" }
-          },
+          "description": "Chunker-specific options (e.g. maxTokens, overlap).",
           "additionalProperties": true
+        },
+        "templates": {
+          "$ref": "#/$defs/chunkerTemplate"
+        }
+      }
+    },
+    "chunkerTemplate": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Custom Handlebars templates for chunk text generation.",
+      "properties": {
+        "denseText": {
+          "oneOf": [
+            { "type": "string" },
+            {
+              "type": "object",
+              "required": ["file"],
+              "additionalProperties": false,
+              "properties": { "file": { "type": "string" } }
+            }
+          ],
+          "description": "Template for the dense text embedding target (inline string or path to a .hbs file)."
+        },
+        "sparseText": {
+          "oneOf": [
+            { "type": "string" },
+            {
+              "type": "object",
+              "required": ["file"],
+              "additionalProperties": false,
+              "properties": { "file": { "type": "string" } }
+            }
+          ],
+          "description": "Template for the sparse text BM25/FTS target."
+        }
+      }
+    },
+    "pipelineOptions": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Throughput and concurrency tuning for the indexing pipeline. All fields are optional; CLI flags override config values.",
+      "properties": {
+        "embeddingsFile": {
+          "type": "string",
+          "description": "Path to a pre-computed embeddings JSON file (skips the embedding step)."
+        },
+        "force": {
+          "type": "boolean",
+          "description": "Re-embed all chunks, bypassing file-change detection and chunk-hash dedup."
+        },
+        "skipUpload": {
+          "type": "boolean",
+          "description": "Embed but skip uploading to the vector store."
+        },
+        "dryRun": {
+          "type": "boolean",
+          "description": "Show what would change without writing anything."
+        },
+        "rateLimitMs": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Minimum milliseconds between embedding API calls. Default: 0."
+        },
+        "batchSize": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Max chunks per embedding API request."
+        },
+        "maxBatchChars": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Max total characters per embedding API request."
+        },
+        "concurrency": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Number of files processed in parallel."
+        },
+        "chunkConcurrency": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Number of chunking workers per file."
+        },
+        "minEmbeddingBatchSize": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Minimum chunks to accumulate before sending an embedding request. Default: 10."
+        },
+        "minUploadingBatchSize": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Minimum chunks to accumulate before uploading to the vector store. Default: 20."
+        },
+        "maxPendingFiles": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Backpressure limit: max files queued for chunking before pausing file reads."
+        },
+        "noBanner": {
+          "type": "boolean",
+          "description": "Suppress the startup banner. Also configurable via VIRAGE_NO_BANNER=1."
         }
       }
     }
