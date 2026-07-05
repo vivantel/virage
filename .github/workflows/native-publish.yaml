@@ -3,12 +3,16 @@ name: Build & Publish Native Packages
 on:
   push:
     tags:
-      - 'virage-chunker-ce-*@v*'
+      - 'virage-chunker-ce-docx@v*'
+      - 'virage-chunker-ce-lang@v*'
+      - 'virage-chunker-ce-latex@v*'
+      - 'virage-chunker-ce-md@v*'
+      - 'virage-chunker-ce-pdf@v*'
       - 'virage-embedder-onnx@v*'
   workflow_dispatch:
     inputs:
       package:
-        description: 'Package name (e.g. virage-chunker-ce-lang)'
+        description: 'Native package name (virage-chunker-ce-{docx,lang,latex,md,pdf} or virage-embedder-onnx)'
         required: true
         type: string
 
