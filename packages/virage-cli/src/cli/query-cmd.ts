@@ -56,6 +56,14 @@ export async function runQuery(
   const oversample = cfg.search?.rerankOversample ?? 5;
   const fetchTopK = reranker ? opts.topK * oversample : opts.topK;
 
+  out.verbose(
+    `Embedder: ${cfg.embedder.model ?? "unknown"}  topK: ${fetchTopK}${reranker ? `  reranker: ${reranker.name}` : ""}`,
+  );
+  out.debug(
+    `[query] hybrid: ${useHybrid}  oversample: ${oversample}x  branch: ${opts.branch ?? "any"}`,
+  );
+
+  const t0 = Date.now();
   let results: VectorSearchResult[] = await withSpinner(
     "Searching",
     async () => {
@@ -69,11 +77,19 @@ export async function runQuery(
       );
     },
   );
+  out.verbose(`Search: ${Date.now() - t0}ms — ${results.length} candidate(s)`);
+  if (results.length > 0) {
+    out.debug(
+      `[query] top pre-rerank score: ${results[0]!.similarity.toFixed(3)}`,
+    );
+  }
 
   if (reranker) {
+    const t1 = Date.now();
     results = await withSpinner("Re-ranking", () =>
       reranker!.rerank(queryText, results, opts.topK),
     );
+    out.verbose(`Re-rank: ${Date.now() - t1}ms → top ${results.length}`);
   }
 
   await cfg.vectorStore.close?.();
@@ -111,13 +127,13 @@ export async function runQuery(
   for (let i = 0; i < results.length; i++) {
     const r = results[i];
     const branch =
-      typeof r.metadata.branch === "string" ? ` [${r.metadata.branch}]` : "";
+      typeof r!.metadata.branch === "string" ? ` [${r!.metadata.branch}]` : "";
     out.info(
-      `\n${ansi.bold}${ansi.cyan}[${i + 1}] ${r.sourceFile ?? "unknown"}${branch}${ansi.reset}`,
+      `\n${ansi.bold}${ansi.cyan}[${i + 1}] ${r!.sourceFile ?? "unknown"}${branch}${ansi.reset}`,
     );
-    out.dim(`    similarity: ${(r.similarity * 100).toFixed(1)}%`);
+    out.dim(`    similarity: ${(r!.similarity * 100).toFixed(1)}%`);
     out.info(
-      `\n${r.denseText.slice(0, 400)}${r.denseText.length > 400 ? "…" : ""}`,
+      `\n${r!.denseText.slice(0, 400)}${r!.denseText.length > 400 ? "…" : ""}`,
     );
     out.divider("─", 60, ansi.cyan);
   }
