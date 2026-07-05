@@ -16,6 +16,7 @@ import {
 import type { SourceRepository } from "../interfaces/source-repository.js";
 import type { Logger } from "../interfaces/logger.js";
 import { NullLogger } from "../logger/null-logger.js";
+import { RagError } from "./errors.js";
 import { availableParallelism } from "node:os";
 import { RetryOptions, Semaphore, withConcurrency } from "./utils.js";
 import { defaultVirageDb } from "./virage-defaults.js";
@@ -222,6 +223,29 @@ export class Orchestrator {
             ? `, ${pendingUpload.length} upload-pending`
             : ""),
       );
+
+      // Safety guard: refuse mass deletion without explicit --force to prevent
+      // accidental wipes from config pattern changes or path format mismatches.
+      if (toDelete.length >= 10 && !effectiveForce && !opts.dryRun) {
+        const deletionFraction =
+          previousState.size > 0 ? toDelete.length / previousState.size : 1;
+        if (deletionFraction >= 0.5) {
+          const preview = toDelete
+            .slice(0, 5)
+            .map((f) => `  ${f}`)
+            .join("\n");
+          throw new RagError(
+            `Refusing to delete ${toDelete.length}/${previousState.size} indexed source files without --force.\n` +
+              `First 5 files that would be deleted:\n${preview}\n` +
+              `Run with --force (-f) to confirm, or check your config for pattern changes.`,
+          );
+        }
+      }
+      if (toDelete.length > 0) {
+        logger.debug(
+          `[orchestrator] ${toDelete.length} file(s) to delete: ${toDelete.slice(0, 10).join(", ")}${toDelete.length > 10 ? ` … +${toDelete.length - 10} more` : ""}`,
+        );
+      }
 
       // Whether the vector store can do targeted per-file orphan cleanup.
       // When true, toProcess files are NOT pre-deleted; instead stale chunks are
@@ -528,10 +552,6 @@ export class Orchestrator {
         });
       }
 
-      logger.info(
-        `📦 Embedded ${chunksEmbedded} chunk(s)` +
-          (totalSkipped > 0 ? `, skipped ${totalSkipped} (cached)` : ""),
-      );
       telemetry?.recordEmbedding({
         durationMs: embedTotalMs || Date.now() - t3,
         chunksEmbedded,

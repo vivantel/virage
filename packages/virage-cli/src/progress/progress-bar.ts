@@ -463,13 +463,15 @@ export class PipelineRenderer {
     const embedDone = this.bars.embed.value;
     const embedTotal = this.bars.embed.total;
     const embedCount =
-      embedTotal > 0
-        ? embedDone >= embedTotal
-          ? `${embedDone} chunks`
-          : `${embedDone}/${embedTotal}`
-        : embedDone > 0
-          ? `${embedDone} chunks`
-          : "—";
+      embedDone === 0 && this.embedSkipped > 0 && embedTotal <= 1
+        ? `${this.embedSkipped} cached`
+        : embedTotal > 0
+          ? embedDone >= embedTotal
+            ? `${embedDone} chunks`
+            : `${embedDone}/${embedTotal}`
+          : embedDone > 0
+            ? `${embedDone} chunks`
+            : "—";
 
     const uploadDone = this.bars.upload.value;
     const uploadTotal = this.bars.upload.total;
@@ -515,10 +517,10 @@ export class PipelineRenderer {
 
     const lines: string[] = [header, ...rows, elapsedRow];
 
-    // Throughput summary — shown once final stats are available
+    // Throughput summary — shown once final stats are available (only when work was done)
     if (this.chunkingStats !== null || this.embeddingStats !== null) {
       const parts: string[] = [];
-      if (this.chunkingStats !== null) {
+      if (this.chunkingStats !== null && this.chunkingStats.files > 0) {
         const { files, bytes, ms } = this.chunkingStats;
         const secs = ms / 1000;
         const filesPerSec =
@@ -527,7 +529,7 @@ export class PipelineRenderer {
           `${dim}Chunking:${rst} ${filesPerSec}  ${fmtSpeed(bytes, ms)}`,
         );
       }
-      if (this.embeddingStats !== null) {
+      if (this.embeddingStats !== null && this.embeddingStats.chunks > 0) {
         const { chunks, bytes, ms } = this.embeddingStats;
         const secs = ms / 1000;
         const chunksPerSec =

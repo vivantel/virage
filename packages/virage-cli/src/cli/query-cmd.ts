@@ -31,10 +31,12 @@ export async function runQuery(
   if (!reranker && opts.rerank) {
     try {
       const pkg = "@vivantel/virage-reranker-cross-encoder";
-      const mod = (await import(pkg)) as {
-        createReranker: (c: Record<string, unknown>) => Reranker;
-      };
-      reranker = mod.createReranker({});
+      reranker = await withSpinner("Loading reranker model", async () => {
+        const mod = (await import(pkg)) as {
+          createReranker: (c: Record<string, unknown>) => Reranker;
+        };
+        return mod.createReranker({});
+      });
     } catch {
       out.error(
         "Install @vivantel/virage-reranker-cross-encoder to use --rerank:\n  npm install @vivantel/virage-reranker-cross-encoder",

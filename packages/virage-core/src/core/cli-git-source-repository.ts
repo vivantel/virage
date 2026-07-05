@@ -194,7 +194,7 @@ export class CliGitSourceRepository
 
       if (sha) {
         result.set(file, sha);
-        this.logger.trace(`Revision for ${file}: ${sha.slice(0, 8)}`);
+        this.logger.trace(`Revision ${sha.slice(0, 8)} for ${file}`);
       }
 
       // Report progress for clean committed files (dirty/untracked already counted)

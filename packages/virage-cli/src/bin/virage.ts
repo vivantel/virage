@@ -140,6 +140,7 @@ async function runOnce(options: {
     const cfg = await loadConfig(options.config, pipelineLogger);
     const modelName = cfg.embedder.model ?? "embedding model";
 
+    let finalFiles = 0;
     let finalEmbedded = 0;
     let finalSkipped = 0;
 
@@ -165,8 +166,10 @@ async function runOnce(options: {
           renderer.updateEmbed(done, total);
         },
         onUploadProgress: (done, total) => renderer.updateUpload(done, total),
-        onFileComplete: (done, total) =>
-          renderer.updateFileIndexed(done, total),
+        onFileComplete: (done, total) => {
+          finalFiles = done;
+          renderer.updateFileIndexed(done, total);
+        },
         onSkipProgress: (skipped) => {
           finalSkipped = skipped;
           renderer.updateSkipped(skipped);
@@ -179,11 +182,11 @@ async function runOnce(options: {
     });
     const result = await orchestrator.run();
     renderer.stop();
-    if (finalEmbedded > 0 || finalSkipped > 0) {
+    if (finalFiles > 0 || finalEmbedded > 0 || finalSkipped > 0) {
       // eslint-disable-next-line no-console
       console.log(
-        `${ansi.cyan}📦 Embedded ${finalEmbedded} chunk(s)` +
-          (finalSkipped > 0 ? `, skipped ${finalSkipped} (cached)` : "") +
+        `${ansi.cyan}📦 Processed ${finalFiles} file(s), ${finalEmbedded + finalSkipped} chunk(s)` +
+          (finalSkipped > 0 ? ` (${finalSkipped} cached)` : "") +
           ansi.reset,
       );
     }

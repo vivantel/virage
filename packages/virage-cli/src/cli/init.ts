@@ -330,6 +330,7 @@ function generateJsonConfig(
   const config: Record<string, unknown> = {
     $schema:
       "https://unpkg.com/@vivantel/virage-core/schemas/virage.config.schema.json",
+    version: "1.0.0",
     providers,
     fileSets,
     ignore: buildExcludePatterns(effectiveGroups),
@@ -346,8 +347,6 @@ function generateJsonConfig(
   if (Object.keys(searchConfig).length > 0) {
     config.search = searchConfig;
   }
-
-  config.installScope = state.installScope;
 
   config.telemetry = {
     enabled: true,
