@@ -188,7 +188,7 @@ export class Orchestrator {
 
       const previousState = effectiveForce
         ? new Map<string, string>()
-        : new Map([...db.getFileStates(), ...vectorStoreState]);
+        : vectorStoreState;
 
       const { toProcess, toDelete, unchanged } =
         await gitTracker.getChangedFiles(previousState, currentState);
