@@ -486,11 +486,13 @@ export class Orchestrator {
             chunksGenerated += chunksToEmbed.length;
 
             if (chunksGenerated > 0) {
-              const avgChunksPerFile = chunksGenerated / filesStreamed;
-              const projectedNew = Math.round(
-                toProcess.length * avgChunksPerFile,
+              // EstimatedTotal = processedChunks * totalFiles / processedFiles
+              sharedTotal = Math.max(
+                Math.round(
+                  (chunksGenerated * toProcess.length) / filesStreamed,
+                ),
+                1,
               );
-              sharedTotal = initialPendingEmbed + Math.max(projectedNew, 1);
               opts.onEmbedProgress?.(embedDone, sharedTotal);
               opts.onUploadProgress?.(uploadDone, sharedTotal);
             }
