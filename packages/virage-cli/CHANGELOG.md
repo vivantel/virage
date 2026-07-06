@@ -1,5 +1,25 @@
 # Changelog
 
+## [0.3.8](https://github.com/vivantel/virage/compare/virage-cli@v0.3.7...virage-cli@v0.3.8) (2026-07-06)
+
+
+### Features
+
+* **config:** Add installScope to schema, wire VIRAGE_DIR, export version constant ([e3c9525](https://github.com/vivantel/virage/commit/e3c9525ed7b04ebdfb2de6e7f3fc0d5c6e7a5793))
+* **query:** Add verbose/debug structured logging with per-phase timings ([8d7baa1](https://github.com/vivantel/virage/commit/8d7baa1d57eb55de73d3fe6a1e4dc390a51b2897))
+
+
+### Bug Fixes
+
+* **progress:** Monotonic total + Done column shows — when no work done ([e0926b6](https://github.com/vivantel/virage/commit/e0926b63acd6e98d0e2d68be02270604ba336c3a))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @vivantel/virage-core bumped from >=0.4.5 to >=0.4.6
+
 ## [0.3.7](https://github.com/vivantel/virage/compare/virage-cli@v0.3.6...virage-cli@v0.3.7) (2026-07-05)
 
 
