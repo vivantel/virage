@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.9](https://github.com/vivantel/virage/compare/virage-core@v0.4.8...virage-core@v0.4.9) (2026-07-06)
+
+
+### Bug Fixes
+
+* **orchestrator:** Use embedTotal as denominator; track zero-chunk files via file_revisions ([1d8356e](https://github.com/vivantel/virage/commit/1d8356e1d16dc138397b6ba6baa25d89b922a529))
+
 ## [0.4.8](https://github.com/vivantel/virage/compare/virage-core@v0.4.7...virage-core@v0.4.8) (2026-07-06)
 
 
