@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.3.9](https://github.com/vivantel/virage/compare/virage-cli@v0.3.8...virage-cli@v0.3.9) (2026-07-06)
+
+
+### Bug Fixes
+
+* **progress:** Count physical terminal rows for erase-up, clamp rate to terminal width ([59f7813](https://github.com/vivantel/virage/commit/59f78136c12373e22bc04a7095b711eb0538f0a8))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @vivantel/virage-core bumped from >=0.4.6 to >=0.4.7
+
 ## [0.3.8](https://github.com/vivantel/virage/compare/virage-cli@v0.3.7...virage-cli@v0.3.8) (2026-07-06)
 
 
