@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.7](https://github.com/vivantel/virage/compare/virage-core@v0.4.6...virage-core@v0.4.7) (2026-07-06)
+
+
+### Bug Fixes
+
+* **git-tracker:** Normalize glob output to POSIX paths ([9529ff0](https://github.com/vivantel/virage/commit/9529ff0c5ddd479e387f1eeaf1da84bab14e473b))
+* **orchestrator:** Correct chunk count estimation formula ([36448a6](https://github.com/vivantel/virage/commit/36448a619bf05dcb0220fe0036d870b3e3f7cbef))
+
 ## [0.4.6](https://github.com/vivantel/virage/compare/virage-core@v0.4.5...virage-core@v0.4.6) (2026-07-06)
 
 
