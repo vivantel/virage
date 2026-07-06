@@ -152,6 +152,7 @@ virage pack --output ./archive.tar.gz  # pack LanceDB dir as a shareable .tar.gz
 - **Pre-commit**: `.claude/settings.json` hook auto-runs `npm run fix && npm run type-check` before every commit — do not skip (see §Code quality guardrails below)
 - **package-lock.json**: any change to a `package.json` (new dep, version bump, new package added) **must** be followed by `npm install --package-lock-only --ignore-scripts && node scripts/patch-lockfile-stubs.cjs` from the repo root; stage the updated `package-lock.json` in the same commit — a stale lockfile breaks `npm ci` in CI. Use `--package-lock-only` (not a plain `npm install`) to match exactly what the pre-push hook checks
 - **Module imports**: all internal imports use `.js` extensions (NodeNext requirement), e.g. `from "./foo.js"` even though file is `.ts`
+- **File-path map keys must be POSIX**: `glob()` on Windows returns backslash-separated paths. Any code that builds a `Map<string, …>` keyed by file path must normalize: `f.replace(/\\/g, "/")`. The canonical fix point is `git-tracker.ts` `getAllTrackedFiles()` — never skip this when adding new path-keyed maps upstream of `getChangedFiles()`
 - **Commit messages**: Conventional Commits (`feat:`, `fix:`, `chore:`, `feat!:` for breaking) — drives release-please versioning
 - **Docs updates**: after any change affecting developer workflow, update the relevant skill file in the same commit (run overseer skill checklist)
 - **Architecture decisions**: record in `docs/ADR.md` before implementing; see architect skill
