@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.6](https://github.com/vivantel/virage/compare/virage-core@v0.4.5...virage-core@v0.4.6) (2026-07-06)
+
+
+### Features
+
+* **config:** Add installScope to schema, wire VIRAGE_DIR, export version constant ([e3c9525](https://github.com/vivantel/virage/commit/e3c9525ed7b04ebdfb2de6e7f3fc0d5c6e7a5793))
+
+
+### Bug Fixes
+
+* **orchestrator:** Normalize legacy absolute LanceDB paths + fix safety guard denominator ([247f5ce](https://github.com/vivantel/virage/commit/247f5ce0c8961e71ab231fd0f8afe0f6db95ac19))
+
 ## [0.4.5](https://github.com/vivantel/virage/compare/virage-core@v0.4.4...virage-core@v0.4.5) (2026-07-05)
 
 
