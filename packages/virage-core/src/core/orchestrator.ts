@@ -186,9 +186,20 @@ export class Orchestrator {
         vectorStoreState.set(p, v);
       }
 
+      // Supplement vectorStoreState with file_revisions for zero-chunk files (ADR-033).
+      // Zero-chunk files never enter the vector store, so vectorStoreState alone would
+      // mark them as new on every run. file_revisions spreads first so vectorStoreState
+      // (authoritative for chunked files) overwrites any overlap.
+      const rawFileRevisions = db.getFileRevisions();
+      const fileRevisions = new Map<string, string>();
+      for (const [k, v] of rawFileRevisions) {
+        let p = k.replace(/\\/g, "/");
+        if (p.startsWith(cwd + "/")) p = p.slice(cwd.length + 1);
+        fileRevisions.set(p, v);
+      }
       const previousState = effectiveForce
         ? new Map<string, string>()
-        : vectorStoreState;
+        : new Map([...fileRevisions, ...vectorStoreState]);
 
       const { toProcess, toDelete, unchanged } =
         await gitTracker.getChangedFiles(previousState, currentState);
@@ -310,7 +321,7 @@ export class Orchestrator {
 
       // Shared projected total used by both embed and upload bars so they always
       // show the same denominator — avoids the "Embedding: 50/300, Uploading: 50/5120" confusion.
-      let sharedTotal = Math.max(initialPendingEmbed, initialPendingUpload, 1);
+      let sharedTotal = Math.max(initialPendingEmbed, initialPendingUpload);
 
       opts.onChunkProgress?.(0, toProcess.length);
       opts.onEmbedProgress?.(0, sharedTotal);
@@ -397,7 +408,6 @@ export class Orchestrator {
       const chunkConcurrency = opts.chunkConcurrency ?? availableParallelism();
       const maxPendingFiles = opts.maxPendingFiles ?? minEmbedBatch * 3;
       const embedSemaphore = new Semaphore(maxPendingFiles);
-      let filesStreamed = 0;
       let embedChain = Promise.resolve();
       let firstEmbedError: Error | undefined;
 
@@ -434,7 +444,6 @@ export class Orchestrator {
             return;
           }
           try {
-            filesStreamed++;
             totalChunkBytes += capturedChunks.reduce(
               (s, c) => s + c.denseText.length,
               0,
@@ -485,17 +494,8 @@ export class Orchestrator {
             embedTotal += chunksToEmbed.length;
             chunksGenerated += chunksToEmbed.length;
 
-            if (chunksGenerated > 0) {
-              // EstimatedTotal = processedChunks * totalFiles / processedFiles
-              sharedTotal = Math.max(
-                Math.round(
-                  (chunksGenerated * toProcess.length) / filesStreamed,
-                ),
-                1,
-              );
-              opts.onEmbedProgress?.(embedDone, sharedTotal);
-              opts.onUploadProgress?.(uploadDone, sharedTotal);
-            }
+            opts.onEmbedProgress?.(embedDone, embedTotal);
+            opts.onUploadProgress?.(uploadDone, embedTotal);
 
             await flushEmbed(false);
             // Fire once per file after embedding is queued. embedChain runs
@@ -535,7 +535,7 @@ export class Orchestrator {
       });
 
       // All chunking done — switch to actual total for final flush progress
-      sharedTotal = Math.max(embedTotal, 1);
+      sharedTotal = embedTotal;
 
       // Flush remaining pending embed and upload
       const t3 = Date.now();

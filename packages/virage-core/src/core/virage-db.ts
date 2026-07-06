@@ -534,6 +534,15 @@ export class VirageDb {
     }));
   }
 
+  /** Returns a file → revision map from file_revisions only (excludes chunks table). */
+  getFileRevisions(): Map<string, string> {
+    type Row = { source_file: string; file_revision: string };
+    const rows = this.db
+      .prepare("SELECT source_file, file_revision FROM file_revisions")
+      .all() as Row[];
+    return new Map(rows.map((r) => [r.source_file, r.file_revision]));
+  }
+
   /** Returns a file → revision map for all files tracked in the DB. */
   getFileStates(): Map<string, string> {
     type Row = { source_file: string; file_revision: string };
