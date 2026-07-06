@@ -12,7 +12,7 @@
 <h1>Interface SuiteRunOptions</h1></div>
 <div class="tsd-signature"><span class="tsd-signature-keyword">interface</span> <span class="tsd-kind-interface">SuiteRunOptions</span> <span class="tsd-signature-symbol">{</span><br/>    <a class="tsd-kind-property" href="#logger">logger</a><span class="tsd-signature-symbol">?:</span> <a href="Logger.html" class="tsd-signature-type tsd-kind-interface">Logger</a><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-property" href="#nocache">noCache</a><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">boolean</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-property" href="#onlog">onLog</a><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-symbol">(</span><span class="tsd-kind-parameter">msg</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">)</span> <span class="tsd-signature-symbol">=&gt;</span> <span class="tsd-signature-type">void</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-property" href="#onvariantbegin">onVariantBegin</a><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-symbol">(</span><span class="tsd-kind-parameter">name</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">)</span> <span class="tsd-signature-symbol">=&gt;</span> <span class="tsd-signature-type">void</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-property" href="#onvariantcomplete">onVariantComplete</a><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-symbol">(</span><span class="tsd-kind-parameter">name</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">)</span> <span class="tsd-signature-symbol">=&gt;</span> <span class="tsd-signature-type">void</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-property" href="#silent">silent</a><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">boolean</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-property" href="#verbosity">verbosity</a><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">number</span><span class="tsd-signature-symbol">;</span><br/><span class="tsd-signature-symbol">}</span></div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/vivantel/virage/blob/c3d554fc0b20281801e19d45bdc04fd08d3367e9/packages/virage-core/src/eval/suite-runner.ts#L53">packages/virage-core/src/eval/suite-runner.ts:53</a></li></ul></aside>
+<li>Defined in <a href="https://github.com/vivantel/virage/blob/244dab25e12746a5e8942cadeacb2c0fdc6839c0/packages/virage-core/src/eval/suite-runner.ts#L53">packages/virage-core/src/eval/suite-runner.ts:53</a></li></ul></aside>
 <section class="tsd-panel-group tsd-index-group">
 <section class="tsd-panel tsd-index-panel">
 <details class="tsd-index-content tsd-accordion" open><summary class="tsd-accordion-summary tsd-index-summary"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-chevronDown"></use></svg>
@@ -37,49 +37,49 @@
 <div class="tsd-comment tsd-typography"><p>Logger for verbose/debug/trace output controlled by -v flags</p>
 </div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/vivantel/virage/blob/c3d554fc0b20281801e19d45bdc04fd08d3367e9/packages/virage-core/src/eval/suite-runner.ts#L59">packages/virage-core/src/eval/suite-runner.ts:59</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/vivantel/virage/blob/244dab25e12746a5e8942cadeacb2c0fdc6839c0/packages/virage-core/src/eval/suite-runner.ts#L59">packages/virage-core/src/eval/suite-runner.ts:59</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="nocache"><code class="tsd-tag">Optional</code><span>no<wbr/>Cache</span><a href="#nocache" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">noCache</span><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">boolean</span></div>
 <div class="tsd-comment tsd-typography"><p>Re-download archives even if cached</p>
 </div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/vivantel/virage/blob/c3d554fc0b20281801e19d45bdc04fd08d3367e9/packages/virage-core/src/eval/suite-runner.ts#L57">packages/virage-core/src/eval/suite-runner.ts:57</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/vivantel/virage/blob/244dab25e12746a5e8942cadeacb2c0fdc6839c0/packages/virage-core/src/eval/suite-runner.ts#L57">packages/virage-core/src/eval/suite-runner.ts:57</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="onlog"><code class="tsd-tag">Optional</code><span>on<wbr/>Log</span><a href="#onlog" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">onLog</span><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-symbol">(</span><span class="tsd-kind-parameter">msg</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">)</span> <span class="tsd-signature-symbol">=&gt;</span> <span class="tsd-signature-type">void</span></div>
 <div class="tsd-comment tsd-typography"><p>Override the default process.stdout.write log sink</p>
 </div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/vivantel/virage/blob/c3d554fc0b20281801e19d45bdc04fd08d3367e9/packages/virage-core/src/eval/suite-runner.ts#L63">packages/virage-core/src/eval/suite-runner.ts:63</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/vivantel/virage/blob/244dab25e12746a5e8942cadeacb2c0fdc6839c0/packages/virage-core/src/eval/suite-runner.ts#L63">packages/virage-core/src/eval/suite-runner.ts:63</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="onvariantbegin"><code class="tsd-tag">Optional</code><span>on<wbr/>Variant<wbr/>Begin</span><a href="#onvariantbegin" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">onVariantBegin</span><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-symbol">(</span><span class="tsd-kind-parameter">name</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">)</span> <span class="tsd-signature-symbol">=&gt;</span> <span class="tsd-signature-type">void</span></div>
 <div class="tsd-comment tsd-typography"><p>Called just before each variant begins download + evaluation</p>
 </div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/vivantel/virage/blob/c3d554fc0b20281801e19d45bdc04fd08d3367e9/packages/virage-core/src/eval/suite-runner.ts#L65">packages/virage-core/src/eval/suite-runner.ts:65</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/vivantel/virage/blob/244dab25e12746a5e8942cadeacb2c0fdc6839c0/packages/virage-core/src/eval/suite-runner.ts#L65">packages/virage-core/src/eval/suite-runner.ts:65</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="onvariantcomplete"><code class="tsd-tag">Optional</code><span>on<wbr/>Variant<wbr/>Complete</span><a href="#onvariantcomplete" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">onVariantComplete</span><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-symbol">(</span><span class="tsd-kind-parameter">name</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">)</span> <span class="tsd-signature-symbol">=&gt;</span> <span class="tsd-signature-type">void</span></div>
 <div class="tsd-comment tsd-typography"><p>Called immediately after a variant's evaluation completes</p>
 </div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/vivantel/virage/blob/c3d554fc0b20281801e19d45bdc04fd08d3367e9/packages/virage-core/src/eval/suite-runner.ts#L67">packages/virage-core/src/eval/suite-runner.ts:67</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/vivantel/virage/blob/244dab25e12746a5e8942cadeacb2c0fdc6839c0/packages/virage-core/src/eval/suite-runner.ts#L67">packages/virage-core/src/eval/suite-runner.ts:67</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="silent"><code class="tsd-tag">Optional</code><span>silent</span><a href="#silent" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">silent</span><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">boolean</span></div>
 <div class="tsd-comment tsd-typography"><p>Suppress console output when true</p>
 </div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/vivantel/virage/blob/c3d554fc0b20281801e19d45bdc04fd08d3367e9/packages/virage-core/src/eval/suite-runner.ts#L55">packages/virage-core/src/eval/suite-runner.ts:55</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/vivantel/virage/blob/244dab25e12746a5e8942cadeacb2c0fdc6839c0/packages/virage-core/src/eval/suite-runner.ts#L55">packages/virage-core/src/eval/suite-runner.ts:55</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="verbosity"><code class="tsd-tag">Optional</code><span>verbosity</span><a href="#verbosity" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">verbosity</span><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">number</span></div>
 <div class="tsd-comment tsd-typography"><p>Numeric verbosity level (0 = default, 1 = -v, 2 = -vv, …)</p>
 </div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/vivantel/virage/blob/c3d554fc0b20281801e19d45bdc04fd08d3367e9/packages/virage-core/src/eval/suite-runner.ts#L61">packages/virage-core/src/eval/suite-runner.ts:61</a></li></ul></aside></section></section></details></div>
+<li>Defined in <a href="https://github.com/vivantel/virage/blob/244dab25e12746a5e8942cadeacb2c0fdc6839c0/packages/virage-core/src/eval/suite-runner.ts#L61">packages/virage-core/src/eval/suite-runner.ts:61</a></li></ul></aside></section></section></details></div>
 <div class="col-sidebar">
 <div class="page-menu">
 <div class="tsd-navigation settings">

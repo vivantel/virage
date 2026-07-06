@@ -12,7 +12,7 @@
 <h1>Interface FileChunker</h1></div>
 <div class="tsd-signature"><span class="tsd-signature-keyword">interface</span> <span class="tsd-kind-interface">FileChunker</span> <span class="tsd-signature-symbol">{</span><br/>    <a class="tsd-kind-property" href="#metadatageneratorid">metadataGeneratorId</a><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-property" href="#name">name</a><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-property" href="#patterns">patterns</a><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">[]</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-property" href="#sparsetextgeneratorid">sparseTextGeneratorId</a><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-property" href="#version">version</a><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-call-signature" href="#canprocess-1">canProcess</a><span class="tsd-signature-symbol">?</span><span class="tsd-signature-symbol">(</span><span class="tsd-kind-parameter">filePath</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">boolean</span><span class="tsd-signature-symbol">&gt;</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-call-signature" href="#chunk-1">chunk</a><span class="tsd-signature-symbol">(</span><span class="tsd-kind-parameter">filePath</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">,</span> <span class="tsd-kind-parameter">commitHash</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><a href="Chunk.html" class="tsd-signature-type tsd-kind-interface">Chunk</a><span class="tsd-signature-symbol">[]</span><span class="tsd-signature-symbol">&gt;</span><span class="tsd-signature-symbol">;</span><br/><span class="tsd-signature-symbol">}</span></div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/vivantel/virage/blob/c3d554fc0b20281801e19d45bdc04fd08d3367e9/packages/virage-core/src/interfaces/chunker.ts#L45">packages/virage-core/src/interfaces/chunker.ts:45</a></li></ul></aside>
+<li>Defined in <a href="https://github.com/vivantel/virage/blob/244dab25e12746a5e8942cadeacb2c0fdc6839c0/packages/virage-core/src/interfaces/chunker.ts#L45">packages/virage-core/src/interfaces/chunker.ts:45</a></li></ul></aside>
 <section class="tsd-panel-group tsd-index-group">
 <section class="tsd-panel tsd-index-panel">
 <details class="tsd-index-content tsd-accordion" open><summary class="tsd-accordion-summary tsd-index-summary"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-chevronDown"></use></svg>
@@ -43,21 +43,21 @@ Stored per-chunk; if changed from a previous run, metadata re-enrichment
 is triggered for chunks produced by this chunker.</p>
 </div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/vivantel/virage/blob/c3d554fc0b20281801e19d45bdc04fd08d3367e9/packages/virage-core/src/interfaces/chunker.ts#L69">packages/virage-core/src/interfaces/chunker.ts:69</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/vivantel/virage/blob/244dab25e12746a5e8942cadeacb2c0fdc6839c0/packages/virage-core/src/interfaces/chunker.ts#L69">packages/virage-core/src/interfaces/chunker.ts:69</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="name"><span>name</span><a href="#name" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">name</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span></div>
 <div class="tsd-comment tsd-typography"><p>Unique name of this chunker plugin.</p>
 </div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/vivantel/virage/blob/c3d554fc0b20281801e19d45bdc04fd08d3367e9/packages/virage-core/src/interfaces/chunker.ts#L47">packages/virage-core/src/interfaces/chunker.ts:47</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/vivantel/virage/blob/244dab25e12746a5e8942cadeacb2c0fdc6839c0/packages/virage-core/src/interfaces/chunker.ts#L47">packages/virage-core/src/interfaces/chunker.ts:47</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="patterns"><span>patterns</span><a href="#patterns" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">patterns</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">[]</span></div>
 <div class="tsd-comment tsd-typography"><p>Glob patterns this chunker handles.</p>
 </div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/vivantel/virage/blob/c3d554fc0b20281801e19d45bdc04fd08d3367e9/packages/virage-core/src/interfaces/chunker.ts#L53">packages/virage-core/src/interfaces/chunker.ts:53</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/vivantel/virage/blob/244dab25e12746a5e8942cadeacb2c0fdc6839c0/packages/virage-core/src/interfaces/chunker.ts#L53">packages/virage-core/src/interfaces/chunker.ts:53</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="sparsetextgeneratorid"><span>sparse<wbr/>Text<wbr/>Generator<wbr/>Id</span><a href="#sparsetextgeneratorid" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">sparseTextGeneratorId</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span></div>
@@ -67,14 +67,14 @@ Stored per-chunk; if changed from a previous run, FTS rebuild is triggered
 for chunks produced by this chunker.</p>
 </div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/vivantel/virage/blob/c3d554fc0b20281801e19d45bdc04fd08d3367e9/packages/virage-core/src/interfaces/chunker.ts#L61">packages/virage-core/src/interfaces/chunker.ts:61</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/vivantel/virage/blob/244dab25e12746a5e8942cadeacb2c0fdc6839c0/packages/virage-core/src/interfaces/chunker.ts#L61">packages/virage-core/src/interfaces/chunker.ts:61</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="version"><span>version</span><a href="#version" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">version</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span></div>
 <div class="tsd-comment tsd-typography"><p>Semver version — used to compute generator IDs.</p>
 </div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/vivantel/virage/blob/c3d554fc0b20281801e19d45bdc04fd08d3367e9/packages/virage-core/src/interfaces/chunker.ts#L50">packages/virage-core/src/interfaces/chunker.ts:50</a></li></ul></aside></section></section></details>
+<li>Defined in <a href="https://github.com/vivantel/virage/blob/244dab25e12746a5e8942cadeacb2c0fdc6839c0/packages/virage-core/src/interfaces/chunker.ts#L50">packages/virage-core/src/interfaces/chunker.ts:50</a></li></ul></aside></section></section></details>
 <details class="tsd-panel-group tsd-member-group tsd-accordion" open><summary class="tsd-accordion-summary" data-key="section-Methods"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-chevronDown"></use></svg>
 <h2 class="tsd-anchor-link" id="methods-1">Methods<a href="#methods-1" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h2></summary>
 <section>
@@ -93,7 +93,7 @@ for chunks produced by this chunker.</p>
 <li><span><span class="tsd-kind-parameter">filePath</span>: <span class="tsd-signature-type">string</span></span></li></ul></div>
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">boolean</span><span class="tsd-signature-symbol">&gt;</span></h4><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/vivantel/virage/blob/c3d554fc0b20281801e19d45bdc04fd08d3367e9/packages/virage-core/src/interfaces/chunker.ts#L81">packages/virage-core/src/interfaces/chunker.ts:81</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/vivantel/virage/blob/244dab25e12746a5e8942cadeacb2c0fdc6839c0/packages/virage-core/src/interfaces/chunker.ts#L81">packages/virage-core/src/interfaces/chunker.ts:81</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="chunk"><span>chunk</span><a href="#chunk" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures">
@@ -110,7 +110,7 @@ Returns an empty array if the file should be skipped.</p>
 <li><span><span class="tsd-kind-parameter">commitHash</span>: <span class="tsd-signature-type">string</span></span></li></ul></div>
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><a href="Chunk.html" class="tsd-signature-type tsd-kind-interface">Chunk</a><span class="tsd-signature-symbol">[]</span><span class="tsd-signature-symbol">&gt;</span></h4><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/vivantel/virage/blob/c3d554fc0b20281801e19d45bdc04fd08d3367e9/packages/virage-core/src/interfaces/chunker.ts#L75">packages/virage-core/src/interfaces/chunker.ts:75</a></li></ul></aside></div></li></ul></section></section></details></div>
+<li>Defined in <a href="https://github.com/vivantel/virage/blob/244dab25e12746a5e8942cadeacb2c0fdc6839c0/packages/virage-core/src/interfaces/chunker.ts#L75">packages/virage-core/src/interfaces/chunker.ts:75</a></li></ul></aside></div></li></ul></section></section></details></div>
 <div class="col-sidebar">
 <div class="page-menu">
 <div class="tsd-navigation settings">

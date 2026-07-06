@@ -12,7 +12,7 @@
 <h1>Interface VectorSearchResult</h1></div>
 <div class="tsd-signature"><span class="tsd-signature-keyword">interface</span> <span class="tsd-kind-interface">VectorSearchResult</span> <span class="tsd-signature-symbol">{</span><br/>    <a class="tsd-kind-property" href="#densetext">denseText</a><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-property" href="#id">id</a><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-property" href="#ingestedat">ingestedAt</a><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">Date</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-property" href="#metadata">metadata</a><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">Record</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">,</span> <span class="tsd-signature-type">unknown</span><span class="tsd-signature-symbol">&gt;</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-property" href="#metadatageneratorid">metadataGeneratorId</a><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-property" href="#similarity">similarity</a><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">number</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-property" href="#sourcefile">sourceFile</a><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-property" href="#sparsetext">sparseText</a><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-property" href="#sparsetextgeneratorid">sparseTextGeneratorId</a><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">;</span><br/><span class="tsd-signature-symbol">}</span></div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/vivantel/virage/blob/c3d554fc0b20281801e19d45bdc04fd08d3367e9/packages/virage-core/src/interfaces/vector-store.ts#L74">packages/virage-core/src/interfaces/vector-store.ts:74</a></li></ul></aside>
+<li>Defined in <a href="https://github.com/vivantel/virage/blob/244dab25e12746a5e8942cadeacb2c0fdc6839c0/packages/virage-core/src/interfaces/vector-store.ts#L74">packages/virage-core/src/interfaces/vector-store.ts:74</a></li></ul></aside>
 <section class="tsd-panel-group tsd-index-group">
 <section class="tsd-panel tsd-index-panel">
 <details class="tsd-index-content tsd-accordion" open><summary class="tsd-accordion-summary tsd-index-summary"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-chevronDown"></use></svg>
@@ -39,55 +39,55 @@
 <div class="tsd-comment tsd-typography"><p>Text used for dense embedding — also input to the cross-encoder reranker.</p>
 </div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/vivantel/virage/blob/c3d554fc0b20281801e19d45bdc04fd08d3367e9/packages/virage-core/src/interfaces/vector-store.ts#L77">packages/virage-core/src/interfaces/vector-store.ts:77</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/vivantel/virage/blob/244dab25e12746a5e8942cadeacb2c0fdc6839c0/packages/virage-core/src/interfaces/vector-store.ts#L77">packages/virage-core/src/interfaces/vector-store.ts:77</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="id"><span>id</span><a href="#id" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">id</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span></div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/vivantel/virage/blob/c3d554fc0b20281801e19d45bdc04fd08d3367e9/packages/virage-core/src/interfaces/vector-store.ts#L75">packages/virage-core/src/interfaces/vector-store.ts:75</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/vivantel/virage/blob/244dab25e12746a5e8942cadeacb2c0fdc6839c0/packages/virage-core/src/interfaces/vector-store.ts#L75">packages/virage-core/src/interfaces/vector-store.ts:75</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="ingestedat"><code class="tsd-tag">Optional</code><span>ingested<wbr/>At</span><a href="#ingestedat" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">ingestedAt</span><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">Date</span></div>
 <div class="tsd-comment tsd-typography"><p>UTC timestamp when this chunk was indexed — used for recency-weighted scoring.</p>
 </div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/vivantel/virage/blob/c3d554fc0b20281801e19d45bdc04fd08d3367e9/packages/virage-core/src/interfaces/vector-store.ts#L84">packages/virage-core/src/interfaces/vector-store.ts:84</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/vivantel/virage/blob/244dab25e12746a5e8942cadeacb2c0fdc6839c0/packages/virage-core/src/interfaces/vector-store.ts#L84">packages/virage-core/src/interfaces/vector-store.ts:84</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="metadata"><span>metadata</span><a href="#metadata" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">metadata</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">Record</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">,</span> <span class="tsd-signature-type">unknown</span><span class="tsd-signature-symbol">&gt;</span></div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/vivantel/virage/blob/c3d554fc0b20281801e19d45bdc04fd08d3367e9/packages/virage-core/src/interfaces/vector-store.ts#L80">packages/virage-core/src/interfaces/vector-store.ts:80</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/vivantel/virage/blob/244dab25e12746a5e8942cadeacb2c0fdc6839c0/packages/virage-core/src/interfaces/vector-store.ts#L80">packages/virage-core/src/interfaces/vector-store.ts:80</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="metadatageneratorid"><code class="tsd-tag">Optional</code><span>metadata<wbr/>Generator<wbr/>Id</span><a href="#metadatageneratorid" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">metadataGeneratorId</span><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">string</span></div>
 <div class="tsd-comment tsd-typography"><p>Method fingerprint for metadata assembly (ADR-037).</p>
 </div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/vivantel/virage/blob/c3d554fc0b20281801e19d45bdc04fd08d3367e9/packages/virage-core/src/interfaces/vector-store.ts#L88">packages/virage-core/src/interfaces/vector-store.ts:88</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/vivantel/virage/blob/244dab25e12746a5e8942cadeacb2c0fdc6839c0/packages/virage-core/src/interfaces/vector-store.ts#L88">packages/virage-core/src/interfaces/vector-store.ts:88</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="similarity"><span>similarity</span><a href="#similarity" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">similarity</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">number</span></div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/vivantel/virage/blob/c3d554fc0b20281801e19d45bdc04fd08d3367e9/packages/virage-core/src/interfaces/vector-store.ts#L81">packages/virage-core/src/interfaces/vector-store.ts:81</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/vivantel/virage/blob/244dab25e12746a5e8942cadeacb2c0fdc6839c0/packages/virage-core/src/interfaces/vector-store.ts#L81">packages/virage-core/src/interfaces/vector-store.ts:81</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="sourcefile"><code class="tsd-tag">Optional</code><span>source<wbr/>File</span><a href="#sourcefile" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">sourceFile</span><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">string</span></div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/vivantel/virage/blob/c3d554fc0b20281801e19d45bdc04fd08d3367e9/packages/virage-core/src/interfaces/vector-store.ts#L82">packages/virage-core/src/interfaces/vector-store.ts:82</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/vivantel/virage/blob/244dab25e12746a5e8942cadeacb2c0fdc6839c0/packages/virage-core/src/interfaces/vector-store.ts#L82">packages/virage-core/src/interfaces/vector-store.ts:82</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="sparsetext"><span>sparse<wbr/>Text</span><a href="#sparsetext" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">sparseText</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span></div>
 <div class="tsd-comment tsd-typography"><p>Raw body text used for BM25 search.</p>
 </div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/vivantel/virage/blob/c3d554fc0b20281801e19d45bdc04fd08d3367e9/packages/virage-core/src/interfaces/vector-store.ts#L79">packages/virage-core/src/interfaces/vector-store.ts:79</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/vivantel/virage/blob/244dab25e12746a5e8942cadeacb2c0fdc6839c0/packages/virage-core/src/interfaces/vector-store.ts#L79">packages/virage-core/src/interfaces/vector-store.ts:79</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="sparsetextgeneratorid"><code class="tsd-tag">Optional</code><span>sparse<wbr/>Text<wbr/>Generator<wbr/>Id</span><a href="#sparsetextgeneratorid" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">sparseTextGeneratorId</span><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">string</span></div>
 <div class="tsd-comment tsd-typography"><p>Method fingerprint for sparseText generation (ADR-037).</p>
 </div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/vivantel/virage/blob/c3d554fc0b20281801e19d45bdc04fd08d3367e9/packages/virage-core/src/interfaces/vector-store.ts#L86">packages/virage-core/src/interfaces/vector-store.ts:86</a></li></ul></aside></section></section></details></div>
+<li>Defined in <a href="https://github.com/vivantel/virage/blob/244dab25e12746a5e8942cadeacb2c0fdc6839c0/packages/virage-core/src/interfaces/vector-store.ts#L86">packages/virage-core/src/interfaces/vector-store.ts:86</a></li></ul></aside></section></section></details></div>
 <div class="col-sidebar">
 <div class="page-menu">
 <div class="tsd-navigation settings">
