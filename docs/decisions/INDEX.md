@@ -49,3 +49,5 @@
 | ADR-045 | Chunk output templates (design + stub) | Accepted | Per-chunker `templates: { denseText?, sparseText? }` with inline or file minijinja; impl deferred | [ADR-045](./ADR-045-chunk-output-templates-design.md) |
 | ADR-046 | Tags as the unified metadata vocabulary | Accepted | `labels` → `tags` everywhere; `LabelRule` → `TagRule`; `labelFilter` → `tagFilter` | [ADR-046](./ADR-046-tags-metadata-vocabulary.md) |
 | ADR-047 | Plugin options schema convention | Accepted | Every plugin exports `optionsSchema: ZodType`; config loader validates before instantiation | [ADR-047](./ADR-047-plugin-options-schema.md) |
+| ADR-048 | Native package platform support | Accepted | napi-rs platform stubs + `optionalDependencies`; release-please `extra-files` for version sync | [ADR-048](./ADR-048-native-package-platform-support.md) |
+| ADR-049 | Source content streaming via SourceProvider | Accepted | `readContent(path, opts?)` on `SourceProvider`; optional on `SourceRepository`; enables S3/CDN providers and byte-range chunking | [ADR-049](./ADR-049-source-content-streaming.md) |
