@@ -69,7 +69,7 @@ export class GitTracker {
       nodir: true,
       ignore: normalizedIgnore,
     });
-    const unique = [...new Set(files)]
+    const unique = [...new Set(files.map((f) => f.replace(/\\/g, "/")))]
       .filter((f) => {
         if (this.globalIgnore.length === 0) return true;
         const normalized = f.split(path.sep).join("/");
