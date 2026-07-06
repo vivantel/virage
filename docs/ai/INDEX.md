@@ -150,7 +150,7 @@ virage pack --output ./archive.tar.gz  # pack LanceDB dir as a shareable .tar.gz
 ## Cross-cutting rules
 
 - **Pre-commit**: `.claude/settings.json` hook auto-runs `npm run fix && npm run type-check` before every commit — do not skip (see §Code quality guardrails below)
-- **package-lock.json**: any change to a `package.json` (new dep, version bump, new package added) **must** be followed by `npm install` from the repo root before committing; stage the updated `package-lock.json` in the same commit — a stale lock file breaks `npm ci` in CI
+- **package-lock.json**: any change to a `package.json` (new dep, version bump, new package added) **must** be followed by `npm install --package-lock-only --ignore-scripts && node scripts/patch-lockfile-stubs.cjs` from the repo root; stage the updated `package-lock.json` in the same commit — a stale lockfile breaks `npm ci` in CI. Use `--package-lock-only` (not a plain `npm install`) to match exactly what the pre-push hook checks
 - **Module imports**: all internal imports use `.js` extensions (NodeNext requirement), e.g. `from "./foo.js"` even though file is `.ts`
 - **Commit messages**: Conventional Commits (`feat:`, `fix:`, `chore:`, `feat!:` for breaking) — drives release-please versioning
 - **Docs updates**: after any change affecting developer workflow, update the relevant skill file in the same commit (run overseer skill checklist)
@@ -205,7 +205,7 @@ Packages with `.tsx` files: `virage-dashboard`. Add to this list if new packages
 4. Write an ADR before structural changes (run architect skill)
 5. Never bypass pre-commit hooks
 6. Build order must be respected: `virage-core` → `virage-agent-core` → all others
-7. After any `package.json` change: `npm install` from repo root, commit updated `package-lock.json`
+7. After any `package.json` change: `npm install --package-lock-only --ignore-scripts && node scripts/patch-lockfile-stubs.cjs` from repo root, commit updated `package-lock.json`
 8. After any `.rs` or `Cargo.toml` change: run `npm run rust:fix` before committing — clippy warnings are treated as errors (`-D warnings`)
 
 **CE chunker package guardrails** (applies to `packages/virage-chunker-ce-*`):
@@ -392,7 +392,14 @@ npm run build:all                        # build all in dependency order
 4. `.github/workflows/release.yaml` — add publish step for the package
 
 **CRITICAL — after any `package.json` change (new deps, new package, version bump):**
-Run `npm install --package-lock-only --ignore-scripts` from the repo root and stage the updated `package-lock.json` in the same commit. A stale lockfile breaks `npm ci` in CI and causes every job to fail with "package.json and package-lock.json are not in sync".
+Run `npm install --package-lock-only --ignore-scripts && node scripts/patch-lockfile-stubs.cjs` from the repo root and stage the updated `package-lock.json` in the same commit. A stale lockfile breaks `npm ci` in CI and causes every job to fail with "package.json and package-lock.json are not in sync". Use `--package-lock-only` (not plain `npm install`) — the pre-push hook uses the same flags, so this prevents the hook from finding drift at push time.
+
+**If the pre-push hook still catches lockfile drift** (e.g. a release-please merge landed mid-session), run the same two commands, then **amend the most recent commit if it is already a `chore: sync package-lock.json [skip ci]`** rather than creating a second lockfile-only commit:
+```sh
+npm install --package-lock-only --ignore-scripts && node scripts/patch-lockfile-stubs.cjs
+git add package-lock.json
+git commit --amend --no-edit
+```
 
 **Adding a native Rust napi-rs package** — checklist (in addition to the above):
 
