@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.8](https://github.com/vivantel/virage/compare/virage-core@v0.4.7...virage-core@v0.4.8) (2026-07-06)
+
+
+### Bug Fixes
+
+* **orchestrator:** Use vector store as sole source of truth for previousState ([f1d2216](https://github.com/vivantel/virage/commit/f1d22162e209a87f1f1d474d0e584c17643b269c))
+
 ## [0.4.7](https://github.com/vivantel/virage/compare/virage-core@v0.4.6...virage-core@v0.4.7) (2026-07-06)
 
 
