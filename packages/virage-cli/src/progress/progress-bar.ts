@@ -1,7 +1,7 @@
 export { ansi } from "../ansi.js";
 import { ansi, SPINNER_FRAMES } from "../ansi.js";
 const BAR_WIDTH = 36; // model-loading phase bar width
-const PIPELINE_BAR_WIDTH = 28; // pipeline table bar (fits 80-col terminals)
+const PIPELINE_BAR_WIDTH = 28; // bar widget width; full row is ~71 + rate chars
 const RENDER_INTERVAL_MS = 80;
 const LABEL_WIDTH = 13; // "Chunks sliced" is the longest label
 const DONE_WIDTH = 14; // "490/490 files" = 13 chars
@@ -322,7 +322,16 @@ export class PipelineRenderer {
         out += line + "\n";
       }
       process.stdout.write(out);
-      this.ephemeralLines = phaseLines.length;
+      // Count physical terminal rows, not logical strings, so the erase-up
+      // cursor (\x1b[NA) moves back the correct number of rows even when a line
+      // wraps due to exceeding the terminal width.
+      const termCols = process.stdout.columns ?? 80;
+      // eslint-disable-next-line no-control-regex
+      const stripAnsi = /\x1b\[[0-9;]*m/g;
+      this.ephemeralLines = phaseLines.reduce((sum, line) => {
+        const visibleLen = line.replace(stripAnsi, "").length;
+        return sum + Math.max(1, Math.ceil(visibleLen / termCols));
+      }, 0);
     }
   }
 
@@ -577,6 +586,10 @@ export class PipelineRenderer {
       renderBar(value, total, PIPELINE_BAR_WIDTH) +
       "] " +
       renderPct(value, total);
+    // Clamp rate so the full row stays within terminal width (fixed portion is ~71 chars).
+    const maxRateLen = Math.max(4, (process.stdout.columns ?? 80) - 71);
+    const clampedRate =
+      rate.length > maxRateLen ? rate.slice(0, maxRateLen - 1) + "…" : rate;
     return (
       ansi.bold +
       label +
@@ -586,7 +599,7 @@ export class PipelineRenderer {
       sep +
       count.padEnd(DONE_WIDTH) +
       sep +
-      rate
+      clampedRate
     );
   }
 }
