@@ -31,6 +31,15 @@
       "chunkers": [
         { "package": "@vivantel/virage-chunker-ce-md" }
       ]
+    },
+    {
+      "name": "typescript",
+      "include": ["packages/*/src/**/*.ts"],
+      "ignore": ["**/*.test.ts", "**/*.spec.ts", "**/*.d.ts"],
+      "tags": ["lang:typescript"],
+      "chunkers": [
+        { "package": "@vivantel/virage-code-chunk-chunker" }
+      ]
     }
   ],
   "ignore": ["**/node_modules/**", "**/dist/**", "**/target/**"],
