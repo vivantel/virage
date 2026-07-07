@@ -83,6 +83,10 @@ jobs:
         if: matrix.use-cross == true
         run: sudo apt-get install -y gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
 
+      - name: Install cargo-zigbuild (linux-x64-gnu)
+        if: matrix.target == 'x86_64-unknown-linux-gnu'
+        run: pip3 install ziglang && cargo install cargo-zigbuild
+
       - name: Build (cross — ARM64 Linux)
         if: matrix.use-cross == true
         shell: bash
@@ -95,8 +99,20 @@ jobs:
         env:
           CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
 
-      - name: Build (native)
-        if: matrix.use-cross != true
+      - name: Build (linux-x64-gnu — glibc 2.17 via cargo-zigbuild)
+        if: matrix.target == 'x86_64-unknown-linux-gnu'
+        shell: bash
+        run: |
+          pkg="${{ needs.detect.outputs.package }}"
+          lib_name=$(echo "$pkg" | tr '-' '_')
+          cargo_flags=""
+          [[ "$pkg" == "virage-embedder-onnx" ]] && cargo_flags="--no-default-features --features download-binaries"
+          cargo zigbuild -p "$pkg" --release --target x86_64-unknown-linux-gnu.2.17 $cargo_flags
+          cp "target/x86_64-unknown-linux-gnu/release/lib${lib_name}.so" \
+             "packages/$pkg/${lib_name}.linux-x64-gnu.node"
+
+      - name: Build (native — darwin / windows)
+        if: matrix.use-cross != true && matrix.target != 'x86_64-unknown-linux-gnu'
         shell: bash
         run: |
           pkg="${{ needs.detect.outputs.package }}"
@@ -106,6 +122,7 @@ jobs:
           npx napi build --release --target ${{ matrix.target }} $cargo_flags
         env:
           RUSTFLAGS: ${{ matrix.rust-flags }}
+          MACOSX_DEPLOYMENT_TARGET: "11.0"
 
       - uses: actions/upload-artifact@v7
         with:

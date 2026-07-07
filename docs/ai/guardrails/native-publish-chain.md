@@ -71,6 +71,41 @@ Removing them breaks CI during the release window.
 
 ---
 
+## Linux x64 build uses cargo-zigbuild (ADR-050)
+
+The `linux-x64-gnu` build in `native-publish.yaml` uses `cargo-zigbuild` instead of
+`npx napi build`, targeting `x86_64-unknown-linux-gnu.2.17`:
+
+```yaml
+cargo zigbuild -p "$pkg" --release --target x86_64-unknown-linux-gnu.2.17 $cargo_flags
+```
+
+**Why:** `ubuntu-latest` (Ubuntu 24.04) has glibc 2.38. The `onig_sys` crate compiles
+Oniguruma C against those headers, which redirect `strtol`/`strtoll`/`strtoull` to C23 aliases
+(`__isoc23_*`) at the preprocessor level — regardless of `-std=` flags. These C23 symbols don't
+exist in glibc 2.35 (Ubuntu 22.04), making the published binary unloadable there. cargo-zigbuild
+uses Zig's bundled libc headers for the specified minimum glibc version (2.17), preventing any
+C23 redirections in compiled C dependencies.
+
+**Zig install:** The build job installs Zig via `pip3 install ziglang` and cargo-zigbuild via
+`cargo install cargo-zigbuild` in a step gated on `matrix.target == 'x86_64-unknown-linux-gnu'`.
+
+**Artifact naming:** The `.so` from `target/x86_64-unknown-linux-gnu/release/lib${lib_name}.so`
+is copied to `packages/$pkg/${lib_name}.linux-x64-gnu.node`. The existing artifact upload step
+(`packages/$pkg/*.node`) and publish job ("Place binaries into npm/ dirs") are unchanged.
+
+**darwin-arm64 deployment target:** The darwin/windows "Build (native)" step sets
+`MACOSX_DEPLOYMENT_TARGET: "11.0"` so macOS binaries target macOS 11+ regardless of which
+`macos-latest` runner version CI uses.
+
+**Verification in CI (add if debugging):**
+```bash
+nm -D packages/$pkg/*.linux-x64-gnu.node | grep isoc23  # must be empty
+readelf -V packages/$pkg/*.linux-x64-gnu.node | grep GLIBC  # must not show GLIBC_2.38
+```
+
+---
+
 ## Production feature flags — three places must stay in sync
 
 For `virage-embedder-onnx`, the production build uses non-default Cargo features. This flag
@@ -109,11 +144,30 @@ const PLATFORM_STUBS: Record<string, string> = {
   "win32-x64": "@vivantel/virage-chunker-ce-X-win32-x64-msvc",
 };
 
+function isModuleNotFound(err: unknown): boolean {
+  if (!(err instanceof Error)) return false;
+  const code = (err as NodeJS.ErrnoException).code;
+  return (
+    code === "MODULE_NOT_FOUND" || code === "ERR_MODULE_NOT_FOUND" ||
+    err.message.includes("Cannot find module") || err.message.includes("Cannot find package")
+  );
+}
+
 function loadBinding() {
-  try { return require("./virage_chunker_ce_X.node"); } catch {}
+  try { return require("./virage_chunker_ce_X.node"); } catch (err) {
+    if (!isModuleNotFound(err)) throw err;
+  }
   const key = `${platform}-${arch}`;
   const stub = PLATFORM_STUBS[key];
-  if (stub) { try { return require(stub); } catch {} }
+  if (stub) {
+    try { return require(stub); } catch (err) {
+      if (!isModuleNotFound(err)) {
+        // Binary found but failed to load (e.g. GLIBC mismatch) — surface the real error.
+        const detail = err instanceof Error ? err.message : String(err);
+        throw new Error(`[@vivantel/virage-chunker-ce-X] Native binary failed to load on ${key}: ${detail}`, { cause: err });
+      }
+    }
+  }
   const hint = stub ? `\n  npm install ${stub}` : "";
   throw new Error(`[@vivantel/virage-chunker-ce-X] Native binary not found for ${key}.${hint}`);
 }
