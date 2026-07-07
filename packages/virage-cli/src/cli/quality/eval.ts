@@ -66,7 +66,19 @@ export async function runEvaluate(opts: EvaluateOptions): Promise<void> {
   );
 
   out.info("Running retrieval evaluation...");
-  const runner = new EvalRunner(cfg.vectorStore, cfg.embedder, dataset);
+  const searchConfig = cfg.search?.reranker
+    ? {
+        reranker: cfg.search.reranker,
+        rerankOversample: cfg.search.rerankOversample,
+      }
+    : undefined;
+  const runner = new EvalRunner(
+    cfg.vectorStore,
+    cfg.embedder,
+    dataset,
+    10,
+    searchConfig,
+  );
   const evalBar = createProgressBar("Evaluating", dataset.queries.length);
   let evalResult, perQueryRrScores;
   try {
@@ -205,7 +217,19 @@ export async function runExperimentRun(
   );
 
   out.info("Running evaluation...");
-  const runner = new EvalRunner(cfg.vectorStore, cfg.embedder, dataset);
+  const expSearchConfig = cfg.search?.reranker
+    ? {
+        reranker: cfg.search.reranker,
+        rerankOversample: cfg.search.rerankOversample,
+      }
+    : undefined;
+  const runner = new EvalRunner(
+    cfg.vectorStore,
+    cfg.embedder,
+    dataset,
+    10,
+    expSearchConfig,
+  );
   const evalBar = createProgressBar("Evaluating", dataset.queries.length);
   let evalResult, perQueryRrScores;
   try {
