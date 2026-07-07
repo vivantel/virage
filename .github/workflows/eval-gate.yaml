@@ -4,13 +4,9 @@ on:
   pull_request:
     branches: [master]
     paths:
-      - 'packages/virage-mcp/src/**'
-      - 'packages/virage-core/src/core/**'
-      - 'packages/virage-cli/src/cli/query-cmd.ts'
-      - 'packages/virage-cli/src/cli/session-state.ts'
-      - 'packages/virage-embedder-*/src/**'
-      - 'packages/virage-reranker-*/src/**'
-      - 'packages/virage-store-*/src/**'
+      - 'packages/**'
+      - 'virage.config.ci.json'
+      - 'eval/**'
       - '.github/workflows/eval-gate.yaml'
 
 jobs:
@@ -25,27 +21,31 @@ jobs:
           node-version: lts/*
           cache: npm
 
+      - name: Install dependencies
+        run: node scripts/patch-lockfile-stubs.cjs && npm ci --ignore-scripts
+
       - name: Build virage-core and virage-cli from source
         run: |
           mkdir -p /tmp/virage-packs
-          node scripts/patch-lockfile-stubs.cjs
-          npm ci --ignore-scripts
           npm run build -w packages/virage-core
           npm run build -w packages/virage-cli
           npm pack --workspace packages/virage-core --pack-destination /tmp/virage-packs
           npm pack --workspace packages/virage-cli --pack-destination /tmp/virage-packs
 
-      - name: Install Virage CLI + plugins
+      - name: Install Virage CLI + plugins (config-driven)
         run: |
           CORE_TGZ=$(ls /tmp/virage-packs/vivantel-virage-core-*.tgz)
           CLI_TGZ=$(ls /tmp/virage-packs/vivantel-virage-cli-*.tgz)
-          npm install --prefix ./virage-runner \
-            "$CORE_TGZ" \
-            "$CLI_TGZ" \
-            @vivantel/virage-embedder-transformers@latest \
-            @vivantel/virage-store-lancedb@latest \
-            @vivantel/virage-chunker-ce-md@latest \
-            @vivantel/virage-code-chunk-chunker@latest
+          PLUGINS=$(node -e "
+            const cfg = require('./virage.config.ci.json');
+            const p = cfg.providers ?? {};
+            const pkgs = ['embedder','vectorStore','reranker','source']
+              .map(k => p[k]?.package).filter(Boolean);
+            (cfg.fileSets ?? []).forEach(fs =>
+              (fs.chunkers ?? []).forEach(c => c.package && pkgs.push(c.package)));
+            console.log([...new Set(pkgs)].map(p => p + '@latest').join(' '));
+          ")
+          npm install --prefix ./virage-runner "$CORE_TGZ" "$CLI_TGZ" $PLUGINS
 
       - name: Restore Virage index cache
         uses: actions/cache/restore@v6

@@ -36,7 +36,8 @@ virage.config.json
 virage query → query-cmd.ts → EmbeddingProvider.embed() → VectorStore.search()
                             → (optional) Reranker.rerank()
                             → (optional) minSimilarity filter
-                            → (optional) session dedup via session-state.ts
+
+virage-agent-claude inject-context → virage query --json → session-state.ts dedup → stdout
 ```
 
 Key interfaces (all in `packages/virage-core/src/interfaces/`):
@@ -105,6 +106,7 @@ Skip ADR for: internal refactors with no interface impact, bug fixes, new plugin
 | CLI query command | `packages/virage-cli/src/cli/query-cmd.ts` |
 | MCP search handler | `packages/virage-mcp/src/tools.ts` |
 | Claude Code hook | `packages/virage-agent-claude/src/plugin.ts` |
-| Session dedup util | `packages/virage-cli/src/cli/session-state.ts` |
+| Session dedup util | `packages/virage-agent-claude/src/session-state.ts` |
+| Context injection | `packages/virage-agent-claude/src/inject-context.ts` |
 | ADRs | `docs/decisions/` |
 | Eval suites | `eval/suites/*.suite.json` |
