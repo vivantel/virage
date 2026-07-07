@@ -1,0 +1,95 @@
+name: Eval Gate
+
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - 'packages/virage-mcp/src/**'
+      - 'packages/virage-core/src/core/**'
+      - 'packages/virage-cli/src/cli/query-cmd.ts'
+      - 'packages/virage-cli/src/cli/session-state.ts'
+      - 'packages/virage-embedder-*/src/**'
+      - 'packages/virage-reranker-*/src/**'
+      - 'packages/virage-store-*/src/**'
+      - '.github/workflows/eval-gate.yaml'
+
+jobs:
+  retrieval-quality:
+    name: Retrieval Quality Gate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: lts/*
+          cache: npm
+
+      - name: Build virage-core and virage-cli from source
+        run: |
+          mkdir -p /tmp/virage-packs
+          node scripts/patch-lockfile-stubs.cjs
+          npm ci --ignore-scripts
+          npm run build -w packages/virage-core
+          npm run build -w packages/virage-cli
+          npm pack --workspace packages/virage-core --pack-destination /tmp/virage-packs
+          npm pack --workspace packages/virage-cli --pack-destination /tmp/virage-packs
+
+      - name: Install Virage CLI + plugins
+        run: |
+          CORE_TGZ=$(ls /tmp/virage-packs/vivantel-virage-core-*.tgz)
+          CLI_TGZ=$(ls /tmp/virage-packs/vivantel-virage-cli-*.tgz)
+          npm install --prefix ./virage-runner \
+            "$CORE_TGZ" \
+            "$CLI_TGZ" \
+            @vivantel/virage-embedder-transformers@latest \
+            @vivantel/virage-store-lancedb@latest \
+            @vivantel/virage-chunker-ce-md@latest \
+            @vivantel/virage-code-chunk-chunker@latest
+
+      - name: Restore Virage index cache
+        uses: actions/cache/restore@v6
+        with:
+          path: |
+            .virage/lancedb
+            .virage/model-cache
+          key: eval-gate-${{ github.base_ref }}-${{ github.sha }}
+          restore-keys: |
+            eval-gate-${{ github.base_ref }}-
+            eval-gate-
+
+      - name: Index knowledge base
+        run: ./virage-runner/node_modules/.bin/virage index --config virage.config.ci.json
+
+      - name: Save Virage index cache
+        if: always()
+        uses: actions/cache/save@v6
+        with:
+          path: |
+            .virage/lancedb
+            .virage/model-cache
+          key: eval-gate-${{ github.base_ref }}-${{ github.sha }}
+
+      - name: Retrieval quality gate (P@5 / MRR)
+        run: |
+          if [ -f eval/quality-evaluation.ds.json ]; then
+            ./virage-runner/node_modules/.bin/virage quality eval run \
+              --dataset eval/quality-evaluation.ds.json \
+              --ci --threshold-mrr 0.35 \
+              --config virage.config.ci.json
+          else
+            echo "No eval dataset found — skipping quality gate."
+          fi
+
+      - name: Write job summary
+        if: always()
+        run: |
+          echo "## Retrieval Quality Gate" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ -f eval/quality-evaluation.ds.json ]; then
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            ./virage-runner/node_modules/.bin/virage quality eval run \
+              --dataset eval/quality-evaluation.ds.json \
+              --config virage.config.ci.json >> $GITHUB_STEP_SUMMARY || true
+            echo '```' >> $GITHUB_STEP_SUMMARY
+          fi

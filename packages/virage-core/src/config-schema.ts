@@ -42,6 +42,7 @@ const ZodFileSetConfig = z.object({
 
 const ZodProvidersConfig = z.object({
   embedder: ZodPluginRef,
+  queryEmbedder: ZodPluginRef.optional(),
   vectorStore: ZodPluginRef,
   reranker: ZodPluginRef.optional(),
   source: ZodPluginRef.optional(),
@@ -51,6 +52,7 @@ const ZodSearchConfig = z.object({
   hybrid: z.boolean().optional(),
   hybridAlpha: z.number().min(0).max(1).optional(),
   rerankOversample: z.number().int().positive().optional(),
+  minSimilarity: z.number().min(0).max(1).optional(),
 });
 
 const ZodPipelineOptions = z.object({

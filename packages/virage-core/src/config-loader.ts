@@ -139,6 +139,13 @@ async function loadJsonConfig(
     "createEmbedder",
   );
 
+  const queryEmbedder = config.providers.queryEmbedder
+    ? await resolveProvider<EmbeddingProvider>(
+        config.providers.queryEmbedder,
+        "createEmbedder",
+      )
+    : undefined;
+
   // Propagate embedder dimensions to the vectorStore unless explicitly set
   const vsRef: PluginRef = {
     ...config.providers.vectorStore,
@@ -215,6 +222,8 @@ async function loadJsonConfig(
       hybridAlpha: config.search?.hybridAlpha,
       reranker,
       rerankOversample: config.search?.rerankOversample,
+      queryEmbedder,
+      minSimilarity: config.search?.minSimilarity,
     },
     quality: config.quality as RAGPipelineConfig["quality"],
   };
