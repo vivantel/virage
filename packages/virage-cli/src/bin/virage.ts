@@ -64,6 +64,7 @@ const argv = process.argv.flatMap((arg, i, _arr) => {
 
 const program = new Command();
 program.configureHelp({ sortSubcommands: true });
+program.enablePositionalOptions();
 
 function handleError(error: unknown): never {
   createOut(0).error(error instanceof Error ? error.message : String(error));

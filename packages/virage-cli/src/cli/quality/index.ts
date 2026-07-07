@@ -39,6 +39,7 @@ export function registerQualityCommand(
     .description(
       "Quality system: self-assessment metrics, retrieval eval, performance benchmarks",
     )
+    .passThroughOptions()
     .option(
       "--components",
       "Run pipeline component metrics (default: true)",
@@ -138,6 +139,8 @@ export function registerQualityCommand(
     .action(function () {
       this.help();
     });
+
+  evalCmd.passThroughOptions();
 
   evalCmd
     .command("run")
