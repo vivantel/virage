@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.1.12](https://github.com/vivantel/virage/compare/virage-agent-antigravity@v0.1.11...virage-agent-antigravity@v0.1.12) (2026-07-08)
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @vivantel/virage-skills bumped from 0.1.9 to 0.1.10
+
 ## [0.1.11](https://github.com/vivantel/virage/compare/virage-agent-antigravity@v0.1.10...virage-agent-antigravity@v0.1.11) (2026-06-30)
 
 

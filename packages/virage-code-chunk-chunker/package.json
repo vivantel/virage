@@ -1,6 +1,6 @@
 {
   "name": "@vivantel/virage-code-chunk-chunker",
-  "version": "0.1.69",
+  "version": "0.1.70",
   "type": "module",
   "description": "AST-aware code chunking strategy for @vivantel/virage-core, powered by code-chunk",
   "repository": {
@@ -52,7 +52,7 @@
     "@vivantel/virage-core": "*"
   },
   "devDependencies": {
-    "@vivantel/virage-core": "0.4.9",
+    "@vivantel/virage-core": "0.4.10",
     "@types/node": "^26.1.0",
     "typescript": "^6.0.3",
     "vitest": "^4.1.10"
