@@ -1,0 +1,18 @@
+package virage:engine@2.0.0;
+
+/// Reranker plugin world.
+world reranker {
+    use types.{search-candidate};
+
+    /// Initialize the reranker with a JSON config string.
+    export init: func(config-json: string) -> result<_, string>;
+
+    /// Rerank a list of search candidates for a given query.
+    ///
+    /// Returns up to top-k candidates in descending score order.
+    export rerank: func(
+        query:      string,
+        candidates: list<search-candidate>,
+        top-k:      u32,
+    ) -> result<list<search-candidate>, string>;
+}

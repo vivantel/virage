@@ -51,3 +51,8 @@
 | ADR-047 | Plugin options schema convention | Accepted | Every plugin exports `optionsSchema: ZodType`; config loader validates before instantiation | [ADR-047](./ADR-047-plugin-options-schema.md) |
 | ADR-048 | Native package platform support | Accepted | napi-rs platform stubs + `optionalDependencies`; release-please `extra-files` for version sync | [ADR-048](./ADR-048-native-package-platform-support.md) |
 | ADR-049 | Source content streaming via SourceProvider | Accepted | `readContent(path, opts?)` on `SourceProvider`; optional on `SourceRepository`; enables S3/CDN providers and byte-range chunking | [ADR-049](./ADR-049-source-content-streaming.md) |
+| ADR-050 | Linux native packages built with cargo-zigbuild | Accepted | `cargo-zigbuild` targeting glibc 2.17 for linux-x64-gnu; eliminates `__isoc23_*` symbol failures | [ADR-050](./ADR-050-linux-native-glibc-target.md) |
+| ADR-051 | virage-engine Rust monolith | Proposed | Consolidates 6 napi-rs packages into one Rust binary crate; feature-gated modules; 4-platform CI | [ADR-051](./ADR-051-virage-engine-rust-monolith.md) |
+| ADR-052 | WASM Component Model plugin host | Proposed | wasmtime + WASI preview2; WIT worlds (chunker/embedder/reranker/source); sandboxed, language-agnostic | [ADR-052](./ADR-052-wasm-plugin-host.md) |
+| ADR-053 | Full Rust tokio pipeline | Proposed | Replaces TypeScript orchestrator; `SourceProvider` trait; `walkToChunks` port; tokio bounded-channel back-pressure | [ADR-053](./ADR-053-full-rust-pipeline.md) |
+| ADR-054 | LocalTransport built-in pipeline transport | Proposed | `Transport` trait + `LocalTransport` (tokio mpsc) as CE default; extension point for additional backends | [ADR-054](./ADR-054-local-transport.md) |
