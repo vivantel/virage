@@ -2246,6 +2246,34 @@ dependencies = [
 ]
 
 [[package]]
+name = "virage-engine"
+version = "0.1.0"
+dependencies = [
+ "comrak",
+ "docx-rs",
+ "lopdf",
+ "ort",
+ "serde_json",
+ "tokenizers",
+ "tree-sitter",
+ "tree-sitter-c",
+ "tree-sitter-c-sharp",
+ "tree-sitter-cpp",
+ "tree-sitter-go",
+ "tree-sitter-java",
+ "tree-sitter-javascript",
+ "tree-sitter-python",
+ "tree-sitter-ruby",
+ "tree-sitter-rust",
+ "tree-sitter-typescript",
+ "virage-vidoc",
+]
+
+[[package]]
+name = "virage-engine-sdk"
+version = "0.1.0"
+
+[[package]]
 name = "virage-vidoc"
 version = "0.1.0"
 dependencies = [

@@ -1,0 +1,8 @@
+[package]
+name        = "virage-engine-sdk"
+version     = "0.1.0"
+edition     = "2021"
+description = "Virage v2 SDK — WIT guest types and macros for WASM plugin authors (ADR-052)"
+license     = "MIT OR Apache-2.0"
+
+[dependencies]

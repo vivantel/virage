@@ -1,0 +1,64 @@
+[package]
+name        = "virage-engine"
+version     = "0.1.0"
+edition     = "2021"
+description = "Virage CE Rust monolith — chunkers, embedders, pipeline (ADR-051)"
+license     = "MIT OR Apache-2.0"
+
+[lib]
+crate-type = ["rlib"]
+
+[features]
+default     = ["chunker-all", "embedder-onnx"]
+chunker-all = ["chunker-md", "chunker-pdf", "chunker-docx", "chunker-latex", "chunker-lang"]
+chunker-md  = ["dep:comrak"]
+chunker-pdf = ["dep:lopdf"]
+chunker-docx   = ["dep:docx-rs"]
+chunker-latex  = []
+chunker-lang   = [
+    "dep:tree-sitter",
+    "dep:tree-sitter-python",
+    "dep:tree-sitter-javascript",
+    "dep:tree-sitter-typescript",
+    "dep:tree-sitter-java",
+    "dep:tree-sitter-go",
+    "dep:tree-sitter-rust",
+    "dep:tree-sitter-c",
+    "dep:tree-sitter-cpp",
+    "dep:tree-sitter-c-sharp",
+    "dep:tree-sitter-ruby",
+]
+embedder-onnx = ["dep:ort", "dep:tokenizers", "ort/load-dynamic", "ort/std", "ort/api-24"]
+# Phase 3 stubs — deps added when store adapters are implemented
+store-all      = ["store-lancedb", "store-qdrant", "store-postgres", "store-chromadb"]
+store-lancedb  = []
+store-qdrant   = []
+store-postgres = []
+store-chromadb = []
+# Phase 7 stub
+wasm-host = []
+
+[dependencies]
+virage-vidoc = { workspace = true }
+serde_json   = { workspace = true }
+
+# Chunker deps — optional, enabled via feature flags
+comrak  = { version = "0.52", optional = true }
+lopdf   = { version = "0.41", default-features = false, optional = true }
+docx-rs = { version = "0.4",  default-features = false, optional = true }
+
+tree-sitter            = { version = "0.23", optional = true }
+tree-sitter-python     = { version = "0.23", optional = true }
+tree-sitter-javascript = { version = "0.23", optional = true }
+tree-sitter-typescript = { version = "0.23", optional = true }
+tree-sitter-java       = { version = "0.23", optional = true }
+tree-sitter-go         = { version = "0.23", optional = true }
+tree-sitter-rust       = { version = "0.23", optional = true }
+tree-sitter-c          = { version = "0.23", optional = true }
+tree-sitter-cpp        = { version = "0.23", optional = true }
+tree-sitter-c-sharp    = { version = "0.23", optional = true }
+tree-sitter-ruby       = { version = "0.23", optional = true }
+
+# Embedder deps — optional, enabled via feature flags
+ort        = { version = "2.0.0-rc.12", default-features = false, optional = true }
+tokenizers = { version = "0.21", default-features = false, features = ["onig"], optional = true }

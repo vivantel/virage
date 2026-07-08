@@ -276,6 +276,9 @@ jobs:
             echo "::endgroup::"
           done
 
+      - name: Test virage-engine (all features)
+        run: cargo test -p virage-engine --all-features
+
       - name: Build CE native (linux-x64 validation)
         run: cargo build --release
 
