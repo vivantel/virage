@@ -1,6 +1,6 @@
 {
   "name": "@vivantel/virage-agent-antigravity",
-  "version": "0.1.11",
+  "version": "0.1.12",
   "description": "Google Antigravity agent plugin for Virage — configures Antigravity hooks from virage-skills",
   "type": "module",
   "main": "dist/index.js",
@@ -55,7 +55,7 @@
   },
   "dependencies": {
     "@vivantel/virage-agent-core": "0.1.8",
-    "@vivantel/virage-skills": "0.1.9"
+    "@vivantel/virage-skills": "0.1.10"
   },
   "devDependencies": {
     "@types/node": "^26.1.0",

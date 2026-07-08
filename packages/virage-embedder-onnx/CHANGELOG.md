@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.0.6](https://github.com/vivantel/virage/compare/virage-embedder-onnx@v1.0.5...virage-embedder-onnx@v1.0.6) (2026-07-08)
+
+
+### Bug Fixes
+
+* **native:** Use cargo-zigbuild for linux-x64-gnu to target glibc 2.17 ([bfbe23b](https://github.com/vivantel/virage/commit/bfbe23b8363abf8ff2df0aca50b5640c404bf846))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * peerDependencies
+    * @vivantel/virage-core bumped from >=0.2 to >=0.4.10
+
 ## [1.0.5](https://github.com/vivantel/virage/compare/virage-embedder-onnx@v1.0.4...virage-embedder-onnx@v1.0.5) (2026-07-04)
 
 
