@@ -39,6 +39,10 @@ export interface RAGPipelineConfig {
     reranker?: Reranker;
     /** Number of candidates to fetch per final result when a reranker is active. Default: 5. */
     rerankOversample?: number;
+    /** Separate embedder for query-time use (e.g. local model for free queries). Falls back to embedder. */
+    queryEmbedder?: EmbeddingProvider;
+    /** Minimum similarity score [0–1] for search results. Applied after reranking. */
+    minSimilarity?: number;
   };
   options?: {
     embeddingsFile?: string;

@@ -87,7 +87,11 @@
       "properties": {
         "embedder": {
           "allOf": [{ "$ref": "#/$defs/pluginRef" }],
-          "description": "Embedding model plugin (e.g. '@vivantel/virage-embedder-fastembed')."
+          "description": "Embedding model plugin used for indexing (e.g. '@vivantel/virage-embedder-onnx')."
+        },
+        "queryEmbedder": {
+          "allOf": [{ "$ref": "#/$defs/pluginRef" }],
+          "description": "Optional separate embedding model for query-time use (e.g. a local model for zero-cost queries). Falls back to embedder if omitted."
         },
         "vectorStore": {
           "allOf": [{ "$ref": "#/$defs/pluginRef" }],
@@ -122,6 +126,12 @@
           "type": "integer",
           "minimum": 1,
           "description": "Fetch topK × rerankOversample candidates before re-ranking. Default: 3."
+        },
+        "minSimilarity": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Minimum similarity score [0–1] for search results. Applied after reranking. Results below this threshold are dropped."
         }
       }
     },

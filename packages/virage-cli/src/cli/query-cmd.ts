@@ -16,6 +16,7 @@ export interface QueryOptions {
   hybrid?: boolean;
   hybridAlpha?: number;
   rerank?: boolean;
+  minSimilarity?: number;
   verbosity: number;
 }
 
@@ -64,11 +65,12 @@ export async function runQuery(
   );
 
   const t0 = Date.now();
+  const queryEmbedder = cfg.search?.queryEmbedder ?? cfg.embedder;
   let results: VectorSearchResult[] = await withSpinner(
     "Searching",
     async () => {
       await cfg.vectorStore.initialize();
-      const queryEmbedding = await cfg.embedder.embed(queryText);
+      const queryEmbedding = await queryEmbedder.embed(queryText);
       return cfg.vectorStore.search(
         queryEmbedding,
         fetchTopK,
@@ -90,6 +92,12 @@ export async function runQuery(
       reranker!.rerank(queryText, results, opts.topK),
     );
     out.verbose(`Re-rank: ${Date.now() - t1}ms → top ${results.length}`);
+  }
+
+  // Minimum-similarity threshold (CLI flag overrides config default)
+  const minSim = opts.minSimilarity ?? cfg.search?.minSimilarity;
+  if (minSim !== undefined) {
+    results = results.filter((r) => r.similarity >= minSim);
   }
 
   await cfg.vectorStore.close?.();

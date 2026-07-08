@@ -64,6 +64,7 @@ const argv = process.argv.flatMap((arg, i, _arr) => {
 
 const program = new Command();
 program.configureHelp({ sortSubcommands: true });
+program.enablePositionalOptions();
 
 function handleError(error: unknown): never {
   createOut(0).error(error instanceof Error ? error.message : String(error));
@@ -658,6 +659,11 @@ program
     "Re-rank results with a cross-encoder (requires @vivantel/virage-reranker-cross-encoder)",
     false,
   )
+  .option(
+    "--min-similarity <number>",
+    "Only return results with similarity >= threshold (0.0–1.0); overrides config default",
+    parseFloat,
+  )
   .action(
     async (
       queryText: string,
@@ -669,6 +675,7 @@ program
         hybrid: boolean;
         hybridAlpha?: number;
         rerank: boolean;
+        minSimilarity?: number;
       },
     ) => {
       const verbose = program.opts<{ verbose: number }>().verbose;
@@ -684,6 +691,7 @@ program
           hybrid: cmdOpts.hybrid || undefined,
           hybridAlpha: cmdOpts.hybridAlpha,
           rerank: cmdOpts.rerank || undefined,
+          minSimilarity: cmdOpts.minSimilarity,
           verbosity: verbose,
         });
         tel.record("query", Date.now() - t0, true);

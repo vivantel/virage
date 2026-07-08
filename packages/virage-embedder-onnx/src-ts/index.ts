@@ -35,24 +35,43 @@ interface NativeBinding {
   ) => NativeEmbedder;
 }
 
+function isModuleNotFound(err: unknown): boolean {
+  if (!(err instanceof Error)) return false;
+  const code = (err as NodeJS.ErrnoException).code;
+  return (
+    code === "MODULE_NOT_FOUND" ||
+    code === "ERR_MODULE_NOT_FOUND" ||
+    err.message.includes("Cannot find module") ||
+    err.message.includes("Cannot find package")
+  );
+}
+
 function loadBinding(): NativeBinding {
   try {
     return require("./virage_embedder_onnx.node") as NativeBinding;
-  } catch {
-    /* fall through to platform stub */
+  } catch (err) {
+    if (!isModuleNotFound(err)) throw err;
   }
   const key = `${platform}-${arch}`;
   const stubPkg = PLATFORM_STUBS[key];
   if (stubPkg) {
     try {
       return require(stubPkg) as NativeBinding;
-    } catch {
-      /* stub not installed */
+    } catch (err) {
+      if (!isModuleNotFound(err)) {
+        // Binary found but failed to load (e.g. GLIBC version mismatch).
+        const detail = err instanceof Error ? err.message : String(err);
+        throw new Error(
+          `[@vivantel/virage-embedder-onnx] Native binary failed to load on ${key}: ${detail}\n` +
+            `  Rebuild from source: npx napi build --release --no-default-features --features download-binaries`,
+          { cause: err },
+        );
+      }
     }
   }
   const hint = stubPkg ? `\n  npm install ${stubPkg}` : "";
   throw new Error(
-    `[@vivantel/virage-embedder-onnx] Native binary not found for ${key}.${hint}\nOr compile from source: npx napi build --release`,
+    `[@vivantel/virage-embedder-onnx] Native binary not found for ${key}.${hint}\nOr compile from source: npx napi build --release --no-default-features --features download-binaries`,
   );
 }
 
