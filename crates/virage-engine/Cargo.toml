@@ -29,6 +29,10 @@ chunker-lang   = [
     "dep:tree-sitter-ruby",
 ]
 embedder-onnx = ["dep:ort", "dep:tokenizers", "ort/load-dynamic", "ort/std", "ort/api-24"]
+# Phase 2 — source providers
+source-all    = ["source-git", "source-localfs"]
+source-git    = ["dep:git2", "dep:tokio", "dep:async-trait", "dep:futures", "dep:bytes", "dep:anyhow", "dep:globset"]
+source-localfs = ["dep:walkdir", "dep:tokio", "dep:async-trait", "dep:futures", "dep:bytes", "dep:anyhow", "dep:sha2", "dep:globset"]
 # Phase 3 stubs — deps added when store adapters are implemented
 store-all      = ["store-lancedb", "store-qdrant", "store-postgres", "store-chromadb"]
 store-lancedb  = []
@@ -62,3 +66,14 @@ tree-sitter-ruby       = { version = "0.23", optional = true }
 # Embedder deps — optional, enabled via feature flags
 ort        = { version = "2.0.0-rc.12", default-features = false, optional = true }
 tokenizers = { version = "0.21", default-features = false, features = ["onig"], optional = true }
+
+# Source provider deps — optional, enabled via feature flags
+git2        = { version = "0.21", features = ["vendored-libgit2"], optional = true }
+walkdir     = { version = "2",    optional = true }
+tokio       = { version = "1",    features = ["fs", "rt", "macros"], optional = true }
+async-trait = { version = "0.1",  optional = true }
+futures     = { version = "0.3",  optional = true }
+bytes       = { version = "1",    optional = true }
+anyhow      = { version = "1",    optional = true }
+sha2        = { version = "0.10", optional = true }
+globset     = { version = "0.4",  optional = true }
