@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.10](https://github.com/vivantel/virage/compare/virage-skills@v0.1.9...virage-skills@v0.1.10) (2026-07-08)
+
+
+### Bug Fixes
+
+* **native:** Use cargo-zigbuild for linux-x64-gnu to target glibc 2.17 ([bfbe23b](https://github.com/vivantel/virage/commit/bfbe23b8363abf8ff2df0aca50b5640c404bf846))
+
 ## [0.1.9](https://github.com/vivantel/virage/compare/virage-skills@v0.1.8...virage-skills@v0.1.9) (2026-06-20)
 
 

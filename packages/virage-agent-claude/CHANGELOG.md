@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.2.30](https://github.com/vivantel/virage/compare/virage-agent-claude@v0.2.29...virage-agent-claude@v0.2.30) (2026-07-08)
+
+
+### Bug Fixes
+
+* **native:** Use cargo-zigbuild for linux-x64-gnu to target glibc 2.17 ([bfbe23b](https://github.com/vivantel/virage/commit/bfbe23b8363abf8ff2df0aca50b5640c404bf846))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @vivantel/virage-skills bumped from 0.1.9 to 0.1.10
+
 ## [0.2.29](https://github.com/vivantel/virage/compare/virage-agent-claude@v0.2.28...virage-agent-claude@v0.2.29) (2026-07-02)
 
 
