@@ -60,6 +60,10 @@ cli    = [
     "embedder-onnx", "config",
     "dep:clap", "dep:indicatif",
 ]
+# Phase 6 — production binary builds: bundle ORT instead of loading dynamically.
+# CI builds the virage binary with --features cli,download-binaries --no-default-features.
+# Users get a self-contained binary; no separate libonnxruntime installation required.
+download-binaries = ["dep:ort", "dep:tokenizers", "ort/download-binaries", "ort/std", "ort/api-24", "ort/tls-native"]
 # Phase 7 stub
 wasm-host = []
 

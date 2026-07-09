@@ -27,5 +27,6 @@
   "packages/virage-chunker-ce-docx": "0.1.8",
   "packages/virage-chunker-ce-latex": "0.1.8",
   "packages/virage-embedder-onnx": "1.0.5",
-  "packages/virage-chunker-ce-lang": "0.1.3"
+  "packages/virage-chunker-ce-lang": "0.1.3",
+  "packages/virage": "2.0.0"
 }
