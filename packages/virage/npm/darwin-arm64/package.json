@@ -1,11 +1,17 @@
 {
   "name": "@vivantel/virage-darwin-arm64",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "description": "Virage CE binary for darwin-arm64",
-  "os": ["darwin"],
-  "cpu": ["arm64"],
+  "os": [
+    "darwin"
+  ],
+  "cpu": [
+    "arm64"
+  ],
   "main": "virage",
-  "files": ["virage"],
+  "files": [
+    "virage"
+  ],
   "publishConfig": {
     "access": "public"
   },

@@ -1,6 +1,6 @@
 {
   "name": "@vivantel/virage-chunker-ce-latex-linux-arm64-gnu",
-  "version": "0.1.8",
+  "version": "0.1.9",
   "description": "Linux arm64 (GNU libc) native binary for @vivantel/virage-chunker-ce-latex",
   "main": "virage_chunker_ce_latex.node",
   "files": [

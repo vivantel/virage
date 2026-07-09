@@ -1,11 +1,17 @@
 {
   "name": "@vivantel/virage-linux-arm64-gnu",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "description": "Virage CE binary for linux-arm64-gnu",
-  "os": ["linux"],
-  "cpu": ["arm64"],
+  "os": [
+    "linux"
+  ],
+  "cpu": [
+    "arm64"
+  ],
   "main": "virage",
-  "files": ["virage"],
+  "files": [
+    "virage"
+  ],
   "publishConfig": {
     "access": "public"
   },
