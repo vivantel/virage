@@ -55,4 +55,4 @@
 | ADR-051 | virage-engine Rust monolith | Proposed | Consolidates 6 napi-rs packages into one Rust binary crate; feature-gated modules; 4-platform CI | [ADR-051](./ADR-051-virage-engine-rust-monolith.md) |
 | ADR-052 | WASM Component Model plugin host | Proposed | wasmtime + WASI preview2; WIT worlds (chunker/embedder/reranker/source); sandboxed, language-agnostic | [ADR-052](./ADR-052-wasm-plugin-host.md) |
 | ADR-053 | Full Rust tokio pipeline | Proposed | Replaces TypeScript orchestrator; `SourceProvider` trait; `walkToChunks` port; tokio bounded-channel back-pressure | [ADR-053](./ADR-053-full-rust-pipeline.md) |
-| ADR-054 | LocalTransport built-in pipeline transport | Proposed | `Transport` trait + `LocalTransport` (tokio mpsc) as CE default; extension point for additional backends | [ADR-054](./ADR-054-local-transport.md) |
+| ADR-054 | Multi-worker pipeline concurrency via bounded tokio channels | Accepted | N tokio worker tasks + bounded mpsc channels; `--workers N` flag; back-pressure via channel capacity | [ADR-054](./ADR-054-pipeline-concurrency.md) |
