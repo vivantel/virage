@@ -1,6 +1,8 @@
 #![deny(clippy::all)]
 
 pub mod chunkers;
+#[cfg(feature = "config")]
+pub mod config;
 #[cfg(feature = "db-sqlite")]
 pub mod db;
 pub mod embedders;

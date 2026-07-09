@@ -8,6 +8,11 @@ license     = "MIT OR Apache-2.0"
 [lib]
 crate-type = ["rlib"]
 
+[[bin]]
+name = "virage"
+path = "src/bin/virage.rs"
+required-features = ["cli"]
+
 [features]
 default     = ["chunker-all", "embedder-onnx"]
 chunker-all = ["chunker-md", "chunker-pdf", "chunker-docx", "chunker-latex", "chunker-lang"]
@@ -47,6 +52,14 @@ store-types   = ["dep:async-trait", "dep:anyhow"]
 chunker-walk  = ["dep:sha2"]
 pipeline      = ["chunker-walk", "source-types", "store-types", "db-sqlite",
                  "dep:tokio", "dep:async-trait", "dep:anyhow", "dep:futures", "dep:bytes"]
+# Phase 5 — CLI binary
+config = ["dep:serde"]
+cli    = [
+    "pipeline", "source-all",
+    "store-qdrant", "store-postgres", "store-chromadb", "db-sqlite",
+    "embedder-onnx", "config",
+    "dep:clap", "dep:indicatif",
+]
 # Phase 7 stub
 wasm-host = []
 
@@ -96,3 +109,6 @@ reqwest      = { version = "0.12",  default-features = false, features = ["json"
 serde        = { workspace = true, optional = true }
 # SQLite state store
 rusqlite     = { version = "0.40",  features = ["bundled"], optional = true }
+# CLI binary
+clap         = { version = "4",    features = ["derive"], optional = true }
+indicatif    = { version = "0.17", optional = true }
