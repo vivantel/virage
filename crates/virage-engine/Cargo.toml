@@ -14,7 +14,7 @@ path = "src/bin/virage.rs"
 required-features = ["cli"]
 
 [features]
-default     = ["chunker-all", "embedder-onnx"]
+default     = ["chunker-all", "embedder-onnx", "wasm-host"]
 chunker-all = ["chunker-md", "chunker-pdf", "chunker-docx", "chunker-latex", "chunker-lang"]
 chunker-md  = ["dep:comrak"]
 chunker-pdf = ["dep:lopdf"]
