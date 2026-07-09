@@ -28,31 +28,21 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v6
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cargo cache
+        uses: actions/cache@v6
         with:
-          node-version: "lts/*"
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-virage-index-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-virage-index-
 
-      - name: Build Virage packages from source
-        run: |
-          mkdir -p /tmp/virage-packs
-          node scripts/patch-lockfile-stubs.cjs
-          npm ci --ignore-scripts
-          npm run build -w packages/virage-core
-          npm run build -w packages/virage-cli
-          npm pack --workspace packages/virage-core --pack-destination /tmp/virage-packs
-          npm pack --workspace packages/virage-cli --pack-destination /tmp/virage-packs
-
-      - name: Install Virage packages
-        run: |
-          CORE_TGZ=$(ls /tmp/virage-packs/vivantel-virage-core-*.tgz)
-          CLI_TGZ=$(ls /tmp/virage-packs/vivantel-virage-cli-*.tgz)
-          npm install --prefix ./virage-runner \
-            "$CORE_TGZ" \
-            "$CLI_TGZ" \
-            @vivantel/virage-embedder-transformers@latest \
-            @vivantel/virage-store-lancedb@latest \
-            @vivantel/virage-chunker-ce-md@latest
+      - name: Build virage binary
+        run: cargo build -p virage-engine --bin virage --release
 
       - name: Restore Virage cache
         uses: actions/cache/restore@v6
@@ -66,7 +56,7 @@ jobs:
             virage-
 
       - name: Run Virage pipeline
-        run: ./virage-runner/node_modules/.bin/virage index --config virage.config.ci.json
+        run: ./target/release/virage index --config virage.config.ci.json
 
       - name: Save Virage cache
         if: always()

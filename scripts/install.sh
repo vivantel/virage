@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# One-line installer for @vivantel/virage-cli
+# One-line installer for @vivantel/virage
 # Usage: curl -fsSL https://raw.githubusercontent.com/vivantel/virage/master/scripts/install.sh | bash
 
-PACKAGE="@vivantel/virage-cli"
+PACKAGE="@vivantel/virage"
 
 info()  { printf '\033[0;36m%s\033[0m\n' "$*"; }
 ok()    { printf '\033[0;32m✓ %s\033[0m\n' "$*"; }

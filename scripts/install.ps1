@@ -1,8 +1,8 @@
-# One-line installer for @vivantel/virage-cli (Windows PowerShell)
+# One-line installer for @vivantel/virage (Windows PowerShell)
 # Usage: irm https://raw.githubusercontent.com/vivantel/virage/master/scripts/install.ps1 | iex
 
 $ErrorActionPreference = 'Stop'
-$Package = '@vivantel/virage-cli'
+$Package = '@vivantel/virage'
 
 function Write-Info  { param($Msg) Write-Host $Msg -ForegroundColor Cyan }
 function Write-Ok    { param($Msg) Write-Host "v $Msg" -ForegroundColor Green }

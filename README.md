@@ -14,10 +14,9 @@ Monorepo for the **Virage** ecosystem — a Git-aware RAG pipeline that turns yo
 
 | Package | Version | Description |
 | ------- | ------- | ----------- |
+| [`@vivantel/virage`](packages/virage) | [![npm](https://img.shields.io/npm/v/@vivantel/virage.svg)](https://www.npmjs.com/package/@vivantel/virage) | Rust CLI binary — primary install |
 | [`@vivantel/virage-core`](packages/virage-core) | [![npm](https://img.shields.io/npm/v/@vivantel/virage-core.svg)](https://www.npmjs.com/package/@vivantel/virage-core) | Pipeline orchestrator, interfaces, config loading |
-| [`@vivantel/virage-cli`](packages/virage-cli) | [![npm](https://img.shields.io/npm/v/@vivantel/virage-cli.svg)](https://www.npmjs.com/package/@vivantel/virage-cli) | `virage` binary, init wizard, dashboard server |
 | [`@vivantel/virage-dashboard`](packages/virage-dashboard) | [![npm](https://img.shields.io/npm/v/@vivantel/virage-dashboard.svg)](https://www.npmjs.com/package/@vivantel/virage-dashboard) | React web UI for pipeline monitoring |
-| [`@vivantel/virage-mcp`](packages/virage-mcp) | [![npm](https://img.shields.io/npm/v/@vivantel/virage-mcp.svg)](https://www.npmjs.com/package/@vivantel/virage-mcp) | MCP stdio server for AI assistant integration |
 
 ### Chunkers
 
@@ -25,10 +24,6 @@ Monorepo for the **Virage** ecosystem — a Git-aware RAG pipeline that turns yo
 | ------- | ------- | ----------- |
 | [`@vivantel/virage-chunker-ce-ast`](packages/virage-chunker-ce-ast) | [![npm](https://img.shields.io/npm/v/@vivantel/virage-chunker-ce-ast.svg)](https://www.npmjs.com/package/@vivantel/virage-chunker-ce-ast) | Shared AST walker used by all CE native chunkers |
 | [`@vivantel/virage-chunker-ce-ts`](packages/virage-chunker-ce-ts) | [![npm](https://img.shields.io/npm/v/@vivantel/virage-chunker-ce-ts.svg)](https://www.npmjs.com/package/@vivantel/virage-chunker-ce-ts) | TypeScript / JavaScript chunker (pure TS, no native binary) |
-| [`@vivantel/virage-chunker-ce-md`](packages/virage-chunker-ce-md) | [![npm](https://img.shields.io/npm/v/@vivantel/virage-chunker-ce-md.svg)](https://www.npmjs.com/package/@vivantel/virage-chunker-ce-md) | Markdown / MDX chunker (Rust native, comrak) |
-| [`@vivantel/virage-chunker-ce-pdf`](packages/virage-chunker-ce-pdf) | [![npm](https://img.shields.io/npm/v/@vivantel/virage-chunker-ce-pdf.svg)](https://www.npmjs.com/package/@vivantel/virage-chunker-ce-pdf) | PDF chunker — text layer extraction (Rust native, lopdf) |
-| [`@vivantel/virage-chunker-ce-docx`](packages/virage-chunker-ce-docx) | [![npm](https://img.shields.io/npm/v/@vivantel/virage-chunker-ce-docx.svg)](https://www.npmjs.com/package/@vivantel/virage-chunker-ce-docx) | DOCX chunker (Rust native, docx-rs) |
-| [`@vivantel/virage-chunker-ce-latex`](packages/virage-chunker-ce-latex) | [![npm](https://img.shields.io/npm/v/@vivantel/virage-chunker-ce-latex.svg)](https://www.npmjs.com/package/@vivantel/virage-chunker-ce-latex) | LaTeX chunker (Rust native, custom lexer/parser) |
 | [`@vivantel/virage-code-chunk-chunker`](packages/virage-code-chunk-chunker) | [![npm](https://img.shields.io/npm/v/@vivantel/virage-code-chunk-chunker.svg)](https://www.npmjs.com/package/@vivantel/virage-code-chunk-chunker) | AST-aware code chunking for TS, JS, Python, Go, Java |
 
 ### Embedders
@@ -74,7 +69,7 @@ Monorepo for the **Virage** ecosystem — a Git-aware RAG pipeline that turns yo
 
 ## Quick start
 
-Install the CLI globally (requires Node.js LTS):
+Install the CLI globally (requires Node.js 20+):
 
 ```bash
 # Unix / macOS / Linux
@@ -84,58 +79,69 @@ curl -fsSL https://raw.githubusercontent.com/vivantel/virage/master/scripts/inst
 irm https://raw.githubusercontent.com/vivantel/virage/master/scripts/install.ps1 | iex
 
 # Or directly with npm
-npm install -g @vivantel/virage-cli
+npm install -g @vivantel/virage
 ```
 
-Set up a project (interactive wizard selects embedder, vector store, re-ranker, hybrid search, and agent plugins — and installs everything):
+Set up a project (interactive wizard generates `virage.config.json`):
 
 ```bash
 cd my-project
 virage init
 ```
 
-Run the pipeline:
+Index your codebase:
 
 ```bash
 virage index
 ```
 
+Query the index:
+
+```bash
+virage query "how does authentication work?"
+```
+
+Or start the MCP stdio server for AI assistant integration:
+
+```bash
+virage serve
+```
+
 ## Configuration
 
-All configuration lives in `virage.config.json`. The `$schema` field enables IDE autocomplete and inline validation. `${ENV_VAR}` patterns are expanded from the environment at runtime.
+All configuration lives in `virage.config.json`. `${ENV_VAR}` patterns are expanded from the environment at runtime.
 
 ```json
 {
-  "$schema": "https://unpkg.com/@vivantel/virage-core/schemas/virage.config.schema.json",
-  "version": "2.0.0",
   "providers": {
     "embedder": {
-      "package": "@vivantel/virage-embedder-fastembed",
-      "options": { "model": "BAAI/bge-small-en-v1.5", "dimensions": 384 }
+      "builtin": "onnx",
+      "options": { "model": "Xenova/all-MiniLM-L6-v2", "dimensions": 384 }
     },
     "vectorStore": {
-      "package": "@vivantel/virage-store-lancedb",
+      "builtin": "lancedb",
       "options": { "uri": ".virage/lancedb" }
     }
   },
   "fileSets": [
     {
-      "name": "main",
-      "include": ["src/**", "docs/**"],
-      "ignore": ["**/node_modules/**", "**/dist/**"],
-      "chunkers": [
-        { "package": "@vivantel/virage-chunker-ce-md" },
-        { "package": "@vivantel/virage-code-chunk-chunker" }
-      ]
+      "name": "docs",
+      "include": ["docs/**/*.md", "**/*.md"],
+      "ignore": ["**/node_modules/**"],
+      "chunkers": [{ "builtin": "md" }]
+    },
+    {
+      "name": "code",
+      "include": ["src/**/*.ts", "src/**/*.py", "src/**/*.go"],
+      "chunkers": [{ "builtin": "lang" }]
     }
   ],
-  "agents": [{ "package": "@vivantel/virage-agent-claude" }],
   "search": { "hybrid": true, "hybridAlpha": 0.6 },
-  "pipeline": { "rateLimitMs": 200, "batchSize": 20 }
+  "pipeline": { "batchSize": 20 }
 }
 ```
 
-Run `virage init` to generate a config interactively. See [docs/cli/config.md](docs/cli/config.md) for the full config reference.
+Run `virage init` to generate a config interactively. Run `virage validate` to check it. See [docs/cli/config.md](docs/cli/config.md) for the full config reference.
 
 ## CLI commands
 
@@ -185,32 +191,32 @@ Options:
 
 ## Chunkers
 
-Chunkers split source files into embeddable chunks. Multiple chunkers run in parallel, each targeting the file types it handles best.
-
-| Package | Language / format | Notes |
-| ------- | ----------------- | ----- |
-| `virage-chunker-ce-ast` | All (shared AST walker) | Required by all CE native chunkers |
-| `virage-chunker-ce-ts` | TypeScript / JavaScript | Pure TS, no native binary |
-| `virage-chunker-ce-md` | Markdown / MDX | Rust native (comrak) |
-| `virage-chunker-ce-pdf` | PDF | Rust native (lopdf) |
-| `virage-chunker-ce-docx` | DOCX | Rust native (docx-rs) |
-| `virage-chunker-ce-latex` | LaTeX | Rust native (custom lexer/parser) |
-| `virage-code-chunk-chunker` | TS, JS, Python, Go, Java | AST-aware, powered by code-chunk |
-
-CE chunkers ship as pre-built native binaries on npm — no Rust toolchain required. Configure chunkers under `chunking.chunkers` in `virage.config.json`:
+Chunkers split source files into embeddable chunks. PDF, Markdown, DOCX, LaTeX, and multi-language chunking are built into `@vivantel/virage` — no separate install needed. Configure chunkers per file set using the `builtin:` key:
 
 ```json
 {
-  "chunking": {
-    "chunkers": [
-      { "package": "@vivantel/virage-chunker-ce-md" },
-      { "package": "@vivantel/virage-chunker-ce-pdf" },
-      { "package": "@vivantel/virage-chunker-ce-ts" },
-      { "package": "@vivantel/virage-code-chunk-chunker", "include": ["**/*.py", "**/*.go"] }
-    ]
-  }
+  "fileSets": [
+    {
+      "name": "docs",
+      "include": ["**/*.md"],
+      "chunkers": [{ "builtin": "md" }]
+    },
+    {
+      "name": "code",
+      "include": ["src/**/*.ts", "src/**/*.py"],
+      "chunkers": [{ "builtin": "lang" }]
+    }
+  ]
 }
 ```
+
+Plugin-based chunkers extend the built-in set:
+
+| Package | Language / format | Notes |
+| ------- | ----------------- | ----- |
+| `virage-chunker-ce-ast` | All (shared AST walker) | Base for TS/JS plugin chunkers |
+| `virage-chunker-ce-ts` | TypeScript / JavaScript | Pure TS, no native binary |
+| `virage-code-chunk-chunker` | TS, JS, Python, Go, Java | AST-aware, powered by code-chunk |
 
 ## Embedders
 

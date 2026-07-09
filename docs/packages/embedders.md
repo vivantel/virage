@@ -1,6 +1,6 @@
 # Embedders
 
-Embedder plugins implement `EmbeddingProvider` from `@vivantel/virage-core`. They convert text into float vectors stored in the vector store.
+Embedder plugins implement `EmbeddingProvider`. They convert text into float vectors stored in the vector store. ONNX inference is built into `@vivantel/virage` via `"builtin": "onnx"` in config — no separate package needed.
 
 ## Quick reference
 
@@ -9,7 +9,6 @@ Embedder plugins implement `EmbeddingProvider` from `@vivantel/virage-core`. The
 | `@vivantel/virage-embedder-openai` | `openai` | API key | OpenAI / compatible endpoint |
 | `@vivantel/virage-embedder-fastembed` | `fastembed` | None | Bundled ONNX (fastembed) |
 | `@vivantel/virage-embedder-transformers` | `transformers` | None | HuggingFace Hub (auto-download) |
-| `@vivantel/virage-embedder-onnx` | `onnx` | None | Local dir or HuggingFace Hub |
 
 ---
 
@@ -101,65 +100,6 @@ Local embedder via `@xenova/transformers` (Transformers.js). Downloads and cache
 | `dimensions` | `number` | required | Vector dimensions |
 | `quantized` | `boolean` | `true` | Use quantized (int8) ONNX model |
 | `cacheDir` | `string` | `.cache/transformers` | Model download location |
-
----
-
-## `@vivantel/virage-embedder-onnx`
-
-Runs any ONNX sentence transformer locally. Supports local model directory or auto-download from HuggingFace.
-
-**JSON config:**
-
-```json
-{
-  "embedder": {
-    "package": "@vivantel/virage-embedder-onnx",
-    "config": {
-      "model": "/path/to/model",
-      "dimensions": 768
-    }
-  }
-}
-```
-
-Or with a HuggingFace model ID (downloaded on first use):
-
-```json
-{
-  "embedder": {
-    "package": "@vivantel/virage-embedder-onnx",
-    "config": {
-      "model": "BAAI/bge-base-en-v1.5",
-      "dimensions": 768
-    }
-  }
-}
-```
-
-**Options:**
-
-| Option | Type | Default | Description |
-|---|---|---|---|
-| `model` | `string` | required | Local dir or HuggingFace model ID |
-| `dimensions` | `number` | required | Vector dimensions |
-| `tokenizerPath` | `string` | `{model}/tokenizer.json` | Override tokenizer location |
-| `executionProvider` | `"cpu"` \| `"cuda"` \| `"tensorrt"` \| `"directml"` \| `"rocm"` | `"cpu"` | ONNX execution provider |
-| `deviceId` | `number` | — | Device index for multi-GPU |
-| `numThreads` | `number` | — | Intra-op thread count |
-| `graphOptimizationLevel` | `0`–`3` | `3` (all) | ONNX graph optimization level |
-| `pooling` | `"mean"` \| `"cls"` | `"mean"` | Token pooling strategy |
-| `normalize` | `boolean` | `true` | L2-normalize output vector |
-| `maxSequenceLength` | `number` | `512` | Max tokens per input |
-| `cacheDir` | `string` | `~/.virage/models` | HuggingFace download cache |
-
-**Environment:** `VIRAGE_MODELS_DIR` overrides the default `cacheDir`.
-
-**preWarm:** Load the ONNX session and tokenizer eagerly (before first `embed()` call):
-
-```typescript
-const embedder = new OnnxEmbedder({ model: "/local/bge", dimensions: 768 });
-await embedder.preWarm();
-```
 
 ---
 

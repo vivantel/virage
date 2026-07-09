@@ -1,8 +1,7 @@
 {
-  "$schema": "./packages/virage-core/schemas/virage.config.schema.json",
   "providers": {
     "embedder": {
-      "package": "@vivantel/virage-embedder-onnx",
+      "builtin": "onnx",
       "options": {
         "model": "Xenova/all-MiniLM-L6-v2",
         "dimensions": 384,
@@ -10,16 +9,9 @@
       }
     },
     "vectorStore": {
-      "package": "@vivantel/virage-store-lancedb",
+      "builtin": "lancedb",
       "options": {
         "uri": ".virage/lancedb"
-      }
-    },
-    "reranker": {
-      "package": "@vivantel/virage-reranker-cross-encoder",
-      "options": {
-        "model": "Xenova/ms-marco-MiniLM-L-6-v2",
-        "cacheDir": ".virage/model-cache"
       }
     }
   },
@@ -29,7 +21,7 @@
       "include": ["**/*.md"],
       "ignore": ["CHANGELOG.md", "**/CHANGELOG.md"],
       "chunkers": [
-        { "package": "@vivantel/virage-chunker-ce-md" }
+        { "builtin": "md" }
       ]
     },
     {
@@ -38,7 +30,7 @@
       "ignore": ["**/*.test.ts", "**/*.spec.ts", "**/*.d.ts"],
       "tags": ["lang:typescript"],
       "chunkers": [
-        { "package": "@vivantel/virage-code-chunk-chunker" }
+        { "builtin": "lang" }
       ]
     }
   ],
