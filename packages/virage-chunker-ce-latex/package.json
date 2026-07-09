@@ -1,6 +1,6 @@
 {
   "name": "@vivantel/virage-chunker-ce-latex",
-  "version": "0.1.8",
+  "version": "0.1.9",
   "description": "LaTeX chunker for Virage — Rust napi-rs native addon (custom lexer/parser)",
   "type": "module",
   "main": "./dist/index.js",
@@ -30,10 +30,10 @@
     "minimatch": "^10.0.0"
   },
   "optionalDependencies": {
-    "@vivantel/virage-chunker-ce-latex-linux-x64-gnu": "0.1.8",
-    "@vivantel/virage-chunker-ce-latex-linux-arm64-gnu": "0.1.8",
-    "@vivantel/virage-chunker-ce-latex-darwin-arm64": "0.1.8",
-    "@vivantel/virage-chunker-ce-latex-win32-x64-msvc": "0.1.8"
+    "@vivantel/virage-chunker-ce-latex-linux-x64-gnu": "0.1.9",
+    "@vivantel/virage-chunker-ce-latex-linux-arm64-gnu": "0.1.9",
+    "@vivantel/virage-chunker-ce-latex-darwin-arm64": "0.1.9",
+    "@vivantel/virage-chunker-ce-latex-win32-x64-msvc": "0.1.9"
   },
   "rag-plugin": {
     "type": "chunker",

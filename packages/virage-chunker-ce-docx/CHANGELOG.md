@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.1.9](https://github.com/vivantel/virage/compare/virage-chunker-ce-docx@v0.1.8...virage-chunker-ce-docx@v0.1.9) (2026-07-09)
+
+
+### Features
+
+* **rust:** Phases 0–9 CE Rust migration, CLI binary, WASM plugin host, workflow refactor ([44c8063](https://github.com/vivantel/virage/commit/44c80633592f542dffc4ce839fe1fa5648ed0f37))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * peerDependencies
+    * @vivantel/virage-core bumped from >=0.2 to >=0.4.11
+    * @vivantel/virage-chunker-ce-ast bumped from >=0.1 to >=0.1.30
+
 ## [0.1.8](https://github.com/vivantel/virage/compare/virage-chunker-ce-docx@v0.1.7...virage-chunker-ce-docx@v0.1.8) (2026-07-04)
 
 

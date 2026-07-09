@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.2.11](https://github.com/vivantel/virage/compare/virage-mcp@v0.2.10...virage-mcp@v0.2.11) (2026-07-09)
+
+
+### Features
+
+* **rust:** Phases 0–9 CE Rust migration, CLI binary, WASM plugin host, workflow refactor ([44c8063](https://github.com/vivantel/virage/commit/44c80633592f542dffc4ce839fe1fa5648ed0f37))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @vivantel/virage-core bumped from 0.4.10 to 0.4.11
+  * devDependencies
+    * @vivantel/virage-core bumped from 0.4.10 to 0.4.11
+  * peerDependencies
+    * @vivantel/virage-core bumped from * to 0.4.11
+
 ## [0.2.10](https://github.com/vivantel/virage/compare/virage-mcp@v0.2.9...virage-mcp@v0.2.10) (2026-07-08)
 
 

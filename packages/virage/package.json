@@ -1,6 +1,6 @@
 {
   "name": "@vivantel/virage",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "description": "Virage — AI code-search indexer (CE) — pure Rust binary distribution",
   "bin": {
     "virage": "bin/run.js"
@@ -10,10 +10,10 @@
     "bin/"
   ],
   "optionalDependencies": {
-    "@vivantel/virage-linux-x64-gnu": "2.0.0",
-    "@vivantel/virage-linux-arm64-gnu": "2.0.0",
-    "@vivantel/virage-darwin-arm64": "2.0.0",
-    "@vivantel/virage-win32-x64-msvc": "2.0.0"
+    "@vivantel/virage-linux-x64-gnu": "2.1.0",
+    "@vivantel/virage-linux-arm64-gnu": "2.1.0",
+    "@vivantel/virage-darwin-arm64": "2.1.0",
+    "@vivantel/virage-win32-x64-msvc": "2.1.0"
   },
   "engines": {
     "node": ">=20"

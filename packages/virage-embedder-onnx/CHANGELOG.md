@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.1.0](https://github.com/vivantel/virage/compare/virage-embedder-onnx@v1.0.6...virage-embedder-onnx@v1.1.0) (2026-07-09)
+
+
+### Features
+
+* **rust:** Phases 0–9 CE Rust migration, CLI binary, WASM plugin host, workflow refactor ([44c8063](https://github.com/vivantel/virage/commit/44c80633592f542dffc4ce839fe1fa5648ed0f37))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * peerDependencies
+    * @vivantel/virage-core bumped from >=0.2 to >=0.4.11
+
 ## [1.0.6](https://github.com/vivantel/virage/compare/virage-embedder-onnx@v1.0.5...virage-embedder-onnx@v1.0.6) (2026-07-08)
 
 
