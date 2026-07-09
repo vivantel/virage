@@ -58,6 +58,7 @@ pub trait SourceProvider: Send + Sync {
 // ─── Shared glob helpers ──────────────────────────────────────────────────────
 
 /// Match `path` against a glob `pattern` (no dot-special treatment).
+#[allow(dead_code)]
 pub(crate) fn glob_match(pattern: &str, path: &str) -> bool {
     globset::Glob::new(pattern)
         .ok()
@@ -66,11 +67,13 @@ pub(crate) fn glob_match(pattern: &str, path: &str) -> bool {
 }
 
 /// Match `path` against `pattern` or `pattern/**` (replicates TS minimatch directory rule).
+#[allow(dead_code)]
 pub(crate) fn glob_match_dir(pattern: &str, path: &str) -> bool {
     glob_match(pattern, path) || glob_match(&format!("{pattern}/**"), path)
 }
 
 /// Slice `data` according to optional `ByteRange`.
+#[allow(dead_code)]
 pub(crate) fn apply_range(data: Vec<u8>, range: Option<ByteRange>) -> Bytes {
     match range {
         None => Bytes::from(data),

@@ -88,7 +88,6 @@ pub trait VectorStore: Send + Sync {
     ) -> anyhow::Result<Vec<SearchResult>>;
 }
 
-
 #[cfg(feature = "store-chromadb")]
 pub mod chromadb;
 #[cfg(feature = "store-lancedb")]

@@ -28,3 +28,5 @@ pub mod latex;
 pub mod md;
 #[cfg(feature = "chunker-pdf")]
 pub mod pdf;
+#[cfg(feature = "chunker-walk")]
+pub mod walk;
