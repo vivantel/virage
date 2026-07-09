@@ -1,7 +1,7 @@
 ---
 id: ADR-051
 title: virage-engine Rust monolith consolidates all native packages
-status: Proposed
+status: Accepted
 date: 2026-07-08
 related: [ADR-048, ADR-050, ADR-052, ADR-053, ADR-054]
 ---

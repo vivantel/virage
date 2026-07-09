@@ -1,7 +1,7 @@
 ---
 id: ADR-053
 title: Full Rust tokio pipeline replaces TypeScript orchestrator
-status: Proposed
+status: Accepted
 date: 2026-07-08
 related: [ADR-002, ADR-049, ADR-051, ADR-054]
 ---

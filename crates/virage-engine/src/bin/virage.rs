@@ -64,6 +64,8 @@ enum Commands {
     Usage,
     /// Print the first 20 lines of each skill file.
     ReadSkillSummary,
+    /// Start the virage dashboard web UI (requires Node.js).
+    Dashboard(DashboardArgs),
     /// [Deferred post-v2] Visualise embeddings.
     Viz,
     /// Validate, then run quality metrics and exit 1 if any gate fails.
@@ -187,6 +189,19 @@ enum PluginCommand {
         /// Path to the .wasm file.
         path: String,
     },
+}
+
+#[derive(Args)]
+struct DashboardArgs {
+    /// Port to listen on.
+    #[arg(long, default_value_t = 3000)]
+    port: u16,
+    /// Path to virage.db.
+    #[arg(long, default_value = "")]
+    db: String,
+    /// Path to virage.config.json.
+    #[arg(short, long, default_value = "")]
+    config: String,
 }
 
 #[derive(Args)]
@@ -752,26 +767,202 @@ fn cmd_quality(args: QualityArgs) -> anyhow::Result<()> {
     Ok(())
 }
 
-// ─── Stub commands ────────────────────────────────────────────────────────────
+// ─── init ────────────────────────────────────────────────────────────────────
 
 fn cmd_init(_args: ConfigPathArg) -> anyhow::Result<()> {
-    eprintln!("[virage init] Interactive wizard — Phase 5a stub.");
-    eprintln!("To create a config manually, see: https://vivantel.com/virage/docs/config");
+    use dialoguer::{Input, Select};
+
+    println!("=== Virage Setup Wizard ===\n");
+
+    let config_path: String = Input::new()
+        .with_prompt("Config file path")
+        .default("virage.config.json".into())
+        .interact_text()?;
+
+    let source_choices = &["git (default)", "localfs", "custom"];
+    let source_idx = Select::new()
+        .with_prompt("Source type")
+        .items(source_choices)
+        .default(0)
+        .interact()?;
+    let source_pkg = match source_idx {
+        1 => "@vivantel/virage-source-localfs",
+        _ => "@vivantel/virage-source-git",
+    };
+
+    let embedder_choices = &[
+        "ONNX (local, default)",
+        "OpenAI text-embedding-3-small",
+        "Cohere embed-english-v3",
+    ];
+    let embedder_idx = Select::new()
+        .with_prompt("Embedder")
+        .items(embedder_choices)
+        .default(0)
+        .interact()?;
+    let embedder_pkg = match embedder_idx {
+        1 => "@vivantel/virage-embedder-openai",
+        2 => "@vivantel/virage-embedder-cohere",
+        _ => "@vivantel/virage-embedder-onnx",
+    };
+
+    let store_choices = &[
+        "LanceDB (local, default)",
+        "Qdrant",
+        "PostgreSQL",
+        "ChromaDB",
+    ];
+    let store_idx = Select::new()
+        .with_prompt("Vector store")
+        .items(store_choices)
+        .default(0)
+        .interact()?;
+    let store_pkg = match store_idx {
+        1 => "@vivantel/virage-store-qdrant",
+        2 => "@vivantel/virage-store-postgres",
+        3 => "@vivantel/virage-store-chromadb",
+        _ => "@vivantel/virage-store-lancedb",
+    };
+
+    let config = serde_json::json!({
+        "$schema": "https://vivantel.com/virage/schema/v2/config.json",
+        "version": "1.0.0",
+        "providers": {
+            "embedder": { "package": embedder_pkg },
+            "vectorStore": { "package": store_pkg },
+            "source": { "package": source_pkg }
+        },
+        "fileSets": [
+            {
+                "name": "code",
+                "include": ["**/*.{ts,tsx,js,jsx,py,rs,go,java,md}"],
+                "chunkers": [
+                    { "package": "@vivantel/virage-chunker-ce-md" },
+                    { "package": "@vivantel/virage-chunker-ce-lang" }
+                ]
+            }
+        ]
+    });
+
+    std::fs::write(&config_path, serde_json::to_string_pretty(&config)?)?;
+    println!("\nConfig written to {config_path}");
+    println!("Run `virage index` to build the index.");
     Ok(())
 }
+
+// ─── update ──────────────────────────────────────────────────────────────────
 
 fn cmd_update() -> anyhow::Result<()> {
-    eprintln!("[virage update] Plugin update — Phase 5a stub.");
+    println!("Updating virage binary...");
+    let status = std::process::Command::new("npm")
+        .args(["install", "-g", "@vivantel/virage@latest"])
+        .status();
+    match status {
+        Ok(s) if s.success() => println!("virage updated."),
+        Ok(s) => eprintln!("npm exited with status {s}"),
+        Err(e) => eprintln!("Failed to run npm: {e}\nInstall Node.js or update manually."),
+    }
     Ok(())
 }
 
-fn cmd_pack(_args: PackArgs) -> anyhow::Result<()> {
-    eprintln!("[virage pack] Archive — Phase 5a stub.");
+// ─── pack ────────────────────────────────────────────────────────────────────
+
+fn cmd_pack(args: PackArgs) -> anyhow::Result<()> {
+    use flate2::{write::GzEncoder, Compression};
+
+    let virage_dir = PathBuf::from(".virage");
+    if !virage_dir.exists() {
+        return Err(anyhow::anyhow!(
+            ".virage/ not found — run `virage index` first"
+        ));
+    }
+
+    let out_path = PathBuf::from(&args.output);
+    let file = std::fs::File::create(&out_path)
+        .map_err(|e| anyhow::anyhow!("Cannot create {:?}: {e}", out_path))?;
+    let enc = GzEncoder::new(file, Compression::default());
+    let mut archive = tar::Builder::new(enc);
+    archive.append_dir_all(".virage", &virage_dir)?;
+    archive.finish()?;
+
+    let size = std::fs::metadata(&out_path)?.len();
+    println!("Archive created: {} ({} KB)", args.output, size / 1024);
     Ok(())
 }
+
+// ─── uninstall ───────────────────────────────────────────────────────────────
 
 fn cmd_uninstall() -> anyhow::Result<()> {
-    eprintln!("[virage uninstall] Phase 5a stub.");
+    use dialoguer::Confirm;
+
+    println!("=== Virage Uninstall ===\n");
+
+    let hooks_dir = PathBuf::from(".git/hooks");
+    if hooks_dir.exists() {
+        for hook in &["post-merge", "post-checkout"] {
+            let p = hooks_dir.join(hook);
+            if p.exists() {
+                if Confirm::new()
+                    .with_prompt(format!("Remove git hook {hook}?"))
+                    .default(false)
+                    .interact()?
+                {
+                    std::fs::remove_file(&p)?;
+                    println!("  Removed: {}", p.display());
+                }
+            }
+        }
+    }
+
+    let virage_dir = PathBuf::from(".virage");
+    if virage_dir.exists()
+        && Confirm::new()
+            .with_prompt("Remove .virage/ (index DB)?")
+            .default(false)
+            .interact()?
+    {
+        std::fs::remove_dir_all(&virage_dir)?;
+        println!("  Removed: .virage/");
+    }
+
+    let config = PathBuf::from("virage.config.json");
+    if config.exists()
+        && Confirm::new()
+            .with_prompt("Remove virage.config.json?")
+            .default(false)
+            .interact()?
+    {
+        std::fs::remove_file(&config)?;
+        println!("  Removed: virage.config.json");
+    }
+
+    println!("\nUninstall complete.");
+    Ok(())
+}
+
+// ─── dashboard ───────────────────────────────────────────────────────────────
+
+fn cmd_dashboard(args: DashboardArgs) -> anyhow::Result<()> {
+    let db_path = resolve_db_path(&args.db);
+    let mut cmd = std::process::Command::new("npx");
+    cmd.args([
+        "@vivantel/virage-dashboard",
+        "--port",
+        &args.port.to_string(),
+        "--db",
+        &db_path,
+    ]);
+    if !args.config.is_empty() {
+        cmd.args(["--config", &args.config]);
+    }
+    eprintln!("Starting dashboard on http://localhost:{} ...", args.port);
+    eprintln!("Note: virage dashboard requires Node.js.");
+    let status = cmd.status().map_err(|e| {
+        anyhow::anyhow!("Failed to launch dashboard: {e}\nEnsure Node.js is installed.")
+    })?;
+    if !status.success() {
+        anyhow::bail!("dashboard exited with status {status}");
+    }
     Ok(())
 }
 
@@ -1137,6 +1328,7 @@ async fn main() {
         Some(Commands::Plugin(args)) => cmd_plugin(args),
         Some(Commands::Usage) => cmd_usage(),
         Some(Commands::ReadSkillSummary) => cmd_read_skill_summary(),
+        Some(Commands::Dashboard(args)) => cmd_dashboard(args),
         Some(Commands::Viz) => cmd_viz(),
         Some(Commands::Quality(args)) => cmd_quality(args),
     };

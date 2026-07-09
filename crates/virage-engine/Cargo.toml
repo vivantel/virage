@@ -58,7 +58,7 @@ cli    = [
     "pipeline", "source-all",
     "store-qdrant", "store-postgres", "store-chromadb", "db-sqlite",
     "embedder-onnx", "config",
-    "dep:clap", "dep:indicatif",
+    "dep:clap", "dep:indicatif", "dep:dialoguer", "dep:flate2", "dep:tar",
 ]
 # Phase 6 — production binary builds: bundle ORT instead of loading dynamically.
 # CI builds the virage binary with --features cli,download-binaries --no-default-features.
@@ -119,6 +119,9 @@ rusqlite     = { version = "0.40",  features = ["bundled"], optional = true }
 # CLI binary
 clap         = { version = "4",    features = ["derive"], optional = true }
 indicatif    = { version = "0.17", optional = true }
+dialoguer    = { version = "0.11", optional = true }
+flate2       = { version = "1",    optional = true }
+tar          = { version = "0.4",  optional = true }
 # WASM plugin host
 wasmtime     = { version = "46", default-features = false, features = ["cranelift", "component-model", "std", "runtime", "threads", "anyhow"], optional = true }
 wasmtime-wasi = { version = "46", optional = true }

@@ -11,6 +11,8 @@ on:
       - 'packages/virage-chunker-ce-**'
       - 'packages/virage-embedder-onnx/**'
       - 'crates/virage-vidoc/**'
+      - 'crates/virage-engine/**'
+      - 'crates/virage-engine-sdk/**'
   workflow_dispatch:
 
 jobs:
@@ -44,6 +46,8 @@ jobs:
             cp -r "$pkg" "$tmp/$pkg"
           done
           cp -r crates/virage-vidoc "$tmp/crates/virage-vidoc"
+          cp -r crates/virage-engine "$tmp/crates/virage-engine"
+          cp -r crates/virage-engine-sdk "$tmp/crates/virage-engine-sdk"
 
           HEAD_SHORT=$(git rev-parse --short HEAD)
 

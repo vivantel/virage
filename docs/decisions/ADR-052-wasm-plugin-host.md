@@ -1,7 +1,7 @@
 ---
 id: ADR-052
 title: WASM Component Model plugin host using wasmtime
-status: Proposed
+status: Accepted
 date: 2026-07-08
 related: [ADR-051]
 ---
