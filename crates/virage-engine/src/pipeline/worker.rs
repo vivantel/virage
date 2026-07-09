@@ -4,10 +4,10 @@ use bytes::Bytes;
 use tokio::sync::mpsc;
 use virage_vidoc::{DocNode, DocNodeAttrs, DocNodeType};
 
+use super::{EmbeddedChunk, WorkItem, WorkResult};
 use crate::chunkers::walk::{walk_to_chunks, WalkOptions};
 use crate::embedders::Embedder;
 use crate::sources::SourceProvider;
-use crate::transport::{EmbeddedChunk, WorkItem, WorkResult};
 
 use super::{PipelineConfig, ProgressCounters};
 
@@ -35,7 +35,6 @@ pub async fn worker_task(
             Ok(chunks) => {
                 let n = chunks.len();
                 let result = WorkResult {
-                    msg_id: item.msg_id.clone(),
                     path: item.path.clone(),
                     chunks,
                 };

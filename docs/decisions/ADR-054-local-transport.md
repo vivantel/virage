@@ -1,59 +1,75 @@
 ---
 id: ADR-054
-title: LocalTransport as the built-in single-machine pipeline transport
-status: Proposed
+title: CE pipeline uses direct tokio channels; Transport abstraction deferred to EE
+status: Accepted
 date: 2026-07-08
+amended: 2026-07-09
 related: [ADR-051, ADR-053]
 ---
 
 ## Context
 
 The Rust pipeline (ADR-053) distributes work from a coordinator to N workers. On a single
-machine this is trivially done with tokio `mpsc` channels. The coordinator and workers share
-a process address space, so no serialization or network hops are required.
+machine this is trivially done with `tokio::sync::mpsc` channels. The coordinator and workers
+share a process address space, so no serialization, acknowledgement protocol, or network hops
+are required.
 
-The pipeline needs a well-defined `Transport` abstraction so the coordinator and worker code
-are not hard-coded to a specific delivery mechanism, and so additional transport backends can
-be supplied without modifying the core pipeline.
+An earlier draft of this ADR introduced a `Transport` trait in `src/transport/` with `ack`,
+`nack`, and `msg_id` semantics borrowed from message-broker protocols (NATS JetStream,
+Kafka). The only implementation was `LocalTransport` — a thin wrapper that made `ack`/`nack`
+no-ops. This abstraction was removed because:
+
+- `ack`/`nack` and `msg_id` are purely distributed-systems concepts with no meaning
+  in a single-process CE pipeline.
+- `LocalTransport` added indirection (`Arc<dyn Transport>`) with no runtime benefit.
+- The extension point for clustering belongs in EE (`virage-engine-ee`), not CE.
 
 ## Decision
 
-Define a `Transport` trait in `src/transport/mod.rs` and implement `LocalTransport` as the
-built-in single-machine transport.
+The CE coordinator and worker own `tokio::sync::mpsc` channels directly. There is no
+`Transport` trait, no `LocalTransport`, and no `msg_id` on work items.
 
-**`Transport` trait:**
+**Pipeline types** live in `src/pipeline/mod.rs`:
 ```rust
-pub trait Transport: Send + Sync + 'static {
-    async fn push_work(&self, item: &WorkItem) -> Result<()>;
-    async fn pull_work(&self) -> Result<Option<WorkItem>>;
-    async fn push_result(&self, result: &WorkResult) -> Result<()>;
-    async fn pull_result(&self) -> Result<Option<WorkResult>>;
-    async fn ack(&self, msg_id: &str) -> Result<()>;
-    async fn nack(&self, msg_id: &str) -> Result<()>;
+pub struct WorkItem {
+    pub path: String,
+    pub revision: String,
+    pub labels: Vec<String>,
+}
+
+pub struct WorkResult {
+    pub path: String,
+    pub chunks: Vec<EmbeddedChunk>,
 }
 ```
-`WorkItem` and `WorkResult` are JSON-serialized so the wire format is transport-agnostic.
 
-**`LocalTransport`** (`src/transport/local.rs`): two `tokio::sync::mpsc::channel` pairs (work
-+ result). `ack`/`nack` are no-ops — in-process delivery never loses messages.
+**Channel wiring** (coordinator):
+```rust
+let (work_tx, work_rx) = mpsc::channel::<WorkItem>(workers * 4);
+let (result_tx, result_rx) = mpsc::channel::<WorkResult>(workers * 8);
+// spawn N worker tasks, each receives a cloned Arc<Mutex<Receiver<WorkItem>>>
+```
 
-`LocalTransport` is the only built-in transport. It is selected automatically when no
-`pipeline.transport` config key is set (the default).
+**`--workers N` flag:** controls the number of tokio worker tasks. Default:
+`std::thread::available_parallelism()`. Tokio bounded channels provide back-pressure
+automatically.
 
-**`--workers N` flag:** controls the number of tokio worker tasks pulling from the work
-channel. Default: `std::thread::available_parallelism()`.
+When EE Phase 8 adds NATS/Kafka clustering, `virage-engine-ee` introduces the `Transport`
+trait and parameterizes a new EE coordinator over it. The CE coordinator is unchanged.
 
 ## Alternatives rejected
 
-**Hard-code `mpsc` channels in coordinator/worker:** Works identically but couples the
-pipeline to a single delivery mechanism, preventing future extension without refactoring.
+**Keep `Transport` trait in CE as an extension point:** Introduces `ack`/`nack`/`msg_id`
+EE broker concepts into CE code. The no-op `LocalTransport` wrapper adds indirection for
+no benefit. The trait was removed and deferred to EE where it is actually needed.
 
 **gRPC between coordinator and workers on the same machine:** Adds proto compilation and
 serde overhead with zero benefit over in-process channels.
 
 ## Consequences
 
-- `LocalTransport` requires no external services — `virage index` works offline.
-- The `Transport` trait is the extension point for any additional transport backends.
-- `virage index --workers N` caps concurrency at N; tokio bounded channels provide
-  back-pressure automatically.
+- CE pipeline has no `src/transport/` module; types live in `src/pipeline/`.
+- `virage index` works offline with no external services.
+- `virage index --workers N` caps concurrency at N.
+- EE clustering (Phase 8) introduces its own `Transport` trait in `virage-engine-ee`;
+  no CE code changes required at that point.

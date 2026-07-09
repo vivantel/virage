@@ -2,7 +2,41 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 
 pub use crate::chunkers::walk::ArtifactSet;
-pub use crate::transport::{EmbeddedChunk, WorkItem, WorkResult};
+
+// ─── Pipeline types ───────────────────────────────────────────────────────────
+
+/// A single file to be processed by the pipeline.
+#[derive(Debug, Clone)]
+pub struct WorkItem {
+    /// File path (relative to source root).
+    pub path: String,
+    /// Stable content revision token (git blob SHA or content hash).
+    pub revision: String,
+    /// Labels applied by the index-time label pipeline.
+    pub labels: Vec<String>,
+}
+
+/// Chunks produced by a worker for a single `WorkItem`.
+#[derive(Debug)]
+pub struct WorkResult {
+    pub path: String,
+    pub chunks: Vec<EmbeddedChunk>,
+}
+
+/// An `ArtifactSet` with its dense embedding vector attached.
+pub struct EmbeddedChunk {
+    pub artifact: ArtifactSet,
+    pub dense_vector: Vec<f32>,
+}
+
+impl std::fmt::Debug for EmbeddedChunk {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("EmbeddedChunk")
+            .field("dense_text_hash", &self.artifact.dense_text_hash)
+            .field("dims", &self.dense_vector.len())
+            .finish()
+    }
+}
 
 pub mod coordinator;
 pub mod worker;
@@ -105,13 +139,10 @@ mod tests {
     use std::collections::HashMap;
     use std::sync::Arc;
 
+    use super::*;
     use crate::embedders::Embedder;
     use crate::sources::{ByteRange, ChangedFiles, SourceFilter, SourceItem, SourceProvider};
     use crate::stores::{SearchOptions, SearchResult, VectorDocument, VectorStore};
-    use crate::transport::local::LocalTransport;
-    use crate::transport::{Transport, WorkItem};
-
-    use super::*;
 
     // ── Minimal mock implementations ─────────────────────────────────────────
 
@@ -241,21 +272,6 @@ mod tests {
     }
 
     // ── Tests ────────────────────────────────────────────────────────────────
-
-    #[tokio::test]
-    async fn local_transport_roundtrip() {
-        let t = LocalTransport::new(4, 4);
-        t.push_work(WorkItem {
-            msg_id: "1".into(),
-            path: "a.rs".into(),
-            revision: "r1".into(),
-            labels: vec![],
-        })
-        .await
-        .unwrap();
-        let item = t.pull_work().await.unwrap().unwrap();
-        assert_eq!(item.path, "a.rs");
-    }
 
     #[tokio::test]
     async fn progress_counters_are_atomic() {

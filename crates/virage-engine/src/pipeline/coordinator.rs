@@ -4,10 +4,10 @@ use std::sync::Arc;
 use futures::StreamExt;
 use tokio::sync::mpsc;
 
+use super::{EmbeddedChunk, WorkItem, WorkResult};
 use crate::embedders::Embedder;
 use crate::sources::SourceProvider;
 use crate::stores::{VectorDocument, VectorStore};
-use crate::transport::{EmbeddedChunk, WorkItem, WorkResult};
 
 use super::{PipelineConfig, PipelineStats, ProgressCounters};
 
@@ -59,7 +59,6 @@ pub async fn run_pipeline(
             }
             _ => {
                 to_process.push(WorkItem {
-                    msg_id: item.id.clone(),
                     path: item.path.clone(),
                     revision: current_rev,
                     labels: item.labels.clone(),

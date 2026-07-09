@@ -814,10 +814,7 @@ async fn cmd_serve(args: ConfigPathArg) -> anyhow::Result<()> {
         let Some(id) = request.get("id").cloned() else {
             continue;
         };
-        let method = request
-            .get("method")
-            .and_then(|m| m.as_str())
-            .unwrap_or("");
+        let method = request.get("method").and_then(|m| m.as_str()).unwrap_or("");
         let result: Result<serde_json::Value, serde_json::Value> = match method {
             "initialize" => Ok(serde_json::json!({
                 "protocolVersion": "2024-11-05",
@@ -905,16 +902,12 @@ async fn mcp_tool_call(
         "search_chunks" => {
             let query = args["query"].as_str().unwrap_or_default().to_string();
             if query.is_empty() {
-                return Err(
-                    serde_json::json!({"code":-32602,"message":"query is required"}),
-                );
+                return Err(serde_json::json!({"code":-32602,"message":"query is required"}));
             }
             let top_k = args["top_k"].as_u64().unwrap_or(5) as usize;
             let vec = embedder
                 .lock()
-                .map_err(|_| {
-                    serde_json::json!({"code":-32603,"message":"embedder lock poisoned"})
-                })?
+                .map_err(|_| serde_json::json!({"code":-32603,"message":"embedder lock poisoned"}))?
                 .embed_batch(std::slice::from_ref(&query))
                 .map_err(|e| serde_json::json!({"code":-32603,"message":e.to_string()}))?;
             let opts = SearchOptions {

@@ -24,5 +24,3 @@ pub mod sources;
     feature = "store-types"
 ))]
 pub mod stores;
-#[cfg(feature = "pipeline")]
-pub mod transport;
