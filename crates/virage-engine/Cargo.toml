@@ -64,8 +64,11 @@ cli    = [
 # CI builds the virage binary with --features cli,download-binaries --no-default-features.
 # Users get a self-contained binary; no separate libonnxruntime installation required.
 download-binaries = ["dep:ort", "dep:tokenizers", "ort/download-binaries", "ort/std", "ort/api-24", "ort/tls-native"]
-# Phase 7 stub
-wasm-host = []
+# Phase 7 — WASM Component Model plugin host
+wasm-host = [
+    "dep:wasmtime", "dep:wasmtime-wasi",
+    "dep:anyhow",
+]
 
 [dependencies]
 virage-vidoc = { workspace = true }
@@ -116,3 +119,6 @@ rusqlite     = { version = "0.40",  features = ["bundled"], optional = true }
 # CLI binary
 clap         = { version = "4",    features = ["derive"], optional = true }
 indicatif    = { version = "0.17", optional = true }
+# WASM plugin host
+wasmtime     = { version = "46", default-features = false, features = ["cranelift", "component-model", "std", "runtime", "threads", "anyhow"], optional = true }
+wasmtime-wasi = { version = "46", optional = true }
