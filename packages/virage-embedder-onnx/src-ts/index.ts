@@ -1,3 +1,8 @@
+console.warn(
+  "\x1b[33m⚠️  [deprecated]\x1b[0m @vivantel/virage-embedder-onnx is deprecated." +
+    " Use @vivantel/virage@2 instead: npm install -g @vivantel/virage@2",
+);
+
 import type { EmbeddingProvider, Logger } from "@vivantel/virage-core";
 import { createRequire } from "node:module";
 import { platform, arch } from "node:process";
