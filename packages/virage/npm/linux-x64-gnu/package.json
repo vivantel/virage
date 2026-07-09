@@ -1,0 +1,17 @@
+{
+  "name": "@vivantel/virage-linux-x64-gnu",
+  "version": "2.0.0",
+  "description": "Virage CE binary for linux-x64-gnu",
+  "os": ["linux"],
+  "cpu": ["x64"],
+  "main": "virage",
+  "files": ["virage"],
+  "publishConfig": {
+    "access": "public"
+  },
+  "license": "MIT OR Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/vivantel/virage.git"
+  }
+}

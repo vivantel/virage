@@ -1,0 +1,48 @@
+package virage:engine@2.0.0;
+
+/// Shared types used across all plugin worlds.
+interface types {
+    /// Metadata about a source file passed to chunker plugins.
+    record file-info {
+        path:        string,
+        hash:        string,
+        size:        u64,
+        modified-ms: u64,
+    }
+
+    /// A single chunk produced by a chunker plugin.
+    record chunk {
+        /// Breadcrumb + full body — embedding target.
+        dense-text:       string,
+        /// Raw body without breadcrumb — BM25/FTS target.
+        sparse-text:      string,
+        /// sha256(denseText)[0..16] — primary dedup key.
+        dense-text-hash:  string,
+        source-file:      string,
+        commit-hash:      string,
+        /// JSON-encoded ChunkMeta (page, section, labels, etc.).
+        metadata-json:    string,
+    }
+
+    /// A file or object emitted by a source provider plugin.
+    record source-item {
+        id:            string,
+        path:          string,
+        provider-name: string,
+        labels:        list<string>,
+    }
+
+    /// Glob-based filter passed to source provider list-all.
+    record source-filter {
+        include-globs: option<list<string>>,
+        ignore-globs:  option<list<string>>,
+    }
+
+    /// A search result candidate passed to a reranker plugin.
+    record search-candidate {
+        id:            string,
+        dense-text:    string,
+        score:         f32,
+        metadata-json: string,
+    }
+}

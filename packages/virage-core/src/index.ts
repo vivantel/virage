@@ -1,3 +1,8 @@
+console.warn(
+  "\x1b[33m⚠️  [deprecated]\x1b[0m @vivantel/virage-core is deprecated." +
+    " Install @vivantel/virage@2 instead: npm install -g @vivantel/virage@2",
+);
+
 // Interfaces
 export * from "./interfaces/index.js";
 

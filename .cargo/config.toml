@@ -3,3 +3,9 @@
 # Or use `cross` (Docker-based): cargo install cross --git https://github.com/cross-rs/cross
 [target.aarch64-unknown-linux-gnu]
 linker = "aarch64-linux-gnu-gcc"
+
+# Use ld.bfd instead of lld for the x86_64 native target.
+# lld OOMs on this machine (3.7GB RAM) when linking large binaries.
+[target.x86_64-unknown-linux-gnu]
+linker = "gcc"
+rustflags = ["-C", "link-arg=-fuse-ld=bfd"]

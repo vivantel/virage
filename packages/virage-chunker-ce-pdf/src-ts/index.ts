@@ -1,3 +1,8 @@
+console.warn(
+  "\x1b[33m⚠️  [deprecated]\x1b[0m @vivantel/virage-chunker-ce-pdf is deprecated." +
+    " Use @vivantel/virage@2 instead: npm install -g @vivantel/virage@2",
+);
+
 import { createNativeChunker } from "@vivantel/virage-chunker-ce-ast";
 import type { BaseOptions, ParseResult } from "@vivantel/virage-chunker-ce-ast";
 import { createRequire } from "node:module";

@@ -1,5 +1,10 @@
 #!/usr/bin/env node
 
+console.warn(
+  "\x1b[33m⚠️  [deprecated]\x1b[0m @vivantel/virage-cli is deprecated." +
+    " Install @vivantel/virage@2 instead: npm install -g @vivantel/virage@2",
+);
+
 import { Command } from "commander";
 import { config } from "dotenv";
 import {

@@ -65,7 +65,7 @@ jobs:
           if [[ "${{ needs.release-please.outputs.virage-embedder-openai }}" == "true" ]]; then packages+=("virage-embedder-openai"); fi
           if [[ "${{ needs.release-please.outputs.virage-embedder-transformers }}" == "true" ]]; then packages+=("virage-embedder-transformers"); fi
           if [[ "${{ needs.release-please.outputs.virage-embedder-fastembed }}" == "true" ]]; then packages+=("virage-embedder-fastembed"); fi
-          # virage-embedder-onnx is a native Rust addon — published via native-publish.yaml (tag-triggered)
+          # virage-embedder-onnx is deprecated (Phase 9); native-publish.yaml removed; no new releases.
           if [[ "${{ needs.release-please.outputs.virage-store-postgres }}" == "true" ]]; then packages+=("virage-store-postgres"); fi
           if [[ "${{ needs.release-please.outputs.virage-store-qdrant }}" == "true" ]]; then packages+=("virage-store-qdrant"); fi
           if [[ "${{ needs.release-please.outputs.virage-store-lancedb }}" == "true" ]]; then packages+=("virage-store-lancedb"); fi
@@ -83,7 +83,10 @@ jobs:
           if [[ "${{ needs.release-please.outputs.virage-reranker-cross-encoder }}" == "true" ]]; then packages+=("virage-reranker-cross-encoder"); fi
           if [[ "${{ needs.release-please.outputs.virage-reranker-llm }}" == "true" ]]; then packages+=("virage-reranker-llm"); fi
           if [[ "${{ needs.release-please.outputs.virage-git-isomorphic }}" == "true" ]]; then packages+=("virage-git-isomorphic"); fi
-          # CE pure-TS packages (native ones are published via native-publish.yaml)
+          # CE pure-TS packages only — deprecated napi packages (ce-pdf, ce-md, ce-docx, ce-latex,
+          # ce-lang) are frozen at their last published native version; native-publish.yaml was removed
+          # in Phase 9; TS-only publish is blocked until the platform-stub optionalDependency is
+          # removed. See ADR-051. Excluded: virage-chunker-ce-{pdf,md,docx,latex,lang}
           if [[ "${{ needs.release-please.outputs.virage-chunker-ce-ast }}" == "true" ]]; then packages+=("virage-chunker-ce-ast"); fi
           if [[ "${{ needs.release-please.outputs.virage-chunker-ce-ts }}" == "true" ]]; then packages+=("virage-chunker-ce-ts"); fi
           if [[ ${#packages[@]} -gt 0 ]]; then

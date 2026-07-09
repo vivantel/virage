@@ -1,0 +1,237 @@
+name: Build & Publish Virage Binary
+
+on:
+  push:
+    tags:
+      - 'virage-v2.*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to publish (e.g. 2.0.0)'
+        required: true
+        type: string
+
+concurrency:
+  group: virage-publish-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build virage / ${{ matrix.platform-name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        platform-name:
+          - linux-x64-gnu
+          - linux-arm64-gnu
+          - darwin-arm64
+          - win32-x64-msvc
+        include:
+          - { platform-name: linux-x64-gnu,   os: ubuntu-latest,  target: x86_64-unknown-linux-gnu,  use-zigbuild: true }
+          - { platform-name: linux-arm64-gnu, os: ubuntu-latest,  target: aarch64-unknown-linux-gnu, use-cross: true }
+          - { platform-name: darwin-arm64,    os: macos-latest,   target: aarch64-apple-darwin }
+          - { platform-name: win32-x64-msvc,  os: windows-latest, target: x86_64-pc-windows-msvc }
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-${{ matrix.target }}-virage-bin-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ matrix.target }}-virage-bin-
+
+      # ── linux-x64-gnu: cargo-zigbuild → glibc 2.17 (ADR-050) ──────────────
+
+      - name: Install cargo-zigbuild (linux-x64-gnu)
+        if: matrix.use-zigbuild == true
+        run: pip3 install ziglang && cargo install cargo-zigbuild
+
+      - name: Build (linux-x64-gnu — glibc 2.17 via cargo-zigbuild)
+        if: matrix.use-zigbuild == true
+        run: |
+          cargo zigbuild -p virage-engine --bin virage --release \
+            --target x86_64-unknown-linux-gnu.2.17 \
+            --features cli,download-binaries \
+            --no-default-features
+          cp target/x86_64-unknown-linux-gnu/release/virage virage-linux-x64-gnu
+
+      # ── linux-arm64-gnu: cross-compile ─────────────────────────────────────
+
+      - name: Install cross-compilation toolchain (ARM64 Linux)
+        if: matrix.use-cross == true
+        run: sudo apt-get install -y gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
+
+      - name: Build (linux-arm64-gnu)
+        if: matrix.use-cross == true
+        env:
+          CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
+        run: |
+          cargo build -p virage-engine --bin virage --release \
+            --target aarch64-unknown-linux-gnu \
+            --features cli,download-binaries \
+            --no-default-features
+          cp target/aarch64-unknown-linux-gnu/release/virage virage-linux-arm64-gnu
+
+      # ── darwin-arm64 ───────────────────────────────────────────────────────
+
+      - name: Build (darwin-arm64)
+        if: matrix.platform-name == 'darwin-arm64'
+        env:
+          MACOSX_DEPLOYMENT_TARGET: "11.0"
+        run: |
+          cargo build -p virage-engine --bin virage --release \
+            --target aarch64-apple-darwin \
+            --features cli,download-binaries \
+            --no-default-features
+          cp target/aarch64-apple-darwin/release/virage virage-darwin-arm64
+
+      # ── win32-x64-msvc ─────────────────────────────────────────────────────
+
+      - name: Build (win32-x64-msvc)
+        if: matrix.platform-name == 'win32-x64-msvc'
+        run: |
+          cargo build -p virage-engine --bin virage --release `
+            --target x86_64-pc-windows-msvc `
+            --features cli,download-binaries `
+            --no-default-features
+          Copy-Item target\x86_64-pc-windows-msvc\release\virage.exe virage-win32-x64-msvc.exe
+        shell: pwsh
+
+      # ── Upload ─────────────────────────────────────────────────────────────
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: virage-${{ matrix.platform-name }}
+          path: |
+            virage-linux-x64-gnu
+            virage-linux-arm64-gnu
+            virage-darwin-arm64
+            virage-win32-x64-msvc.exe
+          if-no-files-found: ignore
+
+  publish:
+    name: Publish @vivantel/virage
+    needs: build
+    if: always() && needs.build.result == 'success'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.RELEASE_TOKEN }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+          registry-url: https://registry.npmjs.org
+          cache: npm
+
+      - name: Patch lockfile stub version fields
+        run: node scripts/patch-lockfile-stubs.cjs
+
+      - run: npm ci --omit=optional
+
+      - name: Download binary artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: binaries/
+
+      - name: Place binaries into npm/ dirs
+        run: |
+          set -euo pipefail
+          for platform in linux-x64-gnu linux-arm64-gnu darwin-arm64; do
+            src="binaries/virage-${platform}/virage-${platform}"
+            dst="packages/virage/npm/${platform}/virage"
+            if [ ! -f "$src" ]; then
+              echo "ERROR: missing binary for ${platform}: ${src}"
+              exit 1
+            fi
+            cp "$src" "$dst"
+            chmod +x "$dst"
+          done
+          src="binaries/virage-win32-x64-msvc/virage-win32-x64-msvc.exe"
+          dst="packages/virage/npm/win32-x64-msvc/virage.exe"
+          if [ ! -f "$src" ]; then
+            echo "ERROR: missing binary for win32-x64-msvc"
+            exit 1
+          fi
+          cp "$src" "$dst"
+
+      - name: Determine version
+        id: version
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "version=${{ inputs.version }}" >> "$GITHUB_OUTPUT"
+          else
+            tag="${GITHUB_REF#refs/tags/virage-v}"
+            echo "version=${tag}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Publish platform stubs
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          version="${{ steps.version.outputs.version }}"
+          for platform in linux-x64-gnu linux-arm64-gnu darwin-arm64 win32-x64-msvc; do
+            pkg_name="@vivantel/virage-${platform}"
+            if npm view "${pkg_name}@${version}" version 2>/dev/null | grep -qF "${version}"; then
+              echo "ℹ️  ${pkg_name}@${version} already on npm — skipping"
+            else
+              npm publish "packages/virage/npm/${platform}/" --access public
+            fi
+          done
+
+      - name: Publish @vivantel/virage
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          version="${{ steps.version.outputs.version }}"
+          if npm view "@vivantel/virage@${version}" version 2>/dev/null | grep -qF "${version}"; then
+            echo "ℹ️  @vivantel/virage@${version} already on npm — skipping"
+          else
+            npm publish --workspace packages/virage --access public
+          fi
+
+      - name: Sync lockfile post-publish
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git checkout -- package-lock.json 2>/dev/null || true
+          git fetch origin master
+          git checkout -B master origin/master
+
+          for push_attempt in 1 2 3 4 5; do
+            for resolve_attempt in 1 2 3; do
+              npm install --package-lock-only --ignore-scripts --silent && break
+              echo "Registry not yet consistent, waiting 30s (attempt $resolve_attempt)..."
+              sleep 30
+            done
+            node scripts/patch-lockfile-stubs.cjs
+
+            git diff --quiet package-lock.json && exit 0
+            git add package-lock.json
+            git commit -m "chore: sync package-lock.json [skip ci]"
+            git push origin master && exit 0
+
+            echo "Push attempt $push_attempt failed, re-syncing..."
+            git reset HEAD~1
+            git checkout -- package-lock.json
+            git fetch origin master
+            git rebase origin/master
+          done
+          exit 1

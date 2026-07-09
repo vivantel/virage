@@ -1,0 +1,28 @@
+package virage:engine@2.0.0;
+
+/// Chunker plugin world.
+///
+/// The host reads file bytes via SourceProvider.read-content() and passes them
+/// directly — the plugin never receives a file path and cannot access the host FS.
+world chunker {
+    use types.{file-info, chunk};
+
+    /// Initialize the chunker with a JSON config string.
+    export init: func(config-json: string) -> result<_, string>;
+
+    /// Return glob patterns this chunker handles (e.g. ["**/*.md"]).
+    export patterns: func() -> list<string>;
+
+    /// Parse raw bytes into a ViDoc JSON string (DocNode tree).
+    ///
+    /// Host passes bytes already read from the source; plugin must not perform
+    /// any file I/O. Returns an opaque JSON string consumed by `chunk`.
+    export parse: func(info: file-info, bytes: list<u8>) -> result<string, string>;
+
+    /// Convert a parsed ViDoc JSON tree into a list of chunks.
+    export chunk: func(
+        doc-json:    string,
+        info:        file-info,
+        commit-hash: string,
+    ) -> result<list<chunk>, string>;
+}

@@ -1,4 +1,10 @@
 #!/usr/bin/env node
+
+console.warn(
+  "\x1b[33m⚠️  [deprecated]\x1b[0m @vivantel/virage-mcp is deprecated." +
+    " Install @vivantel/virage@2 instead: npm install -g @vivantel/virage@2",
+);
+
 import { watch } from "fs";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import {

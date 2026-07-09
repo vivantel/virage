@@ -1,0 +1,127 @@
+[package]
+name        = "virage-engine"
+version     = "0.1.0"
+edition     = "2021"
+description = "Virage CE Rust monolith — chunkers, embedders, pipeline (ADR-051)"
+license     = "MIT OR Apache-2.0"
+
+[lib]
+crate-type = ["rlib"]
+
+[[bin]]
+name = "virage"
+path = "src/bin/virage.rs"
+required-features = ["cli"]
+
+[features]
+default     = ["chunker-all", "embedder-onnx", "wasm-host"]
+chunker-all = ["chunker-md", "chunker-pdf", "chunker-docx", "chunker-latex", "chunker-lang"]
+chunker-md  = ["dep:comrak"]
+chunker-pdf = ["dep:lopdf"]
+chunker-docx   = ["dep:docx-rs"]
+chunker-latex  = []
+chunker-lang   = [
+    "dep:tree-sitter",
+    "dep:tree-sitter-python",
+    "dep:tree-sitter-javascript",
+    "dep:tree-sitter-typescript",
+    "dep:tree-sitter-java",
+    "dep:tree-sitter-go",
+    "dep:tree-sitter-rust",
+    "dep:tree-sitter-c",
+    "dep:tree-sitter-cpp",
+    "dep:tree-sitter-c-sharp",
+    "dep:tree-sitter-ruby",
+]
+embedder-onnx = ["dep:ort", "dep:tokenizers", "ort/load-dynamic", "ort/std", "ort/api-24"]
+# Phase 2 — source providers
+source-all    = ["source-git", "source-localfs"]
+source-git    = ["dep:git2", "dep:tokio", "dep:async-trait", "dep:futures", "dep:bytes", "dep:anyhow", "dep:globset"]
+source-localfs = ["dep:walkdir", "dep:tokio", "dep:async-trait", "dep:futures", "dep:bytes", "dep:anyhow", "dep:sha2", "dep:globset"]
+# Phase 3 — vector store adapters
+store-all      = ["store-lancedb", "store-qdrant", "store-postgres", "store-chromadb", "db-sqlite"]
+store-lancedb  = ["dep:lancedb", "dep:arrow-array", "dep:arrow-schema", "dep:tokio", "dep:async-trait", "dep:anyhow", "dep:futures"]
+store-qdrant   = ["dep:qdrant-client", "dep:tokio", "dep:async-trait", "dep:anyhow"]
+store-postgres = ["dep:sqlx", "dep:tokio", "dep:async-trait", "dep:anyhow"]
+store-chromadb = ["dep:reqwest", "dep:tokio", "dep:async-trait", "dep:anyhow", "dep:serde"]
+# Phase 3 — SQLite state store
+db-sqlite = ["dep:rusqlite"]
+# Phase 4 — pipeline
+source-types  = ["dep:async-trait", "dep:futures", "dep:bytes", "dep:anyhow", "dep:globset"]
+store-types   = ["dep:async-trait", "dep:anyhow"]
+chunker-walk  = ["dep:sha2"]
+pipeline      = ["chunker-walk", "source-types", "store-types", "db-sqlite",
+                 "dep:tokio", "dep:async-trait", "dep:anyhow", "dep:futures", "dep:bytes"]
+# Phase 5 — CLI binary
+config = ["dep:serde"]
+cli    = [
+    "pipeline", "source-all",
+    "store-qdrant", "store-postgres", "store-chromadb", "db-sqlite",
+    "embedder-onnx", "config",
+    "dep:clap", "dep:indicatif", "dep:dialoguer", "dep:flate2", "dep:tar",
+]
+# Phase 6 — production binary builds: bundle ORT instead of loading dynamically.
+# CI builds the virage binary with --features cli,download-binaries --no-default-features.
+# Users get a self-contained binary; no separate libonnxruntime installation required.
+download-binaries = ["dep:ort", "dep:tokenizers", "ort/download-binaries", "ort/std", "ort/api-24", "ort/tls-native"]
+# Phase 7 — WASM Component Model plugin host
+wasm-host = [
+    "dep:wasmtime", "dep:wasmtime-wasi",
+    "dep:anyhow",
+]
+
+[dependencies]
+virage-vidoc = { workspace = true }
+serde_json   = { workspace = true }
+
+# Chunker deps — optional, enabled via feature flags
+comrak  = { version = "0.52", optional = true }
+lopdf   = { version = "0.41", default-features = false, optional = true }
+docx-rs = { version = "0.4",  default-features = false, optional = true }
+
+tree-sitter            = { version = "0.23", optional = true }
+tree-sitter-python     = { version = "0.23", optional = true }
+tree-sitter-javascript = { version = "0.23", optional = true }
+tree-sitter-typescript = { version = "0.23", optional = true }
+tree-sitter-java       = { version = "0.23", optional = true }
+tree-sitter-go         = { version = "0.23", optional = true }
+tree-sitter-rust       = { version = "0.23", optional = true }
+tree-sitter-c          = { version = "0.23", optional = true }
+tree-sitter-cpp        = { version = "0.23", optional = true }
+tree-sitter-c-sharp    = { version = "0.23", optional = true }
+tree-sitter-ruby       = { version = "0.23", optional = true }
+
+# Embedder deps — optional, enabled via feature flags
+ort        = { version = "2.0.0-rc.12", default-features = false, optional = true }
+tokenizers = { version = "0.21", default-features = false, features = ["onig"], optional = true }
+
+# Source provider deps — optional, enabled via feature flags
+git2        = { version = "0.21", features = ["vendored-libgit2"], optional = true }
+walkdir     = { version = "2",    optional = true }
+tokio       = { version = "1",    features = ["fs", "rt", "rt-multi-thread", "macros", "sync"], optional = true }
+async-trait = { version = "0.1",  optional = true }
+futures     = { version = "0.3",  optional = true }
+bytes       = { version = "1",    optional = true }
+anyhow      = { version = "1",    optional = true }
+sha2        = { version = "0.10", optional = true }
+globset     = { version = "0.4",  optional = true }
+
+# Store adapter deps — optional, enabled via feature flags
+lancedb      = { version = "0.31",  optional = true }
+arrow-array  = { version = "58",    optional = true }
+arrow-schema = { version = "58",    optional = true }
+qdrant-client = { version = "1.18", optional = true }
+sqlx         = { version = "0.9",   default-features = false, features = ["runtime-tokio", "tls-native-tls", "postgres"], optional = true }
+reqwest      = { version = "0.12",  default-features = false, features = ["json", "rustls-tls"], optional = true }
+serde        = { workspace = true, optional = true }
+# SQLite state store
+rusqlite     = { version = "0.40",  features = ["bundled"], optional = true }
+# CLI binary
+clap         = { version = "4",    features = ["derive"], optional = true }
+indicatif    = { version = "0.17", optional = true }
+dialoguer    = { version = "0.11", optional = true }
+flate2       = { version = "1",    optional = true }
+tar          = { version = "0.4",  optional = true }
+# WASM plugin host
+wasmtime     = { version = "46", default-features = false, features = ["cranelift", "component-model", "std", "runtime", "threads", "anyhow"], optional = true }
+wasmtime-wasi = { version = "46", optional = true }

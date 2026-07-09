@@ -1,0 +1,33 @@
+package virage:engine@2.0.0;
+
+/// Source provider plugin world.
+world source {
+    use types.{source-item, source-filter};
+
+    /// Initialize the source provider with a JSON config string.
+    export init: func(config-json: string) -> result<_, string>;
+
+    /// List all items, paginated by cursor.
+    ///
+    /// Returns (items, next-cursor). Pass next-cursor back to continue iteration;
+    /// option::none means the listing is complete. Cursor-paginated because WASM
+    /// does not support async iterators across the component boundary.
+    export list-all: func(
+        filter:    option<source-filter>,
+        cursor:    option<string>,
+        page-size: u32,
+    ) -> result<tuple<list<source-item>, option<string>>, string>;
+
+    /// Read raw bytes for a file at the given path.
+    ///
+    /// start/end are byte offsets for range reads (inclusive start, exclusive end).
+    /// Pass option::none for both to read the entire file.
+    export read-content: func(
+        path:  string,
+        start: option<u64>,
+        end:   option<u64>,
+    ) -> result<list<u8>, string>;
+
+    /// Return a stable revision string for the given path (e.g. ETag, blob SHA).
+    export get-revision: func(path: string) -> result<string, string>;
+}

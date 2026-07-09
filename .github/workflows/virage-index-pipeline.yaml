@@ -3,6 +3,13 @@ name: Virage Index Pipeline
 on:
   push:
     branches: [master]
+    paths:
+      - 'docs/**'
+      - 'packages/**/src/**'
+      - 'crates/**'
+      - 'virage.config.ci.json'
+      - '.github/workflows/virage-index-pipeline.yaml'
+  workflow_dispatch:
 
 concurrency:
   group: virage-index-pipeline

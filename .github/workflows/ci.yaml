@@ -276,89 +276,11 @@ jobs:
             echo "::endgroup::"
           done
 
+      - name: Test virage-engine
+        run: cargo test -p virage-engine --features "pipeline,db-sqlite,wasm-host" --lib
+
       - name: Build CE native (linux-x64 validation)
         run: cargo build --release
-
-  build-ce-native:
-    name: ${{ matrix.package }} / ${{ matrix.platform-name }} (PR)
-    if: github.event_name == 'pull_request' && needs.changes.outputs.rust-changed == 'true'
-    needs: [rust-checks, changes]
-    strategy:
-      fail-fast: false
-      matrix:
-        package:
-          - virage-chunker-ce-pdf
-          - virage-chunker-ce-md
-          - virage-chunker-ce-docx
-          - virage-chunker-ce-latex
-          - virage-embedder-onnx
-        platform-name:
-          - linux-x64-gnu
-          - linux-arm64-gnu
-          - darwin-x64
-          - darwin-arm64
-          - win32-x64-msvc
-        include:
-          - { platform-name: linux-x64-gnu,   os: ubuntu-latest,  target: x86_64-unknown-linux-gnu }
-          - { platform-name: linux-arm64-gnu, os: ubuntu-latest,  target: aarch64-unknown-linux-gnu, use-cross: true }
-          - { platform-name: darwin-x64,      os: macos-latest,   target: x86_64-apple-darwin,      rust-flags: "-C link-arg=-undefined -C link-arg=dynamic_lookup" }
-          - { platform-name: darwin-arm64,    os: macos-latest,   target: aarch64-apple-darwin,     rust-flags: "-C link-arg=-undefined -C link-arg=dynamic_lookup" }
-          - { platform-name: win32-x64-msvc,  os: windows-latest, target: x86_64-pc-windows-msvc }
-          - { package: virage-embedder-onnx,  cargo-features: "--no-default-features --features download-binaries" }
-
-    runs-on: ${{ matrix.os }}
-
-    steps:
-      - uses: actions/checkout@v7
-
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: ${{ matrix.target }}
-
-      - uses: actions/cache@v6
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-${{ matrix.target }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-
-      - uses: actions/setup-node@v6
-        with:
-          node-version: lts/*
-          cache: npm
-
-      - name: Patch lockfile stub version fields
-        run: node scripts/patch-lockfile-stubs.cjs
-
-      - run: npm ci --omit=optional
-
-      - name: Install cross-compilation toolchain (ARM64 Linux)
-        if: matrix.use-cross == true
-        run: sudo apt-get install -y gcc-aarch64-linux-gnu
-
-      - name: Build (cross — ARM64 Linux)
-        if: matrix.use-cross == true
-        run: |
-          cd packages/${{ matrix.package }}
-          npx napi build --release --target ${{ matrix.target }} ${{ matrix.cargo-features }}
-        env:
-          CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
-
-      - name: Build (native)
-        if: matrix.use-cross != true
-        run: |
-          cd packages/${{ matrix.package }}
-          npx napi build --release --target ${{ matrix.target }} ${{ matrix.cargo-features }}
-        env:
-          RUSTFLAGS: ${{ matrix.rust-flags }}
-
-      - uses: actions/upload-artifact@v7
-        with:
-          name: ${{ matrix.package }}-${{ matrix.platform-name }}
-          path: packages/${{ matrix.package }}/*.node
-          if-no-files-found: error
 
   build-and-test:
     needs: changes

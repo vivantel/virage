@@ -1,0 +1,16 @@
+package virage:engine@2.0.0;
+
+/// Embedder plugin world.
+world embedder {
+    /// Initialize the embedder with a JSON config string.
+    export init: func(config-json: string) -> result<_, string>;
+
+    /// Return the number of dimensions in the embedding vector.
+    export dimensions: func() -> u32;
+
+    /// Embed a batch of texts.
+    ///
+    /// Returns a flat list of f32 values with length = texts.len() × dimensions().
+    /// The host reconstructs per-text vectors by striding at dimensions().
+    export embed-batch: func(texts: list<string>) -> result<list<f32>, string>;
+}
