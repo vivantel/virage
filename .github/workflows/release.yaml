@@ -168,6 +168,8 @@ jobs:
           node-version: lts/*
           registry-url: 'https://npm.pkg.github.com'
           cache: "npm"
+      - name: Patch lockfile stub version fields
+        run: node scripts/patch-lockfile-stubs.cjs
       - run: npm ci
       - run: npm run build --workspace packages/virage-core
       - name: Publish to GitHub Packages
@@ -189,6 +191,8 @@ jobs:
         with:
           node-version: lts/*
           cache: "npm"
+      - name: Patch lockfile stub version fields
+        run: node scripts/patch-lockfile-stubs.cjs
       - run: npm ci
       - run: npm run build --workspace packages/virage-core
       - name: Generate API documentation
