@@ -18,7 +18,13 @@ impl OnnxEmbedder {
         pooling: Pooling,
         normalize: bool,
     ) -> Self {
-        Self { session, dimensions, max_length, pooling, normalize }
+        Self {
+            session,
+            dimensions,
+            max_length,
+            pooling,
+            normalize,
+        }
     }
 }
 
@@ -71,7 +77,10 @@ impl Embedder for OnnxEmbedder {
         };
 
         if self.normalize {
-            Ok(pooled.chunks(self.dimensions).flat_map(l2_normalize).collect())
+            Ok(pooled
+                .chunks(self.dimensions)
+                .flat_map(l2_normalize)
+                .collect())
         } else {
             Ok(pooled)
         }

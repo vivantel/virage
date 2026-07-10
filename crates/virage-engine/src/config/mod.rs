@@ -35,7 +35,10 @@ pub struct PluginRef {
 
 impl PluginRef {
     pub fn usize_opt(&self, key: &str) -> Option<usize> {
-        self.options.get(key).and_then(|v| v.as_u64()).map(|n| n as usize)
+        self.options
+            .get(key)
+            .and_then(|v| v.as_u64())
+            .map(|n| n as usize)
     }
 }
 
@@ -61,7 +64,10 @@ impl<'de> serde::Deserialize<'de> for PluginRef {
                 ))
             }
         };
-        Ok(PluginRef { package, options: raw.options })
+        Ok(PluginRef {
+            package,
+            options: raw.options,
+        })
     }
 }
 
@@ -69,20 +75,20 @@ impl<'de> serde::Deserialize<'de> for PluginRef {
 /// These package names are then matched by substring in resolve.rs.
 fn builtin_to_package(key: &str) -> Option<&'static str> {
     match key {
-        "onnx"                  => Some("@vivantel/virage-embedder-onnx"),
-        "fastembed"             => Some("@vivantel/virage-embedder-fastembed"),
-        "lancedb"               => Some("@vivantel/virage-store-lancedb"),
-        "qdrant"                => Some("@vivantel/virage-store-qdrant"),
+        "onnx" => Some("@vivantel/virage-embedder-onnx"),
+        "fastembed" => Some("@vivantel/virage-embedder-fastembed"),
+        "lancedb" => Some("@vivantel/virage-store-lancedb"),
+        "qdrant" => Some("@vivantel/virage-store-qdrant"),
         "postgres" | "pgvector" => Some("@vivantel/virage-store-postgres"),
-        "chromadb" | "chroma"   => Some("@vivantel/virage-store-chromadb"),
-        "md" | "markdown"       => Some("@vivantel/virage-chunker-ce-md"),
-        "pdf"                   => Some("@vivantel/virage-chunker-ce-pdf"),
-        "docx" | "word"         => Some("@vivantel/virage-chunker-ce-docx"),
-        "latex" | "tex"         => Some("@vivantel/virage-chunker-ce-latex"),
-        "lang" | "code"         => Some("@vivantel/virage-chunker-ce-lang"),
-        "cross-encoder"         => Some("@vivantel/virage-reranker-cross-encoder"),
-        "llm-reranker" | "llm"  => Some("@vivantel/virage-reranker-llm"),
-        _                       => None,
+        "chromadb" | "chroma" => Some("@vivantel/virage-store-chromadb"),
+        "md" | "markdown" => Some("@vivantel/virage-chunker-ce-md"),
+        "pdf" => Some("@vivantel/virage-chunker-ce-pdf"),
+        "docx" | "word" => Some("@vivantel/virage-chunker-ce-docx"),
+        "latex" | "tex" => Some("@vivantel/virage-chunker-ce-latex"),
+        "lang" | "code" => Some("@vivantel/virage-chunker-ce-lang"),
+        "cross-encoder" => Some("@vivantel/virage-reranker-cross-encoder"),
+        "llm-reranker" | "llm" => Some("@vivantel/virage-reranker-llm"),
+        _ => None,
     }
 }
 

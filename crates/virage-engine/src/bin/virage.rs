@@ -5,9 +5,9 @@ use std::sync::Arc;
 use clap::{Args, Parser, Subcommand};
 use indicatif::{ProgressBar, ProgressStyle};
 
-use virage_engine::config::resolve::{resolve_embedder, resolve_source, resolve_store};
 #[cfg(feature = "embedder-onnx")]
 use virage_engine::config::resolve::resolve_reranker;
+use virage_engine::config::resolve::{resolve_embedder, resolve_source, resolve_store};
 use virage_engine::config::{default_db_path, find_config, load_config, VirageConfigJson};
 use virage_engine::db::VirageDb;
 use virage_engine::embedders::Embedder;
@@ -484,10 +484,15 @@ async fn cmd_query(args: QueryArgs) -> anyhow::Result<()> {
             .map_err(|e| anyhow::anyhow!("Reranker error: {e}"))?;
         let mut order: Vec<usize> = (0..results.len()).collect();
         order.sort_unstable_by(|&a, &b| {
-            scores[b].partial_cmp(&scores[a]).unwrap_or(std::cmp::Ordering::Equal)
+            scores[b]
+                .partial_cmp(&scores[a])
+                .unwrap_or(std::cmp::Ordering::Equal)
         });
         let mut slots: Vec<Option<_>> = results.into_iter().map(Some).collect();
-        results = order.into_iter().map(|i| slots[i].take().unwrap()).collect();
+        results = order
+            .into_iter()
+            .map(|i| slots[i].take().unwrap())
+            .collect();
     }
 
     // Apply min-similarity filter (on original vector-similarity score).

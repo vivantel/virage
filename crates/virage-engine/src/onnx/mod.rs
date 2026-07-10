@@ -35,12 +35,10 @@ impl EncodedBatch {
         let shape = [self.batch_size, self.seq_len];
         let ids_t = Tensor::from_array((shape, self.input_ids.clone().into_boxed_slice()))
             .map_err(|e| format!("tensor build error: {e}"))?;
-        let mask_t =
-            Tensor::from_array((shape, self.attention_mask.clone().into_boxed_slice()))
-                .map_err(|e| format!("tensor build error: {e}"))?;
-        let types_t =
-            Tensor::from_array((shape, self.token_type_ids.clone().into_boxed_slice()))
-                .map_err(|e| format!("tensor build error: {e}"))?;
+        let mask_t = Tensor::from_array((shape, self.attention_mask.clone().into_boxed_slice()))
+            .map_err(|e| format!("tensor build error: {e}"))?;
+        let types_t = Tensor::from_array((shape, self.token_type_ids.clone().into_boxed_slice()))
+            .map_err(|e| format!("tensor build error: {e}"))?;
         Ok((ids_t, mask_t, types_t))
     }
 }
@@ -65,11 +63,7 @@ impl OnnxInferenceSession {
     }
 
     /// Encode a batch of single texts.
-    pub fn encode_single(
-        &self,
-        texts: &[&str],
-        max_length: usize,
-    ) -> Result<EncodedBatch, String> {
+    pub fn encode_single(&self, texts: &[&str], max_length: usize) -> Result<EncodedBatch, String> {
         let encoded = self
             .tokenizer
             .encode_batch(texts.to_vec(), true)
@@ -121,7 +115,13 @@ fn pack_encodings(encoded: &[tokenizers::Encoding], max_length: usize) -> Encode
         }
     }
 
-    EncodedBatch { input_ids, attention_mask, token_type_ids, batch_size, seq_len }
+    EncodedBatch {
+        input_ids,
+        attention_mask,
+        token_type_ids,
+        batch_size,
+        seq_len,
+    }
 }
 
 // ─── Math helpers ─────────────────────────────────────────────────────────────

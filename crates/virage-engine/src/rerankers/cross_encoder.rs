@@ -16,7 +16,12 @@ impl CrossEncoderReranker {
         activation: ScoreActivation,
         score_index: usize,
     ) -> Self {
-        Self { session, max_length, activation, score_index }
+        Self {
+            session,
+            max_length,
+            activation,
+            score_index,
+        }
     }
 }
 
@@ -43,7 +48,10 @@ impl Reranker for CrossEncoderReranker {
         let logits_key = if outputs.contains_key("logits") {
             "logits"
         } else {
-            outputs.keys().next().ok_or("cross-encoder model produced no outputs")?
+            outputs
+                .keys()
+                .next()
+                .ok_or("cross-encoder model produced no outputs")?
         };
 
         let (_shape, logits) = outputs[logits_key]
@@ -53,8 +61,9 @@ impl Reranker for CrossEncoderReranker {
         let num_labels = logits.len() / batch.batch_size;
         let idx = self.score_index.min(num_labels.saturating_sub(1));
 
-        let raw: Vec<f32> =
-            (0..batch.batch_size).map(|b| logits[b * num_labels + idx]).collect();
+        let raw: Vec<f32> = (0..batch.batch_size)
+            .map(|b| logits[b * num_labels + idx])
+            .collect();
 
         Ok(match self.activation {
             ScoreActivation::None => raw,

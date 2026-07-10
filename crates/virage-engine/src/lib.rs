@@ -8,11 +8,11 @@ pub mod db;
 pub mod embedders;
 #[cfg(feature = "embedder-onnx")]
 pub mod onnx;
-pub mod rerankers;
 #[cfg(feature = "pipeline")]
 pub mod pipeline;
 #[cfg(feature = "wasm-host")]
 pub mod plugins;
+pub mod rerankers;
 #[cfg(any(
     feature = "source-git",
     feature = "source-localfs",

@@ -16,8 +16,7 @@ where
     T: for<'de> Deserialize<'de>,
 {
     let val = serde_json::Value::Object(spec.options.clone().into_iter().collect());
-    serde_json::from_value(val)
-        .map_err(|e| anyhow!("{}: invalid options: {e}", spec.package))
+    serde_json::from_value(val).map_err(|e| anyhow!("{}: invalid options: {e}", spec.package))
 }
 
 // ── ONNX model source — three mutually exclusive variants ─────────────────────
@@ -57,21 +56,31 @@ pub enum OnnxModelSource {
 impl OnnxModelSource {
     fn resolve_paths(&self) -> anyhow::Result<(String, String)> {
         match self {
-            OnnxModelSource::HuggingFace { model, model_file, tokenizer_file, cache_dir } => {
+            OnnxModelSource::HuggingFace {
+                model,
+                model_file,
+                tokenizer_file,
+                cache_dir,
+            } => {
                 let cache = cache_dir.as_deref().unwrap_or(".virage/model-cache");
                 let tok = tokenizer_file.as_deref().unwrap_or("tokenizer.json");
                 download_hf(model, cache, model_file.as_deref(), tok)
             }
-            OnnxModelSource::Url { model_url, tokenizer_url, cache_dir: _ } => {
+            OnnxModelSource::Url {
+                model_url,
+                tokenizer_url,
+                cache_dir: _,
+            } => {
                 anyhow::bail!(
                     "URL model download not yet implemented \
                      (modelUrl={model_url:?}, tokenizerUrl={tokenizer_url:?}); \
                      use 'model' for HuggingFace or 'modelPath'/'tokenizerPath' for local files"
                 )
             }
-            OnnxModelSource::Local { model_path, tokenizer_path } => {
-                Ok((model_path.clone(), tokenizer_path.clone()))
-            }
+            OnnxModelSource::Local {
+                model_path,
+                tokenizer_path,
+            } => Ok((model_path.clone(), tokenizer_path.clone())),
         }
     }
 }
