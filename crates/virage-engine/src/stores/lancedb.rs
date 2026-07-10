@@ -3,17 +3,26 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
 use arrow_array::{
-    ArrayRef, FixedSizeListArray, Float32Array, RecordBatch, RecordBatchIterator, StringArray,
+    Array, ArrayRef, FixedSizeListArray, Float32Array, RecordBatch, RecordBatchIterator,
+    StringArray,
 };
 use arrow_schema::{DataType, Field, Schema, SchemaRef};
 use async_trait::async_trait;
 use futures::TryStreamExt;
 use lancedb::index::scalar::FtsIndexBuilder;
 use lancedb::index::Index;
-use lancedb::query::{QueryBase, Select};
+use lancedb::query::{ExecutableQuery, QueryBase, Select};
 use lancedb::{Connection, Table};
 
-use super::{sql_in_list, SearchOptions, SearchResult, VectorDocument, VectorStore};
+use super::{SearchOptions, SearchResult, VectorDocument, VectorStore};
+
+fn sql_in_list(items: &[&str]) -> String {
+    items
+        .iter()
+        .map(|s| format!("'{}'", s.replace('\'', "''")))
+        .collect::<Vec<_>>()
+        .join(", ")
+}
 
 // ─── LanceDbStore ─────────────────────────────────────────────────────────────
 
@@ -234,12 +243,11 @@ impl VectorStore for LanceDbStore {
         let table = self.get_table().await?;
         let batch = self.docs_to_batch(docs)?;
         let reader = RecordBatchIterator::new(vec![Ok(batch)].into_iter(), self.schema.clone());
-        table
-            .merge_insert(&["id"])
+        let mut builder = table.merge_insert(&["id"]);
+        builder
             .when_matched_update_all(None)
-            .when_not_matched_insert_all()
-            .execute(Box::new(reader))
-            .await?;
+            .when_not_matched_insert_all();
+        builder.execute(Box::new(reader)).await?;
 
         // Create FTS index on first non-empty upsert (deferred from initialize).
         if !self.fts_created.load(Ordering::Relaxed) {
