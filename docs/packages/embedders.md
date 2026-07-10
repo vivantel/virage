@@ -1,14 +1,75 @@
 # Embedders
 
-Embedder plugins implement `EmbeddingProvider`. They convert text into float vectors stored in the vector store. ONNX inference is built into `@vivantel/virage` via `"builtin": "onnx"` in config — no separate package needed.
+Embedder plugins convert text into float vectors stored in the vector store. ONNX inference is built into `@vivantel/virage` via `"builtin": "onnx"` — no separate package needed.
 
 ## Quick reference
 
-| Package | Key | Requires | Model source |
+| Key | Package | Requires | Model source |
 |---|---|---|---|
-| `@vivantel/virage-embedder-openai` | `openai` | API key | OpenAI / compatible endpoint |
-| `@vivantel/virage-embedder-fastembed` | `fastembed` | None | Bundled ONNX (fastembed) |
-| `@vivantel/virage-embedder-transformers` | `transformers` | None | HuggingFace Hub (auto-download) |
+| `onnx` | built-in | None | HuggingFace Hub, local files |
+| `openai` | `@vivantel/virage-embedder-openai` | API key | OpenAI / compatible endpoint |
+| `fastembed` | `@vivantel/virage-embedder-fastembed` | None | HuggingFace Hub (fastembed) |
+| `transformers` | `@vivantel/virage-embedder-transformers` | None | HuggingFace Hub (auto-download) |
+
+---
+
+## Built-in ONNX embedder (`builtin: "onnx"`)
+
+ORT-based local embedder compiled into the `virage` binary. Model downloads from HuggingFace Hub on first use; subsequent runs use the cached files.
+
+**JSON config — HuggingFace download:**
+
+```json
+{
+  "providers": {
+    "embedder": {
+      "builtin": "onnx",
+      "options": {
+        "source": { "model": "Xenova/all-MiniLM-L6-v2", "cacheDir": ".virage/model-cache" },
+        "dimensions": 384
+      }
+    }
+  }
+}
+```
+
+**JSON config — local files:**
+
+```json
+{
+  "providers": {
+    "embedder": {
+      "builtin": "onnx",
+      "options": {
+        "source": { "modelPath": "/path/to/model.onnx", "tokenizerPath": "/path/to/tokenizer.json" },
+        "dimensions": 768
+      }
+    }
+  }
+}
+```
+
+**`source` variants (mutually exclusive — only one set of fields per `source` object):**
+
+| Variant | Required fields | Optional fields |
+|---|---|---|
+| HuggingFace | `model` | `modelFile`, `tokenizerFile`, `cacheDir` |
+| URL | `modelUrl`, `tokenizerUrl` | `cacheDir` |
+| Local | `modelPath`, `tokenizerPath` | — |
+
+**Top-level options:**
+
+| Option | Type | Default | Description |
+|---|---|---|---|
+| `source` | object | required | Model source (see variants above) |
+| `dimensions` | number | `384` | Output vector dimensions |
+| `maxLength` | number | `512` | Max token sequence length |
+| `pooling` | `"mean"` \| `"cls"` | `"mean"` | Pooling strategy |
+| `normalize` | boolean | `true` | L2-normalize output vectors |
+
+**`source.model` (HuggingFace)** — tries `onnx/model_quantized.onnx` first, then `onnx/model.onnx`. Override with `modelFile` to select a specific file.
+
+---
 
 ---
 

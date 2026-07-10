@@ -20,11 +20,12 @@ Requires `virage index` to have been run first.
 | Flag | Alias | Type | Default | Description |
 |------|-------|------|---------|-------------|
 | `--config <path>` | `-c` | string | `./virage.config.json` | Path to config file |
-| `--top-k <n>` | `-k` | number | `5` | Number of results to return |
-| `--hybrid` | — | boolean | config value | Enable hybrid search (dense + sparse) |
-| `--rerank` | — | boolean | `false` | Re-rank results with the configured re-ranker |
+| `--top-k <n>` | — | number | `5` | Number of results to return |
+| `--hybrid` | — | boolean | `false` | Enable hybrid search (dense + sparse) |
+| `--min-similarity <f>` | — | float | — | Drop results below this similarity threshold (0–1) |
 | `--json` | — | boolean | `false` | Output results as JSON |
-| `--branch <name>` | — | string | current branch | Filter results by git branch |
+
+**Reranking** is applied automatically when `providers.reranker` is set in the config — no extra flag needed. Results are re-scored by the cross-encoder and re-sorted before display.
 
 ## Examples
 
@@ -35,8 +36,11 @@ virage query "how does authentication work"
 # Return more results as JSON
 virage query "database schema" --top-k 10 --json
 
-# Hybrid search with re-ranking
-virage query "error handling patterns" --hybrid --rerank
+# Hybrid search (dense + sparse)
+virage query "error handling patterns" --hybrid
+
+# Filter out low-confidence results
+virage query "auth middleware" --min-similarity 0.6
 ```
 
 ## Related
