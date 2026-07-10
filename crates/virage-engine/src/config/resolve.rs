@@ -92,30 +92,60 @@ fn download_hf(
     model_file: Option<&str>,
     tokenizer_file: &str,
 ) -> anyhow::Result<(String, String)> {
-    use hf_hub::api::sync::ApiBuilder;
-    std::fs::create_dir_all(cache_dir)
-        .map_err(|e| anyhow!("Cannot create model cache dir {cache_dir:?}: {e}"))?;
-    let api = ApiBuilder::new()
-        .with_cache_dir(std::path::PathBuf::from(cache_dir))
-        .build()
-        .map_err(|e| anyhow!("HuggingFace API init error: {e}"))?;
-    let repo = api.model(model_id.to_string());
-    let model_path = if let Some(file) = model_file {
-        repo.get(file)
-            .map_err(|e| anyhow!("Failed to download {file:?} from {model_id:?}: {e}"))?
+    // Cache layout: {cache_dir}/models--{owner}--{name}/{safe_filename}
+    // (safe_filename replaces "/" with "--" so paths stay flat)
+    let model_slug = format!("models--{}", model_id.replace('/', "--"));
+    let model_cache = std::path::Path::new(cache_dir).join(&model_slug);
+    std::fs::create_dir_all(&model_cache)
+        .map_err(|e| anyhow!("Cannot create model cache dir {model_cache:?}: {e}"))?;
+
+    let tok_dest = model_cache.join(tokenizer_file.replace('/', "--"));
+    if !tok_dest.exists() {
+        hf_download(model_id, tokenizer_file, &tok_dest)?;
+    }
+
+    let onnx_dest = if let Some(file) = model_file {
+        let dest = model_cache.join(file.replace('/', "--"));
+        if !dest.exists() {
+            hf_download(model_id, file, &dest)
+                .map_err(|e| anyhow!("Failed to download {file:?} from {model_id:?}: {e}"))?;
+        }
+        dest
     } else {
-        // Prefer quantized (int8) — half the size, nearly identical quality.
-        repo.get("onnx/model_quantized.onnx")
-            .or_else(|_| repo.get("onnx/model.onnx"))
-            .map_err(|e| anyhow!("Failed to download ONNX model for {model_id:?}: {e}"))?
+        // Prefer quantized (int8) — fall back to full model.
+        let q_dest = model_cache.join("onnx--model_quantized.onnx");
+        if q_dest.exists() {
+            q_dest
+        } else if hf_download(model_id, "onnx/model_quantized.onnx", &q_dest).is_ok() {
+            q_dest
+        } else {
+            let f_dest = model_cache.join("onnx--model.onnx");
+            if !f_dest.exists() {
+                hf_download(model_id, "onnx/model.onnx", &f_dest)
+                    .map_err(|e| anyhow!("Failed to download ONNX model for {model_id:?}: {e}"))?;
+            }
+            f_dest
+        }
     };
-    let tokenizer_path = repo
-        .get(tokenizer_file)
-        .map_err(|e| anyhow!("Failed to download {tokenizer_file:?} for {model_id:?}: {e}"))?;
+
     Ok((
-        model_path.to_string_lossy().into_owned(),
-        tokenizer_path.to_string_lossy().into_owned(),
+        onnx_dest.to_string_lossy().into_owned(),
+        tok_dest.to_string_lossy().into_owned(),
     ))
+}
+
+#[cfg(feature = "embedder-onnx")]
+fn hf_download(model_id: &str, filename: &str, dest: &std::path::Path) -> anyhow::Result<()> {
+    let url = format!("https://huggingface.co/{model_id}/resolve/main/{filename}");
+    let resp = ureq::get(&url)
+        .call()
+        .map_err(|e| anyhow!("Failed to download {filename:?} for {model_id:?}: {e}"))?;
+    let mut reader = resp.into_reader();
+    let mut file = std::fs::File::create(dest)
+        .map_err(|e| anyhow!("Cannot create cache file {dest:?}: {e}"))?;
+    std::io::copy(&mut reader, &mut file)
+        .map_err(|e| anyhow!("Failed to write {filename:?}: {e}"))?;
+    Ok(())
 }
 
 // ── Embedder options ──────────────────────────────────────────────────────────

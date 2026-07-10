@@ -28,10 +28,19 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Cache virage binary
+        id: bin-cache
+        uses: actions/cache@v6
+        with:
+          path: target/release/virage
+          key: ${{ runner.os }}-virage-bin-${{ hashFiles('crates/**', 'Cargo.lock', 'Cargo.toml') }}
+
       - name: Install Rust toolchain
+        if: steps.bin-cache.outputs.cache-hit != 'true'
         uses: dtolnay/rust-toolchain@stable
 
       - name: Cargo cache
+        if: steps.bin-cache.outputs.cache-hit != 'true'
         uses: actions/cache@v6
         with:
           path: |
@@ -42,7 +51,8 @@ jobs:
           restore-keys: ${{ runner.os }}-virage-index-
 
       - name: Build virage binary
-        run: cargo build -p virage-engine --bin virage --release --features cli
+        if: steps.bin-cache.outputs.cache-hit != 'true'
+        run: cargo build -p virage-engine --bin virage --release --features "cli,store-lancedb"
 
       - name: Restore Virage cache
         uses: actions/cache/restore@v6
