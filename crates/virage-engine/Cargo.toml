@@ -33,7 +33,7 @@ chunker-lang   = [
     "dep:tree-sitter-c-sharp",
     "dep:tree-sitter-ruby",
 ]
-embedder-onnx = ["dep:ort", "dep:tokenizers", "ort/load-dynamic", "ort/std", "ort/api-24"]
+embedder-onnx = ["dep:ort", "dep:tokenizers", "dep:hf-hub", "ort/load-dynamic", "ort/std", "ort/api-24"]
 # Phase 2 — source providers
 source-all    = ["source-git", "source-localfs"]
 source-git    = ["dep:git2", "dep:tokio", "dep:async-trait", "dep:futures", "dep:bytes", "dep:anyhow", "dep:globset"]
@@ -94,6 +94,7 @@ tree-sitter-ruby       = { version = "0.23", optional = true }
 # Embedder deps — optional, enabled via feature flags
 ort        = { version = "2.0.0-rc.12", default-features = false, optional = true }
 tokenizers = { version = "0.21", default-features = false, features = ["onig"], optional = true }
+hf-hub     = { version = "0.3", optional = true }
 
 # Source provider deps — optional, enabled via feature flags
 git2        = { version = "0.21", features = ["vendored-libgit2"], optional = true }

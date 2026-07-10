@@ -21,34 +21,68 @@ pub struct VirageConfigJson {
 }
 
 /// Reference to a built-in or plugin provider.
-#[derive(Debug, Deserialize, Clone)]
+///
+/// Accepts two forms in config:
+/// - `{ "package": "@vivantel/virage-embedder-onnx", "options": { ... } }`
+/// - `{ "builtin": "onnx", "options": { ... } }` — shorthand, resolved to the full package name
+#[derive(Debug, Clone)]
 pub struct PluginRef {
+    /// Resolved package name (builtin keys are expanded at parse time).
     pub package: String,
-    #[serde(default)]
+    /// Plugin-specific options; deserialized into typed structs in resolve.rs.
     pub options: HashMap<String, Value>,
 }
 
 impl PluginRef {
-    pub fn str_opt<'a>(&'a self, key: &str) -> Option<&'a str> {
-        self.options.get(key).and_then(|v| v.as_str())
-    }
-
-    pub fn str_req(&self, key: &str) -> anyhow::Result<&str> {
-        self.str_opt(key).ok_or_else(|| {
-            anyhow::anyhow!("plugin {}: missing required option {:?}", self.package, key)
-        })
-    }
-
-    pub fn u64_opt(&self, key: &str) -> Option<u64> {
-        self.options.get(key).and_then(|v| v.as_u64())
-    }
-
     pub fn usize_opt(&self, key: &str) -> Option<usize> {
-        self.u64_opt(key).map(|n| n as usize)
+        self.options.get(key).and_then(|v| v.as_u64()).map(|n| n as usize)
     }
+}
 
-    pub fn bool_opt(&self, key: &str) -> Option<bool> {
-        self.options.get(key).and_then(|v| v.as_bool())
+impl<'de> serde::Deserialize<'de> for PluginRef {
+    fn deserialize<D: serde::Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
+        use serde::de::Error as _;
+        #[derive(Deserialize)]
+        struct Raw {
+            package: Option<String>,
+            builtin: Option<String>,
+            #[serde(default)]
+            options: HashMap<String, Value>,
+        }
+        let raw = Raw::deserialize(d)?;
+        let package = match (raw.package, raw.builtin) {
+            (Some(pkg), _) => pkg,
+            (None, Some(key)) => builtin_to_package(&key)
+                .ok_or_else(|| D::Error::custom(format!("unknown builtin key {key:?}")))?
+                .to_string(),
+            (None, None) => {
+                return Err(D::Error::custom(
+                    "plugin ref must specify either \"package\" or \"builtin\"",
+                ))
+            }
+        };
+        Ok(PluginRef { package, options: raw.options })
+    }
+}
+
+/// Map `builtin:` shorthand keys to canonical npm package names.
+/// These package names are then matched by substring in resolve.rs.
+fn builtin_to_package(key: &str) -> Option<&'static str> {
+    match key {
+        "onnx"                  => Some("@vivantel/virage-embedder-onnx"),
+        "fastembed"             => Some("@vivantel/virage-embedder-fastembed"),
+        "lancedb"               => Some("@vivantel/virage-store-lancedb"),
+        "qdrant"                => Some("@vivantel/virage-store-qdrant"),
+        "postgres" | "pgvector" => Some("@vivantel/virage-store-postgres"),
+        "chromadb" | "chroma"   => Some("@vivantel/virage-store-chromadb"),
+        "md" | "markdown"       => Some("@vivantel/virage-chunker-ce-md"),
+        "pdf"                   => Some("@vivantel/virage-chunker-ce-pdf"),
+        "docx" | "word"         => Some("@vivantel/virage-chunker-ce-docx"),
+        "latex" | "tex"         => Some("@vivantel/virage-chunker-ce-latex"),
+        "lang" | "code"         => Some("@vivantel/virage-chunker-ce-lang"),
+        "cross-encoder"         => Some("@vivantel/virage-reranker-cross-encoder"),
+        "llm-reranker" | "llm"  => Some("@vivantel/virage-reranker-llm"),
+        _                       => None,
     }
 }
 

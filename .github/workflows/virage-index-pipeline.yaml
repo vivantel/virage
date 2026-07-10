@@ -42,7 +42,7 @@ jobs:
           restore-keys: ${{ runner.os }}-virage-index-
 
       - name: Build virage binary
-        run: cargo build -p virage-engine --bin virage --release
+        run: cargo build -p virage-engine --bin virage --release --features cli
 
       - name: Restore Virage cache
         uses: actions/cache/restore@v6

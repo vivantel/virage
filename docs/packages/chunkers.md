@@ -29,7 +29,7 @@ Shared ViDoc AST walker used internally by all other CE chunkers. Not typically 
 
 ## Config reference
 
-Configure chunkers per file set using `builtin:` for built-in chunkers or `plugin:` for WASM plugins:
+Configure chunkers per file set. Each entry in `chunkers` is a `PluginRef` — specify `builtin` for built-in chunkers or `package` for npm/WASM plugins:
 
 ```json
 {
@@ -41,12 +41,7 @@ Configure chunkers per file set using `builtin:` for built-in chunkers or `plugi
     },
     {
       "name": "code",
-      "include": ["src/**/*.{rs,py,go}"],
-      "chunkers": [{ "builtin": "lang" }]
-    },
-    {
-      "name": "typescript",
-      "include": ["src/**/*.{ts,tsx}"],
+      "include": ["src/**/*.{rs,py,go,ts,tsx}"],
       "chunkers": [{ "builtin": "lang" }]
     }
   ]
@@ -55,13 +50,13 @@ Configure chunkers per file set using `builtin:` for built-in chunkers or `plugi
 
 Built-in chunker keys:
 
-| Key | Handles |
-|---|---|
-| `md` | `.md`, `.mdx` — Markdown / MDX |
-| `pdf` | `.pdf` — text layer extraction |
-| `docx` | `.docx` — Word documents |
-| `latex` | `.tex` — LaTeX |
-| `lang` | `.rs`, `.py`, `.ts`, `.tsx`, `.js`, `.jsx`, `.go`, `.java`, `.c`, `.cpp` |
+| `builtin` key | Aliases | Handles |
+|---|---|---|
+| `md` | `markdown` | `.md`, `.mdx` — Markdown / MDX |
+| `pdf` | | `.pdf` — text layer extraction |
+| `docx` | `word` | `.docx` — Word documents |
+| `latex` | `tex` | `.tex` — LaTeX |
+| `lang` | `code` | `.rs`, `.py`, `.ts`, `.tsx`, `.js`, `.jsx`, `.go`, `.java`, `.c`, `.cpp` |
 
 WASM plugin example:
 
@@ -69,10 +64,11 @@ WASM plugin example:
 { "plugin": "file:.virage/plugins/my-chunker.wasm", "include": ["**/*.xyz"] }
 ```
 
+`PluginRef` fields:
+
 | Field | Type | Description |
 |---|---|---|
-| `builtin` | `string` | Built-in chunker key (see table above) |
-| `plugin` | `string` | Path to a WASM plugin |
-| `include` | `string[]` | Route only these globs to this chunker |
-| `ignore` | `string[]` | Skip these globs within this chunker |
-| `options` | `object` | Passed to chunker initialization |
+| `builtin` | `string` | Built-in chunker key (see table above). Mutually exclusive with `package`. |
+| `package` | `string` | Explicit npm package name or WASM plugin path. Mutually exclusive with `builtin`. |
+| `plugin` | `string` | Path to a WASM plugin (alternative form of `package` for local .wasm files) |
+| `options` | `object` | Plugin-specific options; typed and validated per plugin |
