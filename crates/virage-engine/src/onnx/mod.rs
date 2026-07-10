@@ -30,8 +30,10 @@ pub struct EncodedBatch {
     pub seq_len: usize,
 }
 
+type InputTensors = (Tensor<i64>, Tensor<i64>, Tensor<i64>);
+
 impl EncodedBatch {
-    pub fn to_tensors(&self) -> Result<(Tensor<i64>, Tensor<i64>, Tensor<i64>), String> {
+    pub fn to_tensors(&self) -> Result<InputTensors, String> {
         let shape = [self.batch_size, self.seq_len];
         let ids_t = Tensor::from_array((shape, self.input_ids.clone().into_boxed_slice()))
             .map_err(|e| format!("tensor build error: {e}"))?;

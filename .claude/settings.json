@@ -7,8 +7,8 @@
           {
             "type": "command",
             "if": "Bash(git commit *)",
-            "command": "cargo fmt && (! git diff --cached --name-only | grep -qE '[.](rs|toml)$' || cargo clippy --workspace -- -D warnings) && npm run fix && npm run type-check && git add -u || exit 2",
-            "statusMessage": "Running cargo fmt + fix + type-check (+ clippy when .rs/.toml staged) before commit..."
+            "command": "cargo fmt && cargo clippy --workspace -- -D warnings && npm run fix && npm run type-check && git add -u || exit 2",
+            "statusMessage": "Running cargo fmt + clippy + fix + type-check before commit..."
           }
         ]
       }

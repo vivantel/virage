@@ -173,9 +173,9 @@ npm run lint           # eslint check — .ts files only (root)
 npm run type-check     # type-check all workspaces
 ```
 
-Hook: `.claude/settings.json` fires automatically before every commit. It **always** runs `cargo fmt` (unconditional, fast) to auto-fix Rust formatting; then conditionally runs `cargo clippy --workspace -- -D warnings` when `.rs` or `.toml` files are staged; then always runs `npm run fix && npm run type-check`. **Never skip with `--no-verify`.**
+Hook: `.claude/settings.json` fires automatically before every commit. It **always** runs `cargo fmt` (auto-fix) and `cargo clippy --workspace -- -D warnings` (both unconditional), then `npm run fix && npm run type-check`. **Never skip with `--no-verify`.**
 
-Fallback: `.githooks/pre-commit` runs `cargo fmt --check` for any `git commit` that bypasses Claude Code (direct terminal commits). The `prepare` npm script registers `.githooks/` automatically.
+Fallback: `.githooks/pre-commit` runs `cargo fmt --check` and `cargo clippy --workspace -- -D warnings` for any `git commit` that bypasses Claude Code (direct terminal commits). The `prepare` npm script registers `.githooks/` automatically.
 
 **⚠️ Root lint misses `.tsx` files.** The root `lint` glob is `packages/*/src/**/*.ts` — `.tsx` is excluded. For any package that has `.tsx` source files, also run the per-package lint before committing:
 
