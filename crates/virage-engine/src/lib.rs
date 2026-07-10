@@ -6,6 +6,9 @@ pub mod config;
 #[cfg(feature = "db-sqlite")]
 pub mod db;
 pub mod embedders;
+#[cfg(feature = "embedder-onnx")]
+pub mod onnx;
+pub mod rerankers;
 #[cfg(feature = "pipeline")]
 pub mod pipeline;
 #[cfg(feature = "wasm-host")]

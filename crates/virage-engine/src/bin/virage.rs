@@ -6,6 +6,8 @@ use clap::{Args, Parser, Subcommand};
 use indicatif::{ProgressBar, ProgressStyle};
 
 use virage_engine::config::resolve::{resolve_embedder, resolve_source, resolve_store};
+#[cfg(feature = "embedder-onnx")]
+use virage_engine::config::resolve::resolve_reranker;
 use virage_engine::config::{default_db_path, find_config, load_config, VirageConfigJson};
 use virage_engine::db::VirageDb;
 use virage_engine::embedders::Embedder;
@@ -470,7 +472,25 @@ async fn cmd_query(args: QueryArgs) -> anyhow::Result<()> {
 
     let mut results = store.search(&vec, args.top_k, opts).await?;
 
-    // Apply min-similarity filter if requested.
+    // Apply reranker if configured — re-scores and re-sorts results.
+    #[cfg(feature = "embedder-onnx")]
+    if let Some(reranker_spec) = &cfg.providers.reranker {
+        let reranker = resolve_reranker(reranker_spec)?;
+        let passages: Vec<&str> = results.iter().map(|r| r.dense_text.as_str()).collect();
+        let scores = reranker
+            .lock()
+            .map_err(|_| anyhow::anyhow!("reranker lock poisoned"))?
+            .rerank(&args.query, &passages)
+            .map_err(|e| anyhow::anyhow!("Reranker error: {e}"))?;
+        let mut order: Vec<usize> = (0..results.len()).collect();
+        order.sort_unstable_by(|&a, &b| {
+            scores[b].partial_cmp(&scores[a]).unwrap_or(std::cmp::Ordering::Equal)
+        });
+        let mut slots: Vec<Option<_>> = results.into_iter().map(Some).collect();
+        results = order.into_iter().map(|i| slots[i].take().unwrap()).collect();
+    }
+
+    // Apply min-similarity filter (on original vector-similarity score).
     if let Some(min_sim) = args.min_similarity {
         results.retain(|r| r.similarity >= min_sim);
     }

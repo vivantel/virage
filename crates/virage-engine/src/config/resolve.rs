@@ -11,8 +11,6 @@ use crate::stores::VectorStore;
 
 // ─── Typed option structs ─────────────────────────────────────────────────────
 
-/// Deserialize a plugin's `options` map into a typed struct.
-/// Unknown fields are rejected so typos surface at config parse time.
 fn parse_options<T>(spec: &PluginRef) -> anyhow::Result<T>
 where
     T: for<'de> Deserialize<'de>,
@@ -22,48 +20,130 @@ where
         .map_err(|e| anyhow!("{}: invalid options: {e}", spec.package))
 }
 
+// ── ONNX model source — three mutually exclusive variants ─────────────────────
+
+/// Where to load the ONNX model and tokenizer from.
+/// Exactly one variant must match (untagged — discriminated by required fields).
+#[derive(Deserialize)]
+#[serde(untagged)]
+pub enum OnnxModelSource {
+    /// Download from HuggingFace Hub on first use.
+    #[serde(rename_all = "camelCase")]
+    HuggingFace {
+        model: String,
+        /// Specific ONNX file within the repo (default: tries quantized, then full).
+        model_file: Option<String>,
+        /// Tokenizer file within the repo (default: "tokenizer.json").
+        tokenizer_file: Option<String>,
+        /// Local cache directory (default: ".virage/model-cache").
+        cache_dir: Option<String>,
+    },
+    /// Download from arbitrary URLs (model and tokenizer served separately).
+    #[serde(rename_all = "camelCase")]
+    Url {
+        model_url: String,
+        tokenizer_url: String,
+        cache_dir: Option<String>,
+    },
+    /// Use files already on disk.
+    #[serde(rename_all = "camelCase")]
+    Local {
+        model_path: String,
+        tokenizer_path: String,
+    },
+}
+
+#[cfg(feature = "embedder-onnx")]
+impl OnnxModelSource {
+    fn resolve_paths(&self) -> anyhow::Result<(String, String)> {
+        match self {
+            OnnxModelSource::HuggingFace { model, model_file, tokenizer_file, cache_dir } => {
+                let cache = cache_dir.as_deref().unwrap_or(".virage/model-cache");
+                let tok = tokenizer_file.as_deref().unwrap_or("tokenizer.json");
+                download_hf(model, cache, model_file.as_deref(), tok)
+            }
+            OnnxModelSource::Url { model_url, tokenizer_url, cache_dir: _ } => {
+                anyhow::bail!(
+                    "URL model download not yet implemented \
+                     (modelUrl={model_url:?}, tokenizerUrl={tokenizer_url:?}); \
+                     use 'model' for HuggingFace or 'modelPath'/'tokenizerPath' for local files"
+                )
+            }
+            OnnxModelSource::Local { model_path, tokenizer_path } => {
+                Ok((model_path.clone(), tokenizer_path.clone()))
+            }
+        }
+    }
+}
+
+#[cfg(feature = "embedder-onnx")]
+fn download_hf(
+    model_id: &str,
+    cache_dir: &str,
+    model_file: Option<&str>,
+    tokenizer_file: &str,
+) -> anyhow::Result<(String, String)> {
+    use hf_hub::api::sync::ApiBuilder;
+    std::fs::create_dir_all(cache_dir)
+        .map_err(|e| anyhow!("Cannot create model cache dir {cache_dir:?}: {e}"))?;
+    let api = ApiBuilder::new()
+        .with_cache_dir(std::path::PathBuf::from(cache_dir))
+        .build()
+        .map_err(|e| anyhow!("HuggingFace API init error: {e}"))?;
+    let repo = api.model(model_id.to_string());
+    let model_path = if let Some(file) = model_file {
+        repo.get(file)
+            .map_err(|e| anyhow!("Failed to download {file:?} from {model_id:?}: {e}"))?
+    } else {
+        // Prefer quantized (int8) — half the size, nearly identical quality.
+        repo.get("onnx/model_quantized.onnx")
+            .or_else(|_| repo.get("onnx/model.onnx"))
+            .map_err(|e| anyhow!("Failed to download ONNX model for {model_id:?}: {e}"))?
+    };
+    let tokenizer_path = repo
+        .get(tokenizer_file)
+        .map_err(|e| anyhow!("Failed to download {tokenizer_file:?} for {model_id:?}: {e}"))?;
+    Ok((
+        model_path.to_string_lossy().into_owned(),
+        tokenizer_path.to_string_lossy().into_owned(),
+    ))
+}
+
 // ── Embedder options ──────────────────────────────────────────────────────────
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct OnnxEmbedderOptions {
-    /// HuggingFace model ID (e.g. "Xenova/all-MiniLM-L6-v2"). Auto-downloads on first use.
-    model: Option<String>,
-    /// Local directory for downloaded model files (default: ".virage/model-cache").
-    cache_dir: Option<String>,
-    /// Explicit path to a local ONNX model file (alternative to `model`).
-    model_path: Option<String>,
-    /// Explicit path to a local tokenizer.json (required when `model_path` is set).
-    tokenizer_path: Option<String>,
+    source: OnnxModelSource,
     #[serde(default = "default_onnx_dims")]
     dimensions: usize,
     max_length: Option<usize>,
+    /// Pooling strategy: "mean" (default) or "cls".
     pooling: Option<String>,
-    normalize: Option<bool>,
+    #[serde(default = "default_true")]
+    normalize: bool,
 }
 
 fn default_onnx_dims() -> usize {
     384
 }
 
-impl OnnxEmbedderOptions {
-    #[cfg(feature = "embedder-onnx")]
-    fn resolve_paths(&self) -> anyhow::Result<(String, String)> {
-        if let Some(model_id) = &self.model {
-            let cache = self.cache_dir.as_deref().unwrap_or(".virage/model-cache");
-            download_hf_onnx_model(model_id, cache)
-        } else {
-            let mp = self
-                .model_path
-                .as_deref()
-                .ok_or_else(|| anyhow!("embedder requires 'model' (HuggingFace ID) or 'modelPath'"))?;
-            let tp = self
-                .tokenizer_path
-                .as_deref()
-                .ok_or_else(|| anyhow!("embedder: 'tokenizerPath' is required when using 'modelPath'"))?;
-            Ok((mp.to_string(), tp.to_string()))
-        }
-    }
+fn default_true() -> bool {
+    true
+}
+
+// ── Cross-encoder reranker options ────────────────────────────────────────────
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct CrossEncoderOptions {
+    source: OnnxModelSource,
+    max_length: Option<usize>,
+    /// Score activation: "none" (default), "sigmoid", or "softmax".
+    activation: Option<String>,
+    /// Index into the logits vector to use as the relevance score (default: 0).
+    #[serde(default)]
+    score_index: usize,
 }
 
 // ── Vector store options ──────────────────────────────────────────────────────
@@ -150,7 +230,7 @@ struct LocalFsSourceOptions {
 /// Instantiate a built-in `Embedder` from a `PluginRef`.
 ///
 /// Supported packages (or `builtin:` shorthands):
-/// - `@vivantel/virage-embedder-onnx` / `onnx`      → ONNX inference via ORT
+/// - `@vivantel/virage-embedder-onnx` / `onnx`       → ONNX inference via ORT
 /// - `@vivantel/virage-embedder-fastembed` / `fastembed` → same ORT backend
 pub fn resolve_embedder(
     spec: &PluginRef,
@@ -159,17 +239,22 @@ pub fn resolve_embedder(
         p if p.contains("embedder-onnx") || p.contains("embedder-fastembed") => {
             #[cfg(feature = "embedder-onnx")]
             {
+                use crate::onnx::{OnnxInferenceSession, Pooling};
                 let opts: OnnxEmbedderOptions = parse_options(spec)?;
-                let (model_path, tokenizer_path) = opts.resolve_paths()?;
+                let (model_path, tokenizer_path) = opts.source.resolve_paths()?;
+                let session = OnnxInferenceSession::from_paths(&model_path, &tokenizer_path)
+                    .map_err(|e| anyhow!("OnnxEmbedder session init error: {e}"))?;
+                let pooling = match opts.pooling.as_deref() {
+                    Some("cls") => Pooling::Cls,
+                    _ => Pooling::Mean,
+                };
                 let emb = crate::embedders::onnx::OnnxEmbedder::new(
-                    &model_path,
-                    &tokenizer_path,
+                    session,
                     opts.dimensions,
-                    opts.max_length,
-                    opts.pooling.as_deref(),
+                    opts.max_length.unwrap_or(512),
+                    pooling,
                     opts.normalize,
-                )
-                .map_err(|e| anyhow!("OnnxEmbedder init error: {e}"))?;
+                );
                 Ok(Arc::new(std::sync::Mutex::new(emb)))
             }
             #[cfg(not(feature = "embedder-onnx"))]
@@ -182,30 +267,39 @@ pub fn resolve_embedder(
     }
 }
 
-// ─── HuggingFace model download ───────────────────────────────────────────────
+// ─── Reranker resolution ──────────────────────────────────────────────────────
 
+/// Instantiate a built-in `Reranker` from a `PluginRef`.
+///
+/// Supported packages (or `builtin:` shorthands):
+/// - `@vivantel/virage-reranker-cross-encoder` / `cross-encoder` → CrossEncoderReranker
 #[cfg(feature = "embedder-onnx")]
-fn download_hf_onnx_model(model_id: &str, cache_dir: &str) -> anyhow::Result<(String, String)> {
-    use hf_hub::api::sync::ApiBuilder;
-    std::fs::create_dir_all(cache_dir)
-        .map_err(|e| anyhow!("Cannot create model cache dir {cache_dir:?}: {e}"))?;
-    let api = ApiBuilder::new()
-        .with_cache_dir(std::path::PathBuf::from(cache_dir))
-        .build()
-        .map_err(|e| anyhow!("HuggingFace API init error: {e}"))?;
-    let repo = api.model(model_id.to_string());
-    // Prefer quantized (int8) ONNX model — half the size, nearly identical quality.
-    let model_path = repo
-        .get("onnx/model_quantized.onnx")
-        .or_else(|_| repo.get("onnx/model.onnx"))
-        .map_err(|e| anyhow!("Failed to download ONNX model for {model_id:?}: {e}"))?;
-    let tokenizer_path = repo
-        .get("tokenizer.json")
-        .map_err(|e| anyhow!("Failed to download tokenizer for {model_id:?}: {e}"))?;
-    Ok((
-        model_path.to_string_lossy().into_owned(),
-        tokenizer_path.to_string_lossy().into_owned(),
-    ))
+pub fn resolve_reranker(
+    spec: &PluginRef,
+) -> anyhow::Result<Arc<std::sync::Mutex<dyn crate::rerankers::Reranker + Send>>> {
+    use crate::onnx::{OnnxInferenceSession, ScoreActivation};
+
+    match spec.package.as_str() {
+        p if p.contains("reranker-cross-encoder") => {
+            let opts: CrossEncoderOptions = parse_options(spec)?;
+            let (model_path, tokenizer_path) = opts.source.resolve_paths()?;
+            let session = OnnxInferenceSession::from_paths(&model_path, &tokenizer_path)
+                .map_err(|e| anyhow!("CrossEncoderReranker session init error: {e}"))?;
+            let activation = match opts.activation.as_deref() {
+                Some("sigmoid") => ScoreActivation::Sigmoid,
+                Some("softmax") => ScoreActivation::Softmax,
+                _ => ScoreActivation::None,
+            };
+            let reranker = crate::rerankers::cross_encoder::CrossEncoderReranker::new(
+                session,
+                opts.max_length.unwrap_or(512),
+                activation,
+                opts.score_index,
+            );
+            Ok(Arc::new(std::sync::Mutex::new(reranker)))
+        }
+        other => Err(anyhow!("unknown reranker package {:?}", other)),
+    }
 }
 
 // ─── Vector store resolution ──────────────────────────────────────────────────
