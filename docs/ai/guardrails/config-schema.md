@@ -64,9 +64,9 @@ VirageConfigJson
 ├── version?               string (semver — bump VIRAGE_CONFIG_SCHEMA_VERSION on breaking changes)
 ├── installScope?          "local" | "global" (set by virage init; controls plugin + model base dir via VIRAGE_DIR)
 ├── providers              (required)
-│   ├── embedder           PluginRef (required)
-│   ├── vectorStore        PluginRef (required)
-│   ├── reranker?          PluginRef
+│   ├── embedder           PluginRef (required)  ← builtin: "onnx" or package: "..."
+│   ├── vectorStore        PluginRef (required)  ← builtin: "lancedb" | "qdrant" | ...
+│   ├── reranker?          PluginRef             ← builtin: "cross-encoder" or package: "..."
 │   └── source?            PluginRef
 ├── fileSets               FileSetConfig[] (required, non-empty)
 │   ├── name               string
@@ -76,7 +76,8 @@ VirageConfigJson
 │   ├── tags?              string[]  ← direct tag injection for all files
 │   ├── tagRules?          TagRule[] ← per-file glob-based tag injection
 │   └── chunkers           ChunkerConfig[] (required, non-empty)
-│       ├── package        string
+│       ├── builtin?       string  ← shorthand key, mutually exclusive with package
+│       ├── package?       string  ← full npm name, mutually exclusive with builtin
 │       ├── packageVersion? string
 │       ├── options?       Record<string, unknown>
 │       └── templates?     ChunkerTemplate

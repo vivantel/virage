@@ -29,9 +29,12 @@ Declares the plugin to use for each provider role. All providers use the `Plugin
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `package` | string | **Yes** | npm package name |
+| `builtin` | string | One of `builtin` or `package` | Built-in shorthand key (e.g. `"onnx"`, `"lancedb"`, `"cross-encoder"`) |
+| `package` | string | One of `builtin` or `package` | Full npm package name |
 | `packageVersion` | string | No | Pinned version (managed by `virage update`) |
 | `options` | object | No | Plugin-specific options (varies by plugin) |
+
+`builtin` and `package` are mutually exclusive. `builtin` keys are resolved to their full package names at parse time — use whichever is more readable. All built-in keys are listed in [docs/packages/](../packages/).
 
 ### `providers.embedder` (required)
 
@@ -39,10 +42,24 @@ The embedding model plugin.
 
 ```json
 "embedder": {
-  "package": "@vivantel/virage-embedder-fastembed",
-  "options": { "model": "BAAI/bge-small-en-v1.5", "dimensions": 384 }
+  "builtin": "onnx",
+  "options": {
+    "source": { "model": "Xenova/all-MiniLM-L6-v2", "cacheDir": ".virage/model-cache" },
+    "dimensions": 384
+  }
 }
 ```
+
+Or with an explicit npm package:
+
+```json
+"embedder": {
+  "package": "@vivantel/virage-embedder-openai",
+  "options": { "apiKey": "${OPENAI_API_KEY}", "model": "text-embedding-3-small", "dimensions": 1536 }
+}
+```
+
+See [docs/packages/embedders.md](../packages/embedders.md) for all embedder options.
 
 ### `providers.vectorStore` (required)
 
@@ -50,14 +67,25 @@ The vector store plugin.
 
 ```json
 "vectorStore": {
-  "package": "@vivantel/virage-store-lancedb",
+  "builtin": "lancedb",
   "options": { "uri": ".virage/lancedb" }
 }
 ```
 
 ### `providers.reranker` (optional)
 
-Re-ranker plugin for post-retrieval result reordering.
+Re-ranker plugin for post-retrieval result reordering. When configured, `virage query` automatically re-scores and re-sorts results — no extra flag required.
+
+```json
+"reranker": {
+  "builtin": "cross-encoder",
+  "options": {
+    "source": { "model": "Xenova/ms-marco-MiniLM-L-6-v2", "cacheDir": ".virage/model-cache" }
+  }
+}
+```
+
+See [docs/packages/rerankers.md](../packages/rerankers.md) for all reranker options.
 
 ### `providers.source` (optional)
 

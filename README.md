@@ -116,7 +116,10 @@ All configuration lives in `virage.config.json`. `${ENV_VAR}` patterns are expan
   "providers": {
     "embedder": {
       "builtin": "onnx",
-      "options": { "model": "Xenova/all-MiniLM-L6-v2", "dimensions": 384 }
+      "options": {
+        "source": { "model": "Xenova/all-MiniLM-L6-v2", "cacheDir": ".virage/model-cache" },
+        "dimensions": 384
+      }
     },
     "vectorStore": {
       "builtin": "lancedb",
@@ -220,13 +223,14 @@ Plugin-based chunkers extend the built-in set:
 
 ## Embedders
 
-| Package | Requires API key | Notes |
-| ------- | ---------------- | ----- |
+| Key / Package | Requires API key | Notes |
+| ------------- | ---------------- | ----- |
+| `builtin: "onnx"` | No | Built-in ORT inference; downloads from HuggingFace Hub; recommended default |
 | `virage-embedder-openai` | Yes | OpenAI, Azure, GitHub Models, Ollama, any OpenAI-compatible endpoint |
-| `virage-embedder-fastembed` | No | Fast local ONNX inference; good default for offline use |
+| `virage-embedder-fastembed` | No | Fast local ONNX inference via FastEmbed |
 | `virage-embedder-transformers` | No | HuggingFace Transformers.js; wider model selection |
 
-The embedder model name and dimensions are tracked in `embeddings.json`. Changing either value automatically invalidates the cache and triggers a full re-embed on the next run.
+The embedder model and dimensions are tracked in the index. Changing either value automatically invalidates the cache and triggers a full re-embed on the next run.
 
 ## Vector stores
 
@@ -239,11 +243,11 @@ The embedder model name and dimensions are tracked in `embeddings.json`. Changin
 
 ## Re-rankers
 
-Optional post-retrieval re-rankers re-score the top-K candidates for higher precision. Configured under `search.reranker` in `virage.config.json`.
+Optional post-retrieval re-rankers re-score results for higher precision. Configured under `providers.reranker` in `virage.config.json`. When set, `virage query` applies reranking automatically — no extra flag needed.
 
-| Package | Requires API key | Notes |
-| ------- | ---------------- | ----- |
-| `@vivantel/virage-reranker-cross-encoder` | No | Local ONNX cross-encoder; no API key required |
+| Key / Package | Requires API key | Notes |
+| ------------- | ---------------- | ----- |
+| `builtin: "cross-encoder"` | No | Built-in ORT cross-encoder; downloads from HuggingFace Hub |
 | `@vivantel/virage-reranker-llm` | Yes (Anthropic) | LLM-based re-ranker using claude-haiku-4-5 |
 
 ## Tuning
