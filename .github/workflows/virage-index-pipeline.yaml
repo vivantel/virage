@@ -50,6 +50,10 @@ jobs:
           key: ${{ runner.os }}-virage-index-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: ${{ runner.os }}-virage-index-
 
+      - name: Install protoc
+        if: steps.bin-cache.outputs.cache-hit != 'true'
+        run: sudo apt-get update -y && sudo apt-get install -y protobuf-compiler
+
       - name: Build virage binary
         if: steps.bin-cache.outputs.cache-hit != 'true'
         run: cargo build -p virage-engine --bin virage --release --features "cli,store-lancedb"
