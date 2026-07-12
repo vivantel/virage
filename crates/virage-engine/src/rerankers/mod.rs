@@ -3,5 +3,5 @@ pub trait Reranker: Send + Sync {
     fn rerank(&mut self, query: &str, passages: &[&str]) -> Result<Vec<f32>, String>;
 }
 
-#[cfg(feature = "embedder-onnx")]
+#[cfg(any(feature = "embedder-onnx", feature = "download-binaries"))]
 pub mod cross_encoder;

@@ -6,5 +6,5 @@ pub trait Embedder: Send + Sync {
     fn embed_batch(&mut self, texts: &[String]) -> Result<Vec<f32>, String>;
 }
 
-#[cfg(feature = "embedder-onnx")]
+#[cfg(any(feature = "embedder-onnx", feature = "download-binaries"))]
 pub mod onnx;

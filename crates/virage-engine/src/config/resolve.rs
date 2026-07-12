@@ -52,7 +52,7 @@ pub enum OnnxModelSource {
     },
 }
 
-#[cfg(feature = "embedder-onnx")]
+#[cfg(any(feature = "embedder-onnx", feature = "download-binaries"))]
 impl OnnxModelSource {
     fn resolve_paths(&self) -> anyhow::Result<(String, String)> {
         match self {
@@ -85,7 +85,7 @@ impl OnnxModelSource {
     }
 }
 
-#[cfg(feature = "embedder-onnx")]
+#[cfg(any(feature = "embedder-onnx", feature = "download-binaries"))]
 fn download_hf(
     model_id: &str,
     cache_dir: &str,
@@ -134,7 +134,7 @@ fn download_hf(
     ))
 }
 
-#[cfg(feature = "embedder-onnx")]
+#[cfg(any(feature = "embedder-onnx", feature = "download-binaries"))]
 fn hf_download(model_id: &str, filename: &str, dest: &std::path::Path) -> anyhow::Result<()> {
     let url = format!("https://huggingface.co/{model_id}/resolve/main/{filename}");
     let resp = ureq::get(&url)
@@ -276,7 +276,7 @@ pub fn resolve_embedder(
 ) -> anyhow::Result<Arc<std::sync::Mutex<dyn Embedder + Send>>> {
     match spec.package.as_str() {
         p if p.contains("embedder-onnx") || p.contains("embedder-fastembed") => {
-            #[cfg(feature = "embedder-onnx")]
+            #[cfg(any(feature = "embedder-onnx", feature = "download-binaries"))]
             {
                 use crate::onnx::{OnnxInferenceSession, Pooling};
                 let opts: OnnxEmbedderOptions = parse_options(spec)?;
@@ -296,7 +296,7 @@ pub fn resolve_embedder(
                 );
                 Ok(Arc::new(std::sync::Mutex::new(emb)))
             }
-            #[cfg(not(feature = "embedder-onnx"))]
+            #[cfg(not(any(feature = "embedder-onnx", feature = "download-binaries")))]
             Err(anyhow!(
                 "package {:?}: embedder-onnx feature not compiled in",
                 spec.package
@@ -312,7 +312,7 @@ pub fn resolve_embedder(
 ///
 /// Supported packages (or `builtin:` shorthands):
 /// - `@vivantel/virage-reranker-cross-encoder` / `cross-encoder` → CrossEncoderReranker
-#[cfg(feature = "embedder-onnx")]
+#[cfg(any(feature = "embedder-onnx", feature = "download-binaries"))]
 pub fn resolve_reranker(
     spec: &PluginRef,
 ) -> anyhow::Result<Arc<std::sync::Mutex<dyn crate::rerankers::Reranker + Send>>> {

@@ -10,6 +10,10 @@ on:
         description: 'Version to publish (e.g. 2.0.0)'
         required: true
         type: string
+      platform:
+        description: 'Single platform to build — leave blank for all (publish only runs on full builds)'
+        required: false
+        type: string
 
 concurrency:
   group: virage-publish-${{ github.ref }}
@@ -28,20 +32,20 @@ jobs:
           - darwin-arm64
           - win32-x64-msvc
         include:
-          - { platform-name: linux-x64-gnu,   os: ubuntu-latest,  target: x86_64-unknown-linux-gnu,  use-zigbuild: true }
+          - { platform-name: linux-x64-gnu,   os: ubuntu-latest,  target: x86_64-unknown-linux-gnu }
           - { platform-name: linux-arm64-gnu, os: ubuntu-latest,  target: aarch64-unknown-linux-gnu, use-cross: true }
           - { platform-name: darwin-arm64,    os: macos-latest,   target: aarch64-apple-darwin }
           - { platform-name: win32-x64-msvc,  os: windows-latest, target: x86_64-pc-windows-msvc }
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.target }}
 
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         with:
           path: |
             ~/.cargo/registry
@@ -51,66 +55,127 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-${{ matrix.target }}-virage-bin-
 
-      # ── linux-x64-gnu: cargo-zigbuild → glibc 2.17 (ADR-050) ──────────────
+      # ── protoc (required by lance-encoding / prost-build) ─────────────────
 
-      - name: Install cargo-zigbuild (linux-x64-gnu)
-        if: matrix.use-zigbuild == true
-        run: pip3 install ziglang && cargo install cargo-zigbuild
+      - name: Install protoc (Linux)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update -y && sudo apt-get install -y protobuf-compiler
 
-      - name: Build (linux-x64-gnu — glibc 2.17 via cargo-zigbuild)
-        if: matrix.use-zigbuild == true
+      - name: Install protoc (macOS)
+        if: runner.os == 'macOS'
+        run: brew install protobuf
+
+      - name: Install protoc (Windows)
+        if: runner.os == 'Windows'
+        run: choco install protoc -y
+        shell: pwsh
+
+      # ── linux-x64-gnu: manylinux2014 Docker → glibc 2.17 ─────────────────────
+
+      - name: Cache Rust toolchain (manylinux2014 x64)
+        if: matrix.platform-name == 'linux-x64-gnu' && (inputs.platform == '' || inputs.platform == matrix.platform-name)
+        uses: actions/cache@v6
+        with:
+          path: ~/.cargo-manylinux
+          key: manylinux2014-x64-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            manylinux2014-x64-cargo-
+
+      - name: Cache ORT download (manylinux2014 x64)
+        if: matrix.platform-name == 'linux-x64-gnu' && (inputs.platform == '' || inputs.platform == matrix.platform-name)
+        uses: actions/cache@v6
+        with:
+          path: ~/.cache/ort.pyke.io
+          key: ort-manylinux-x64-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ort-manylinux-x64-
+
+      - name: Build (linux-x64-gnu — manylinux2014 glibc 2.17)
+        if: matrix.platform-name == 'linux-x64-gnu' && (inputs.platform == '' || inputs.platform == matrix.platform-name)
         run: |
-          cargo zigbuild -p virage-engine --bin virage --release \
-            --target x86_64-unknown-linux-gnu.2.17 \
-            --features cli,download-binaries \
-            --no-default-features
-          cp target/x86_64-unknown-linux-gnu/release/virage virage-linux-x64-gnu
+          mkdir -p "$HOME/.cargo-manylinux" "$HOME/.cache/ort.pyke.io"
+          docker run --rm \
+            -v "${{ github.workspace }}:/workspace" \
+            -v "$HOME/.cargo-manylinux:/cargo" \
+            -v "$HOME/.cache/ort.pyke.io:/root/.cache/ort.pyke.io" \
+            -e CARGO_HOME=/cargo \
+            quay.io/pypa/manylinux2014_x86_64 \
+            bash -ec "
+              source /opt/rh/devtoolset-10/enable
+
+              # protoc — CentOS 7 EPEL is pre-3.12; install from GitHub (includes well-known protos)
+              curl -sSfL "https://github.com/protocolbuffers/protobuf/releases/download/v29.3/protoc-29.3-linux-x86_64.zip" \
+                -o /tmp/protoc.zip
+              unzip -q /tmp/protoc.zip -d /usr/local
+              chmod +x /usr/local/bin/protoc
+              rm /tmp/protoc.zip
+
+              # Rust toolchain — install once, cache across runs
+              if [ ! -x /cargo/bin/rustup ]; then
+                curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | \
+                  sh -s -- -y --no-modify-path --default-toolchain stable
+              fi
+              export PATH=/cargo/bin:\$PATH
+              rustup target add x86_64-unknown-linux-gnu
+
+              cd /workspace
+              cargo build -p virage-engine --bin virage --release \
+                --target x86_64-unknown-linux-gnu \
+                --features cli-binary,download-binaries,store-lancedb \
+                --no-default-features
+              cp target/x86_64-unknown-linux-gnu/release/virage /workspace/virage-linux-x64-gnu
+
+              # Restore host file ownership so actions/cache can read new files
+              HOST_GID=\$(stat -c '%u:%g' /workspace)
+              chown -R \$HOST_GID /cargo /root/.cache/ort.pyke.io
+              chown -R \$HOST_GID /workspace/target /workspace/virage-linux-x64-gnu
+            "
 
       # ── linux-arm64-gnu: cross-compile ─────────────────────────────────────
 
       - name: Install cross-compilation toolchain (ARM64 Linux)
-        if: matrix.use-cross == true
+        if: matrix.use-cross == true && (inputs.platform == '' || inputs.platform == matrix.platform-name)
         run: sudo apt-get install -y gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
 
       - name: Build (linux-arm64-gnu)
-        if: matrix.use-cross == true
+        if: matrix.use-cross == true && (inputs.platform == '' || inputs.platform == matrix.platform-name)
         env:
           CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
         run: |
           cargo build -p virage-engine --bin virage --release \
             --target aarch64-unknown-linux-gnu \
-            --features cli,download-binaries \
+            --features cli-binary,download-binaries,store-lancedb \
             --no-default-features
           cp target/aarch64-unknown-linux-gnu/release/virage virage-linux-arm64-gnu
 
       # ── darwin-arm64 ───────────────────────────────────────────────────────
 
       - name: Build (darwin-arm64)
-        if: matrix.platform-name == 'darwin-arm64'
+        if: matrix.platform-name == 'darwin-arm64' && (inputs.platform == '' || inputs.platform == matrix.platform-name)
         env:
           MACOSX_DEPLOYMENT_TARGET: "11.0"
         run: |
           cargo build -p virage-engine --bin virage --release \
             --target aarch64-apple-darwin \
-            --features cli,download-binaries \
+            --features cli-binary,download-binaries,store-lancedb \
             --no-default-features
           cp target/aarch64-apple-darwin/release/virage virage-darwin-arm64
 
       # ── win32-x64-msvc ─────────────────────────────────────────────────────
 
       - name: Build (win32-x64-msvc)
-        if: matrix.platform-name == 'win32-x64-msvc'
+        if: matrix.platform-name == 'win32-x64-msvc' && (inputs.platform == '' || inputs.platform == matrix.platform-name)
         run: |
           cargo build -p virage-engine --bin virage --release `
             --target x86_64-pc-windows-msvc `
-            --features cli,download-binaries `
+            --features cli-binary,download-binaries,store-lancedb `
             --no-default-features
           Copy-Item target\x86_64-pc-windows-msvc\release\virage.exe virage-win32-x64-msvc.exe
         shell: pwsh
 
       # ── Upload ─────────────────────────────────────────────────────────────
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: virage-${{ matrix.platform-name }}
           path: |
@@ -123,18 +188,20 @@ jobs:
   publish:
     name: Publish @vivantel/virage
     needs: build
-    if: always() && needs.build.result == 'success'
+    if: >-
+      always() && needs.build.result == 'success' &&
+      (github.event_name != 'workflow_dispatch' || inputs.platform == '')
     runs-on: ubuntu-latest
     permissions:
       contents: write
       id-token: write
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           token: ${{ secrets.RELEASE_TOKEN }}
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: lts/*
           registry-url: https://registry.npmjs.org

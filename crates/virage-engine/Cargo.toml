@@ -11,7 +11,7 @@ crate-type = ["rlib"]
 [[bin]]
 name = "virage"
 path = "src/bin/virage.rs"
-required-features = ["cli"]
+required-features = ["cli-binary"]
 
 [features]
 default     = ["chunker-all", "embedder-onnx", "wasm-host"]
@@ -54,16 +54,20 @@ pipeline      = ["chunker-walk", "source-types", "store-types", "db-sqlite",
                  "dep:tokio", "dep:async-trait", "dep:anyhow", "dep:futures", "dep:bytes"]
 # Phase 5 — CLI binary
 config = ["dep:serde"]
-cli    = [
+# cli-binary: everything the binary needs except embedder-onnx (no ort/load-dynamic).
+# Used by publish CI: --features cli-binary,download-binaries --no-default-features
+cli-binary = [
     "pipeline", "source-all",
-    "store-qdrant", "store-postgres", "store-chromadb", "db-sqlite",
-    "embedder-onnx", "config",
+    "store-lancedb", "store-qdrant", "store-postgres", "store-chromadb", "db-sqlite",
+    "config",
     "dep:clap", "dep:indicatif", "dep:dialoguer", "dep:flate2", "dep:tar",
 ]
+# cli: local dev — same as cli-binary but also pulls in embedder-onnx (ort/load-dynamic).
+cli = ["cli-binary", "embedder-onnx"]
 # Phase 6 — production binary builds: bundle ORT instead of loading dynamically.
-# CI builds the virage binary with --features cli,download-binaries --no-default-features.
-# Users get a self-contained binary; no separate libonnxruntime installation required.
-download-binaries = ["dep:ort", "dep:tokenizers", "ort/download-binaries", "ort/std", "ort/api-24", "ort/tls-native"]
+# Publish CI builds with --features cli-binary,download-binaries --no-default-features.
+# ort/load-dynamic is intentionally absent so the statically-linked ORT path is used.
+download-binaries = ["dep:ort", "dep:tokenizers", "dep:ureq", "ort/download-binaries", "ort/std", "ort/api-24", "ort/tls-rustls"]
 # Phase 7 — WASM Component Model plugin host
 wasm-host = [
     "dep:wasmtime", "dep:wasmtime-wasi",
@@ -94,7 +98,7 @@ tree-sitter-ruby       = { version = "0.23", optional = true }
 # Embedder deps — optional, enabled via feature flags
 ort        = { version = "2.0.0-rc.12", default-features = false, optional = true }
 tokenizers = { version = "0.21", default-features = false, features = ["onig"], optional = true }
-ureq       = { version = "2",   features = ["native-tls"], optional = true }
+ureq       = { version = "2",   features = ["tls"], optional = true }
 
 # Source provider deps — optional, enabled via feature flags
 git2        = { version = "0.21", features = ["vendored-libgit2"], optional = true }
@@ -112,7 +116,7 @@ lancedb      = { version = "0.31",  optional = true }
 arrow-array  = { version = "58",    optional = true }
 arrow-schema = { version = "58",    optional = true }
 qdrant-client = { version = "1.18", optional = true }
-sqlx         = { version = "0.9",   default-features = false, features = ["runtime-tokio", "tls-native-tls", "postgres"], optional = true }
+sqlx         = { version = "0.9",   default-features = false, features = ["runtime-tokio", "tls-rustls", "postgres"], optional = true }
 reqwest      = { version = "0.12",  default-features = false, features = ["json", "rustls-tls"], optional = true }
 serde        = { workspace = true, optional = true }
 # SQLite state store
@@ -126,3 +130,6 @@ tar          = { version = "0.4",  optional = true }
 # WASM plugin host
 wasmtime     = { version = "46", default-features = false, features = ["cranelift", "component-model", "std", "runtime", "threads", "anyhow"], optional = true }
 wasmtime-wasi = { version = "46", optional = true }
+
+[build-dependencies]
+cc = "1"

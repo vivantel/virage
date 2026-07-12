@@ -6,7 +6,7 @@ pub mod config;
 #[cfg(feature = "db-sqlite")]
 pub mod db;
 pub mod embedders;
-#[cfg(feature = "embedder-onnx")]
+#[cfg(any(feature = "embedder-onnx", feature = "download-binaries"))]
 pub mod onnx;
 #[cfg(feature = "pipeline")]
 pub mod pipeline;

@@ -5,7 +5,7 @@ use std::sync::Arc;
 use clap::{Args, Parser, Subcommand};
 use indicatif::{ProgressBar, ProgressStyle};
 
-#[cfg(feature = "embedder-onnx")]
+#[cfg(any(feature = "embedder-onnx", feature = "download-binaries"))]
 use virage_engine::config::resolve::resolve_reranker;
 use virage_engine::config::resolve::{resolve_embedder, resolve_source, resolve_store};
 use virage_engine::config::{default_db_path, find_config, load_config, VirageConfigJson};
@@ -473,7 +473,7 @@ async fn cmd_query(args: QueryArgs) -> anyhow::Result<()> {
     let mut results = store.search(&vec, args.top_k, opts).await?;
 
     // Apply reranker if configured — re-scores and re-sorts results.
-    #[cfg(feature = "embedder-onnx")]
+    #[cfg(any(feature = "embedder-onnx", feature = "download-binaries"))]
     if let Some(reranker_spec) = &cfg.providers.reranker {
         let reranker = resolve_reranker(reranker_spec)?;
         let passages: Vec<&str> = results.iter().map(|r| r.dense_text.as_str()).collect();
