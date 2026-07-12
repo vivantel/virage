@@ -5,6 +5,7 @@ Monorepo for the **Virage** ecosystem — a Git-aware RAG pipeline that turns yo
 [![CI](https://github.com/vivantel/virage/actions/workflows/ci.yaml/badge.svg)](https://github.com/vivantel/virage/actions/workflows/ci.yaml)
 [![RAG Pipeline](https://github.com/vivantel/virage/actions/workflows/virage-index-pipeline.yaml/badge.svg)](https://github.com/vivantel/virage/actions/workflows/virage-index-pipeline.yaml)
 [![Release](https://github.com/vivantel/virage/actions/workflows/release.yaml/badge.svg)](https://github.com/vivantel/virage/actions/workflows/release.yaml)
+[![codecov](https://codecov.io/gh/vivantel/virage/branch/master/graph/badge.svg)](https://codecov.io/gh/vivantel/virage)
 [![Quality](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/vivantel/virage/gh-pages/badges/quality.json)](https://vivantel.github.io/virage/dev/bench/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
