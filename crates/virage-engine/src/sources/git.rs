@@ -18,12 +18,22 @@ pub struct GitSourceProvider {
     provider_name: String,
     exclude_patterns: Vec<String>,
     codeowners: Option<Codeowners>,
+    branch: Option<String>,
 }
 
 impl GitSourceProvider {
     /// Open the git repo at `root` (fails if not a git repo).
     pub fn open(root: impl AsRef<Path>, name: impl Into<String>) -> anyhow::Result<Self> {
-        Self::with_excludes(root, name, vec![])
+        Self::open_branch(root, name, None)
+    }
+
+    /// Open with optional branch selection. `branch: None` uses current HEAD.
+    pub fn open_branch(
+        root: impl AsRef<Path>,
+        name: impl Into<String>,
+        branch: Option<String>,
+    ) -> anyhow::Result<Self> {
+        Self::with_excludes_branch(root, name, vec![], branch)
     }
 
     pub fn with_excludes(
@@ -31,15 +41,28 @@ impl GitSourceProvider {
         name: impl Into<String>,
         exclude_patterns: Vec<String>,
     ) -> anyhow::Result<Self> {
+        Self::with_excludes_branch(root, name, exclude_patterns, None)
+    }
+
+    pub fn with_excludes_branch(
+        root: impl AsRef<Path>,
+        name: impl Into<String>,
+        exclude_patterns: Vec<String>,
+        branch: Option<String>,
+    ) -> anyhow::Result<Self> {
         let root = root.as_ref().to_path_buf();
-        // Validate root is a git repo at construction time.
-        git2::Repository::open(&root)?;
+        let repo = git2::Repository::open(&root)?;
+        if let Some(b) = &branch {
+            repo.find_branch(b, git2::BranchType::Local)
+                .map_err(|_| anyhow::anyhow!("git branch {b:?} not found in repo at {root:?}"))?;
+        }
         let codeowners = Codeowners::from_dir(&root);
         Ok(Self {
             root,
             provider_name: name.into(),
             exclude_patterns,
             codeowners,
+            branch,
         })
     }
 
@@ -51,10 +74,21 @@ impl GitSourceProvider {
         self.exclude_patterns.iter().any(|p| glob_match(p, path))
     }
 
-    /// Build a map of relative path → blob SHA for all blobs in HEAD tree.
+    fn tip_commit<'r>(&self, repo: &'r git2::Repository) -> anyhow::Result<git2::Commit<'r>> {
+        match &self.branch {
+            Some(b) => {
+                let branch = repo
+                    .find_branch(b, git2::BranchType::Local)
+                    .map_err(|_| anyhow::anyhow!("git branch {b:?} not found"))?;
+                Ok(branch.get().peel_to_commit()?)
+            }
+            None => Ok(repo.head()?.peel_to_commit()?),
+        }
+    }
+
+    /// Build a map of relative path → blob SHA for the tip tree.
     fn head_tree_map(&self, repo: &git2::Repository) -> anyhow::Result<HashMap<String, String>> {
-        let head = repo.head()?;
-        let commit = head.peel_to_commit()?;
+        let commit = self.tip_commit(repo)?;
         let tree = commit.tree()?;
         let mut map = HashMap::new();
         tree.walk(git2::TreeWalkMode::PreOrder, |parent, entry| {
@@ -80,8 +114,7 @@ impl SourceProvider for GitSourceProvider {
 
     async fn current_revision(&self) -> anyhow::Result<String> {
         let repo = self.open_repo()?;
-        let head = repo.head()?;
-        let commit = head.peel_to_commit()?;
+        let commit = self.tip_commit(&repo)?;
         Ok(commit.id().to_string())
     }
 
@@ -130,8 +163,7 @@ impl SourceProvider for GitSourceProvider {
         };
         let old_commit = repo.find_commit(old_oid)?;
         let old_tree = old_commit.tree()?;
-        let head = repo.head()?;
-        let new_commit = head.peel_to_commit()?;
+        let new_commit = self.tip_commit(&repo)?;
         let new_tree = new_commit.tree()?;
         let diff = repo.diff_tree_to_tree(Some(&old_tree), Some(&new_tree), None)?;
 

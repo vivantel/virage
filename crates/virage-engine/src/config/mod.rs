@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use indexmap::IndexMap;
 use serde::Deserialize;
 use serde_json::Value;
 
@@ -11,6 +12,10 @@ use serde_json::Value;
 pub struct VirageConfigJson {
     pub version: Option<String>,
     pub install_scope: Option<String>,
+    /// Named source providers (v2). Filesets reference these by name via `SourceRef::Named`.
+    /// Absent in v1 configs — falls back to `providers.source` or auto-detect.
+    #[serde(default)]
+    pub sources: IndexMap<String, PluginRef>,
     pub providers: ProvidersConfig,
     #[serde(default)]
     pub file_sets: Vec<FileSetConfig>,
@@ -88,6 +93,8 @@ fn builtin_to_package(key: &str) -> Option<&'static str> {
         "lang" | "code" => Some("@vivantel/virage-chunker-ce-lang"),
         "cross-encoder" => Some("@vivantel/virage-reranker-cross-encoder"),
         "llm-reranker" | "llm" => Some("@vivantel/virage-reranker-llm"),
+        "git" => Some("@vivantel/virage-source-git"),
+        "localfs" | "local" => Some("@vivantel/virage-source-localfs"),
         _ => None,
     }
 }
@@ -102,11 +109,22 @@ pub struct ProvidersConfig {
     pub source: Option<PluginRef>,
 }
 
+/// How a fileset specifies its source provider.
+///
+/// - `Named(name)` — v2: look up `name` in the top-level `sources` map.
+/// - `Inline(ref)` — v1 compat: inline plugin ref, same as the old `source` field shape.
+#[derive(Debug, Clone, Deserialize)]
+#[serde(untagged)]
+pub enum SourceRef {
+    Named(String),
+    Inline(PluginRef),
+}
+
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct FileSetConfig {
     pub name: String,
-    pub source: Option<PluginRef>,
+    pub source: Option<SourceRef>,
     #[serde(default)]
     pub include: Vec<String>,
     #[serde(default)]
@@ -163,3 +181,141 @@ pub fn default_db_path() -> String {
 }
 
 pub mod resolve;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn parse(json: &str) -> VirageConfigJson {
+        serde_json::from_str(json).expect("config parse failed")
+    }
+
+    #[test]
+    fn v2_named_source_parses() {
+        let cfg = parse(
+            r#"{
+            "version": "2",
+            "sources": {
+                "default": { "builtin": "git", "options": { "root": ".", "branch": "main" } }
+            },
+            "providers": {
+                "embedder": { "builtin": "fastembed", "options": { "model": "BAAI/bge-small-en-v1.5", "dimensions": 384 } },
+                "vectorStore": { "builtin": "lancedb", "options": { "uri": ".virage/lancedb" } }
+            },
+            "fileSets": [
+                { "name": "code", "source": "default", "include": ["**/*.rs"],
+                  "chunkers": [{ "builtin": "lang", "options": { "maxTokens": 512 } }] }
+            ]
+        }"#,
+        );
+        assert_eq!(cfg.version.as_deref(), Some("2"));
+        assert_eq!(cfg.sources.len(), 1);
+        assert!(cfg.sources.contains_key("default"));
+        assert_eq!(cfg.file_sets.len(), 1);
+        let src = cfg.file_sets[0].source.as_ref().unwrap();
+        assert!(matches!(src, SourceRef::Named(n) if n == "default"));
+    }
+
+    #[test]
+    fn v1_inline_source_parses() {
+        let cfg = parse(
+            r#"{
+            "providers": {
+                "embedder": { "builtin": "fastembed", "options": { "model": "BAAI/bge-small-en-v1.5", "dimensions": 384 } },
+                "vectorStore": { "builtin": "lancedb", "options": { "uri": ".virage/lancedb" } },
+                "source": { "builtin": "git", "options": { "root": "." } }
+            },
+            "fileSets": [
+                { "name": "code", "include": ["**/*.rs"],
+                  "chunkers": [{ "builtin": "lang", "options": { "maxTokens": 512 } }] }
+            ]
+        }"#,
+        );
+        assert!(cfg.sources.is_empty());
+        assert!(cfg.file_sets[0].source.is_none());
+        assert!(cfg.providers.source.is_some());
+    }
+
+    #[test]
+    fn v1_inline_fileset_source_parses() {
+        let cfg = parse(
+            r#"{
+            "providers": {
+                "embedder": { "builtin": "fastembed", "options": { "model": "BAAI/bge-small-en-v1.5", "dimensions": 384 } },
+                "vectorStore": { "builtin": "lancedb", "options": { "uri": ".virage/lancedb" } }
+            },
+            "fileSets": [
+                { "name": "code",
+                  "source": { "builtin": "localfs", "options": { "root": "./src" } },
+                  "include": ["**/*.rs"],
+                  "chunkers": [{ "builtin": "lang" }] }
+            ]
+        }"#,
+        );
+        let src = cfg.file_sets[0].source.as_ref().unwrap();
+        assert!(matches!(src, SourceRef::Inline(_)));
+    }
+
+    #[test]
+    fn onnx_flat_model_parses() {
+        // Verifies Bug 1 fix: model at top level (not nested under "source:")
+        let cfg = parse(
+            r#"{
+            "providers": {
+                "embedder": { "builtin": "onnx", "options": { "model": "Xenova/all-MiniLM-L6-v2", "dimensions": 384 } },
+                "vectorStore": { "builtin": "lancedb" }
+            },
+            "fileSets": [{ "name": "code", "include": ["**/*.rs"], "chunkers": [{ "builtin": "lang" }] }]
+        }"#,
+        );
+        let opts = &cfg.providers.embedder.options;
+        assert_eq!(
+            opts.get("model").and_then(|v| v.as_str()),
+            Some("Xenova/all-MiniLM-L6-v2")
+        );
+    }
+
+    #[test]
+    fn reranker_flat_model_and_top_k_parse() {
+        // Verifies Bug 2 fix: model + topK at top level
+        let cfg = parse(
+            r#"{
+            "providers": {
+                "embedder": { "builtin": "fastembed", "options": { "model": "BAAI/bge-small-en-v1.5", "dimensions": 384 } },
+                "vectorStore": { "builtin": "lancedb" },
+                "reranker": { "builtin": "cross-encoder", "options": { "model": "cross-encoder/ms-marco-MiniLM-L-12-v2", "topK": 5 } }
+            },
+            "fileSets": [{ "name": "code", "include": ["**/*.rs"], "chunkers": [{ "builtin": "lang" }] }]
+        }"#,
+        );
+        let opts = &cfg.providers.reranker.as_ref().unwrap().options;
+        assert_eq!(
+            opts.get("model").and_then(|v| v.as_str()),
+            Some("cross-encoder/ms-marco-MiniLM-L-12-v2")
+        );
+        assert_eq!(opts.get("topK").and_then(|v| v.as_u64()), Some(5));
+    }
+
+    #[test]
+    fn git_builtin_key_resolves() {
+        // Verifies Bug 4 fix: "git" and "localfs" are valid builtin keys
+        let cfg = parse(
+            r#"{
+            "providers": {
+                "embedder": { "builtin": "fastembed", "options": { "model": "m", "dimensions": 384 } },
+                "vectorStore": { "builtin": "lancedb" },
+                "source": { "builtin": "git" }
+            },
+            "fileSets": [{ "name": "code", "include": ["**/*.rs"], "chunkers": [{ "builtin": "lang" }] }]
+        }"#,
+        );
+        assert!(cfg.providers.source.is_some());
+        assert!(cfg
+            .providers
+            .source
+            .as_ref()
+            .unwrap()
+            .package
+            .contains("source-git"));
+    }
+}

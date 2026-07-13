@@ -149,8 +149,9 @@ fn hf_download(model_id: &str, filename: &str, dest: &std::path::Path) -> anyhow
 // ── Embedder options ──────────────────────────────────────────────────────────
 
 #[derive(Deserialize)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
+#[serde(rename_all = "camelCase")]
 struct OnnxEmbedderOptions {
+    #[serde(flatten)]
     source: OnnxModelSource,
     #[serde(default = "default_onnx_dims")]
     dimensions: usize,
@@ -172,8 +173,9 @@ fn default_true() -> bool {
 // ── Cross-encoder reranker options ────────────────────────────────────────────
 
 #[derive(Deserialize)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
+#[serde(rename_all = "camelCase")]
 struct CrossEncoderOptions {
+    #[serde(flatten)]
     source: OnnxModelSource,
     max_length: Option<usize>,
     /// Score activation: "none" (default), "sigmoid", or "softmax".
@@ -181,6 +183,8 @@ struct CrossEncoderOptions {
     /// Index into the logits vector to use as the relevance score (default: 0).
     #[serde(default)]
     score_index: usize,
+    /// Number of results to return after reranking.
+    top_k: Option<usize>,
 }
 
 // ── Vector store options ──────────────────────────────────────────────────────
@@ -254,6 +258,11 @@ fn default_chroma_collection() -> String {
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct GitSourceOptions {
     root: Option<String>,
+    branch: Option<String>,
+    /// Reserved for future remote clone support — schema accepted, errors at runtime if set.
+    url: Option<String>,
+    /// Reserved for future shallow clone depth — schema accepted, ignored until url is implemented.
+    depth: Option<u32>,
 }
 
 #[derive(Deserialize, Default)]
@@ -427,8 +436,15 @@ pub fn resolve_source(
             #[cfg(feature = "source-git")]
             {
                 let opts: GitSourceOptions = parse_options(p)?;
+                if opts.url.is_some() {
+                    anyhow::bail!(
+                        "git source 'url' (remote clone) is not yet implemented — \
+                         clone the repo locally and set 'root' to point to it"
+                    );
+                }
                 let root = opts.root.as_deref().map(Path::new).unwrap_or(cwd);
-                let provider = crate::sources::git::GitSourceProvider::open(root, "git")?;
+                let provider =
+                    crate::sources::git::GitSourceProvider::open_branch(root, "git", opts.branch)?;
                 Ok(Arc::new(provider))
             }
             #[cfg(not(feature = "source-git"))]

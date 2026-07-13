@@ -8012,6 +8012,7 @@ dependencies = [
  "futures",
  "git2",
  "globset",
+ "indexmap 2.14.0",
  "indicatif",
  "lancedb",
  "lopdf",

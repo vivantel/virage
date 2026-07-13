@@ -1972,6 +1972,7 @@ fn cmd_init(args: ConfigPathArg, verbose: u8) -> anyhow::Result<()> {
         };
         file_sets.push(serde_json::json!({
             "name": set_name,
+            "source": "default",
             "include": patterns,
             "chunkers": [chunker_spec]
         }));
@@ -1994,7 +1995,7 @@ fn cmd_init(args: ConfigPathArg, verbose: u8) -> anyhow::Result<()> {
         serde_json::json!({ "package": store_pkg })
     };
 
-    // G2: source spec
+    // v2: source goes in top-level "sources" map; filesets reference it by name
     let source_spec = if let Some(builtin) = package_to_builtin(source_pkg) {
         serde_json::json!({ "builtin": builtin })
     } else {
@@ -2003,8 +2004,7 @@ fn cmd_init(args: ConfigPathArg, verbose: u8) -> anyhow::Result<()> {
 
     let mut providers = serde_json::json!({
         "embedder": embedder_spec,
-        "vectorStore": store_spec,
-        "source": source_spec
+        "vectorStore": store_spec
     });
 
     // G2/G6: reranker with builtin key and default options
@@ -2051,7 +2051,10 @@ fn cmd_init(args: ConfigPathArg, verbose: u8) -> anyhow::Result<()> {
     // H6: fixed $schema URL (already set above)
     let mut cfg = serde_json::json!({
         "$schema": "https://unpkg.com/@vivantel/virage-core/schemas/virage.config.schema.json",
-        "version": "1.0.0",
+        "version": "2",
+        "sources": {
+            "default": source_spec
+        },
         "providers": providers,
         "fileSets": file_sets,
         "ignore": ignore_patterns,
