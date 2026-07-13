@@ -10,15 +10,21 @@ on:
       - 'virage.config.ci.json'
       - '.github/workflows/virage-index-pipeline.yaml'
   workflow_dispatch:
+  workflow_run:
+    # re-index after binary publish — published binary may have improved algorithms
+    workflows: ["Build & Publish Virage Binary"]
+    types: [completed]
 
 concurrency:
   group: virage-index-pipeline
   cancel-in-progress: false
 
 jobs:
-  virage-update:
+  index:
     name: Virage Index Pipeline
     runs-on: ubuntu-latest
+    # skip if triggered by a failed publish
+    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
     permissions:
       contents: read
 
@@ -28,35 +34,13 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Cache virage binary
-        id: bin-cache
-        uses: actions/cache@v6
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
         with:
-          path: target/release/virage
-          key: ${{ runner.os }}-virage-bin-${{ hashFiles('crates/**', 'Cargo.lock', 'Cargo.toml') }}
+          node-version: lts/*
 
-      - name: Install Rust toolchain
-        if: steps.bin-cache.outputs.cache-hit != 'true'
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Cargo cache
-        if: steps.bin-cache.outputs.cache-hit != 'true'
-        uses: actions/cache@v6
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-virage-index-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: ${{ runner.os }}-virage-index-
-
-      - name: Install protoc
-        if: steps.bin-cache.outputs.cache-hit != 'true'
-        run: sudo apt-get update -y && sudo apt-get install -y protobuf-compiler
-
-      - name: Build virage binary
-        if: steps.bin-cache.outputs.cache-hit != 'true'
-        run: cargo build -p virage-engine --bin virage --release --features "cli,store-lancedb"
+      - name: Install virage CLI
+        run: npm install -g @vivantel/virage@latest
 
       - name: Restore Virage cache
         uses: actions/cache/restore@v6
@@ -70,7 +54,8 @@ jobs:
             virage-
 
       - name: Run Virage pipeline
-        run: ./target/release/virage index --config virage.config.ci.json
+        timeout-minutes: 5
+        run: virage index --config virage.config.ci.json
 
       - name: Save Virage cache
         if: always()

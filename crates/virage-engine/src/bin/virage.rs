@@ -4,6 +4,7 @@ use std::sync::Arc;
 
 use clap::{Args, Parser, Subcommand};
 use indicatif::{ProgressBar, ProgressStyle};
+use virage_engine::output::Out;
 
 #[cfg(any(feature = "embedder-onnx", feature = "download-binaries"))]
 use virage_engine::config::resolve::resolve_reranker;
@@ -24,6 +25,14 @@ use virage_engine::stores::{SearchOptions, VectorStore};
     long_about = None,
 )]
 struct Cli {
+    /// Increase verbosity (stackable: -v, -vv … -vvvvv)
+    #[arg(short = 'v', global = true, action = clap::ArgAction::Count)]
+    verbose: u8,
+
+    /// Suppress the startup banner
+    #[arg(long = "no-banner", global = true)]
+    no_banner: bool,
+
     #[command(subcommand)]
     command: Option<Commands>,
 }
@@ -31,28 +40,37 @@ struct Cli {
 #[derive(Subcommand)]
 enum Commands {
     /// Index (or re-index) source files into the vector store.
+    #[command(aliases = ["i"])]
     Index(IndexArgs),
     /// Search the vector index with a natural-language query.
+    #[command(aliases = ["q"])]
     Query(QueryArgs),
     /// Validate the config file and report issues.
+    #[command(aliases = ["val", "v"])]
     Validate(ConfigPathArg),
     /// Check index metadata against the current embedder config.
+    #[command(aliases = ["c"])]
     Check(ConfigPathArg),
     /// Show indexing run diagnostics from the state DB.
+    #[command(aliases = ["r"])]
     Report(DbPathArg),
     /// Interactive setup wizard.
     Init(ConfigPathArg),
-    /// Update WASM plugins and the virage binary.
+    /// Update virage ecosystem packages and the binary.
+    #[command(aliases = ["up"])]
     Update,
     /// Migrate a v1 virage.config.json to v2 format.
     Migrate(ConfigPathArg),
     /// Pack the `.virage/` directory as a `.tar.gz` archive.
     Pack(PackArgs),
     /// Write git post-merge and post-checkout hooks.
+    #[command(aliases = ["hooks"])]
     InstallHooks(ConfigPathArg),
     /// Remove hooks, DB, config, and optionally the global binary.
+    #[command(aliases = ["un"])]
     Uninstall,
     /// Manage telemetry settings.
+    #[command(aliases = ["tm"])]
     Telemetry(TelemetryArgs),
     /// Vector store sub-commands.
     Store(StoreArgs),
@@ -63,14 +81,18 @@ enum Commands {
     /// Test a WASM plugin against fixture data.
     Plugin(PluginArgs),
     /// Print the virage-agent-claude usage notice.
+    #[command(aliases = ["use"])]
     Usage,
     /// Print the first 20 lines of each skill file.
+    #[command(aliases = ["skill"])]
     ReadSkillSummary,
     /// Start the virage dashboard web UI (requires Node.js).
+    #[command(aliases = ["d"])]
     Dashboard(DashboardArgs),
     /// [Deferred post-v2] Visualise embeddings.
     Viz,
     /// Validate, then run quality metrics and exit 1 if any gate fails.
+    #[command(aliases = ["ql"])]
     Quality(QualityArgs),
 }
 
@@ -107,6 +129,9 @@ struct IndexArgs {
     /// Path to virage.db.
     #[arg(long, default_value = "")]
     db: String,
+    /// Re-run pipeline on file changes (stub — not yet implemented).
+    #[arg(long)]
+    watch: bool,
 }
 
 #[derive(Args)]
@@ -145,11 +170,18 @@ struct TelemetryArgs {
 
 #[derive(Subcommand)]
 enum TelemetryCommand {
+    /// Show telemetry status and buffer info.
     Status,
+    /// Enable telemetry collection.
     On,
+    /// Disable telemetry collection.
     Off,
+    /// Preview the pending telemetry payload.
     Preview,
+    /// Flush buffered telemetry events.
     Flush,
+    /// Interactive telemetry configuration wizard.
+    Init,
 }
 
 #[derive(Args)]
@@ -240,6 +272,164 @@ enum QualityEvalCommand {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
+/// Returns the correct npm binary name for the current OS.
+/// On Windows, `npm` is a batch script (`npm.cmd`), not a native executable.
+fn npm_bin() -> &'static str {
+    if cfg!(windows) {
+        "npm.cmd"
+    } else {
+        "npm"
+    }
+}
+
+struct PackageStatus {
+    name: String,
+    current: String,
+    latest: String,
+    outdated: bool,
+}
+
+/// Queries `npm view <pkg> version --json` and returns the latest published version.
+fn get_npm_latest(npm: &str, pkg: &str) -> Option<String> {
+    let output = std::process::Command::new(npm)
+        .args(["view", pkg, "version", "--json", "--prefer-online"])
+        .output()
+        .ok()?;
+    if !output.status.success() {
+        return None;
+    }
+    let s = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    serde_json::from_str::<String>(&s).ok()
+}
+
+/// Returns the currently installed version of a package, checking local node_modules
+/// then falling back to `npm list --global`.
+fn get_npm_current(npm: &str, pkg: &str, cwd: &Path) -> Option<String> {
+    let local_pkg = cwd.join("node_modules").join(pkg).join("package.json");
+    if let Ok(raw) = std::fs::read_to_string(local_pkg) {
+        if let Ok(v) = serde_json::from_str::<serde_json::Value>(&raw) {
+            if let Some(ver) = v.get("version").and_then(|v| v.as_str()) {
+                return Some(ver.to_string());
+            }
+        }
+    }
+    let out = std::process::Command::new(npm)
+        .args(["list", pkg, "--global", "--json", "--depth=0"])
+        .output()
+        .ok()?;
+    let s = String::from_utf8_lossy(&out.stdout);
+    let v: serde_json::Value = serde_json::from_str(&s).ok()?;
+    v.get("dependencies")
+        .and_then(|d| d.get(pkg))
+        .and_then(|p| p.get("version"))
+        .and_then(|v| v.as_str())
+        .map(|s| s.to_string())
+}
+
+/// Discovers all @vivantel/* packages referenced in virage.config.json and package.json.
+fn discover_virage_packages(cwd: &Path, config_path: &str) -> Vec<String> {
+    let mut packages = std::collections::BTreeSet::new();
+    packages.insert("@vivantel/virage-core".to_string());
+    packages.insert("@vivantel/virage-skills".to_string());
+
+    if let Ok(raw) = std::fs::read_to_string(config_path) {
+        if let Ok(v) = serde_json::from_str::<serde_json::Value>(&raw) {
+            if let Some(providers) = v.get("providers").and_then(|p| p.as_object()) {
+                for provider in providers.values() {
+                    if let Some(pkg) = provider.get("package").and_then(|p| p.as_str()) {
+                        packages.insert(pkg.to_string());
+                    }
+                }
+            }
+            if let Some(agents) = v.get("agents").and_then(|a| a.as_array()) {
+                for agent in agents {
+                    if let Some(pkg) = agent.get("package").and_then(|p| p.as_str()) {
+                        packages.insert(pkg.to_string());
+                    }
+                }
+            }
+            if let Some(file_sets) = v.get("fileSets").and_then(|f| f.as_array()) {
+                for fs in file_sets {
+                    if let Some(chunkers) = fs.get("chunkers").and_then(|c| c.as_array()) {
+                        for chunker in chunkers {
+                            if let Some(pkg) = chunker.get("package").and_then(|p| p.as_str()) {
+                                packages.insert(pkg.to_string());
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    let pkg_json = cwd.join("package.json");
+    if let Ok(raw) = std::fs::read_to_string(pkg_json) {
+        if let Ok(v) = serde_json::from_str::<serde_json::Value>(&raw) {
+            for key in ["dependencies", "devDependencies"] {
+                if let Some(deps) = v.get(key).and_then(|d| d.as_object()) {
+                    for name in deps.keys() {
+                        if name.starts_with("@vivantel/") {
+                            packages.insert(name.clone());
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    packages.into_iter().collect()
+}
+
+/// Scans `dir` for file types, returning a map of type name → file count.
+/// Skips common non-source directories (node_modules, dist, target, etc.).
+fn detect_file_types(dir: &Path) -> HashMap<&'static str, usize> {
+    let mut counts: HashMap<&'static str, usize> = HashMap::new();
+    if !dir.exists() {
+        return counts;
+    }
+    let skip = [
+        "node_modules",
+        "dist",
+        "target",
+        ".git",
+        ".virage",
+        "__pycache__",
+        ".next",
+        "build",
+        "vendor",
+    ];
+    for entry in walkdir::WalkDir::new(dir)
+        .into_iter()
+        .filter_entry(|e| {
+            !e.file_type().is_dir() || !skip.contains(&e.file_name().to_str().unwrap_or(""))
+        })
+        .filter_map(|e| e.ok())
+        .filter(|e| e.file_type().is_file())
+    {
+        let ext = entry
+            .path()
+            .extension()
+            .and_then(|e| e.to_str())
+            .unwrap_or("");
+        let kind: &'static str = match ext {
+            "ts" | "tsx" => "TypeScript",
+            "js" | "jsx" | "mjs" | "cjs" => "JavaScript",
+            "py" => "Python",
+            "rs" => "Rust",
+            "go" => "Go",
+            "java" | "kt" | "kts" => "Java / Kotlin",
+            "cs" | "cpp" | "c" | "h" | "hpp" => "C# / C++",
+            "md" | "mdx" => "Markdown",
+            "pdf" => "PDF",
+            "docx" => "Word / DOCX",
+            "tex" => "LaTeX",
+            _ => continue,
+        };
+        *counts.entry(kind).or_insert(0) += 1;
+    }
+    counts
+}
+
 fn resolve_config_path(arg: &str) -> anyhow::Result<String> {
     if !arg.is_empty() {
         return Ok(arg.to_string());
@@ -291,7 +481,8 @@ fn spinner(msg: &str) -> ProgressBar {
 
 // ─── Command implementations ──────────────────────────────────────────────────
 
-async fn cmd_index(args: IndexArgs) -> anyhow::Result<()> {
+async fn cmd_index(args: IndexArgs, verbose: u8) -> anyhow::Result<()> {
+    let out = Out::new(verbose);
     let config_path = resolve_config_path(&args.config)?;
     let cfg = load_config(&config_path)?;
     let db_path = resolve_db_path(&args.db);
@@ -326,10 +517,15 @@ async fn cmd_index(args: IndexArgs) -> anyhow::Result<()> {
     let source = resolve_source(cfg.providers.source.as_ref(), &cwd)?;
     pb.finish_and_clear();
 
+    if args.watch {
+        out.warn("--watch is not yet implemented");
+        return Ok(());
+    }
+
     // ── Dry-run mode ──────────────────────────────────────────────────────────
     if dry_run {
         use futures::StreamExt;
-        println!("Dry-run mode — computing changes without indexing...");
+        out.section("Dry Run");
         let mut stream = source.list_all(None);
         let mut all_paths = Vec::new();
         while let Some(item) = stream.next().await {
@@ -351,12 +547,12 @@ async fn cmd_index(args: IndexArgs) -> anyhow::Result<()> {
             .filter(|k| !all_paths.contains(k))
             .map(String::as_str)
             .collect();
-        println!("  Files to index  : {}", to_process.len());
-        println!(
+        out.info(&format!("  Files to index  : {}", to_process.len()));
+        out.info(&format!(
             "  Files unchanged : {}",
             all_paths.len().saturating_sub(to_process.len())
-        );
-        println!("  Files to delete : {}", to_delete.len());
+        ));
+        out.info(&format!("  Files to delete : {}", to_delete.len()));
         return Ok(());
     }
 
@@ -432,14 +628,15 @@ async fn cmd_index(args: IndexArgs) -> anyhow::Result<()> {
         }
     }
 
-    println!(
+    out.success(&format!(
         "Done.  Processed: {}  Skipped: {}  Deleted: {}  Chunks: {}",
         stats.files_processed, stats.files_skipped, stats.files_deleted, stats.chunks_upserted,
-    );
+    ));
     Ok(())
 }
 
-async fn cmd_query(args: QueryArgs) -> anyhow::Result<()> {
+async fn cmd_query(args: QueryArgs, verbose: u8) -> anyhow::Result<()> {
+    let out = Out::new(verbose);
     let config_path = resolve_config_path(&args.config)?;
     let cfg = load_config(&config_path)?;
     let dims = embedder_dims(&cfg);
@@ -517,15 +714,16 @@ async fn cmd_query(args: QueryArgs) -> anyhow::Result<()> {
     }
 
     if results.is_empty() {
-        println!("No results found.");
+        out.warn("No results found.");
         return Ok(());
     }
 
-    println!(
+    use console::style;
+    out.info(&format!(
         "\nTop {} result(s) for: \"{}\"\n",
         results.len(),
         args.query
-    );
+    ));
     for (i, r) in results.iter().enumerate() {
         let snippet = if r.dense_text.len() > 400 {
             format!("{}…", &r.dense_text[..400])
@@ -534,20 +732,22 @@ async fn cmd_query(args: QueryArgs) -> anyhow::Result<()> {
         };
         let src = r.source_file.as_deref().unwrap_or("unknown");
         println!(
-            "[{}] {}  (similarity: {:.1}%)\n{}",
-            i + 1,
-            src,
-            r.similarity * 100.0,
-            snippet
+            "{}  {}  {}",
+            style(format!("{:2}.", i + 1)).dim(),
+            style(format!("{:.1}%", r.similarity * 100.0)).cyan(),
+            style(src).dim()
         );
-        println!("{}", "─".repeat(60));
+        println!("   {snippet}");
+        println!("{}", style("─".repeat(60)).dim());
     }
     Ok(())
 }
 
-fn cmd_validate(args: ConfigPathArg) -> anyhow::Result<()> {
+fn cmd_validate(args: ConfigPathArg, verbose: u8) -> anyhow::Result<()> {
+    let out = Out::new(verbose);
     let config_path = resolve_config_path(&args.config)?;
-    println!("Validating config: {config_path}");
+    out.section("Validate");
+    out.dim(&format!("Config: {config_path}"));
 
     let cfg = load_config(&config_path)?;
 
@@ -559,49 +759,50 @@ fn cmd_validate(args: ConfigPathArg) -> anyhow::Result<()> {
 
     for fs in &cfg.file_sets {
         if fs.chunkers.is_empty() {
-            eprintln!("  WARN  fileSet {:?}: chunkers is empty", fs.name);
+            out.warn(&format!("fileSet {:?}: chunkers is empty", fs.name));
             warnings += 1;
         }
         if fs.include.is_empty() {
-            eprintln!(
-                "  WARN  fileSet {:?}: no include patterns — will match nothing",
+            out.warn(&format!(
+                "fileSet {:?}: no include patterns — will match nothing",
                 fs.name
-            );
+            ));
             warnings += 1;
         }
         for pat in &fs.include {
-            // Validate that the glob pattern is syntactically valid.
             match globset::Glob::new(pat) {
-                Ok(_) => {
-                    println!("  OK    fileSet {:?}: pattern {:?} is valid", fs.name, pat);
-                }
+                Ok(_) => out.verbose(&format!("fileSet {:?}: pattern {:?} OK", fs.name, pat)),
                 Err(e) => {
-                    eprintln!(
-                        "  WARN  fileSet {:?}: invalid pattern {:?}: {e}",
+                    out.warn(&format!(
+                        "fileSet {:?}: invalid pattern {:?}: {e}",
                         fs.name, pat
-                    );
+                    ));
                     warnings += 1;
                 }
             }
         }
     }
 
-    println!("\nEmbedder  : {}", cfg.providers.embedder.package);
-    println!("Store     : {}", cfg.providers.vector_store.package);
+    out.info(&format!("\nEmbedder : {}", cfg.providers.embedder.package));
+    out.info(&format!(
+        "Store    : {}",
+        cfg.providers.vector_store.package
+    ));
     if let Some(src) = &cfg.providers.source {
-        println!("Source    : {}", src.package);
+        out.info(&format!("Source   : {}", src.package));
     }
-    println!("FileSets  : {}", cfg.file_sets.len());
+    out.info(&format!("FileSets : {}", cfg.file_sets.len()));
 
     if warnings > 0 {
-        println!("\nConfig loaded with {warnings} warning(s).");
+        out.warn(&format!("Config loaded with {warnings} warning(s)."));
     } else {
-        println!("\nConfig is valid.");
+        out.success("Config is valid.");
     }
     Ok(())
 }
 
-async fn cmd_check(args: ConfigPathArg) -> anyhow::Result<()> {
+async fn cmd_check(args: ConfigPathArg, verbose: u8) -> anyhow::Result<()> {
+    let out = Out::new(verbose);
     let config_path = resolve_config_path(&args.config)?;
     let cfg = load_config(&config_path)?;
     let dims = embedder_dims(&cfg);
@@ -612,14 +813,19 @@ async fn cmd_check(args: ConfigPathArg) -> anyhow::Result<()> {
     pb.finish_and_clear();
 
     let state = store.current_state().await?;
-    println!("Vector store  : {}", cfg.providers.vector_store.package);
-    println!("Indexed files : {}", state.len());
-    println!("Dimensions    : {dims}");
-    println!("Status        : OK");
+    out.section("Index Check");
+    out.info(&format!(
+        "Vector store  : {}",
+        cfg.providers.vector_store.package
+    ));
+    out.info(&format!("Indexed files : {}", state.len()));
+    out.info(&format!("Dimensions    : {dims}"));
+    out.success("Status: OK");
     Ok(())
 }
 
-fn cmd_report(args: DbPathArg) -> anyhow::Result<()> {
+fn cmd_report(args: DbPathArg, verbose: u8) -> anyhow::Result<()> {
+    let out = Out::new(verbose);
     let db_path = resolve_db_path(&args.db);
     let db = open_or_init_db(&db_path)?;
 
@@ -633,15 +839,16 @@ fn cmd_report(args: DbPathArg) -> anyhow::Result<()> {
         .pending_upload_count()
         .map_err(|e| anyhow::anyhow!("DB read error: {e}"))?;
 
-    println!("=== Virage Report ===");
-    println!("DB path          : {db_path}");
-    println!("Indexed files    : {}", revisions.len());
-    println!("Pending embed    : {pending_embed}");
-    println!("Pending upload   : {pending_upload}");
+    out.section("Virage Report");
+    out.info(&format!("DB path          : {db_path}"));
+    out.info(&format!("Indexed files    : {}", revisions.len()));
+    out.info(&format!("Pending embed    : {pending_embed}"));
+    out.info(&format!("Pending upload   : {pending_upload}"));
     Ok(())
 }
 
-fn cmd_chunks_report(args: DbPathArg) -> anyhow::Result<()> {
+fn cmd_chunks_report(args: DbPathArg, verbose: u8) -> anyhow::Result<()> {
+    let out = Out::new(verbose);
     let db_path = resolve_db_path(&args.db);
     let db = open_or_init_db(&db_path)?;
     let revisions = db
@@ -649,20 +856,21 @@ fn cmd_chunks_report(args: DbPathArg) -> anyhow::Result<()> {
         .map_err(|e| anyhow::anyhow!("DB read error: {e}"))?;
 
     if revisions.is_empty() {
-        println!("No indexed files found in {db_path}.");
+        out.warn(&format!("No indexed files found in {db_path}."));
         return Ok(());
     }
 
-    println!("=== Chunks Report ({} files) ===", revisions.len());
+    out.section(&format!("Chunks Report ({} files)", revisions.len()));
     let mut files: Vec<_> = revisions.iter().collect();
     files.sort_by_key(|(k, _)| k.as_str());
     for (file, rev) in &files {
-        println!("  {}  [{}]", file, &rev[..rev.len().min(8)]);
+        out.dim(&format!("  {}  [{}]", file, &rev[..rev.len().min(8)]));
     }
     Ok(())
 }
 
-async fn cmd_store_stats(args: ConfigPathArg) -> anyhow::Result<()> {
+async fn cmd_store_stats(args: ConfigPathArg, verbose: u8) -> anyhow::Result<()> {
+    let out = Out::new(verbose);
     let config_path = resolve_config_path(&args.config)?;
     let cfg = load_config(&config_path)?;
     let dims = embedder_dims(&cfg);
@@ -673,40 +881,101 @@ async fn cmd_store_stats(args: ConfigPathArg) -> anyhow::Result<()> {
     pb.finish_and_clear();
 
     let state = store.current_state().await?;
-    println!("=== Store Stats ===");
-    println!("Package       : {}", cfg.providers.vector_store.package);
-    println!("Indexed files : {}", state.len());
-    println!("Dimensions    : {dims}");
+    out.section("Store Stats");
+    out.info(&format!(
+        "Package       : {}",
+        cfg.providers.vector_store.package
+    ));
+    out.info(&format!("Indexed files : {}", state.len()));
+    out.info(&format!("Dimensions    : {dims}"));
     Ok(())
 }
 
-fn cmd_migrate(args: ConfigPathArg) -> anyhow::Result<()> {
+async fn cmd_store_perf(args: ConfigPathArg, verbose: u8) -> anyhow::Result<()> {
+    let out = Out::new(verbose);
+    let config_path = resolve_config_path(&args.config)?;
+    let cfg = load_config(&config_path)?;
+    let dims = embedder_dims(&cfg);
+
+    let pb = spinner("Connecting to vector store...");
+    let store = resolve_store(&cfg.providers.vector_store, dims)?;
+    store.initialize().await?;
+    pb.finish_and_clear();
+
+    const N: usize = 50;
+    out.section("Store Performance Benchmark");
+    out.dim(&format!(
+        "Running {N} queries against {} (dims={dims})...",
+        cfg.providers.vector_store.package
+    ));
+
+    // Pseudo-random vectors via LCG — tests store latency independent of embedder.
+    let mut durations_ms = Vec::with_capacity(N);
+    let mut seed: u64 = 0xDEAD_BEEF;
+    for _ in 0..N {
+        let vec: Vec<f32> = (0..dims)
+            .map(|_| {
+                seed = seed
+                    .wrapping_mul(6_364_136_223_846_793_005)
+                    .wrapping_add(1_442_695_040_888_963_407);
+                (seed >> 33) as f32 / u32::MAX as f32 * 2.0 - 1.0
+            })
+            .collect();
+
+        let opts = SearchOptions {
+            filter: None,
+            tag_filter: None,
+            hybrid: false,
+            hybrid_alpha: 0.6,
+            query_text: None,
+        };
+
+        let t0 = std::time::Instant::now();
+        let _ = store.search(&vec, 5, opts).await;
+        durations_ms.push(t0.elapsed().as_secs_f64() * 1000.0);
+    }
+
+    durations_ms.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+
+    let p50 = durations_ms[N / 2];
+    let p95 = durations_ms[(N as f64 * 0.95) as usize];
+    let p99 = durations_ms[(N as f64 * 0.99) as usize];
+    let total: f64 = durations_ms.iter().sum();
+    let qps = N as f64 / (total / 1000.0);
+
+    out.info(&format!("  p50 : {p50:.1}ms"));
+    out.info(&format!("  p95 : {p95:.1}ms"));
+    out.info(&format!("  p99 : {p99:.1}ms"));
+    out.info(&format!("  QPS : {qps:.0}  (sequential, {N} queries)"));
+    Ok(())
+}
+
+fn cmd_migrate(args: ConfigPathArg, verbose: u8) -> anyhow::Result<()> {
+    let out = Out::new(verbose);
     let config_path = resolve_config_path(&args.config)?;
     let text = std::fs::read_to_string(&config_path)
         .map_err(|e| anyhow::anyhow!("Cannot read {:?}: {e}", config_path))?;
     let mut value: serde_json::Value = serde_json::from_str(&text)?;
 
-    // v1 used `"package": "@vivantel/..."` everywhere — v2 is the same,
-    // but normalize any legacy `tags` → keep as-is (already v2 if parseable).
     let already_v2 = value.get("providers").is_some() && value.get("fileSets").is_some();
     if already_v2 {
-        println!("Config is already v2 format — nothing to migrate.");
+        out.success("Config is already v2 format — nothing to migrate.");
         return Ok(());
     }
-    println!("Migrating {config_path} ...");
-    // Rewrite `version` to current schema version.
+    out.info(&format!("Migrating {config_path} ..."));
     if let Some(obj) = value.as_object_mut() {
         obj.insert("version".into(), serde_json::json!("1.0.0"));
     }
     let backup = format!("{config_path}.bak");
     std::fs::copy(&config_path, &backup)?;
     std::fs::write(&config_path, serde_json::to_string_pretty(&value)?)?;
-    println!("Backup saved to {backup}");
-    println!("Migration complete.");
+    out.dim(&format!("Backup saved to {backup}"));
+    out.success("Migration complete.");
     Ok(())
 }
 
-fn cmd_install_hooks(args: ConfigPathArg) -> anyhow::Result<()> {
+fn cmd_install_hooks(args: ConfigPathArg, verbose: u8) -> anyhow::Result<()> {
+    let out = Out::new(verbose);
     let config_path =
         resolve_config_path(&args.config).unwrap_or_else(|_| "virage.config.json".into());
     let hooks_dir = PathBuf::from(".git/hooks");
@@ -727,173 +996,765 @@ fn cmd_install_hooks(args: ConfigPathArg) -> anyhow::Result<()> {
             use std::os::unix::fs::PermissionsExt;
             std::fs::set_permissions(&hook_path, std::fs::Permissions::from_mode(0o755))?;
         }
-        println!("Installed hook: {}", hook_path.display());
+        out.success(&format!("Installed hook: {}", hook_path.display()));
     }
     Ok(())
 }
 
-fn cmd_telemetry(args: TelemetryArgs) -> anyhow::Result<()> {
+fn cmd_telemetry(args: TelemetryArgs, verbose: u8) -> anyhow::Result<()> {
+    let out = Out::new(verbose);
     let home = std::env::var("HOME").unwrap_or_else(|_| ".".into());
     let config_dir = PathBuf::from(home).join(".config").join("virage");
     let flag_file = config_dir.join("telemetry.enabled");
+    let telemetry_cfg = config_dir.join("telemetry.json");
     match args.command {
         TelemetryCommand::Status => {
             let enabled = flag_file.exists();
-            println!(
-                "Telemetry: {}",
-                if enabled { "enabled" } else { "disabled" }
-            );
+            if enabled {
+                out.success("Telemetry: enabled");
+                if let Ok(raw) = std::fs::read_to_string(&telemetry_cfg) {
+                    if let Ok(v) = serde_json::from_str::<serde_json::Value>(&raw) {
+                        if let Some(ep) = v.get("endpoint").and_then(|e| e.as_str()) {
+                            out.dim(&format!("  Endpoint : {ep}"));
+                        }
+                        if let Some(tier2) = v.get("tier2").and_then(|t| t.as_bool()) {
+                            out.dim(&format!("  Tier-2   : {tier2}"));
+                        }
+                    }
+                }
+            } else {
+                out.warn("Telemetry: disabled");
+            }
         }
         TelemetryCommand::On => {
             std::fs::create_dir_all(&config_dir)?;
             std::fs::write(&flag_file, "")?;
-            println!("Telemetry enabled.");
+            out.success("Telemetry enabled.");
         }
         TelemetryCommand::Off => {
             let _ = std::fs::remove_file(&flag_file);
-            println!("Telemetry disabled.");
+            out.success("Telemetry disabled.");
         }
         TelemetryCommand::Preview => {
-            println!("[telemetry preview] No pending events.");
+            out.dim("No pending telemetry events.");
         }
         TelemetryCommand::Flush => {
-            println!("[telemetry flush] No events to flush.");
+            out.dim("No events to flush.");
+        }
+        TelemetryCommand::Init => {
+            cmd_telemetry_init(&out, &config_dir, &flag_file, &telemetry_cfg)?;
         }
     }
     Ok(())
 }
 
-fn cmd_quality(args: QualityArgs) -> anyhow::Result<()> {
+fn cmd_telemetry_init(
+    out: &Out,
+    config_dir: &Path,
+    flag_file: &Path,
+    telemetry_cfg: &Path,
+) -> anyhow::Result<()> {
+    use dialoguer::{Confirm, Input, Select};
+
+    out.section("Telemetry Setup");
+
+    const BACK: &str = "← Back";
+    let mut endpoint = String::from("https://telemetry.vivantel.com");
+    let mut api_key = String::new();
+    let mut tier2 = false;
+    let mut sampling_rate = 5u8;
+    let mut step = 0usize;
+
+    loop {
+        match step {
+            // Step 1: Endpoint type
+            0 => {
+                let choices = [BACK, "Vivantel hosted (default)", "Custom endpoint"];
+                let idx = Select::new()
+                    .with_prompt("Telemetry endpoint")
+                    .items(&choices)
+                    .default(1)
+                    .interact()?;
+                match idx {
+                    0 => {
+                        out.info("Cancelled.");
+                        return Ok(());
+                    }
+                    2 => step = 1,
+                    _ => {
+                        endpoint = "https://telemetry.vivantel.com".into();
+                        step = 2;
+                    }
+                }
+            }
+            // Step 2: Custom endpoint URL + API key
+            1 => {
+                let url: String = Input::new()
+                    .with_prompt("Endpoint URL")
+                    .default(endpoint.clone())
+                    .interact_text()?;
+                let key: String = Input::new()
+                    .with_prompt("API key (leave blank if not required)")
+                    .allow_empty(true)
+                    .interact_text()?;
+
+                let choices = [BACK, "Continue"];
+                let idx = Select::new()
+                    .with_prompt(&format!("Use endpoint {url}?"))
+                    .items(&choices)
+                    .default(1)
+                    .interact()?;
+                if idx == 0 {
+                    step = 0;
+                    continue;
+                }
+                endpoint = url;
+                api_key = key;
+                step = 2;
+            }
+            // Step 3: Tier-2 usage telemetry
+            2 => {
+                out.dim("Tier-2 telemetry shares anonymised query patterns to improve relevance.");
+                let choices = [BACK, "Enable tier-2", "Skip tier-2"];
+                let idx = Select::new()
+                    .with_prompt("Enable tier-2 usage telemetry?")
+                    .items(&choices)
+                    .default(2)
+                    .interact()?;
+                match idx {
+                    0 => {
+                        step = if api_key.is_empty() && endpoint.contains("vivantel") {
+                            0
+                        } else {
+                            1
+                        };
+                        continue;
+                    }
+                    1 => {
+                        tier2 = true;
+                        step = 3;
+                    }
+                    _ => {
+                        tier2 = false;
+                        step = 4;
+                    }
+                }
+            }
+            // Step 4: Sampling rate (only if tier-2 enabled)
+            3 => {
+                let choices = [BACK, "1% (minimal)", "5% (default)", "10%", "100% (full)"];
+                let idx = Select::new()
+                    .with_prompt("Sampling rate")
+                    .items(&choices)
+                    .default(2)
+                    .interact()?;
+                match idx {
+                    0 => {
+                        step = 2;
+                        continue;
+                    }
+                    1 => sampling_rate = 1,
+                    3 => sampling_rate = 10,
+                    4 => sampling_rate = 100,
+                    _ => sampling_rate = 5,
+                }
+                step = 4;
+            }
+            // Step 5: Confirm
+            4 => {
+                out.section("Summary");
+                out.info(&format!("  Endpoint    : {endpoint}"));
+                if !api_key.is_empty() {
+                    out.info("  API key     : ****");
+                }
+                out.info(&format!("  Tier-2      : {tier2}"));
+                if tier2 {
+                    out.info(&format!("  Sampling    : {sampling_rate}%"));
+                }
+                println!();
+
+                let choices = [BACK, "Save and enable", "Cancel"];
+                let idx = Select::new()
+                    .with_prompt("Confirm")
+                    .items(&choices)
+                    .default(1)
+                    .interact()?;
+                match idx {
+                    0 => {
+                        step = if tier2 { 3 } else { 2 };
+                        continue;
+                    }
+                    2 => {
+                        out.info("Cancelled.");
+                        return Ok(());
+                    }
+                    _ => {}
+                }
+                break;
+            }
+            _ => break,
+        }
+    }
+
+    // Write config
+    std::fs::create_dir_all(config_dir)?;
+    let mut cfg = serde_json::json!({
+        "endpoint": endpoint,
+        "tier2": tier2,
+    });
+    if !api_key.is_empty() {
+        cfg["apiKey"] = serde_json::Value::String(api_key);
+    }
+    if tier2 {
+        cfg["samplingRate"] = serde_json::Value::Number(sampling_rate.into());
+    }
+    std::fs::write(telemetry_cfg, serde_json::to_string_pretty(&cfg)?)?;
+    std::fs::write(flag_file, "")?;
+    out.success("Telemetry configured and enabled.");
+    Ok(())
+}
+
+fn cmd_quality(args: QualityArgs, verbose: u8) -> anyhow::Result<()> {
+    let out = Out::new(verbose);
+    let stub = |label: &str| out.dim(&format!("{label}: not yet implemented (Phase 5b)"));
     match args.command {
         None => {
             let config_path = resolve_config_path(&args.config)?;
-            println!("Quality metrics (Phase 5b) — config: {config_path}");
-            println!("[Not yet implemented — see Phase 5b]");
+            out.section("Quality Metrics");
+            out.dim(&format!("Config: {config_path}"));
+            stub("quality");
         }
         Some(QualityCommand::Eval(eval_args)) => match eval_args.command {
-            QualityEvalCommand::Run => {
-                println!("[quality eval run] Not yet implemented — see Phase 5b")
-            }
-            QualityEvalCommand::Generate => println!("[quality eval generate] Not yet implemented"),
-            QualityEvalCommand::Save => println!("[quality eval save] Not yet implemented"),
-            QualityEvalCommand::List => println!("[quality eval list] Not yet implemented"),
-            QualityEvalCommand::Compare => println!("[quality eval compare] Not yet implemented"),
+            QualityEvalCommand::Run => stub("quality eval run"),
+            QualityEvalCommand::Generate => stub("quality eval generate"),
+            QualityEvalCommand::Save => stub("quality eval save"),
+            QualityEvalCommand::List => stub("quality eval list"),
+            QualityEvalCommand::Compare => stub("quality eval compare"),
         },
-        Some(QualityCommand::Bench) => {
-            println!("[quality bench] Not yet implemented — see Phase 5b")
-        }
-        Some(QualityCommand::Suite) => {
-            println!("[quality suite] Not yet implemented — see Phase 5b")
-        }
-        Some(QualityCommand::History) => {
-            println!("[quality history] Not yet implemented — see Phase 5b")
-        }
+        Some(QualityCommand::Bench) => stub("quality bench"),
+        Some(QualityCommand::Suite) => stub("quality suite"),
+        Some(QualityCommand::History) => stub("quality history"),
     }
     Ok(())
 }
 
 // ─── init ────────────────────────────────────────────────────────────────────
 
-fn cmd_init(_args: ConfigPathArg) -> anyhow::Result<()> {
-    use dialoguer::{Input, Select};
+/// File-type metadata: (key used by detect_file_types, display label, include patterns, chunker pkg)
+const FILE_TYPE_META: &[(&str, &str, &[&str], &str)] = &[
+    (
+        "TypeScript",
+        "TypeScript (.ts, .tsx)",
+        &["**/*.ts", "**/*.tsx"],
+        "@vivantel/virage-chunker-ce-lang",
+    ),
+    (
+        "JavaScript",
+        "JavaScript (.js, .jsx, .mjs)",
+        &["**/*.js", "**/*.jsx", "**/*.mjs"],
+        "@vivantel/virage-chunker-ce-lang",
+    ),
+    (
+        "Python",
+        "Python (.py)",
+        &["**/*.py"],
+        "@vivantel/virage-chunker-ce-lang",
+    ),
+    (
+        "Rust",
+        "Rust (.rs)",
+        &["**/*.rs"],
+        "@vivantel/virage-chunker-ce-lang",
+    ),
+    (
+        "Go",
+        "Go (.go)",
+        &["**/*.go"],
+        "@vivantel/virage-chunker-ce-lang",
+    ),
+    (
+        "Java / Kotlin",
+        "Java / Kotlin (.java, .kt)",
+        &["**/*.java", "**/*.kt"],
+        "@vivantel/virage-chunker-ce-lang",
+    ),
+    (
+        "C# / C++",
+        "C# / C++ (.cs, .cpp, .c)",
+        &["**/*.cs", "**/*.cpp", "**/*.c"],
+        "@vivantel/virage-chunker-ce-lang",
+    ),
+    (
+        "Markdown",
+        "Markdown (.md, .mdx)",
+        &["**/*.md", "**/*.mdx"],
+        "@vivantel/virage-chunker-ce-md",
+    ),
+    (
+        "PDF",
+        "PDF (.pdf)",
+        &["**/*.pdf"],
+        "@vivantel/virage-chunker-ce-pdf",
+    ),
+    (
+        "Word / DOCX",
+        "Word / DOCX (.docx)",
+        &["**/*.docx"],
+        "@vivantel/virage-chunker-ce-docx",
+    ),
+    (
+        "LaTeX",
+        "LaTeX (.tex)",
+        &["**/*.tex"],
+        "@vivantel/virage-chunker-ce-latex",
+    ),
+];
 
-    println!("=== Virage Setup Wizard ===\n");
+fn cmd_init(args: ConfigPathArg, verbose: u8) -> anyhow::Result<()> {
+    let out = Out::new(verbose);
+    use dialoguer::{Confirm, Input, MultiSelect, Select};
 
-    let config_path: String = Input::new()
-        .with_prompt("Config file path")
-        .default("virage.config.json".into())
-        .interact_text()?;
+    out.section("Virage Setup");
+    out.dim("Use ← Back to return to the previous step.");
+    println!();
 
-    let source_choices = &["git (default)", "localfs", "custom"];
-    let source_idx = Select::new()
-        .with_prompt("Source type")
-        .items(source_choices)
-        .default(0)
-        .interact()?;
-    let source_pkg = match source_idx {
-        1 => "@vivantel/virage-source-localfs",
-        _ => "@vivantel/virage-source-git",
+    const BACK: &str = "← Back";
+
+    // Wizard state — pre-fill config_path from --config flag if provided
+    let default_config = if args.config.is_empty() {
+        "virage.config.json".to_string()
+    } else {
+        args.config.clone()
     };
+    let mut config_path = default_config.clone();
+    let mut scan_path = String::from(".");
+    let mut selected_type_indices: Vec<usize> = vec![];
+    let mut source_pkg = "@vivantel/virage-source-git";
+    let mut embedder_pkg = "@vivantel/virage-embedder-onnx";
+    let mut store_pkg = "@vivantel/virage-store-lancedb";
+    let mut reranker_pkg: Option<&str> = None;
+    let mut use_hybrid = false;
 
-    let embedder_choices = &[
-        "ONNX (local, default)",
-        "OpenAI text-embedding-3-small",
-        "Cohere embed-english-v3",
-    ];
-    let embedder_idx = Select::new()
-        .with_prompt("Embedder")
-        .items(embedder_choices)
-        .default(0)
-        .interact()?;
-    let embedder_pkg = match embedder_idx {
-        1 => "@vivantel/virage-embedder-openai",
-        2 => "@vivantel/virage-embedder-cohere",
-        _ => "@vivantel/virage-embedder-onnx",
-    };
+    let mut step = 0usize;
 
-    let store_choices = &[
-        "LanceDB (local, default)",
-        "Qdrant",
-        "PostgreSQL",
-        "ChromaDB",
-    ];
-    let store_idx = Select::new()
-        .with_prompt("Vector store")
-        .items(store_choices)
-        .default(0)
-        .interact()?;
-    let store_pkg = match store_idx {
-        1 => "@vivantel/virage-store-qdrant",
-        2 => "@vivantel/virage-store-postgres",
-        3 => "@vivantel/virage-store-chromadb",
-        _ => "@vivantel/virage-store-lancedb",
-    };
+    loop {
+        match step {
+            // ── Step 1: Config path ───────────────────────────────────────────
+            0 => {
+                config_path = Input::new()
+                    .with_prompt("Config file path")
+                    .default(default_config.clone())
+                    .interact_text()?;
+                step += 1;
+            }
 
-    let config = serde_json::json!({
+            // ── Step 2: Scan path + overwrite check ───────────────────────────
+            1 => {
+                scan_path = Input::new()
+                    .with_prompt("Root directory to index")
+                    .default(".".into())
+                    .interact_text()?;
+
+                if std::path::Path::new(&config_path).exists() {
+                    let choices = [BACK, "Overwrite existing config", "Cancel"];
+                    let idx = Select::new()
+                        .with_prompt(format!("{config_path} already exists"))
+                        .items(&choices)
+                        .default(1)
+                        .interact()?;
+                    match idx {
+                        0 => {
+                            step = step.saturating_sub(1);
+                            continue;
+                        }
+                        2 => {
+                            out.info("Cancelled.");
+                            return Ok(());
+                        }
+                        _ => {}
+                    }
+                }
+                step += 1;
+            }
+
+            // ── Step 3: File type detection + multiselect ─────────────────────
+            2 => {
+                let counts = detect_file_types(std::path::Path::new(&scan_path));
+
+                let mut labels: Vec<String> = FILE_TYPE_META
+                    .iter()
+                    .map(|(key, label, _, _)| {
+                        if let Some(n) = counts.get(*key) {
+                            format!("{label} [{n} files]")
+                        } else {
+                            label.to_string()
+                        }
+                    })
+                    .collect();
+                labels.push(BACK.to_string());
+
+                let mut defaults: Vec<bool> = FILE_TYPE_META
+                    .iter()
+                    .map(|(key, _, _, _)| counts.contains_key(*key))
+                    .collect();
+                defaults.push(false); // BACK never pre-checked
+
+                let picked = MultiSelect::new()
+                    .with_prompt("File types to index (Space = toggle, Enter = confirm)")
+                    .items(&labels)
+                    .defaults(&defaults)
+                    .interact()?;
+
+                if picked.contains(&FILE_TYPE_META.len()) {
+                    step = step.saturating_sub(1);
+                    continue;
+                }
+                if picked.is_empty() {
+                    out.warn("Select at least one file type.");
+                    continue;
+                }
+                selected_type_indices = picked;
+                step += 1;
+            }
+
+            // ── Step 4: Source provider ───────────────────────────────────────
+            3 => {
+                let choices = [BACK, "git (default)", "localfs (no git required)"];
+                let idx = Select::new()
+                    .with_prompt("Source provider")
+                    .items(&choices)
+                    .default(1)
+                    .interact()?;
+                match idx {
+                    0 => {
+                        step = step.saturating_sub(1);
+                        continue;
+                    }
+                    2 => source_pkg = "@vivantel/virage-source-localfs",
+                    _ => source_pkg = "@vivantel/virage-source-git",
+                }
+                step += 1;
+            }
+
+            // ── Step 5: Embedder ──────────────────────────────────────────────
+            4 => {
+                let choices = [
+                    BACK,
+                    "ONNX (local, no API key needed)",
+                    "OpenAI text-embedding-3-small",
+                    "Cohere embed-english-v3",
+                    "FastEmbed (Qdrant, local)",
+                ];
+                let idx = Select::new()
+                    .with_prompt("Embedder")
+                    .items(&choices)
+                    .default(1)
+                    .interact()?;
+                match idx {
+                    0 => {
+                        step = step.saturating_sub(1);
+                        continue;
+                    }
+                    2 => embedder_pkg = "@vivantel/virage-embedder-openai",
+                    3 => embedder_pkg = "@vivantel/virage-embedder-cohere",
+                    4 => embedder_pkg = "@vivantel/virage-embedder-fastembed",
+                    _ => embedder_pkg = "@vivantel/virage-embedder-onnx",
+                }
+                step += 1;
+            }
+
+            // ── Step 6: Vector store ──────────────────────────────────────────
+            5 => {
+                let choices = [
+                    BACK,
+                    "LanceDB (local, file-based)",
+                    "Qdrant (self-hosted or cloud)",
+                    "PostgreSQL + pgvector",
+                    "ChromaDB",
+                ];
+                let idx = Select::new()
+                    .with_prompt("Vector store")
+                    .items(&choices)
+                    .default(1)
+                    .interact()?;
+                match idx {
+                    0 => {
+                        step = step.saturating_sub(1);
+                        continue;
+                    }
+                    2 => store_pkg = "@vivantel/virage-store-qdrant",
+                    3 => store_pkg = "@vivantel/virage-store-postgres",
+                    4 => store_pkg = "@vivantel/virage-store-chromadb",
+                    _ => store_pkg = "@vivantel/virage-store-lancedb",
+                }
+                step += 1;
+            }
+
+            // ── Step 7: Reranker + hybrid ─────────────────────────────────────
+            6 => {
+                let choices = [
+                    BACK,
+                    "None (skip, use vector similarity only)",
+                    "ONNX cross-encoder (local, improves precision)",
+                    "Cohere rerank-english-v3",
+                ];
+                let idx = Select::new()
+                    .with_prompt("Reranker")
+                    .items(&choices)
+                    .default(1)
+                    .interact()?;
+                match idx {
+                    0 => {
+                        step = step.saturating_sub(1);
+                        continue;
+                    }
+                    2 => reranker_pkg = Some("@vivantel/virage-reranker-onnx"),
+                    3 => reranker_pkg = Some("@vivantel/virage-reranker-cohere"),
+                    _ => reranker_pkg = None,
+                }
+
+                if reranker_pkg.is_some() {
+                    use_hybrid = Confirm::new()
+                        .with_prompt("Enable hybrid search (dense + sparse BM25)?")
+                        .default(true)
+                        .interact()?;
+                } else {
+                    use_hybrid = false;
+                }
+                step += 1;
+            }
+
+            // ── Step 8: Summary + confirm ─────────────────────────────────────
+            7 => {
+                let type_names: Vec<&str> = selected_type_indices
+                    .iter()
+                    .map(|&i| FILE_TYPE_META[i].1)
+                    .collect();
+
+                out.section("Summary");
+                out.info(&format!("  Config     : {config_path}"));
+                out.info(&format!("  Scan path  : {scan_path}"));
+                out.info(&format!("  File types : {}", type_names.join(", ")));
+                out.info(&format!("  Source     : {source_pkg}"));
+                out.info(&format!("  Embedder   : {embedder_pkg}"));
+                out.info(&format!("  Store      : {store_pkg}"));
+                if let Some(r) = reranker_pkg {
+                    out.info(&format!("  Reranker   : {r}"));
+                    out.info(&format!("  Hybrid     : {use_hybrid}"));
+                }
+                println!();
+
+                let choices = [BACK, "Write config", "Cancel"];
+                let idx = Select::new()
+                    .with_prompt("Confirm")
+                    .items(&choices)
+                    .default(1)
+                    .interact()?;
+                match idx {
+                    0 => {
+                        step = step.saturating_sub(1);
+                        continue;
+                    }
+                    2 => {
+                        out.info("Cancelled.");
+                        return Ok(());
+                    }
+                    _ => {}
+                }
+                break;
+            }
+
+            _ => break,
+        }
+    }
+
+    // ── Build config ──────────────────────────────────────────────────────────
+    // Group selected types by chunker package → one fileSet per chunker.
+    let mut chunker_groups: std::collections::BTreeMap<&str, (Vec<&str>, Vec<&str>)> =
+        std::collections::BTreeMap::new();
+    for &i in &selected_type_indices {
+        let (_, _, patterns, chunker) = FILE_TYPE_META[i];
+        let entry = chunker_groups.entry(chunker).or_default();
+        entry.0.extend_from_slice(patterns); // include patterns
+        entry.1.push(FILE_TYPE_META[i].0); // type names for the set name
+    }
+
+    let mut file_sets = Vec::new();
+    for (chunker, (patterns, type_names)) in &chunker_groups {
+        let set_name = if type_names.len() == 1 {
+            type_names[0].to_lowercase().replace(" / ", "-")
+        } else {
+            "code".to_string()
+        };
+        file_sets.push(serde_json::json!({
+            "name": set_name,
+            "include": patterns,
+            "chunkers": [{ "package": chunker }]
+        }));
+    }
+
+    let mut providers = serde_json::json!({
+        "embedder": { "package": embedder_pkg },
+        "vectorStore": { "package": store_pkg },
+        "source": { "package": source_pkg }
+    });
+    if let Some(r) = reranker_pkg {
+        providers["reranker"] = serde_json::json!({ "package": r });
+    }
+
+    let mut cfg = serde_json::json!({
         "$schema": "https://vivantel.com/virage/schema/v2/config.json",
         "version": "1.0.0",
-        "providers": {
-            "embedder": { "package": embedder_pkg },
-            "vectorStore": { "package": store_pkg },
-            "source": { "package": source_pkg }
-        },
-        "fileSets": [
-            {
-                "name": "code",
-                "include": ["**/*.{ts,tsx,js,jsx,py,rs,go,java,md}"],
-                "chunkers": [
-                    { "package": "@vivantel/virage-chunker-ce-md" },
-                    { "package": "@vivantel/virage-chunker-ce-lang" }
-                ]
-            }
-        ]
+        "providers": providers,
+        "fileSets": file_sets
     });
 
-    std::fs::write(&config_path, serde_json::to_string_pretty(&config)?)?;
-    println!("\nConfig written to {config_path}");
-    println!("Run `virage index` to build the index.");
+    if use_hybrid {
+        cfg["pipeline"] = serde_json::json!({ "hybrid": true });
+    }
+
+    std::fs::write(&config_path, serde_json::to_string_pretty(&cfg)?)?;
+    println!();
+    out.success(&format!("Config written to {config_path}"));
+    out.dim("Next: run `virage index` to build the index.");
     Ok(())
 }
 
 // ─── update ──────────────────────────────────────────────────────────────────
 
-fn cmd_update() -> anyhow::Result<()> {
-    println!("Updating virage binary...");
-    let status = std::process::Command::new("npm")
-        .args(["install", "-g", "@vivantel/virage@latest"])
-        .status();
-    match status {
-        Ok(s) if s.success() => println!("virage updated."),
-        Ok(s) => eprintln!("npm exited with status {s}"),
-        Err(e) => eprintln!("Failed to run npm: {e}\nInstall Node.js or update manually."),
+fn cmd_update(verbose: u8) -> anyhow::Result<()> {
+    let out = Out::new(verbose);
+    use console::style;
+    use dialoguer::MultiSelect;
+
+    let npm = npm_bin();
+    let cwd = std::env::current_dir()?;
+
+    out.section("Virage Update");
+
+    // ── 1. Discover packages ──────────────────────────────────────────────────
+    let config_path = find_config().unwrap_or_else(|| "virage.config.json".into());
+    let packages = discover_virage_packages(&cwd, &config_path);
+
+    if packages.is_empty() {
+        out.warn("No @vivantel/* packages found.");
+        return Ok(());
     }
+
+    // ── 2. Check versions ─────────────────────────────────────────────────────
+    out.dim("Checking versions...");
+    let mut statuses: Vec<PackageStatus> = Vec::new();
+    for pkg in &packages {
+        let current = get_npm_current(npm, pkg, &cwd).unwrap_or_else(|| "not installed".into());
+        let latest = get_npm_latest(npm, pkg).unwrap_or_else(|| "unknown".into());
+        let outdated = latest != "unknown" && current != "not installed" && current != latest;
+        statuses.push(PackageStatus {
+            name: pkg.clone(),
+            current,
+            latest,
+            outdated,
+        });
+    }
+
+    // ── 3. Display status table ───────────────────────────────────────────────
+    println!();
+    for s in &statuses {
+        let cur_styled = if s.outdated {
+            style(&s.current).yellow().to_string()
+        } else if s.current == "not installed" {
+            style(&s.current).dim().to_string()
+        } else {
+            style(&s.current).green().to_string()
+        };
+        let lat_styled = if s.outdated {
+            style(&s.latest).green().to_string()
+        } else {
+            style(&s.latest).dim().to_string()
+        };
+        println!(
+            "  {:45}  {}  →  {}",
+            style(&s.name).dim(),
+            cur_styled,
+            lat_styled
+        );
+    }
+    println!();
+
+    // ── 4. Interactive selection ──────────────────────────────────────────────
+    let labels: Vec<String> = statuses
+        .iter()
+        .map(|s| {
+            if s.outdated {
+                format!("{} ({} → {})", s.name, s.current, s.latest)
+            } else {
+                format!("{} ({})", s.name, s.current)
+            }
+        })
+        .collect();
+
+    let defaults: Vec<bool> = statuses.iter().map(|s| s.outdated).collect();
+
+    let selected = MultiSelect::new()
+        .with_prompt("Packages to update (Space = toggle, Enter = confirm)")
+        .items(&labels)
+        .defaults(&defaults)
+        .interact()?;
+
+    if selected.is_empty() {
+        out.info("Nothing selected.");
+        return Ok(());
+    }
+
+    // ── 5. Install selected packages ──────────────────────────────────────────
+    let to_install: Vec<&str> = selected
+        .iter()
+        .map(|&i| statuses[i].name.as_str())
+        .collect();
+    out.info(&format!("Installing {} package(s)...", to_install.len()));
+
+    for pkg in &to_install {
+        out.dim(&format!("  npm install -g {pkg}@latest"));
+        let status = std::process::Command::new(npm)
+            .args(["install", "-g", &format!("{pkg}@latest")])
+            .status();
+        match status {
+            Ok(s) if s.success() => out.success(&format!("  {pkg}")),
+            Ok(s) => out.warn(&format!("  {pkg}: npm exited {s}")),
+            Err(e) => out.error(&format!("  {pkg}: {e}")),
+        }
+    }
+
+    // ── 6. Self-update (virage CLI binary) ────────────────────────────────────
+    out.dim("Checking virage binary...");
+    let self_current =
+        get_npm_current(npm, "@vivantel/virage", &cwd).unwrap_or_else(|| "unknown".into());
+    let self_latest = get_npm_latest(npm, "@vivantel/virage").unwrap_or_else(|| "unknown".into());
+
+    if self_latest != "unknown" && self_current != self_latest {
+        out.info(&format!(
+            "Updating virage binary {self_current} → {self_latest}..."
+        ));
+        let status = std::process::Command::new(npm)
+            .args(["install", "-g", "@vivantel/virage@latest"])
+            .status();
+        match status {
+            Ok(s) if s.success() => out.success("virage binary updated."),
+            Ok(s) => out.warn(&format!("virage binary update exited {s}")),
+            Err(e) => out.error(&format!("virage binary update failed: {e}")),
+        }
+    } else {
+        out.dim("virage binary is up to date.");
+    }
+
+    out.success("Update complete.");
     Ok(())
 }
 
 // ─── pack ────────────────────────────────────────────────────────────────────
 
-fn cmd_pack(args: PackArgs) -> anyhow::Result<()> {
+fn cmd_pack(args: PackArgs, verbose: u8) -> anyhow::Result<()> {
     use flate2::{write::GzEncoder, Compression};
+    let out = Out::new(verbose);
 
     let virage_dir = PathBuf::from(".virage");
     if !virage_dir.exists() {
@@ -911,30 +1772,34 @@ fn cmd_pack(args: PackArgs) -> anyhow::Result<()> {
     archive.finish()?;
 
     let size = std::fs::metadata(&out_path)?.len();
-    println!("Archive created: {} ({} KB)", args.output, size / 1024);
+    out.success(&format!(
+        "Archive created: {} ({} KB)",
+        args.output,
+        size / 1024
+    ));
     Ok(())
 }
 
 // ─── uninstall ───────────────────────────────────────────────────────────────
 
-fn cmd_uninstall() -> anyhow::Result<()> {
+fn cmd_uninstall(verbose: u8) -> anyhow::Result<()> {
+    let out = Out::new(verbose);
     use dialoguer::Confirm;
 
-    println!("=== Virage Uninstall ===\n");
+    out.section("Virage Uninstall");
 
     let hooks_dir = PathBuf::from(".git/hooks");
     if hooks_dir.exists() {
         for hook in &["post-merge", "post-checkout"] {
             let p = hooks_dir.join(hook);
-            if p.exists() {
-                if Confirm::new()
+            if p.exists()
+                && Confirm::new()
                     .with_prompt(format!("Remove git hook {hook}?"))
                     .default(false)
                     .interact()?
-                {
-                    std::fs::remove_file(&p)?;
-                    println!("  Removed: {}", p.display());
-                }
+            {
+                std::fs::remove_file(&p)?;
+                out.success(&format!("Removed: {}", p.display()));
             }
         }
     }
@@ -947,7 +1812,7 @@ fn cmd_uninstall() -> anyhow::Result<()> {
             .interact()?
     {
         std::fs::remove_dir_all(&virage_dir)?;
-        println!("  Removed: .virage/");
+        out.success("Removed: .virage/");
     }
 
     let config = PathBuf::from("virage.config.json");
@@ -958,16 +1823,17 @@ fn cmd_uninstall() -> anyhow::Result<()> {
             .interact()?
     {
         std::fs::remove_file(&config)?;
-        println!("  Removed: virage.config.json");
+        out.success("Removed: virage.config.json");
     }
 
-    println!("\nUninstall complete.");
+    out.success("Uninstall complete.");
     Ok(())
 }
 
 // ─── dashboard ───────────────────────────────────────────────────────────────
 
-fn cmd_dashboard(args: DashboardArgs) -> anyhow::Result<()> {
+fn cmd_dashboard(args: DashboardArgs, verbose: u8) -> anyhow::Result<()> {
+    let out = Out::new(verbose);
     let db_path = resolve_db_path(&args.db);
     let mut cmd = std::process::Command::new("npx");
     cmd.args([
@@ -980,8 +1846,11 @@ fn cmd_dashboard(args: DashboardArgs) -> anyhow::Result<()> {
     if !args.config.is_empty() {
         cmd.args(["--config", &args.config]);
     }
-    eprintln!("Starting dashboard on http://localhost:{} ...", args.port);
-    eprintln!("Note: virage dashboard requires Node.js.");
+    out.info(&format!(
+        "Starting dashboard on http://localhost:{} ...",
+        args.port
+    ));
+    out.dim("Requires Node.js — install with: npm install -g @vivantel/virage-dashboard");
     let status = cmd.status().map_err(|e| {
         anyhow::anyhow!("Failed to launch dashboard: {e}\nEnsure Node.js is installed.")
     })?;
@@ -1219,44 +2088,44 @@ async fn mcp_tool_call(
     }
 }
 
-fn cmd_plugin(args: PluginArgs) -> anyhow::Result<()> {
+fn cmd_plugin(args: PluginArgs, verbose: u8) -> anyhow::Result<()> {
     match args.command {
-        PluginCommand::Test { path } => cmd_plugin_test(&path),
+        PluginCommand::Test { path } => cmd_plugin_test(&path, verbose),
     }
 }
 
-fn cmd_plugin_test(path: &str) -> anyhow::Result<()> {
+fn cmd_plugin_test(path: &str, verbose: u8) -> anyhow::Result<()> {
     #[cfg(feature = "wasm-host")]
-    return cmd_plugin_test_wasm(path);
+    return cmd_plugin_test_wasm(path, verbose);
     #[cfg(not(feature = "wasm-host"))]
     {
-        eprintln!(
-            "[virage plugin test] WASM host not available — rebuild with --features wasm-host."
-        );
+        let out = Out::new(verbose);
+        out.warn("WASM host not available — rebuild with --features wasm-host.");
         Ok(())
     }
 }
 
 #[cfg(feature = "wasm-host")]
-fn cmd_plugin_test_wasm(path: &str) -> anyhow::Result<()> {
+fn cmd_plugin_test_wasm(path: &str, verbose: u8) -> anyhow::Result<()> {
     use virage_engine::plugins::wasm::chunker::WasmChunkerAdapter;
     use virage_engine::plugins::wasm::{FileInfo, WasmPluginHost, WasmRegistry};
+    let out = Out::new(verbose);
 
     let wasm_path = std::path::Path::new(path);
     if !wasm_path.exists() {
         return Err(anyhow::anyhow!("File not found: {path}"));
     }
 
-    println!("Loading plugin: {path}");
+    out.info(&format!("Loading plugin: {path}"));
     let host = WasmPluginHost::new()?;
     let registry = WasmRegistry::new(host);
     let adapter = WasmChunkerAdapter::from_path(&registry, wasm_path, "{}")?;
 
-    println!("  init + patterns...");
+    out.dim("  init + patterns...");
     let patterns = adapter.init_and_patterns()?;
-    println!("  Patterns: {patterns:?}");
+    out.verbose(&format!("  Patterns: {patterns:?}"));
 
-    println!("  parse + chunk smoke test...");
+    out.dim("  parse + chunk smoke test...");
     let info = FileInfo {
         path: "smoke-test.txt".to_string(),
         hash: "smoke".to_string(),
@@ -1265,21 +2134,19 @@ fn cmd_plugin_test_wasm(path: &str) -> anyhow::Result<()> {
     };
     let doc = adapter.parse(&info, b"Hello, world.")?;
     let chunks = adapter.chunk(&doc, &info, "HEAD")?;
-    println!("  Produced {} chunk(s).", chunks.len());
-
-    println!("Plugin test PASSED.");
+    out.success(&format!("Plugin test PASSED — {} chunk(s).", chunks.len()));
     Ok(())
 }
 
-fn cmd_usage() -> anyhow::Result<()> {
-    eprintln!(
-        "Usage tracking is handled by the virage-agent-claude plugin.\n\
-         See: https://vivantel.com/virage/docs/telemetry"
-    );
+fn cmd_usage(verbose: u8) -> anyhow::Result<()> {
+    let out = Out::new(verbose);
+    out.info("Usage tracking is handled by the virage-agent-claude plugin.");
+    out.dim("See: https://vivantel.com/virage/docs/telemetry");
     Ok(())
 }
 
-fn cmd_read_skill_summary() -> anyhow::Result<()> {
+fn cmd_read_skill_summary(verbose: u8) -> anyhow::Result<()> {
+    let out = Out::new(verbose);
     let skill_dirs = [".agents/skills", ".virage/skills"];
     let mut found = false;
     for dir in &skill_dirs {
@@ -1293,26 +2160,39 @@ fn cmd_read_skill_summary() -> anyhow::Result<()> {
             .filter(|e| e.path().extension().is_some_and(|x| x == "md"))
         {
             found = true;
-            println!("=== {} ===", entry.path().display());
+            out.section(&entry.path().display().to_string());
             if let Ok(text) = std::fs::read_to_string(entry.path()) {
                 for line in text.lines().take(20) {
-                    println!("{line}");
+                    out.info(line);
                 }
             }
             println!();
         }
     }
     if !found {
-        println!("No skill files found in {:?}.", skill_dirs);
+        out.warn(&format!("No skill files found in {:?}.", skill_dirs));
     }
     Ok(())
 }
 
-fn cmd_viz() -> anyhow::Result<()> {
-    println!(
-        "[virage viz embeddings] Deferred post-v2 — embedding visualisation not yet available."
-    );
+fn cmd_viz(verbose: u8) -> anyhow::Result<()> {
+    let out = Out::new(verbose);
+    out.dim("virage viz: embedding visualisation is deferred post-v2.");
     Ok(())
+}
+
+// ─── Banner ───────────────────────────────────────────────────────────────────
+
+fn print_banner() {
+    use console::style;
+    println!();
+    println!(
+        "  {} {}",
+        style("virage").bold().cyan(),
+        style(env!("CARGO_PKG_VERSION")).dim()
+    );
+    println!("  {}", style("AI code-search indexer").dim());
+    println!();
 }
 
 // ─── Entry point ──────────────────────────────────────────────────────────────
@@ -1320,6 +2200,19 @@ fn cmd_viz() -> anyhow::Result<()> {
 #[tokio::main]
 async fn main() {
     let cli = Cli::parse();
+    let out = Out::new(cli.verbose);
+
+    if !cli.no_banner {
+        if matches!(
+            cli.command,
+            Some(Commands::Index(_))
+                | Some(Commands::Query(_))
+                | Some(Commands::Init(_))
+                | Some(Commands::Update)
+        ) {
+            print_banner();
+        }
+    }
 
     let result = match cli.command {
         None => {
@@ -1327,39 +2220,36 @@ async fn main() {
             Cli::parse_from(["virage", "--help"]);
             return;
         }
-        Some(Commands::Index(args)) => cmd_index(args).await,
-        Some(Commands::Query(args)) => cmd_query(args).await,
-        Some(Commands::Validate(args)) => cmd_validate(args),
-        Some(Commands::Check(args)) => cmd_check(args).await,
-        Some(Commands::Report(args)) => cmd_report(args),
-        Some(Commands::Init(args)) => cmd_init(args),
-        Some(Commands::Update) => cmd_update(),
-        Some(Commands::Migrate(args)) => cmd_migrate(args),
-        Some(Commands::Pack(args)) => cmd_pack(args),
-        Some(Commands::InstallHooks(args)) => cmd_install_hooks(args),
-        Some(Commands::Uninstall) => cmd_uninstall(),
-        Some(Commands::Telemetry(args)) => cmd_telemetry(args),
+        Some(Commands::Index(args)) => cmd_index(args, cli.verbose).await,
+        Some(Commands::Query(args)) => cmd_query(args, cli.verbose).await,
+        Some(Commands::Validate(args)) => cmd_validate(args, cli.verbose),
+        Some(Commands::Check(args)) => cmd_check(args, cli.verbose).await,
+        Some(Commands::Report(args)) => cmd_report(args, cli.verbose),
+        Some(Commands::Init(args)) => cmd_init(args, cli.verbose),
+        Some(Commands::Update) => cmd_update(cli.verbose),
+        Some(Commands::Migrate(args)) => cmd_migrate(args, cli.verbose),
+        Some(Commands::Pack(args)) => cmd_pack(args, cli.verbose),
+        Some(Commands::InstallHooks(args)) => cmd_install_hooks(args, cli.verbose),
+        Some(Commands::Uninstall) => cmd_uninstall(cli.verbose),
+        Some(Commands::Telemetry(args)) => cmd_telemetry(args, cli.verbose),
         Some(Commands::Store(args)) => match args.command {
-            StoreCommand::Stats(a) => cmd_store_stats(a).await,
-            StoreCommand::Perf(_a) => {
-                eprintln!("[virage store perf] Phase 5a stub.");
-                Ok(())
-            }
+            StoreCommand::Stats(a) => cmd_store_stats(a, cli.verbose).await,
+            StoreCommand::Perf(a) => cmd_store_perf(a, cli.verbose).await,
         },
         Some(Commands::Chunks(args)) => match args.command {
-            ChunksCommand::Report(a) => cmd_chunks_report(a),
+            ChunksCommand::Report(a) => cmd_chunks_report(a, cli.verbose),
         },
         Some(Commands::Serve(args)) => cmd_serve(args).await,
-        Some(Commands::Plugin(args)) => cmd_plugin(args),
-        Some(Commands::Usage) => cmd_usage(),
-        Some(Commands::ReadSkillSummary) => cmd_read_skill_summary(),
-        Some(Commands::Dashboard(args)) => cmd_dashboard(args),
-        Some(Commands::Viz) => cmd_viz(),
-        Some(Commands::Quality(args)) => cmd_quality(args),
+        Some(Commands::Plugin(args)) => cmd_plugin(args, cli.verbose),
+        Some(Commands::Usage) => cmd_usage(cli.verbose),
+        Some(Commands::ReadSkillSummary) => cmd_read_skill_summary(cli.verbose),
+        Some(Commands::Dashboard(args)) => cmd_dashboard(args, cli.verbose),
+        Some(Commands::Viz) => cmd_viz(cli.verbose),
+        Some(Commands::Quality(args)) => cmd_quality(args, cli.verbose),
     };
 
     if let Err(e) = result {
-        eprintln!("error: {e}");
+        out.error(&e.to_string());
         std::process::exit(1);
     }
 }

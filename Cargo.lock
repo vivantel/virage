@@ -8005,6 +8005,7 @@ dependencies = [
  "cc",
  "clap",
  "comrak",
+ "console",
  "dialoguer",
  "docx-rs",
  "flate2",
