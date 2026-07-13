@@ -116,6 +116,10 @@ jobs:
                   sh -s -- -y --no-modify-path --default-toolchain stable
               fi
               export PATH=/cargo/bin:\$PATH
+              # Always ensure stable is installed and default is set — partial cache hits
+              # can leave rustup present but with no default configured
+              rustup toolchain install stable --no-self-update
+              rustup default stable
               rustup target add x86_64-unknown-linux-gnu
 
               cd /workspace
