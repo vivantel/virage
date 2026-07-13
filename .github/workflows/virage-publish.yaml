@@ -252,6 +252,27 @@ jobs:
             echo "version=${tag}" >> "$GITHUB_OUTPUT"
           fi
 
+      - name: Bump package versions
+        run: |
+          node -e "
+            const fs = require('fs');
+            const ver = process.env.VERSION;
+            const mainPath = 'packages/virage/package.json';
+            const main = JSON.parse(fs.readFileSync(mainPath, 'utf8'));
+            main.version = ver;
+            for (const k of Object.keys(main.optionalDependencies || {})) {
+              main.optionalDependencies[k] = ver;
+            }
+            fs.writeFileSync(mainPath, JSON.stringify(main, null, 2) + '\n');
+            for (const p of ['linux-x64-gnu','linux-arm64-gnu','darwin-arm64','win32-x64-msvc']) {
+              const path = 'packages/virage/npm/' + p + '/package.json';
+              const pkg = JSON.parse(fs.readFileSync(path, 'utf8'));
+              pkg.version = ver;
+              fs.writeFileSync(path, JSON.stringify(pkg, null, 2) + '\n');
+            }
+            console.log('bumped all packages to', ver);
+          " VERSION="${{ steps.version.outputs.version }}"
+
       - name: Publish platform stubs
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
