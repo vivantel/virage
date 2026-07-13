@@ -66,6 +66,10 @@ pub struct PipelineConfig {
     pub sparse_text_generator_id: String,
     /// Metadata method fingerprint (triggers re-enrichment when changed).
     pub metadata_generator_id: String,
+    /// Optional live progress counters driven by the coordinator.
+    pub progress: Option<Arc<ProgressCounters>>,
+    /// Skip uploading to the vector store (index locally only).
+    pub skip_upload: bool,
 }
 
 impl Default for PipelineConfig {
@@ -84,6 +88,8 @@ impl Default for PipelineConfig {
             strategy: "window".into(),
             sparse_text_generator_id: String::new(),
             metadata_generator_id: String::new(),
+            progress: None,
+            skip_upload: false,
         }
     }
 }
@@ -102,8 +108,9 @@ pub struct PipelineStats {
 // ─── ProgressCounters ────────────────────────────────────────────────────────
 
 /// Shared atomic counters for real-time progress reporting.
-#[derive(Default)]
+#[derive(Debug, Default)]
 pub struct ProgressCounters {
+    pub total_files: AtomicUsize,
     pub queued: AtomicUsize,
     pub done: AtomicUsize,
     pub chunks: AtomicUsize,
@@ -114,6 +121,9 @@ impl ProgressCounters {
         Arc::new(Self::default())
     }
 
+    pub fn set_total(&self, n: usize) {
+        self.total_files.store(n, Ordering::Relaxed);
+    }
     pub fn inc_queued(&self) {
         self.queued.fetch_add(1, Ordering::Relaxed);
     }
@@ -123,8 +133,9 @@ impl ProgressCounters {
     pub fn add_chunks(&self, n: usize) {
         self.chunks.fetch_add(n, Ordering::Relaxed);
     }
-    pub fn snapshot(&self) -> (usize, usize, usize) {
+    pub fn snapshot(&self) -> (usize, usize, usize, usize) {
         (
+            self.total_files.load(Ordering::Relaxed),
             self.queued.load(Ordering::Relaxed),
             self.done.load(Ordering::Relaxed),
             self.chunks.load(Ordering::Relaxed),
@@ -286,7 +297,7 @@ mod tests {
             c.inc_done();
         }
         handle.await.unwrap();
-        let (_, done, _) = c.snapshot();
+        let (_, _, done, _) = c.snapshot();
         assert_eq!(done, 100);
     }
 

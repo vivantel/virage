@@ -43,11 +43,21 @@ CREATE TABLE IF NOT EXISTS file_revisions (
 ) STRICT;
 ";
 
+const CLI_TELEMETRY_DDL: &str = "
+CREATE TABLE IF NOT EXISTS cli_telemetry (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  command TEXT NOT NULL,
+  duration_ms INTEGER NOT NULL,
+  success INTEGER NOT NULL,
+  recorded_at TEXT NOT NULL
+) STRICT;
+";
+
 // ─── Migrations ───────────────────────────────────────────────────────────────
 
 type MigrationFn = fn(&Connection) -> rusqlite::Result<()>;
 
-const MIGRATIONS: &[(u32, MigrationFn)] = &[(1, migration_v1)];
+const MIGRATIONS: &[(u32, MigrationFn)] = &[(1, migration_v1), (2, migration_v2)];
 
 fn migration_v1(conn: &Connection) -> rusqlite::Result<()> {
     // Old-schema guard: drop chunks table if it has removed columns.
@@ -74,6 +84,11 @@ fn migration_v1(conn: &Connection) -> rusqlite::Result<()> {
     conn.execute_batch(META_DDL)?;
     conn.execute_batch(CHUNKS_DDL)?;
     conn.execute_batch(FILE_REVISIONS_DDL)?;
+    Ok(())
+}
+
+fn migration_v2(conn: &Connection) -> rusqlite::Result<()> {
+    conn.execute_batch(CLI_TELEMETRY_DDL)?;
     Ok(())
 }
 
@@ -109,6 +124,16 @@ fn chrono_now() -> String {
     // Rough ISO-8601 in UTC (seconds precision is fine for migration bookkeeping).
     let y = 1970 + secs / 31_557_600;
     format!("{y}-01-01T00:00:{:02}Z", secs % 60)
+}
+
+// ─── Public types ─────────────────────────────────────────────────────────────
+
+pub struct TelemetryRow {
+    pub id: i64,
+    pub command: String,
+    pub duration_ms: u64,
+    pub success: bool,
+    pub recorded_at: String,
 }
 
 // ─── VirageDb ────────────────────────────────────────────────────────────────
@@ -295,6 +320,43 @@ impl VirageDb {
             .map(|n| n as u64)
     }
 
+    // ── CLI Telemetry ─────────────────────────────────────────────────────────
+
+    pub fn record_cli_command(
+        &self,
+        command: &str,
+        duration_ms: u64,
+        success: bool,
+    ) -> rusqlite::Result<()> {
+        self.conn.execute(
+            "INSERT INTO cli_telemetry (command, duration_ms, success, recorded_at)
+             VALUES (?1, ?2, ?3, ?4)",
+            params![command, duration_ms as i64, success as i32, chrono_now()],
+        )?;
+        Ok(())
+    }
+
+    pub fn get_pending_telemetry(&self) -> rusqlite::Result<Vec<TelemetryRow>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT id, command, duration_ms, success, recorded_at FROM cli_telemetry ORDER BY id",
+        )?;
+        let rows = stmt.query_map([], |r| {
+            Ok(TelemetryRow {
+                id: r.get::<_, i64>(0)?,
+                command: r.get::<_, String>(1)?,
+                duration_ms: r.get::<_, i64>(2)? as u64,
+                success: r.get::<_, i32>(3)? != 0,
+                recorded_at: r.get::<_, String>(4)?,
+            })
+        })?;
+        rows.collect::<rusqlite::Result<Vec<_>>>()
+    }
+
+    pub fn clear_telemetry(&self) -> rusqlite::Result<()> {
+        self.conn.execute_batch("DELETE FROM cli_telemetry;")?;
+        Ok(())
+    }
+
     pub fn clear_all(&self) -> rusqlite::Result<()> {
         self.conn
             .execute_batch("DELETE FROM chunks; DELETE FROM file_revisions; DELETE FROM meta;")?;
@@ -339,12 +401,12 @@ mod tests {
         let count: u32 = d
             .conn
             .query_row(
-                "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name IN ('chunks', 'file_revisions', 'meta', 'schema_migrations')",
+                "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name IN ('chunks', 'file_revisions', 'meta', 'schema_migrations', 'cli_telemetry')",
                 [],
                 |r| r.get(0),
             )
             .unwrap();
-        assert_eq!(count, 4, "all four tables should exist");
+        assert_eq!(count, 5, "all five tables should exist");
     }
 
     #[test]

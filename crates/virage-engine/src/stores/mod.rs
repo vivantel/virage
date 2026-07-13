@@ -61,6 +61,16 @@ pub struct SearchResult {
     pub metadata_generator_id: Option<String>,
 }
 
+// ─── Index metadata ───────────────────────────────────────────────────────────
+
+/// Metadata stored alongside a vector index describing how it was built.
+pub struct IndexMeta {
+    /// Embedder package or builtin key used to build the index.
+    pub model: String,
+    /// Vector dimensionality.
+    pub dimensions: usize,
+}
+
 // ─── VectorStore trait ────────────────────────────────────────────────────────
 
 /// CE extension point for vector storage (ADR-049).
@@ -86,6 +96,14 @@ pub trait VectorStore: Send + Sync {
         top_k: usize,
         opts: SearchOptions,
     ) -> anyhow::Result<Vec<SearchResult>>;
+    /// Read index metadata stored at last `virage index` run. Returns `None` if unavailable.
+    async fn read_meta(&self) -> anyhow::Result<Option<IndexMeta>> {
+        Ok(None)
+    }
+    /// Write index metadata after a successful index run.
+    async fn write_meta(&self, _meta: &IndexMeta) -> anyhow::Result<()> {
+        Ok(())
+    }
 }
 
 #[cfg(feature = "store-chromadb")]

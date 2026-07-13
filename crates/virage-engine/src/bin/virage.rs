@@ -12,7 +12,7 @@ use virage_engine::config::resolve::{resolve_embedder, resolve_source, resolve_s
 use virage_engine::config::{default_db_path, find_config, load_config, VirageConfigJson};
 use virage_engine::db::VirageDb;
 use virage_engine::embedders::Embedder;
-use virage_engine::pipeline::{coordinator::run_pipeline, PipelineConfig};
+use virage_engine::pipeline::{coordinator::run_pipeline, PipelineConfig, ProgressCounters};
 use virage_engine::stores::{SearchOptions, VectorStore};
 
 // ─── CLI definition ───────────────────────────────────────────────────────────
@@ -132,6 +132,9 @@ struct IndexArgs {
     /// Re-run pipeline on file changes (stub — not yet implemented).
     #[arg(long)]
     watch: bool,
+    /// Index locally without uploading to the vector store.
+    #[arg(long)]
+    no_upload: bool,
 }
 
 #[derive(Args)]
@@ -150,6 +153,15 @@ struct QueryArgs {
     /// Enable hybrid (dense + sparse) search.
     #[arg(long)]
     hybrid: bool,
+    /// Hybrid search alpha weight (0.0 = sparse only, 1.0 = dense only).
+    #[arg(long)]
+    hybrid_alpha: Option<f32>,
+    /// Apply cross-encoder reranker after retrieval.
+    #[arg(long)]
+    rerank: bool,
+    /// Filter results to a specific branch.
+    #[arg(long)]
+    branch: Option<String>,
     /// Minimum similarity threshold (0–1).
     #[arg(long)]
     min_similarity: Option<f32>,
@@ -482,6 +494,7 @@ fn spinner(msg: &str) -> ProgressBar {
 // ─── Command implementations ──────────────────────────────────────────────────
 
 async fn cmd_index(args: IndexArgs, verbose: u8) -> anyhow::Result<()> {
+    let t0 = std::time::Instant::now();
     let out = Out::new(verbose);
     let config_path = resolve_config_path(&args.config)?;
     let cfg = load_config(&config_path)?;
@@ -566,6 +579,7 @@ async fn cmd_index(args: IndexArgs, verbose: u8) -> anyhow::Result<()> {
                 .unwrap_or(4)
         });
 
+    let progress = ProgressCounters::new();
     let pipeline_cfg = PipelineConfig {
         workers,
         upload_batch_size: cfg
@@ -574,29 +588,63 @@ async fn cmd_index(args: IndexArgs, verbose: u8) -> anyhow::Result<()> {
             .and_then(|p| p.min_upload_batch_size)
             .unwrap_or(64),
         max_tokens: 512,
+        progress: Some(progress.clone()),
+        skip_upload: args.no_upload,
         ..Default::default()
     };
 
-    let pb = ProgressBar::new_spinner();
-    pb.set_style(
-        ProgressStyle::with_template("{spinner:.cyan} {msg} [{elapsed_precise}]")
+    // ── Multi-stage progress display ──────────────────────────────────────────
+    let mp = indicatif::MultiProgress::new();
+    let file_bar = mp.add(ProgressBar::new(0));
+    file_bar.set_style(
+        ProgressStyle::with_template(
+            "{spinner:.cyan} {msg} [{bar:30.cyan/blue}] {pos}/{len} files",
+        )
+        .unwrap()
+        .tick_strings(&["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"])
+        .progress_chars("█▓░"),
+    );
+    file_bar.set_message("Indexing");
+    file_bar.enable_steady_tick(std::time::Duration::from_millis(80));
+
+    let chunk_bar = mp.add(ProgressBar::new_spinner());
+    chunk_bar.set_style(
+        ProgressStyle::with_template("{spinner:.green} {msg}")
             .unwrap()
             .tick_strings(&["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"]),
     );
-    pb.set_message("Indexing...");
-    pb.enable_steady_tick(std::time::Duration::from_millis(80));
+    chunk_bar.enable_steady_tick(std::time::Duration::from_millis(80));
+
+    let progress_task = {
+        let p = progress.clone();
+        let fb = file_bar.clone();
+        let cb = chunk_bar.clone();
+        tokio::spawn(async move {
+            loop {
+                let (total, _, done, chunks) = p.snapshot();
+                if total > 0 {
+                    fb.set_length(total as u64);
+                    fb.set_position(done as u64);
+                }
+                cb.set_message(format!("{chunks} chunks embedded"));
+                tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+            }
+        })
+    };
 
     let stats = run_pipeline(
         &pipeline_cfg,
         source.clone(),
         vec![],
         embedder,
-        store,
+        store.clone(),
         known_revisions,
     )
     .await?;
 
-    pb.finish_and_clear();
+    progress_task.abort();
+    file_bar.finish_and_clear();
+    chunk_bar.finish_and_clear();
 
     // ── Update state DB with new revisions ────────────────────────────────────
     // Re-query current file revisions from the source now that the pipeline is done.
@@ -632,10 +680,19 @@ async fn cmd_index(args: IndexArgs, verbose: u8) -> anyhow::Result<()> {
         "Done.  Processed: {}  Skipped: {}  Deleted: {}  Chunks: {}",
         stats.files_processed, stats.files_skipped, stats.files_deleted, stats.chunks_upserted,
     ));
+    // Write index metadata for `virage check` comparisons.
+    let _ = store
+        .write_meta(&virage_engine::stores::IndexMeta {
+            model: cfg.providers.embedder.package.clone(),
+            dimensions: dims,
+        })
+        .await;
+    let _ = db.record_cli_command("index", t0.elapsed().as_millis() as u64, true);
     Ok(())
 }
 
 async fn cmd_query(args: QueryArgs, verbose: u8) -> anyhow::Result<()> {
+    let t0 = std::time::Instant::now();
     let out = Out::new(verbose);
     let config_path = resolve_config_path(&args.config)?;
     let cfg = load_config(&config_path)?;
@@ -655,11 +712,17 @@ async fn cmd_query(args: QueryArgs, verbose: u8) -> anyhow::Result<()> {
         .map_err(|e| anyhow::anyhow!("Embed error: {e}"))?;
     pb.finish_and_clear();
 
+    let hybrid_alpha = args.hybrid_alpha.unwrap_or(0.6).clamp(0.0, 1.0);
     let opts = SearchOptions {
-        filter: None,
+        filter: args.branch.as_deref().map(|b| {
+            std::collections::HashMap::from([(
+                "branch".to_string(),
+                serde_json::Value::String(b.to_string()),
+            )])
+        }),
         tag_filter: None,
         hybrid: args.hybrid,
-        hybrid_alpha: 0.6,
+        hybrid_alpha,
         query_text: if args.hybrid {
             Some(args.query.clone())
         } else {
@@ -669,33 +732,42 @@ async fn cmd_query(args: QueryArgs, verbose: u8) -> anyhow::Result<()> {
 
     let mut results = store.search(&vec, args.top_k, opts).await?;
 
-    // Apply reranker if configured — re-scores and re-sorts results.
+    // Apply reranker: --rerank flag or configured reranker provider triggers reranking.
     #[cfg(any(feature = "embedder-onnx", feature = "download-binaries"))]
-    if let Some(reranker_spec) = &cfg.providers.reranker {
-        let reranker = resolve_reranker(reranker_spec)?;
-        let passages: Vec<&str> = results.iter().map(|r| r.dense_text.as_str()).collect();
-        let scores = reranker
-            .lock()
-            .map_err(|_| anyhow::anyhow!("reranker lock poisoned"))?
-            .rerank(&args.query, &passages)
-            .map_err(|e| anyhow::anyhow!("Reranker error: {e}"))?;
-        let mut order: Vec<usize> = (0..results.len()).collect();
-        order.sort_unstable_by(|&a, &b| {
-            scores[b]
-                .partial_cmp(&scores[a])
-                .unwrap_or(std::cmp::Ordering::Equal)
-        });
-        let mut slots: Vec<Option<_>> = results.into_iter().map(Some).collect();
-        results = order
-            .into_iter()
-            .map(|i| slots[i].take().unwrap())
-            .collect();
+    if args.rerank || cfg.providers.reranker.is_some() {
+        if let Some(reranker_spec) = &cfg.providers.reranker {
+            let reranker = resolve_reranker(reranker_spec)?;
+            let passages: Vec<&str> = results.iter().map(|r| r.dense_text.as_str()).collect();
+            let scores = reranker
+                .lock()
+                .map_err(|_| anyhow::anyhow!("reranker lock poisoned"))?
+                .rerank(&args.query, &passages)
+                .map_err(|e| anyhow::anyhow!("Reranker error: {e}"))?;
+            let mut order: Vec<usize> = (0..results.len()).collect();
+            order.sort_unstable_by(|&a, &b| {
+                scores[b]
+                    .partial_cmp(&scores[a])
+                    .unwrap_or(std::cmp::Ordering::Equal)
+            });
+            let mut slots: Vec<Option<_>> = results.into_iter().map(Some).collect();
+            results = order
+                .into_iter()
+                .map(|i| slots[i].take().unwrap())
+                .collect();
+        }
     }
 
     // Apply min-similarity filter (on original vector-similarity score).
     if let Some(min_sim) = args.min_similarity {
         results.retain(|r| r.similarity >= min_sim);
     }
+
+    let record_telemetry = |success: bool| {
+        let db_path = resolve_db_path("");
+        if let Ok(db) = open_or_init_db(&db_path) {
+            let _ = db.record_cli_command("query", t0.elapsed().as_millis() as u64, success);
+        }
+    };
 
     if args.json {
         let json: Vec<serde_json::Value> = results
@@ -710,11 +782,13 @@ async fn cmd_query(args: QueryArgs, verbose: u8) -> anyhow::Result<()> {
             })
             .collect();
         println!("{}", serde_json::to_string_pretty(&json)?);
+        record_telemetry(true);
         return Ok(());
     }
 
     if results.is_empty() {
         out.warn("No results found.");
+        record_telemetry(true);
         return Ok(());
     }
 
@@ -740,23 +814,31 @@ async fn cmd_query(args: QueryArgs, verbose: u8) -> anyhow::Result<()> {
         println!("   {snippet}");
         println!("{}", style("─".repeat(60)).dim());
     }
+    record_telemetry(true);
     Ok(())
 }
 
-fn cmd_validate(args: ConfigPathArg, verbose: u8) -> anyhow::Result<()> {
+async fn cmd_validate(args: ConfigPathArg, verbose: u8) -> anyhow::Result<()> {
+    let t0 = std::time::Instant::now();
     let out = Out::new(verbose);
     let config_path = resolve_config_path(&args.config)?;
     out.section("Validate");
     out.dim(&format!("Config: {config_path}"));
 
+    // A1 — spinner around load_config()
+    let pb = spinner("Loading config...");
     let cfg = load_config(&config_path)?;
+    pb.finish_and_clear();
 
     if cfg.file_sets.is_empty() {
         return Err(anyhow::anyhow!("fileSets must have at least one entry"));
     }
 
     let mut warnings = 0usize;
+    let cwd = std::env::current_dir()?;
 
+    // A2 — spinner around glob file scan loop (E1: count matches per fileSet)
+    let pb = spinner("Scanning file patterns...");
     for fs in &cfg.file_sets {
         if fs.chunkers.is_empty() {
             out.warn(&format!("fileSet {:?}: chunkers is empty", fs.name));
@@ -768,18 +850,81 @@ fn cmd_validate(args: ConfigPathArg, verbose: u8) -> anyhow::Result<()> {
                 fs.name
             ));
             warnings += 1;
+            continue;
         }
+
+        // E1: build a globset and count matches on disk
+        let mut builder = globset::GlobSetBuilder::new();
+        let mut pattern_errors = 0usize;
         for pat in &fs.include {
             match globset::Glob::new(pat) {
-                Ok(_) => out.verbose(&format!("fileSet {:?}: pattern {:?} OK", fs.name, pat)),
+                Ok(g) => {
+                    out.verbose(&format!("fileSet {:?}: pattern {:?} OK", fs.name, pat));
+                    builder.add(g);
+                }
                 Err(e) => {
                     out.warn(&format!(
                         "fileSet {:?}: invalid pattern {:?}: {e}",
                         fs.name, pat
                     ));
                     warnings += 1;
+                    pattern_errors += 1;
                 }
             }
+        }
+        if pattern_errors == fs.include.len() {
+            continue;
+        }
+        let globset = builder.build().unwrap_or_default();
+        let match_count = walkdir::WalkDir::new(&cwd)
+            .into_iter()
+            .filter_map(|e| e.ok())
+            .filter(|e| e.file_type().is_file())
+            .filter(|e| {
+                e.path()
+                    .strip_prefix(&cwd)
+                    .map(|rel| globset.is_match(rel))
+                    .unwrap_or(false)
+            })
+            .count();
+        out.info(&format!(
+            "  fileSet {:?}: {} file(s) matched",
+            fs.name, match_count
+        ));
+        if match_count == 0 {
+            out.warn(&format!(
+                "fileSet {:?}: no files matched include patterns",
+                fs.name
+            ));
+            warnings += 1;
+        }
+    }
+    pb.finish_and_clear();
+
+    // E3: file type coverage — detect types and check gaps
+    let detected = detect_file_types(&cwd);
+    let all_includes: Vec<&str> = cfg
+        .file_sets
+        .iter()
+        .flat_map(|fs| fs.include.iter().map(String::as_str))
+        .collect();
+    for (type_name, count) in &detected {
+        let type_patterns = FILE_TYPE_META
+            .iter()
+            .find(|(k, _, _, _)| k == type_name)
+            .map(|(_, _, pats, _)| *pats)
+            .unwrap_or(&[]);
+        let covered = type_patterns.iter().any(|tp| {
+            all_includes
+                .iter()
+                .any(|inc| inc == tp || inc.contains(tp.trim_start_matches("**/")))
+        });
+        if !covered {
+            out.warn(&format!(
+                "File type {:?} ({count} file(s)) not covered by any fileSet include pattern",
+                type_name
+            ));
+            warnings += 1;
         }
     }
 
@@ -793,15 +938,38 @@ fn cmd_validate(args: ConfigPathArg, verbose: u8) -> anyhow::Result<()> {
     }
     out.info(&format!("FileSets : {}", cfg.file_sets.len()));
 
+    // A3/E2 — spinner around store.initialize(); warn on error, don't abort
+    let pb = spinner("Connecting to vector store...");
+    let dims = embedder_dims(&cfg);
+    match resolve_store(&cfg.providers.vector_store, dims) {
+        Ok(store) => match store.initialize().await {
+            Ok(_) => out.verbose("Vector store reachable."),
+            Err(e) => {
+                out.warn(&format!("Vector store not reachable: {e}"));
+                warnings += 1;
+            }
+        },
+        Err(e) => {
+            out.warn(&format!("Could not resolve vector store: {e}"));
+            warnings += 1;
+        }
+    }
+    pb.finish_and_clear();
+
     if warnings > 0 {
         out.warn(&format!("Config loaded with {warnings} warning(s)."));
     } else {
         out.success("Config is valid.");
     }
+    let db_path = resolve_db_path("");
+    if let Ok(db) = open_or_init_db(&db_path) {
+        let _ = db.record_cli_command("validate", t0.elapsed().as_millis() as u64, true);
+    }
     Ok(())
 }
 
 async fn cmd_check(args: ConfigPathArg, verbose: u8) -> anyhow::Result<()> {
+    let t0 = std::time::Instant::now();
     let out = Out::new(verbose);
     let config_path = resolve_config_path(&args.config)?;
     let cfg = load_config(&config_path)?;
@@ -820,8 +988,44 @@ async fn cmd_check(args: ConfigPathArg, verbose: u8) -> anyhow::Result<()> {
     ));
     out.info(&format!("Indexed files : {}", state.len()));
     out.info(&format!("Dimensions    : {dims}"));
-    out.success("Status: OK");
-    Ok(())
+
+    // F2: compare stored metadata against current config
+    let mut ok = true;
+    match store.read_meta().await? {
+        None => {
+            out.warn("No index metadata found — run `virage index` to build the index.");
+        }
+        Some(meta) => {
+            let config_model = &cfg.providers.embedder.package;
+            if &meta.model != config_model {
+                out.error(&format!(
+                    "Embedder mismatch: index uses {:?}, config has {:?}",
+                    meta.model, config_model
+                ));
+                ok = false;
+            }
+            if meta.dimensions != dims {
+                out.error(&format!(
+                    "Dimension mismatch: index has {}, config has {dims}",
+                    meta.dimensions
+                ));
+                ok = false;
+            }
+        }
+    }
+
+    let db_path = resolve_db_path("");
+    if let Ok(db) = open_or_init_db(&db_path) {
+        let _ = db.record_cli_command("check", t0.elapsed().as_millis() as u64, ok);
+    }
+
+    if ok {
+        out.success("Status: OK");
+        Ok(())
+    } else {
+        out.error("Index metadata does not match config — re-run `virage index`.");
+        std::process::exit(1);
+    }
 }
 
 fn cmd_report(args: DbPathArg, verbose: u8) -> anyhow::Result<()> {
@@ -1036,10 +1240,62 @@ fn cmd_telemetry(args: TelemetryArgs, verbose: u8) -> anyhow::Result<()> {
             out.success("Telemetry disabled.");
         }
         TelemetryCommand::Preview => {
-            out.dim("No pending telemetry events.");
+            let db_path = resolve_db_path("");
+            let db = open_or_init_db(&db_path)?;
+            let rows = db
+                .get_pending_telemetry()
+                .map_err(|e| anyhow::anyhow!("DB read error: {e}"))?;
+            if rows.is_empty() {
+                out.dim("No pending telemetry events.");
+            } else {
+                out.section("Pending Telemetry");
+                for r in &rows {
+                    out.info(&format!(
+                        "  [{}] {} {}ms {}",
+                        r.id,
+                        r.command,
+                        r.duration_ms,
+                        if r.success { "ok" } else { "err" }
+                    ));
+                }
+            }
         }
         TelemetryCommand::Flush => {
-            out.dim("No events to flush.");
+            let db_path = resolve_db_path("");
+            let db = open_or_init_db(&db_path)?;
+            let rows = db
+                .get_pending_telemetry()
+                .map_err(|e| anyhow::anyhow!("DB read error: {e}"))?;
+            if rows.is_empty() {
+                out.dim("No events to flush.");
+            } else {
+                let telemetry_endpoint = "https://telemetry.vivantel.com/v1/cli";
+                let payload: Vec<serde_json::Value> = rows
+                    .iter()
+                    .map(|r| {
+                        serde_json::json!({
+                            "command": r.command,
+                            "durationMs": r.duration_ms,
+                            "success": r.success,
+                            "recordedAt": r.recorded_at,
+                        })
+                    })
+                    .collect();
+                let body = serde_json::to_string(&serde_json::json!({ "events": payload }))?;
+                let result = ureq::post(telemetry_endpoint)
+                    .set("Content-Type", "application/json")
+                    .send_bytes(body.as_bytes());
+                match result {
+                    Ok(_) => {
+                        db.clear_telemetry()
+                            .map_err(|e| anyhow::anyhow!("DB clear error: {e}"))?;
+                        out.success(&format!("Flushed {} event(s).", rows.len()));
+                    }
+                    Err(e) => {
+                        out.warn(&format!("Flush failed (events retained): {e}"));
+                    }
+                }
+            }
         }
         TelemetryCommand::Init => {
             cmd_telemetry_init(&out, &config_dir, &flag_file, &telemetry_cfg)?;
@@ -1240,6 +1496,26 @@ fn cmd_quality(args: QualityArgs, verbose: u8) -> anyhow::Result<()> {
 
 // ─── init ────────────────────────────────────────────────────────────────────
 
+fn package_to_builtin(pkg: &str) -> Option<&'static str> {
+    match pkg {
+        "@vivantel/virage-chunker-ce-lang" => Some("lang"),
+        "@vivantel/virage-chunker-ce-md" => Some("md"),
+        "@vivantel/virage-chunker-ce-pdf" => Some("pdf"),
+        "@vivantel/virage-chunker-ce-docx" => Some("docx"),
+        "@vivantel/virage-chunker-ce-latex" => Some("latex"),
+        "@vivantel/virage-embedder-onnx" => Some("onnx"),
+        "@vivantel/virage-embedder-fastembed" => Some("fastembed"),
+        "@vivantel/virage-store-lancedb" => Some("lancedb"),
+        "@vivantel/virage-store-qdrant" => Some("qdrant"),
+        "@vivantel/virage-store-postgres" => Some("postgres"),
+        "@vivantel/virage-store-chromadb" => Some("chromadb"),
+        "@vivantel/virage-reranker-cross-encoder" => Some("cross-encoder"),
+        "@vivantel/virage-source-git" => Some("git"),
+        "@vivantel/virage-source-localfs" => Some("localfs"),
+        _ => None,
+    }
+}
+
 /// File-type metadata: (key used by detect_file_types, display label, include patterns, chunker pkg)
 const FILE_TYPE_META: &[(&str, &str, &[&str], &str)] = &[
     (
@@ -1312,7 +1588,7 @@ const FILE_TYPE_META: &[(&str, &str, &[&str], &str)] = &[
 
 fn cmd_init(args: ConfigPathArg, verbose: u8) -> anyhow::Result<()> {
     let out = Out::new(verbose);
-    use dialoguer::{Confirm, Input, MultiSelect, Select};
+    use dialoguer::{MultiSelect, Select};
 
     out.section("Virage Setup");
     out.dim("Use ← Back to return to the previous step.");
@@ -1320,66 +1596,69 @@ fn cmd_init(args: ConfigPathArg, verbose: u8) -> anyhow::Result<()> {
 
     const BACK: &str = "← Back";
 
-    // Wizard state — pre-fill config_path from --config flag if provided
+    // Wizard state
     let default_config = if args.config.is_empty() {
         "virage.config.json".to_string()
     } else {
         args.config.clone()
     };
+    let cwd = std::env::current_dir()?;
     let mut config_path = default_config.clone();
-    let mut scan_path = String::from(".");
     let mut selected_type_indices: Vec<usize> = vec![];
-    let mut source_pkg = "@vivantel/virage-source-git";
+    let mut selected_agents: Vec<&str> = vec!["claude-code"];
     let mut embedder_pkg = "@vivantel/virage-embedder-onnx";
     let mut store_pkg = "@vivantel/virage-store-lancedb";
+    let source_pkg = "@vivantel/virage-source-git"; // default, no prompt (H2)
     let mut reranker_pkg: Option<&str> = None;
     let mut use_hybrid = false;
+    let mut hybrid_alpha: f32 = 0.6;
+    let mut install_scope = "local";
 
     let mut step = 0usize;
 
     loop {
         match step {
-            // ── Step 1: Config path ───────────────────────────────────────────
+            // ── Step 0: Config path (H1: Select instead of Input) ─────────────
             0 => {
-                config_path = Input::new()
-                    .with_prompt("Config file path")
-                    .default(default_config.clone())
-                    .interact_text()?;
-                step += 1;
-            }
-
-            // ── Step 2: Scan path + overwrite check ───────────────────────────
-            1 => {
-                scan_path = Input::new()
-                    .with_prompt("Root directory to index")
-                    .default(".".into())
-                    .interact_text()?;
-
-                if std::path::Path::new(&config_path).exists() {
-                    let choices = [BACK, "Overwrite existing config", "Cancel"];
-                    let idx = Select::new()
-                        .with_prompt(format!("{config_path} already exists"))
-                        .items(&choices)
-                        .default(1)
-                        .interact()?;
-                    match idx {
-                        0 => {
-                            step = step.saturating_sub(1);
-                            continue;
-                        }
-                        2 => {
-                            out.info("Cancelled.");
-                            return Ok(());
-                        }
-                        _ => {}
+                let config_exists = std::path::Path::new(&config_path).exists();
+                let choices = if config_exists {
+                    vec![
+                        BACK,
+                        "Use default path (overwrite existing)",
+                        "Enter custom path",
+                        "← Exit",
+                    ]
+                } else {
+                    vec![BACK, "Use default path", "Enter custom path", "← Exit"]
+                };
+                let idx = Select::new()
+                    .with_prompt(format!("Config path (default: {default_config})"))
+                    .items(&choices)
+                    .default(1)
+                    .interact()?;
+                match idx {
+                    0 | 3 => {
+                        out.info("Cancelled.");
+                        std::process::exit(0);
+                    }
+                    2 => {
+                        config_path = dialoguer::Input::new()
+                            .with_prompt("Config file path")
+                            .default(default_config.clone())
+                            .interact_text()?;
+                    }
+                    _ => {
+                        config_path = default_config.clone();
                     }
                 }
                 step += 1;
             }
 
-            // ── Step 3: File type detection + multiselect ─────────────────────
-            2 => {
-                let counts = detect_file_types(std::path::Path::new(&scan_path));
+            // ── Step 1: File type detection + multiselect (H2: use CWD) ───────
+            1 => {
+                let pb = spinner("Detecting file types...");
+                let counts = detect_file_types(&cwd);
+                pb.finish_and_clear();
 
                 let mut labels: Vec<String> = FILE_TYPE_META
                     .iter()
@@ -1417,27 +1696,36 @@ fn cmd_init(args: ConfigPathArg, verbose: u8) -> anyhow::Result<()> {
                 step += 1;
             }
 
-            // ── Step 4: Source provider ───────────────────────────────────────
-            3 => {
-                let choices = [BACK, "git (default)", "localfs (no git required)"];
-                let idx = Select::new()
-                    .with_prompt("Source provider")
-                    .items(&choices)
-                    .default(1)
+            // ── Step 2: Coding agents (H3) ────────────────────────────────────
+            2 => {
+                let agent_choices = [
+                    "Claude Code (claude-code)",
+                    "GitHub Copilot (copilot)",
+                    "OpenAI Codex (codex)",
+                    "Antigravity",
+                    BACK,
+                ];
+                let agent_defaults = [true, false, false, false, false];
+                let picked = MultiSelect::new()
+                    .with_prompt("Coding agents to support (Space = toggle, Enter = confirm)")
+                    .items(&agent_choices)
+                    .defaults(&agent_defaults)
                     .interact()?;
-                match idx {
-                    0 => {
-                        step = step.saturating_sub(1);
-                        continue;
-                    }
-                    2 => source_pkg = "@vivantel/virage-source-localfs",
-                    _ => source_pkg = "@vivantel/virage-source-git",
+                if picked.contains(&(agent_choices.len() - 1)) {
+                    step = step.saturating_sub(1);
+                    continue;
                 }
+                let agent_keys = ["claude-code", "copilot", "codex", "antigravity"];
+                selected_agents = picked
+                    .iter()
+                    .filter(|&&i| i < agent_keys.len())
+                    .map(|&i| agent_keys[i])
+                    .collect();
                 step += 1;
             }
 
-            // ── Step 5: Embedder ──────────────────────────────────────────────
-            4 => {
+            // ── Step 3: Embedder ──────────────────────────────────────────────
+            3 => {
                 let choices = [
                     BACK,
                     "ONNX (local, no API key needed)",
@@ -1463,8 +1751,8 @@ fn cmd_init(args: ConfigPathArg, verbose: u8) -> anyhow::Result<()> {
                 step += 1;
             }
 
-            // ── Step 6: Vector store ──────────────────────────────────────────
-            5 => {
+            // ── Step 4: Vector store ──────────────────────────────────────────
+            4 => {
                 let choices = [
                     BACK,
                     "LanceDB (local, file-based)",
@@ -1490,13 +1778,13 @@ fn cmd_init(args: ConfigPathArg, verbose: u8) -> anyhow::Result<()> {
                 step += 1;
             }
 
-            // ── Step 7: Reranker + hybrid ─────────────────────────────────────
-            6 => {
+            // ── Step 5: Reranker ──────────────────────────────────────────────
+            5 => {
                 let choices = [
                     BACK,
                     "None (skip, use vector similarity only)",
                     "ONNX cross-encoder (local, improves precision)",
-                    "Cohere rerank-english-v3",
+                    "LLM re-ranker — Anthropic API (claude-haiku-4-5)",
                 ];
                 let idx = Select::new()
                     .with_prompt("Reranker")
@@ -1508,40 +1796,125 @@ fn cmd_init(args: ConfigPathArg, verbose: u8) -> anyhow::Result<()> {
                         step = step.saturating_sub(1);
                         continue;
                     }
-                    2 => reranker_pkg = Some("@vivantel/virage-reranker-onnx"),
-                    3 => reranker_pkg = Some("@vivantel/virage-reranker-cohere"),
+                    2 => reranker_pkg = Some("@vivantel/virage-reranker-cross-encoder"),
+                    3 => reranker_pkg = Some("@vivantel/virage-reranker-llm"),
                     _ => reranker_pkg = None,
                 }
+                step += 1;
+            }
 
-                if reranker_pkg.is_some() {
-                    use_hybrid = Confirm::new()
-                        .with_prompt("Enable hybrid search (dense + sparse BM25)?")
-                        .default(true)
+            // ── Step 6: Hybrid search (unconditional — G7) ───────────────────
+            6 => {
+                let choices = [BACK, "Yes — enable hybrid (dense + sparse BM25)", "No"];
+                let idx = Select::new()
+                    .with_prompt("Enable hybrid search?")
+                    .items(&choices)
+                    .default(1)
+                    .interact()?;
+                match idx {
+                    0 => {
+                        step = step.saturating_sub(1);
+                        continue;
+                    }
+                    2 => {
+                        use_hybrid = false;
+                        step += 1;
+                        continue;
+                    }
+                    _ => {}
+                }
+                use_hybrid = true;
+
+                // G8: alpha sub-select
+                let alpha_choices = [
+                    BACK,
+                    "0.6 (default — balanced)",
+                    "0.3 (sparse-heavy)",
+                    "0.8 (dense-heavy)",
+                    "Custom",
+                ];
+                loop {
+                    let aidx = Select::new()
+                        .with_prompt("Hybrid alpha (0 = sparse only, 1 = dense only)")
+                        .items(&alpha_choices)
+                        .default(1)
                         .interact()?;
-                } else {
-                    use_hybrid = false;
+                    match aidx {
+                        0 => {
+                            use_hybrid = false;
+                            break;
+                        }
+                        2 => {
+                            hybrid_alpha = 0.3;
+                            break;
+                        }
+                        3 => {
+                            hybrid_alpha = 0.8;
+                            break;
+                        }
+                        4 => {
+                            let raw: String = dialoguer::Input::new()
+                                .with_prompt("Alpha (0.0–1.0)")
+                                .interact_text()?;
+                            match raw.parse::<f32>() {
+                                Ok(v) if (0.0..=1.0).contains(&v) => {
+                                    hybrid_alpha = v;
+                                    break;
+                                }
+                                _ => {
+                                    out.warn("Enter a number between 0.0 and 1.0.");
+                                }
+                            }
+                        }
+                        _ => {
+                            hybrid_alpha = 0.6;
+                            break;
+                        }
+                    }
+                }
+                step += 1;
+            }
+
+            // ── Step 7: Install scope (H5) ───────────────────────────────────
+            7 => {
+                let choices = [BACK, "Local (this project)", "Global (all projects)"];
+                let idx = Select::new()
+                    .with_prompt("Install scope")
+                    .items(&choices)
+                    .default(1)
+                    .interact()?;
+                match idx {
+                    0 => {
+                        step = step.saturating_sub(1);
+                        continue;
+                    }
+                    2 => install_scope = "global",
+                    _ => install_scope = "local",
                 }
                 step += 1;
             }
 
             // ── Step 8: Summary + confirm ─────────────────────────────────────
-            7 => {
+            8 => {
                 let type_names: Vec<&str> = selected_type_indices
                     .iter()
                     .map(|&i| FILE_TYPE_META[i].1)
                     .collect();
 
                 out.section("Summary");
-                out.info(&format!("  Config     : {config_path}"));
-                out.info(&format!("  Scan path  : {scan_path}"));
-                out.info(&format!("  File types : {}", type_names.join(", ")));
-                out.info(&format!("  Source     : {source_pkg}"));
-                out.info(&format!("  Embedder   : {embedder_pkg}"));
-                out.info(&format!("  Store      : {store_pkg}"));
-                if let Some(r) = reranker_pkg {
-                    out.info(&format!("  Reranker   : {r}"));
-                    out.info(&format!("  Hybrid     : {use_hybrid}"));
-                }
+                // H12: formatted summary box
+                let summary = format_wizard_summary(
+                    &config_path,
+                    &type_names,
+                    &selected_agents,
+                    embedder_pkg,
+                    store_pkg,
+                    reranker_pkg,
+                    use_hybrid,
+                    hybrid_alpha,
+                    install_scope,
+                );
+                println!("{summary}");
                 println!();
 
                 let choices = [BACK, "Write config", "Cancel"];
@@ -1575,8 +1948,8 @@ fn cmd_init(args: ConfigPathArg, verbose: u8) -> anyhow::Result<()> {
     for &i in &selected_type_indices {
         let (_, _, patterns, chunker) = FILE_TYPE_META[i];
         let entry = chunker_groups.entry(chunker).or_default();
-        entry.0.extend_from_slice(patterns); // include patterns
-        entry.1.push(FILE_TYPE_META[i].0); // type names for the set name
+        entry.0.extend_from_slice(patterns);
+        entry.1.push(FILE_TYPE_META[i].0);
     }
 
     let mut file_sets = Vec::new();
@@ -1586,38 +1959,276 @@ fn cmd_init(args: ConfigPathArg, verbose: u8) -> anyhow::Result<()> {
         } else {
             "code".to_string()
         };
+        // G2: emit builtin key + G3 chunker options
+        let chunker_spec = if let Some(builtin) = package_to_builtin(chunker) {
+            let options = chunker_options_for(builtin);
+            if options.is_null() {
+                serde_json::json!({ "builtin": builtin })
+            } else {
+                serde_json::json!({ "builtin": builtin, "options": options })
+            }
+        } else {
+            serde_json::json!({ "package": chunker })
+        };
         file_sets.push(serde_json::json!({
             "name": set_name,
             "include": patterns,
-            "chunkers": [{ "package": chunker }]
+            "chunkers": [chunker_spec]
         }));
     }
 
+    // G2/G4: embedder with builtin key and default options
+    let embedder_spec = if let Some(builtin) = package_to_builtin(embedder_pkg) {
+        let opts = embedder_options_for(builtin);
+        serde_json::json!({ "builtin": builtin, "options": opts })
+    } else {
+        let opts = embedder_options_for(embedder_pkg);
+        serde_json::json!({ "package": embedder_pkg, "options": opts })
+    };
+
+    // G2/G5: vectorStore with builtin key and default options
+    let store_spec = if let Some(builtin) = package_to_builtin(store_pkg) {
+        let opts = store_options_for(builtin);
+        serde_json::json!({ "builtin": builtin, "options": opts })
+    } else {
+        serde_json::json!({ "package": store_pkg })
+    };
+
+    // G2: source spec
+    let source_spec = if let Some(builtin) = package_to_builtin(source_pkg) {
+        serde_json::json!({ "builtin": builtin })
+    } else {
+        serde_json::json!({ "package": source_pkg })
+    };
+
     let mut providers = serde_json::json!({
-        "embedder": { "package": embedder_pkg },
-        "vectorStore": { "package": store_pkg },
-        "source": { "package": source_pkg }
+        "embedder": embedder_spec,
+        "vectorStore": store_spec,
+        "source": source_spec
     });
+
+    // G2/G6: reranker with builtin key and default options
     if let Some(r) = reranker_pkg {
-        providers["reranker"] = serde_json::json!({ "package": r });
+        let reranker_spec = if let Some(builtin) = package_to_builtin(r) {
+            let opts = reranker_options_for(builtin);
+            serde_json::json!({ "builtin": builtin, "options": opts })
+        } else {
+            serde_json::json!({ "package": r })
+        };
+        providers["reranker"] = reranker_spec;
     }
 
+    // H7: default ignore patterns
+    let mut ignore_patterns = vec![
+        "**/node_modules/**",
+        "**/.git/**",
+        "**/dist/**",
+        "**/build/**",
+        "**/.virage/**",
+        "**/target/**",
+        "**/__pycache__/**",
+        "**/.next/**",
+        "**/vendor/**",
+    ];
+    // Add language-specific ignore patterns
+    let java_kotlin_selected = selected_type_indices
+        .iter()
+        .any(|&i| FILE_TYPE_META[i].0 == "Java / Kotlin");
+    let csharp_selected = selected_type_indices
+        .iter()
+        .any(|&i| FILE_TYPE_META[i].0 == "C# / C++");
+    if java_kotlin_selected {
+        ignore_patterns.push("**/target/**");
+        ignore_patterns.push("**/*.class");
+    }
+    if csharp_selected {
+        ignore_patterns.push("**/bin/**");
+        ignore_patterns.push("**/obj/**");
+    }
+    ignore_patterns.dedup();
+
+    // G9: hybrid goes in "search" section, not "pipeline"
+    // H6: fixed $schema URL (already set above)
     let mut cfg = serde_json::json!({
-        "$schema": "https://vivantel.com/virage/schema/v2/config.json",
+        "$schema": "https://unpkg.com/@vivantel/virage-core/schemas/virage.config.schema.json",
         "version": "1.0.0",
         "providers": providers,
-        "fileSets": file_sets
+        "fileSets": file_sets,
+        "ignore": ignore_patterns,
+        "agents": selected_agents,
+        "installScope": install_scope,
+        "telemetry": {
+            "enabled": true,
+            "endpoint": "https://telemetry.vivantel.com",
+            "tiers": { "implicit": true }
+        }
     });
 
     if use_hybrid {
-        cfg["pipeline"] = serde_json::json!({ "hybrid": true });
+        cfg["search"] = serde_json::json!({
+            "hybrid": true,
+            "hybridAlpha": hybrid_alpha
+        });
     }
 
+    // H11: rotate existing backup slots before writing
+    rotate_config_backup(std::path::Path::new(&config_path))?;
     std::fs::write(&config_path, serde_json::to_string_pretty(&cfg)?)?;
     println!();
     out.success(&format!("Config written to {config_path}"));
-    out.dim("Next: run `virage index` to build the index.");
+
+    // H13: Next steps
+    println!();
+    out.info("Next steps:");
+    out.info("  1. Run `virage validate` to check the config");
+    out.info("  2. Run `virage index` to build the search index");
+    if store_pkg.contains("qdrant") {
+        out.dim("     Note: Qdrant requires a running server. Start with: docker run -p 6333:6333 qdrant/qdrant");
+    }
     Ok(())
+}
+
+// G3: chunker default options per builtin key
+fn chunker_options_for(builtin: &str) -> serde_json::Value {
+    match builtin {
+        "lang" => serde_json::json!({ "maxTokens": 512 }),
+        "pdf" | "docx" | "latex" => {
+            serde_json::json!({ "maxTokens": 512, "overlapSentences": 1 })
+        }
+        _ => serde_json::Value::Null,
+    }
+}
+
+// G4: embedder default options per builtin key or package name
+fn embedder_options_for(key: &str) -> serde_json::Value {
+    match key {
+        "onnx" => serde_json::json!({ "model": "Xenova/all-MiniLM-L6-v2", "dimensions": 384 }),
+        "fastembed" => {
+            serde_json::json!({ "model": "BAAI/bge-small-en-v1.5", "dimensions": 384 })
+        }
+        "@vivantel/virage-embedder-openai" => {
+            serde_json::json!({ "model": "text-embedding-3-small", "dimensions": 1536 })
+        }
+        "@vivantel/virage-embedder-cohere" => {
+            serde_json::json!({ "model": "embed-english-v3.0", "dimensions": 1024 })
+        }
+        _ => serde_json::json!({}),
+    }
+}
+
+// G5: vector store default options per builtin key
+fn store_options_for(builtin: &str) -> serde_json::Value {
+    match builtin {
+        "lancedb" => serde_json::json!({ "uri": ".virage/lancedb" }),
+        "qdrant" => {
+            serde_json::json!({ "url": "http://localhost:6333", "collectionName": "virage" })
+        }
+        "postgres" => {
+            serde_json::json!({ "connectionString": "postgresql://localhost/virage" })
+        }
+        "chromadb" => {
+            serde_json::json!({ "url": "http://localhost:8000", "collectionName": "virage" })
+        }
+        _ => serde_json::json!({}),
+    }
+}
+
+// G6: reranker default options per builtin key
+fn reranker_options_for(builtin: &str) -> serde_json::Value {
+    match builtin {
+        "cross-encoder" => {
+            serde_json::json!({
+                "model": "cross-encoder/ms-marco-MiniLM-L-12-v2",
+                "topK": 5
+            })
+        }
+        "llm" => serde_json::json!({ "model": "claude-haiku-4-5", "topK": 5 }),
+        _ => serde_json::json!({}),
+    }
+}
+
+// H11: rotate .bak.N slots (max 5) before overwriting a config file
+fn rotate_config_backup(path: &std::path::Path) -> anyhow::Result<()> {
+    if !path.exists() {
+        return Ok(());
+    }
+    // Shift .bak.4 → .bak.5 … .bak.1 → .bak.2, then copy current → .bak.1
+    for n in (1u8..5).rev() {
+        let src = path.with_extension(format!("json.bak.{n}"));
+        let dst = path.with_extension(format!("json.bak.{}", n + 1));
+        if src.exists() {
+            let _ = std::fs::rename(&src, &dst);
+        }
+    }
+    let bak1 = path.with_extension("json.bak.1");
+    std::fs::copy(path, &bak1)?;
+    Ok(())
+}
+
+// H12: produce a ╔═...═╗ summary box with all wizard selections
+fn format_wizard_summary(
+    config_path: &str,
+    type_names: &[&str],
+    selected_agents: &[&str],
+    embedder_pkg: &str,
+    store_pkg: &str,
+    reranker_pkg: Option<&str>,
+    use_hybrid: bool,
+    hybrid_alpha: f32,
+    install_scope: &str,
+) -> String {
+    use console::style;
+
+    let embedder_short = embedder_pkg.split('/').last().unwrap_or(embedder_pkg);
+    let store_short = store_pkg.split('/').last().unwrap_or(store_pkg);
+
+    let reranker_line = match reranker_pkg {
+        Some(pkg) => pkg.split('/').last().unwrap_or(pkg).to_string(),
+        None => "none".to_string(),
+    };
+    let hybrid_line = if use_hybrid {
+        format!("yes  (α = {hybrid_alpha:.2})")
+    } else {
+        "no".to_string()
+    };
+
+    let types_line = if type_names.is_empty() {
+        "(none)".to_string()
+    } else {
+        type_names.join(", ")
+    };
+    let agents_line = if selected_agents.is_empty() {
+        "(none)".to_string()
+    } else {
+        selected_agents.join(", ")
+    };
+
+    let rows: &[(&str, String)] = &[
+        ("Config", config_path.to_string()),
+        ("File types", types_line),
+        ("Agents", agents_line),
+        ("Embedder", embedder_short.to_string()),
+        ("Vector store", store_short.to_string()),
+        ("Reranker", reranker_line),
+        ("Hybrid search", hybrid_line),
+        ("Install scope", install_scope.to_string()),
+    ];
+
+    let label_w = rows.iter().map(|(k, _)| k.len()).max().unwrap_or(0);
+    let value_w = rows.iter().map(|(_, v)| v.len()).max().unwrap_or(0);
+    let inner_w = label_w + 3 + value_w; // "  label  :  value"
+
+    let top = format!("╔{}╗", "═".repeat(inner_w + 2));
+    let bot = format!("╚{}╝", "═".repeat(inner_w + 2));
+
+    let mut lines = vec![style(top).cyan().to_string()];
+    for (k, v) in rows {
+        let label = format!("{k:>label_w$}");
+        let row = format!("║ {label}  :  {v:<value_w$} ║");
+        lines.push(style(row).cyan().to_string());
+    }
+    lines.push(style(bot).cyan().to_string());
+    lines.join("\n")
 }
 
 // ─── update ──────────────────────────────────────────────────────────────────
@@ -1642,9 +2253,10 @@ fn cmd_update(verbose: u8) -> anyhow::Result<()> {
     }
 
     // ── 2. Check versions ─────────────────────────────────────────────────────
-    out.dim("Checking versions...");
+    let pb = spinner("Checking versions...");
     let mut statuses: Vec<PackageStatus> = Vec::new();
     for pkg in &packages {
+        pb.set_message(format!("Checking {pkg}..."));
         let current = get_npm_current(npm, pkg, &cwd).unwrap_or_else(|| "not installed".into());
         let latest = get_npm_latest(npm, pkg).unwrap_or_else(|| "unknown".into());
         let outdated = latest != "unknown" && current != "not installed" && current != latest;
@@ -1655,6 +2267,7 @@ fn cmd_update(verbose: u8) -> anyhow::Result<()> {
             outdated,
         });
     }
+    pb.finish_and_clear();
 
     // ── 3. Display status table ───────────────────────────────────────────────
     println!();
@@ -1705,23 +2318,24 @@ fn cmd_update(verbose: u8) -> anyhow::Result<()> {
         return Ok(());
     }
 
-    // ── 5. Install selected packages ──────────────────────────────────────────
+    // ── 5. Install selected packages — I1: single batched npm install -g call ──
     let to_install: Vec<&str> = selected
         .iter()
         .map(|&i| statuses[i].name.as_str())
         .collect();
     out.info(&format!("Installing {} package(s)...", to_install.len()));
 
-    for pkg in &to_install {
-        out.dim(&format!("  npm install -g {pkg}@latest"));
-        let status = std::process::Command::new(npm)
-            .args(["install", "-g", &format!("{pkg}@latest")])
-            .status();
-        match status {
-            Ok(s) if s.success() => out.success(&format!("  {pkg}")),
-            Ok(s) => out.warn(&format!("  {pkg}: npm exited {s}")),
-            Err(e) => out.error(&format!("  {pkg}: {e}")),
-        }
+    let pkg_args: Vec<String> = to_install.iter().map(|p| format!("{p}@latest")).collect();
+    out.dim(&format!("  npm install -g {}", pkg_args.join(" ")));
+    let status = std::process::Command::new(npm)
+        .arg("install")
+        .arg("-g")
+        .args(&pkg_args)
+        .status();
+    match status {
+        Ok(s) if s.success() => out.success(&format!("{} package(s) updated", to_install.len())),
+        Ok(s) => out.warn(&format!("npm exited with status {s}")),
+        Err(e) => out.error(&format!("npm install failed: {e}")),
     }
 
     // ── 6. Self-update (virage CLI binary) ────────────────────────────────────
@@ -2183,6 +2797,7 @@ fn cmd_viz(verbose: u8) -> anyhow::Result<()> {
 
 // ─── Banner ───────────────────────────────────────────────────────────────────
 
+// J1: shows config summary (N chunkers · embedder-short · store-short) when config loads
 fn print_banner() {
     use console::style;
     println!();
@@ -2191,7 +2806,41 @@ fn print_banner() {
         style("virage").bold().cyan(),
         style(env!("CARGO_PKG_VERSION")).dim()
     );
-    println!("  {}", style("AI code-search indexer").dim());
+
+    // Try to load config for the summary line; ignore errors silently
+    if let Some(config_path) = find_config() {
+        if let Ok(cfg) = load_config(&config_path) {
+            let chunker_count: usize = cfg.file_sets.iter().map(|fs| fs.chunkers.len()).sum();
+            let embedder_short = cfg
+                .providers
+                .embedder
+                .package
+                .split('/')
+                .last()
+                .unwrap_or(&cfg.providers.embedder.package)
+                .trim_start_matches("virage-embedder-");
+            let store_short = cfg
+                .providers
+                .vector_store
+                .package
+                .split('/')
+                .last()
+                .unwrap_or(&cfg.providers.vector_store.package)
+                .trim_start_matches("virage-store-");
+            println!(
+                "  {}",
+                style(format!(
+                    "{chunker_count} chunker{} · {embedder_short} · {store_short}",
+                    if chunker_count == 1 { "" } else { "s" }
+                ))
+                .dim()
+            );
+        } else {
+            println!("  {}", style("AI code-search indexer").dim());
+        }
+    } else {
+        println!("  {}", style("AI code-search indexer").dim());
+    }
     println!();
 }
 
@@ -2199,6 +2848,11 @@ fn print_banner() {
 
 #[tokio::main]
 async fn main() {
+    // J2: disable colors when NO_COLOR is set or stdout is not a tty
+    if std::env::var_os("NO_COLOR").is_some() || !console::Term::stdout().is_term() {
+        console::set_colors_enabled(false);
+    }
+
     let cli = Cli::parse();
     let out = Out::new(cli.verbose);
 
@@ -2222,11 +2876,24 @@ async fn main() {
         }
         Some(Commands::Index(args)) => cmd_index(args, cli.verbose).await,
         Some(Commands::Query(args)) => cmd_query(args, cli.verbose).await,
-        Some(Commands::Validate(args)) => cmd_validate(args, cli.verbose),
+        Some(Commands::Validate(args)) => cmd_validate(args, cli.verbose).await,
         Some(Commands::Check(args)) => cmd_check(args, cli.verbose).await,
         Some(Commands::Report(args)) => cmd_report(args, cli.verbose),
-        Some(Commands::Init(args)) => cmd_init(args, cli.verbose),
-        Some(Commands::Update) => cmd_update(cli.verbose),
+        // H14: treat dialoguer Interrupted errors as clean cancellation
+        Some(Commands::Init(args)) => cmd_init(args, cli.verbose).map_err(|e| {
+            if e.to_string().contains("interrupted") || e.to_string().contains("Interrupted") {
+                eprintln!("Cancelled.");
+                std::process::exit(0);
+            }
+            e
+        }),
+        Some(Commands::Update) => cmd_update(cli.verbose).map_err(|e| {
+            if e.to_string().contains("interrupted") || e.to_string().contains("Interrupted") {
+                eprintln!("Cancelled.");
+                std::process::exit(0);
+            }
+            e
+        }),
         Some(Commands::Migrate(args)) => cmd_migrate(args, cli.verbose),
         Some(Commands::Pack(args)) => cmd_pack(args, cli.verbose),
         Some(Commands::InstallHooks(args)) => cmd_install_hooks(args, cli.verbose),

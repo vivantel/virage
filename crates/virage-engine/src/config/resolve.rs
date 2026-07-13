@@ -114,9 +114,7 @@ fn download_hf(
     } else {
         // Prefer quantized (int8) — fall back to full model.
         let q_dest = model_cache.join("onnx--model_quantized.onnx");
-        if q_dest.exists() {
-            q_dest
-        } else if hf_download(model_id, "onnx/model_quantized.onnx", &q_dest).is_ok() {
+        if q_dest.exists() || hf_download(model_id, "onnx/model_quantized.onnx", &q_dest).is_ok() {
             q_dest
         } else {
             let f_dest = model_cache.join("onnx--model.onnx");

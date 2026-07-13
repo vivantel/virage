@@ -29,7 +29,7 @@ pub async fn run_pipeline(
 ) -> anyhow::Result<PipelineStats> {
     store.initialize().await?;
 
-    let progress = ProgressCounters::new();
+    let progress = config.progress.clone().unwrap_or_default();
 
     // ── Collect all source items ──────────────────────────────────────────────
     let mut all_items = Vec::new();
@@ -39,6 +39,7 @@ pub async fn run_pipeline(
             all_items.push(item?);
         }
     }
+    progress.set_total(all_items.len());
 
     // ── Change detection ──────────────────────────────────────────────────────
     let paths: Vec<&str> = all_items.iter().map(|i| i.path.as_str()).collect();
@@ -139,10 +140,13 @@ pub async fn run_pipeline(
     let mut result_rx = result_rx;
     while let Some(result) = result_rx.recv().await {
         files_processed += 1;
+        progress.inc_done();
         for ec in result.chunks {
             batch.push(embedded_to_vecdoc(ec, &result.path));
             if batch.len() >= batch_size {
-                store.upsert(&batch).await?;
+                if !config.skip_upload {
+                    store.upsert(&batch).await?;
+                }
                 chunks_upserted += batch.len();
                 progress.add_chunks(batch.len());
                 batch.clear();
@@ -150,7 +154,9 @@ pub async fn run_pipeline(
         }
     }
     if !batch.is_empty() {
-        store.upsert(&batch).await?;
+        if !config.skip_upload {
+            store.upsert(&batch).await?;
+        }
         chunks_upserted += batch.len();
         progress.add_chunks(batch.len());
     }

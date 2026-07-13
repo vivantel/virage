@@ -14,7 +14,7 @@ use lancedb::index::Index;
 use lancedb::query::{ExecutableQuery, QueryBase, Select};
 use lancedb::{Connection, Table};
 
-use super::{SearchOptions, SearchResult, VectorDocument, VectorStore};
+use super::{IndexMeta, SearchOptions, SearchResult, VectorDocument, VectorStore};
 
 fn sql_in_list(items: &[&str]) -> String {
     items
@@ -356,6 +356,31 @@ impl VectorStore for LanceDbStore {
             .await?;
         let batches: Vec<RecordBatch> = stream.try_collect().await?;
         Ok(Self::batches_to_results(batches))
+    }
+
+    async fn read_meta(&self) -> anyhow::Result<Option<IndexMeta>> {
+        let path = std::path::Path::new(&self.uri).join("_virage_meta.json");
+        match std::fs::read_to_string(&path) {
+            Ok(s) => {
+                let v: serde_json::Value = serde_json::from_str(&s)?;
+                Ok(Some(IndexMeta {
+                    model: v["model"].as_str().unwrap_or("").to_string(),
+                    dimensions: v["dimensions"].as_u64().unwrap_or(0) as usize,
+                }))
+            }
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(None),
+            Err(e) => Err(anyhow::anyhow!("read meta: {e}")),
+        }
+    }
+
+    async fn write_meta(&self, meta: &IndexMeta) -> anyhow::Result<()> {
+        let path = std::path::Path::new(&self.uri).join("_virage_meta.json");
+        let v = serde_json::json!({
+            "model": meta.model,
+            "dimensions": meta.dimensions,
+        });
+        std::fs::write(&path, serde_json::to_string_pretty(&v)?)?;
+        Ok(())
     }
 }
 

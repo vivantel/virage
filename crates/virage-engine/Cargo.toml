@@ -61,6 +61,7 @@ cli-binary = [
     "store-lancedb", "store-qdrant", "store-postgres", "store-chromadb", "db-sqlite",
     "config",
     "dep:clap", "dep:indicatif", "dep:dialoguer", "dep:console", "dep:flate2", "dep:tar",
+    "dep:ureq",
 ]
 # cli: local dev — same as cli-binary but also pulls in embedder-onnx (ort/load-dynamic).
 cli = ["cli-binary", "embedder-onnx"]
