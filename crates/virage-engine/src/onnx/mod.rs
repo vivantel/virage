@@ -54,8 +54,13 @@ pub struct OnnxInferenceSession {
 
 impl OnnxInferenceSession {
     pub fn from_paths(model_path: &str, tokenizer_path: &str) -> Result<Self, String> {
-        let mut builder =
-            Session::builder().map_err(|e| format!("ORT session builder error: {e}"))?;
+        use ort::session::builder::AutoDevicePolicy;
+        // ort api-22+ auto-selects MaxEfficiency (= PreferNPU). On CPU-only machines the
+        // NPU probe inside commit_from_file triggers SIGSEGV. Always force CPU.
+        let mut builder = Session::builder()
+            .map_err(|e| format!("ORT session builder error: {e}"))?
+            .with_auto_device(AutoDevicePolicy::PreferCPU)
+            .map_err(|e| format!("ORT EP policy error: {e}"))?;
         let session = builder
             .commit_from_file(model_path)
             .map_err(|e| format!("ORT model load error: {e}"))?;
