@@ -8,8 +8,6 @@ pub mod db;
 pub mod embedders;
 #[cfg(any(feature = "embedder-onnx", feature = "download-binaries"))]
 pub mod onnx;
-#[cfg(feature = "cli-binary")]
-pub mod output;
 #[cfg(feature = "pipeline")]
 pub mod pipeline;
 #[cfg(feature = "wasm-host")]
