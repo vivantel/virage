@@ -253,6 +253,8 @@ jobs:
           fi
 
       - name: Bump package versions
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
         run: |
           node -e "
             const fs = require('fs');
@@ -271,7 +273,7 @@ jobs:
               fs.writeFileSync(path, JSON.stringify(pkg, null, 2) + '\n');
             }
             console.log('bumped all packages to', ver);
-          " VERSION="${{ steps.version.outputs.version }}"
+          "
 
       - name: Publish platform stubs
         env:
@@ -300,6 +302,14 @@ jobs:
 
       - name: Sync lockfile post-publish
         run: |
+          # Restore package.json versions to source before syncing the lockfile.
+          # "Bump package versions" wrote the publish version to these files, but
+          # source in git still has the previous version.  Running npm install with
+          # the bumped files commits a lockfile that references the new version,
+          # while patch-lockfile-stubs.cjs (which reads source) patches it back on
+          # every local push — permanently blocking git push.
+          git checkout -- packages/virage/package.json packages/virage/npm/*/package.json
+
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
