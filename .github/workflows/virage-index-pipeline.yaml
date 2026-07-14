@@ -53,9 +53,18 @@ jobs:
             virage-${{ github.ref_name }}-
             virage-
 
+      - name: Diagnose virage install
+        env:
+          RUST_BACKTRACE: "1"
+        run: |
+          npm list -g @vivantel/virage || true
+          virage --no-banner validate --config virage.config.ci.json 2>&1 && echo "validate OK" || echo "validate FAILED"
+
       - name: Run Virage pipeline
         timeout-minutes: 5
-        run: virage index --config virage.config.ci.json
+        env:
+          RUST_BACKTRACE: "1"
+        run: virage -v index --config virage.config.ci.json 2>&1
 
       - name: Save Virage cache
         if: always()

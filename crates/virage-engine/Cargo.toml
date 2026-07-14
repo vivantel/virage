@@ -68,7 +68,7 @@ cli = ["cli-binary", "embedder-onnx"]
 # Phase 6 — production binary builds: bundle ORT instead of loading dynamically.
 # Publish CI builds with --features cli-binary,download-binaries --no-default-features.
 # ort/load-dynamic is intentionally absent so the statically-linked ORT path is used.
-download-binaries = ["dep:ort", "dep:tokenizers", "dep:ureq", "ort/download-binaries", "ort/std", "ort/tls-rustls"]
+download-binaries = ["dep:ort", "dep:tokenizers", "dep:ureq", "ort/download-binaries", "ort/std", "ort/tls-rustls", "ort/api-22"]
 # Phase 7 — WASM Component Model plugin host
 wasm-host = [
     "dep:wasmtime", "dep:wasmtime-wasi",

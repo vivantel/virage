@@ -2856,14 +2856,8 @@ async fn main() {
         console::set_colors_enabled(false);
     }
 
-    // Initialize ORT global environment with CPU-only before any session is created.
-    // Without this, ORT 1.20+ probes for hardware EPs (NPU, CUDA) during the first
-    // CreateSession call, which SIGSEGV-crashes on CPU-only machines (SEGV_MAPERR 0x43).
-    // Setting CPU-only here prevents all hardware probing at the C++ library level.
-    #[cfg(any(feature = "embedder-onnx", feature = "download-binaries"))]
-    ort::init()
-        .with_execution_providers([ort::ep::CPU::default().build()])
-        .commit();
+    // ORT EP probing is handled at session level (onnx/mod.rs) via with_execution_providers([CPU]).
+    // No global EP restriction needed here — see facts/ort-ep-selection.md.
 
     let cli = Cli::parse();
     let out = Out::new(cli.verbose);
