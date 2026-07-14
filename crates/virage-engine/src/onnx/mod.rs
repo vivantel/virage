@@ -54,14 +54,18 @@ pub struct OnnxInferenceSession {
 
 impl OnnxInferenceSession {
     pub fn from_paths(model_path: &str, tokenizer_path: &str) -> Result<Self, String> {
-        // ort/api-22+ auto-calls SetEpSelectionPolicy(MaxEfficiency=PreferNPU) in
-        // SessionBuilder::new(), triggering a hardware probe that SIGSEGV-crashes on
-        // CPU-only machines (SEGV_MAPERR at 0x43). We exclude api-24/api-22 from our
-        // feature flags entirely so this call never occurs. Plain Session::builder()
-        // without api-22 uses the CPU EP by default without any hardware probing.
-        let mut builder =
-            Session::builder().map_err(|e| format!("ORT session builder error: {e}"))?;
-        let session = builder
+        // api-22 causes SessionBuilder::new() to call SetEpSelectionPolicy(MaxEfficiency=PreferNPU),
+        // which probes all compiled-in EPs including OpenVINO. On machines without Intel VPU drivers
+        // this SIGSEGV-crashes via _exit(1) before any Rust error handling runs.
+        // Fix: explicitly register CPU EP at session level. Per ort crate docs, with_execution_providers
+        // overrides the MaxEfficiency policy when api-22 was the one that set it.
+        // See docs/ai/facts/ort-ep-selection.md for full probe chain and attempt history.
+        let session = Session::builder()
+            .map_err(|e| format!("ORT session builder error: {e}"))?
+            .with_execution_providers([
+                ort::execution_providers::CPUExecutionProvider::default().build()
+            ])
+            .map_err(|e| format!("ORT CPU EP registration error: {e}"))?
             .commit_from_file(model_path)
             .map_err(|e| format!("ORT model load error: {e}"))?;
         let tokenizer = Tokenizer::from_file(tokenizer_path)
