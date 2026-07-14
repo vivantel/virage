@@ -55,7 +55,7 @@ jobs:
 
       - name: Run Virage pipeline
         timeout-minutes: 5
-        run: virage index --config virage.config.ci.json
+        run: virage --verbose index --config virage.config.ci.json
 
       - name: Save Virage cache
         if: always()
