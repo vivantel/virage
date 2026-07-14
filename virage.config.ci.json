@@ -3,7 +3,8 @@
     "embedder": {
       "builtin": "onnx",
       "options": {
-        "source": { "model": "Xenova/all-MiniLM-L6-v2", "cacheDir": ".virage/model-cache" },
+        "model": "Xenova/all-MiniLM-L6-v2",
+        "cacheDir": ".virage/model-cache",
         "dimensions": 384
       }
     },
@@ -14,7 +15,8 @@
     "reranker": {
       "builtin": "cross-encoder",
       "options": {
-        "source": { "model": "Xenova/ms-marco-MiniLM-L-6-v2", "cacheDir": ".virage/model-cache" }
+        "model": "Xenova/ms-marco-MiniLM-L-6-v2",
+        "cacheDir": ".virage/model-cache"
       }
     }
   },
