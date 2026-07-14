@@ -2856,9 +2856,6 @@ async fn main() {
         console::set_colors_enabled(false);
     }
 
-    // ORT EP probing is handled at session level (onnx/mod.rs) via with_execution_providers([CPU]).
-    // No global EP restriction needed here — see facts/ort-ep-selection.md.
-
     let cli = Cli::parse();
     let out = Out::new(cli.verbose);
 
