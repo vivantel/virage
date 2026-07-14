@@ -54,15 +54,13 @@ pub struct OnnxInferenceSession {
 
 impl OnnxInferenceSession {
     pub fn from_paths(model_path: &str, tokenizer_path: &str) -> Result<Self, String> {
-        use ort::ep::CPU;
-        // ort api-22+ auto-selects MaxEfficiency (= PreferNPU) in SessionBuilder::new().
-        // On CPU-only machines ORT's hardware probe triggers SIGSEGV (SEGV_MAPERR at 0x43).
-        // with_auto_device(PreferCPU) only changes the selection result, not whether probing
-        // happens. Registering CPU explicitly bypasses auto-selection and all hardware probing.
-        let mut builder = Session::builder()
-            .map_err(|e| format!("ORT session builder error: {e}"))?
-            .with_execution_providers([CPU::default().build()])
-            .map_err(|e| format!("ORT EP error: {e}"))?;
+        // ort/api-22+ auto-calls SetEpSelectionPolicy(MaxEfficiency=PreferNPU) in
+        // SessionBuilder::new(), triggering a hardware probe that SIGSEGV-crashes on
+        // CPU-only machines (SEGV_MAPERR at 0x43). We exclude api-24/api-22 from our
+        // feature flags entirely so this call never occurs. Plain Session::builder()
+        // without api-22 uses the CPU EP by default without any hardware probing.
+        let mut builder =
+            Session::builder().map_err(|e| format!("ORT session builder error: {e}"))?;
         let session = builder
             .commit_from_file(model_path)
             .map_err(|e| format!("ORT model load error: {e}"))?;
