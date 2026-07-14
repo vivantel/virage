@@ -33,7 +33,7 @@ chunker-lang   = [
     "dep:tree-sitter-c-sharp",
     "dep:tree-sitter-ruby",
 ]
-embedder-onnx = ["dep:ort", "dep:tokenizers", "dep:ureq", "ort/load-dynamic", "ort/std", "ort/api-24"]
+embedder-onnx = ["dep:ort", "dep:tokenizers", "dep:ureq", "ort/load-dynamic", "ort/std"]
 # Phase 2 — source providers
 source-all    = ["source-git", "source-localfs"]
 source-git    = ["dep:git2", "dep:tokio", "dep:async-trait", "dep:futures", "dep:bytes", "dep:anyhow", "dep:globset"]
@@ -68,7 +68,7 @@ cli = ["cli-binary", "embedder-onnx"]
 # Phase 6 — production binary builds: bundle ORT instead of loading dynamically.
 # Publish CI builds with --features cli-binary,download-binaries --no-default-features.
 # ort/load-dynamic is intentionally absent so the statically-linked ORT path is used.
-download-binaries = ["dep:ort", "dep:tokenizers", "dep:ureq", "ort/download-binaries", "ort/std", "ort/api-24", "ort/tls-rustls"]
+download-binaries = ["dep:ort", "dep:tokenizers", "dep:ureq", "ort/download-binaries", "ort/std", "ort/tls-rustls"]
 # Phase 7 — WASM Component Model plugin host
 wasm-host = [
     "dep:wasmtime", "dep:wasmtime-wasi",
