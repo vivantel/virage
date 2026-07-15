@@ -60,11 +60,20 @@ jobs:
           npm list -g @vivantel/virage || true
           virage --no-banner validate --config virage.config.ci.json 2>&1 && echo "validate OK" || echo "validate FAILED"
 
+      - name: Mask VirtIO GPU from ORT hardware probe
+        # ORT 1.24.2 OrtCreateEnv() reads /sys/class/drm and crashes on VirtIO GPU (vendor 0x1af4)
+        # with SEGV_MAPERR at 0x43 (NULL EP factory function pointer). Hide DRM to prevent this.
+        run: sudo mount -t tmpfs none /sys/class/drm
+
       - name: Run Virage pipeline
         timeout-minutes: 5
         env:
           RUST_BACKTRACE: "1"
         run: virage -v index --config virage.config.ci.json 2>&1
+
+      - name: Unmask GPU devices
+        if: always()
+        run: sudo umount /sys/class/drm || true
 
       - name: Save Virage cache
         if: always()
