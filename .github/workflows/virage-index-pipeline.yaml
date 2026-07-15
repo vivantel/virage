@@ -4,11 +4,10 @@ on:
   push:
     branches: [master]
     paths:
+      # Only re-index on content/config changes — code changes are handled by workflow_run
+      # after publish completes (so index always uses the freshly-published binary).
       - 'docs/**'
-      - 'packages/**/src/**'
-      - 'crates/**'
       - 'virage.config.ci.json'
-      - '.github/workflows/virage-index-pipeline.yaml'
   workflow_dispatch:
   workflow_run:
     # re-index after binary publish — published binary may have improved algorithms
