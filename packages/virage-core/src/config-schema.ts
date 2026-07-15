@@ -18,19 +18,36 @@ const ZodTagRule = z.object({
   add: z.array(z.string()),
 });
 
-const ZodPluginRef = z.object({
-  package: z.string().min(1, "package name is required"),
-  packageVersion: z.string().optional(),
+// Base options shared by both ref variants
+const ZodPluginRefBase = z.object({
   options: z.record(z.string(), z.unknown()).optional(),
 });
 
-const ZodChunkerConfig = ZodPluginRef.extend({
-  templates: ZodChunkerTemplate.optional(),
+// { "package": "@vivantel/..." } — npm package ref (v1 + v2)
+const ZodPackageRef = ZodPluginRefBase.extend({
+  package: z.string().min(1, "package name is required"),
+  packageVersion: z.string().optional(),
 });
+
+// { "builtin": "lang" } — named builtin ref (v2)
+const ZodBuiltinRef = ZodPluginRefBase.extend({
+  builtin: z.string().min(1, "builtin key is required"),
+});
+
+const ZodPluginRef = z.union([ZodPackageRef, ZodBuiltinRef]);
+
+// ChunkerConfig extends both variants to add templates
+const ZodChunkerConfig = z.union([
+  ZodPackageRef.extend({ templates: ZodChunkerTemplate.optional() }),
+  ZodBuiltinRef.extend({ templates: ZodChunkerTemplate.optional() }),
+]);
+
+// FileSet source can be a named string reference (v2) or an inline PluginRef (v1)
+const ZodSourceRef = z.union([z.string().min(1), ZodPluginRef]);
 
 const ZodFileSetConfig = z.object({
   name: z.string().min(1, "fileSet name is required"),
-  source: ZodPluginRef.optional(),
+  source: ZodSourceRef.optional(),
   include: z.array(z.string()).optional(),
   ignore: z.array(z.string()).optional(),
   tags: z.array(z.string()).optional(),
@@ -136,16 +153,18 @@ const ZodAgentRef = ZodPluginRef;
 
 // ─── Top-level config ─────────────────────────────────────────────────────────
 
-export const VIRAGE_CONFIG_SCHEMA_VERSION = "1.0.0";
+export const VIRAGE_CONFIG_SCHEMA_VERSION = "2";
 
 export const ZodVirageConfig = z.object({
   $schema: z.string().optional(),
   version: z
     .string()
     .describe(
-      "Config schema version (semver). Bump when making breaking changes to this file.",
+      'Config schema version. Use "2" for named sources and builtin keys (IR-020).',
     )
     .optional(),
+  // v2: named source provider map. Absent in v1 configs (still valid without it).
+  sources: z.record(z.string().min(1), ZodPluginRef).optional(),
   installScope: z
     .enum(["local", "global"])
     .describe(
@@ -171,6 +190,7 @@ export type PluginRef = z.infer<typeof ZodPluginRef>;
 export type ChunkerConfig = z.infer<typeof ZodChunkerConfig>;
 export type FileSetConfig = z.infer<typeof ZodFileSetConfig>;
 export type ProvidersConfig = z.infer<typeof ZodProvidersConfig>;
+export type SourceRef = z.infer<typeof ZodSourceRef>;
 export type TagRule = z.infer<typeof ZodTagRule>;
 export type TemplateValue = z.infer<typeof ZodTemplateValue>;
 export type ChunkerTemplate = z.infer<typeof ZodChunkerTemplate>;

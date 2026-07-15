@@ -30,16 +30,24 @@ interface PackageJson {
   "virage-agent"?: unknown;
 }
 
+interface PluginRefRaw {
+  package?: string;
+  builtin?: string;
+}
+
 interface VirageConfig {
+  // v2: named source providers map
+  sources?: Record<string, PluginRefRaw>;
   providers?: {
-    embedder?: { package?: string };
-    vectorStore?: { package?: string };
-    reranker?: { package?: string };
-    source?: { package?: string };
+    embedder?: PluginRefRaw;
+    queryEmbedder?: PluginRefRaw;
+    vectorStore?: PluginRefRaw;
+    reranker?: PluginRefRaw;
+    source?: PluginRefRaw;
   };
-  search?: { reranker?: { package?: string } };
-  agents?: Array<{ package: string } | string>;
-  fileSets?: Array<{ chunkers?: Array<{ package?: string }> }>;
+  search?: { reranker?: PluginRefRaw };
+  agents?: Array<PluginRefRaw | string>;
+  fileSets?: Array<{ chunkers?: Array<PluginRefRaw> }>;
 }
 
 const AGENT_PACKAGES: Record<string, string> = {
@@ -99,35 +107,34 @@ async function discoverViragePackages(
   candidates.add("@vivantel/virage-core");
   candidates.add("@vivantel/virage-skills");
 
-  // Config-first: read virage.config.json to discover required packages
+  // Config-first: read virage.config.json to discover required packages.
+  // Builtin refs (v2) map to CE packages that ship with virage itself; they
+  // have no separate npm package to update, so only package refs are collected.
   const virageConfig = await readVirageConfig(configPath);
   if (virageConfig) {
-    if (virageConfig.providers?.embedder?.package) {
-      candidates.add(virageConfig.providers.embedder.package);
-    }
-    if (virageConfig.providers?.vectorStore?.package) {
-      candidates.add(virageConfig.providers.vectorStore.package);
-    }
-    if (virageConfig.providers?.reranker?.package) {
-      candidates.add(virageConfig.providers.reranker.package);
-    }
-    if (virageConfig.providers?.source?.package) {
-      candidates.add(virageConfig.providers.source.package);
-    }
-    if (virageConfig.search?.reranker?.package) {
-      candidates.add(virageConfig.search.reranker.package);
+    const addPackageRef = (ref: PluginRefRaw | undefined) => {
+      if (ref?.package) candidates.add(ref.package);
+    };
+    addPackageRef(virageConfig.providers?.embedder);
+    addPackageRef(virageConfig.providers?.queryEmbedder);
+    addPackageRef(virageConfig.providers?.vectorStore);
+    addPackageRef(virageConfig.providers?.reranker);
+    addPackageRef(virageConfig.providers?.source);
+    // v2: named sources map (package refs only; builtin refs have no separate package)
+    for (const src of Object.values(virageConfig.sources ?? {})) {
+      addPackageRef(src);
     }
     for (const agent of virageConfig.agents ?? []) {
       if (typeof agent === "string") {
         const pkg = AGENT_PACKAGES[agent];
         if (pkg) candidates.add(pkg);
-      } else if (agent.package) {
-        candidates.add(agent.package);
+      } else {
+        addPackageRef(agent);
       }
     }
     for (const fileSet of virageConfig.fileSets ?? []) {
       for (const chunker of fileSet.chunkers ?? []) {
-        if (chunker.package) candidates.add(chunker.package);
+        addPackageRef(chunker);
       }
     }
   }

@@ -58,6 +58,12 @@ export {
   DEFAULT_EXCLUDE_PATTERNS,
 } from "./core/virage-defaults.js";
 export { VIRAGE_CONFIG_SCHEMA_VERSION } from "./config-schema.js";
+export type { SourceRef } from "./config-schema.js";
+export {
+  BUILTIN_TO_PACKAGE,
+  PACKAGE_TO_BUILTIN,
+  resolvePackageName,
+} from "./builtins.js";
 
 // Embeddings I/O
 export {

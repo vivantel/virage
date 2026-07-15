@@ -3,7 +3,11 @@ import { existsSync } from "fs";
 import { dirname, join, resolve } from "path";
 import { homedir } from "os";
 import { ZodVirageConfig } from "./config-schema.js";
-import type { VirageConfigJson, PluginRef } from "./config-schema.js";
+import type {
+  VirageConfigJson,
+  PluginRef,
+  SourceRef,
+} from "./config-schema.js";
 import { RAGPipelineConfig } from "./core/orchestrator.js";
 import type { ChunkerEntry, TagRule } from "./interfaces/chunker.js";
 import { ConfigError } from "./core/errors.js";
@@ -16,6 +20,7 @@ import type { Reranker } from "./interfaces/reranker.js";
 import type { SourceRepository } from "./interfaces/source-repository.js";
 import type { Logger } from "./interfaces/logger.js";
 import { expandEnvVars } from "./core/env-expand.js";
+import { resolvePackageName } from "./builtins.js";
 
 // ─── Plugin loading ───────────────────────────────────────────────────────────
 
@@ -68,14 +73,15 @@ async function resolveProvider<T>(
     | "createReranker"
     | "createSourceRepository",
 ): Promise<T> {
-  const mod = await loadPlugin(spec.package);
+  const pkgName = resolvePackageName(spec);
+  const mod = await loadPlugin(pkgName);
   const expanded = expandEnvVars(spec.options ?? {}) as Record<string, unknown>;
-  validatePluginOptions(mod, spec.package, expanded);
+  validatePluginOptions(mod, pkgName, expanded);
 
   const factory = mod[factoryName];
   if (typeof factory !== "function") {
     throw new ConfigError(
-      `Plugin "${spec.package}" does not export ${factoryName}()`,
+      `Plugin "${pkgName}" does not export ${factoryName}()`,
       {
         suggestion: `Ensure the package exports: export function ${factoryName}(options) { ... }`,
       },
@@ -85,17 +91,39 @@ async function resolveProvider<T>(
 }
 
 async function resolveChunker(spec: PluginRef): Promise<FileChunker> {
-  const mod = await loadPlugin(spec.package);
+  const pkgName = resolvePackageName(spec);
+  const mod = await loadPlugin(pkgName);
   const expanded = expandEnvVars(spec.options ?? {}) as Record<string, unknown>;
-  validatePluginOptions(mod, spec.package, expanded);
+  validatePluginOptions(mod, pkgName, expanded);
 
   const factory = mod["createChunker"];
   if (typeof factory !== "function") {
     throw new ConfigError(
-      `Plugin "${spec.package}" does not export createChunker()`,
+      `Plugin "${pkgName}" does not export createChunker()`,
     );
   }
   return (factory as (opts: Record<string, unknown>) => FileChunker)(expanded);
+}
+
+// ─── Source resolution ────────────────────────────────────────────────────────
+
+function resolveFileSetSource(
+  source: SourceRef | undefined,
+  sourcesMap: Record<string, PluginRef> | undefined,
+): PluginRef | undefined {
+  if (source === undefined) return undefined;
+  if (typeof source === "string") {
+    const named = sourcesMap?.[source];
+    if (!named)
+      throw new ConfigError(
+        `Named source "${source}" not found in sources map`,
+        {
+          suggestion: `Add a "${source}" entry under the top-level "sources" field in virage.config.json`,
+        },
+      );
+    return named;
+  }
+  return source;
 }
 
 // ─── Config loading ───────────────────────────────────────────────────────────
@@ -174,6 +202,7 @@ async function loadJsonConfig(
     );
   }
 
+  // Global source: providers.source (v1) takes precedence; v2 configs use sources map
   let sourceRepository: SourceRepository | undefined;
   if (config.providers.source) {
     sourceRepository = await resolveProvider<SourceRepository>(
@@ -185,12 +214,22 @@ async function loadJsonConfig(
   // Build flat ChunkerEntry[] from fileSets
   const fileSetEntries: ChunkerEntry[] = [];
   for (const fileSet of config.fileSets) {
-    const fileSetSource = fileSet.source;
-    if (fileSetSource && !sourceRepository) {
-      // Per-fileSet source override — would require routing per-file; log a warning for now
-      logger?.warn?.(
-        `fileSet "${fileSet.name}" has a source override — per-fileSet source overrides are not yet implemented; using global source.`,
-      );
+    const resolvedFileSetSource = resolveFileSetSource(
+      fileSet.source,
+      config.sources,
+    );
+
+    // Instantiate a per-fileset source when present and distinct from global
+    const fileSetSourceRepo = resolvedFileSetSource
+      ? await resolveProvider<SourceRepository>(
+          resolvedFileSetSource,
+          "createSourceRepository",
+        )
+      : sourceRepository;
+
+    // Use the per-fileset source as global if there is no global source yet
+    if (fileSetSourceRepo && !sourceRepository) {
+      sourceRepository = fileSetSourceRepo;
     }
 
     for (const chunkerSpec of fileSet.chunkers) {
@@ -201,7 +240,8 @@ async function loadJsonConfig(
         ignore: fileSet.ignore,
         fileSetTags: fileSet.tags ?? [],
         tagRules: (fileSet.tagRules ?? []) as TagRule[],
-        chunkerKey: chunkerSpec.package,
+        // Always store the resolved npm package name, not the builtin key
+        chunkerKey: resolvePackageName(chunkerSpec),
         templates: chunkerSpec.templates as ChunkerEntry["templates"],
         fileSetName: fileSet.name,
       };

@@ -28,14 +28,15 @@ function readConfigSummary(configPath: string): RawConfigSummary | null {
     const chunkerCount = fileSets
       ? fileSets.reduce((sum, fs) => sum + (fs.chunkers?.length ?? 0), 0)
       : 0;
+    type RawRef = { package?: string; builtin?: string } | undefined;
+    const embedderRef = raw.providers?.embedder as RawRef;
+    const storeRef = raw.providers?.vectorStore as RawRef;
     const embedder =
-      (raw.providers?.embedder?.package as string | undefined)
-        ?.split("/")
-        .pop() ?? "unknown";
+      embedderRef?.builtin ??
+      embedderRef?.package?.split("/").pop() ??
+      "unknown";
     const store =
-      (raw.providers?.vectorStore?.package as string | undefined)
-        ?.split("/")
-        .pop() ?? "unknown";
+      storeRef?.builtin ?? storeRef?.package?.split("/").pop() ?? "unknown";
     const noBanner = raw.pipeline?.noBanner as boolean | undefined;
     return { chunkerCount, embedder, store, noBanner };
   } catch {

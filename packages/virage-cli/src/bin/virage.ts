@@ -34,6 +34,7 @@ import { runQuery } from "../cli/query-cmd.js";
 import { runInstallHooks } from "../cli/install-hooks.js";
 import { runUninstall } from "../cli/uninstall.js";
 import { runPack } from "../cli/pack.js";
+import { runMigrate } from "../cli/migrate.js";
 import { registerQualityCommand } from "../cli/quality/index.js";
 import {
   runTelemetryStatus,
@@ -415,6 +416,31 @@ program
       handleError(error);
     }
   });
+
+program
+  .command("migrate")
+  .description(
+    "Migrate virage.config.json from schema v1 to v2 (builtin refs, named sources)",
+  )
+  .option("-c, --config <path>", "Config file to migrate", "virage.config.json")
+  .option(
+    "-o, --output <path>",
+    "Write migrated config here (default: overwrite input)",
+  )
+  .option("--dry-run", "Print what would change without writing")
+  .action(
+    async (opts: { config: string; output?: string; dryRun?: boolean }) => {
+      try {
+        await runMigrate({
+          config: opts.config,
+          output: opts.output,
+          dryRun: opts.dryRun,
+        });
+      } catch (error) {
+        handleError(error);
+      }
+    },
+  );
 
 program
   .command("report")

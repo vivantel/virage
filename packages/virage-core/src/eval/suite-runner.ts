@@ -67,20 +67,33 @@ export interface SuiteRunOptions {
   onVariantComplete?: (name: string) => void;
 }
 
+function pluginRefLabel(ref: RawRecord | undefined): string | undefined {
+  if (!ref) return undefined;
+  // v2 builtin key takes precedence; fall back to package name
+  return (
+    (ref.builtin as string | undefined) ?? (ref.package as string | undefined)
+  );
+}
+
 function extractConfigFields(rawConfig: RawRecord, topK: number): ConfigFields {
   const providers = rawConfig.providers as RawRecord | undefined;
   return {
     topK,
-    embedderPackage: (providers?.embedder as RawRecord | undefined)?.package,
+    embedderPackage: pluginRefLabel(
+      providers?.embedder as RawRecord | undefined,
+    ),
     embedderModel: (
       (providers?.embedder as RawRecord | undefined)?.options as
         RawRecord | undefined
     )?.model,
-    vectorStorePackage: (providers?.vectorStore as RawRecord | undefined)
-      ?.package,
+    vectorStorePackage: pluginRefLabel(
+      providers?.vectorStore as RawRecord | undefined,
+    ),
     searchHybrid: (rawConfig.search as RawRecord | undefined)?.hybrid ?? false,
     searchHybridAlpha: (rawConfig.search as RawRecord | undefined)?.hybridAlpha,
-    rerankerPackage: (providers?.reranker as RawRecord | undefined)?.package,
+    rerankerPackage: pluginRefLabel(
+      providers?.reranker as RawRecord | undefined,
+    ),
     pluginVersions: rawConfig.pluginVersions,
   };
 }

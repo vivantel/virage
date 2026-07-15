@@ -14,6 +14,7 @@ import {
   DEFAULT_EXCLUDE_PATTERNS,
   COMMUNITY_TELEMETRY_ENDPOINT,
   VIRAGE_CONFIG_SCHEMA_VERSION,
+  PACKAGE_TO_BUILTIN,
 } from "@vivantel/virage-core";
 import type { PluginRegistry } from "@vivantel/virage-core";
 import {
@@ -272,6 +273,17 @@ function buildExcludePatterns(groups: ExtGroup[]): string[] {
   return [...patterns].sort();
 }
 
+/** Convert a package name to a builtin ref if it's a known CE builtin; otherwise keep package ref. */
+function toPluginRef(
+  pkg: string,
+  options?: Record<string, unknown>,
+): Record<string, unknown> {
+  const builtin = PACKAGE_TO_BUILTIN[pkg];
+  const ref: Record<string, unknown> = builtin ? { builtin } : { package: pkg };
+  if (options && Object.keys(options).length > 0) ref.options = options;
+  return ref;
+}
+
 function generateJsonConfig(
   state: WizardState,
   registry: PluginRegistry,
@@ -282,11 +294,13 @@ function generateJsonConfig(
       : [EXT_GROUPS.find((g) => g.name === "typescript")!];
 
   const fileSets = effectiveGroups.map((g) => {
-    const chunkerEntry: Record<string, unknown> = { package: g.package };
-    if (g.options && Object.keys(g.options).length > 0)
-      chunkerEntry.options = g.options;
+    const chunkerEntry = toPluginRef(
+      g.package,
+      g.options && Object.keys(g.options).length > 0 ? g.options : undefined,
+    );
     const fileSet: Record<string, unknown> = {
       name: g.name,
+      source: "default",
       include: g.exts.map((e) => `**/*${e}`),
       chunkers: [chunkerEntry],
     };
@@ -305,33 +319,33 @@ function generateJsonConfig(
 
   const rerankerRef =
     state.reranker === "cross-encoder"
-      ? {
-          package: "@vivantel/virage-reranker-cross-encoder",
-          options: { model: "Xenova/ms-marco-MiniLM-L-6-v2", topK: 5 },
-        }
+      ? toPluginRef("@vivantel/virage-reranker-cross-encoder", {
+          model: "Xenova/ms-marco-MiniLM-L-6-v2",
+          topK: 5,
+        })
       : state.reranker === "llm"
-        ? {
-            package: "@vivantel/virage-reranker-llm",
-            options: { model: "claude-haiku-4-5", topK: 5 },
-          }
+        ? toPluginRef("@vivantel/virage-reranker-llm", {
+            model: "claude-haiku-4-5",
+            topK: 5,
+          })
         : undefined;
 
   const providers: Record<string, unknown> = {
-    embedder: {
-      package: embedderEntry.package,
-      options: embedderEntry.defaultConfig,
-    },
-    vectorStore: {
-      package: storeEntry.package,
-      options: resolvedStoreOptions,
-    },
+    embedder: toPluginRef(embedderEntry.package, embedderEntry.defaultConfig),
+    vectorStore: toPluginRef(storeEntry.package, resolvedStoreOptions),
   };
   if (rerankerRef) providers.reranker = rerankerRef;
+
+  // v2: named sources map — default to git source (auto-detects HEAD branch)
+  const sources: Record<string, unknown> = {
+    default: toPluginRef("@vivantel/virage-source-git", { root: "." }),
+  };
 
   const config: Record<string, unknown> = {
     $schema:
       "https://unpkg.com/@vivantel/virage-core/schemas/virage.config.schema.json",
     version: VIRAGE_CONFIG_SCHEMA_VERSION,
+    sources,
     providers,
     fileSets,
     ignore: buildExcludePatterns(effectiveGroups),
