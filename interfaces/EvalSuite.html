@@ -12,7 +12,7 @@
 <h1>Interface EvalSuite</h1></div>
 <div class="tsd-signature"><span class="tsd-signature-keyword">interface</span> <span class="tsd-kind-interface">EvalSuite</span> <span class="tsd-signature-symbol">{</span><br/>    <a class="tsd-kind-property" href="#baseline">baseline</a><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-property" href="#cachedir">cacheDir</a><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-property" href="#chunkers">chunkers</a><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">Record</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">,</span> <span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">&gt;</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-property" href="#cigate">ciGate</a><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-symbol">{</span> <span class="tsd-kind-property">mrr</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">number</span> <span class="tsd-signature-symbol">}</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-property" href="#databases">databases</a><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">Record</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">,</span> <a href="DatabaseSpec.html" class="tsd-signature-type tsd-kind-interface">DatabaseSpec</a><span class="tsd-signature-symbol">&gt;</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-property" href="#dataset">dataset</a><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-property" href="#exclude">exclude</a><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">[]</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-property" href="#filesets">filesets</a><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">Record</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">,</span> <a href="FilesetDefinition.html" class="tsd-signature-type tsd-kind-interface">FilesetDefinition</a><span class="tsd-signature-symbol">&gt;</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-property" href="#topk">topK</a><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">number</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-property" href="#variants">variants</a><span class="tsd-signature-symbol">:</span> <a href="EvalVariant.html" class="tsd-signature-type tsd-kind-interface">EvalVariant</a><span class="tsd-signature-symbol">[]</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-property" href="#version">version</a><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">&quot;1&quot;</span><span class="tsd-signature-symbol">;</span><br/><span class="tsd-signature-symbol">}</span></div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/vivantel/virage/blob/244dab25e12746a5e8942cadeacb2c0fdc6839c0/packages/virage-core/src/interfaces/suite.ts#L44">packages/virage-core/src/interfaces/suite.ts:44</a></li></ul></aside>
+<li>Defined in <a href="https://github.com/vivantel/virage/blob/aa8c20c467b057c79b4a33e50809ffcd4de226a4/packages/virage-core/src/interfaces/suite.ts#L44">packages/virage-core/src/interfaces/suite.ts:44</a></li></ul></aside>
 <section class="tsd-panel-group tsd-index-group">
 <section class="tsd-panel tsd-index-panel">
 <details class="tsd-index-content tsd-accordion" open><summary class="tsd-accordion-summary tsd-index-summary"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-chevronDown"></use></svg>
@@ -41,7 +41,7 @@
 <div class="tsd-comment tsd-typography"><p>Name of the variant that acts as the baseline for all comparisons</p>
 </div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/vivantel/virage/blob/244dab25e12746a5e8942cadeacb2c0fdc6839c0/packages/virage-core/src/interfaces/suite.ts#L51">packages/virage-core/src/interfaces/suite.ts:51</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/vivantel/virage/blob/aa8c20c467b057c79b4a33e50809ffcd4de226a4/packages/virage-core/src/interfaces/suite.ts#L51">packages/virage-core/src/interfaces/suite.ts:51</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="cachedir"><code class="tsd-tag">Optional</code><span>cache<wbr/>Dir</span><a href="#cachedir" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">cacheDir</span><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">string</span></div>
@@ -49,7 +49,7 @@
 Relative to the suite config file. Default: .virage/eval-cache</p>
 </div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/vivantel/virage/blob/244dab25e12746a5e8942cadeacb2c0fdc6839c0/packages/virage-core/src/interfaces/suite.ts#L62">packages/virage-core/src/interfaces/suite.ts:62</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/vivantel/virage/blob/aa8c20c467b057c79b4a33e50809ffcd4de226a4/packages/virage-core/src/interfaces/suite.ts#L62">packages/virage-core/src/interfaces/suite.ts:62</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="chunkers"><code class="tsd-tag">Optional</code><span>chunkers</span><a href="#chunkers" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">chunkers</span><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">Record</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">,</span> <span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">&gt;</span></div>
@@ -57,28 +57,28 @@ Relative to the suite config file. Default: .virage/eval-cache</p>
 DatabaseSpec.chunkers can override individual entries.</p>
 </div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/vivantel/virage/blob/244dab25e12746a5e8942cadeacb2c0fdc6839c0/packages/virage-core/src/interfaces/suite.ts#L72">packages/virage-core/src/interfaces/suite.ts:72</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/vivantel/virage/blob/aa8c20c467b057c79b4a33e50809ffcd4de226a4/packages/virage-core/src/interfaces/suite.ts#L72">packages/virage-core/src/interfaces/suite.ts:72</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="cigate"><code class="tsd-tag">Optional</code><span>ci<wbr/>Gate</span><a href="#cigate" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">ciGate</span><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-symbol">{</span> <span class="tsd-kind-property">mrr</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">number</span> <span class="tsd-signature-symbol">}</span></div>
 <div class="tsd-comment tsd-typography"><p>CI quality gate — suite exits 1 if baseline MRR falls below this</p>
 </div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/vivantel/virage/blob/244dab25e12746a5e8942cadeacb2c0fdc6839c0/packages/virage-core/src/interfaces/suite.ts#L53">packages/virage-core/src/interfaces/suite.ts:53</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/vivantel/virage/blob/aa8c20c467b057c79b4a33e50809ffcd4de226a4/packages/virage-core/src/interfaces/suite.ts#L53">packages/virage-core/src/interfaces/suite.ts:53</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="databases"><span>databases</span><a href="#databases" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">databases</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">Record</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">,</span> <a href="DatabaseSpec.html" class="tsd-signature-type tsd-kind-interface">DatabaseSpec</a><span class="tsd-signature-symbol">&gt;</span></div>
 <div class="tsd-comment tsd-typography"><p>Named database archives keyed by ID</p>
 </div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/vivantel/virage/blob/244dab25e12746a5e8942cadeacb2c0fdc6839c0/packages/virage-core/src/interfaces/suite.ts#L55">packages/virage-core/src/interfaces/suite.ts:55</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/vivantel/virage/blob/aa8c20c467b057c79b4a33e50809ffcd4de226a4/packages/virage-core/src/interfaces/suite.ts#L55">packages/virage-core/src/interfaces/suite.ts:55</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="dataset"><span>dataset</span><a href="#dataset" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">dataset</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span></div>
 <div class="tsd-comment tsd-typography"><p>Path to the EvalDataset JSON, relative to the suite config file</p>
 </div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/vivantel/virage/blob/244dab25e12746a5e8942cadeacb2c0fdc6839c0/packages/virage-core/src/interfaces/suite.ts#L47">packages/virage-core/src/interfaces/suite.ts:47</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/vivantel/virage/blob/aa8c20c467b057c79b4a33e50809ffcd4de226a4/packages/virage-core/src/interfaces/suite.ts#L47">packages/virage-core/src/interfaces/suite.ts:47</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="exclude"><code class="tsd-tag">Optional</code><span>exclude</span><a href="#exclude" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">exclude</span><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">[]</span></div>
@@ -86,7 +86,7 @@ DatabaseSpec.chunkers can override individual entries.</p>
 (binary files, lock files, generated files).</p>
 </div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/vivantel/virage/blob/244dab25e12746a5e8942cadeacb2c0fdc6839c0/packages/virage-core/src/interfaces/suite.ts#L77">packages/virage-core/src/interfaces/suite.ts:77</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/vivantel/virage/blob/aa8c20c467b057c79b4a33e50809ffcd4de226a4/packages/virage-core/src/interfaces/suite.ts#L77">packages/virage-core/src/interfaces/suite.ts:77</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="filesets"><code class="tsd-tag">Optional</code><span>filesets</span><a href="#filesets" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">filesets</span><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">Record</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">,</span> <a href="FilesetDefinition.html" class="tsd-signature-type tsd-kind-interface">FilesetDefinition</a><span class="tsd-signature-symbol">&gt;</span></div>
@@ -94,26 +94,26 @@ DatabaseSpec.chunkers can override individual entries.</p>
 Keys are referenced by suite.chunkers and DatabaseSpec.chunkers.</p>
 </div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/vivantel/virage/blob/244dab25e12746a5e8942cadeacb2c0fdc6839c0/packages/virage-core/src/interfaces/suite.ts#L67">packages/virage-core/src/interfaces/suite.ts:67</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/vivantel/virage/blob/aa8c20c467b057c79b4a33e50809ffcd4de226a4/packages/virage-core/src/interfaces/suite.ts#L67">packages/virage-core/src/interfaces/suite.ts:67</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="topk"><code class="tsd-tag">Optional</code><span>top<wbr/>K</span><a href="#topk" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">topK</span><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">number</span></div>
 <div class="tsd-comment tsd-typography"><p>top-K results to retrieve per query (default: 10)</p>
 </div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/vivantel/virage/blob/244dab25e12746a5e8942cadeacb2c0fdc6839c0/packages/virage-core/src/interfaces/suite.ts#L49">packages/virage-core/src/interfaces/suite.ts:49</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/vivantel/virage/blob/aa8c20c467b057c79b4a33e50809ffcd4de226a4/packages/virage-core/src/interfaces/suite.ts#L49">packages/virage-core/src/interfaces/suite.ts:49</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="variants"><span>variants</span><a href="#variants" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">variants</span><span class="tsd-signature-symbol">:</span> <a href="EvalVariant.html" class="tsd-signature-type tsd-kind-interface">EvalVariant</a><span class="tsd-signature-symbol">[]</span></div>
 <div class="tsd-comment tsd-typography"><p>Variants to evaluate</p>
 </div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/vivantel/virage/blob/244dab25e12746a5e8942cadeacb2c0fdc6839c0/packages/virage-core/src/interfaces/suite.ts#L57">packages/virage-core/src/interfaces/suite.ts:57</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/vivantel/virage/blob/aa8c20c467b057c79b4a33e50809ffcd4de226a4/packages/virage-core/src/interfaces/suite.ts#L57">packages/virage-core/src/interfaces/suite.ts:57</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="version"><span>version</span><a href="#version" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">version</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">&quot;1&quot;</span></div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/vivantel/virage/blob/244dab25e12746a5e8942cadeacb2c0fdc6839c0/packages/virage-core/src/interfaces/suite.ts#L45">packages/virage-core/src/interfaces/suite.ts:45</a></li></ul></aside></section></section></details></div>
+<li>Defined in <a href="https://github.com/vivantel/virage/blob/aa8c20c467b057c79b4a33e50809ffcd4de226a4/packages/virage-core/src/interfaces/suite.ts#L45">packages/virage-core/src/interfaces/suite.ts:45</a></li></ul></aside></section></section></details></div>
 <div class="col-sidebar">
 <div class="page-menu">
 <div class="tsd-navigation settings">

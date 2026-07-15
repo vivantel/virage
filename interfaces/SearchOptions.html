@@ -15,7 +15,7 @@
 </div></section>
 <div class="tsd-signature"><span class="tsd-signature-keyword">interface</span> <span class="tsd-kind-interface">SearchOptions</span> <span class="tsd-signature-symbol">{</span><br/>    <a class="tsd-kind-property" href="#alpha">alpha</a><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">number</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-property" href="#beta">beta</a><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">number</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-property" href="#filter">filter</a><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">Record</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">,</span> <span class="tsd-signature-type">unknown</span><span class="tsd-signature-symbol">&gt;</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-property" href="#hybrid">hybrid</a><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">boolean</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-property" href="#hybridalpha">hybridAlpha</a><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">number</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-property" href="#querytext">queryText</a><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-property" href="#tagfilter">tagFilter</a><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">[]</span><span class="tsd-signature-symbol">;</span><br/><span class="tsd-signature-symbol">}</span></div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/vivantel/virage/blob/244dab25e12746a5e8942cadeacb2c0fdc6839c0/packages/virage-core/src/interfaces/vector-store.ts#L92">packages/virage-core/src/interfaces/vector-store.ts:92</a></li></ul></aside>
+<li>Defined in <a href="https://github.com/vivantel/virage/blob/aa8c20c467b057c79b4a33e50809ffcd4de226a4/packages/virage-core/src/interfaces/vector-store.ts#L92">packages/virage-core/src/interfaces/vector-store.ts:92</a></li></ul></aside>
 <section class="tsd-panel-group tsd-index-group">
 <section class="tsd-panel tsd-index-panel">
 <details class="tsd-index-content tsd-accordion" open><summary class="tsd-accordion-summary tsd-index-summary"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-chevronDown"></use></svg>
@@ -40,42 +40,42 @@
 <div class="tsd-comment tsd-typography"><p>Weight applied to vector similarity (0–1). Defaults to 0.85.</p>
 </div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/vivantel/virage/blob/244dab25e12746a5e8942cadeacb2c0fdc6839c0/packages/virage-core/src/interfaces/vector-store.ts#L94">packages/virage-core/src/interfaces/vector-store.ts:94</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/vivantel/virage/blob/aa8c20c467b057c79b4a33e50809ffcd4de226a4/packages/virage-core/src/interfaces/vector-store.ts#L94">packages/virage-core/src/interfaces/vector-store.ts:94</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="beta"><code class="tsd-tag">Optional</code><span>beta</span><a href="#beta" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">beta</span><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">number</span></div>
 <div class="tsd-comment tsd-typography"><p>Weight applied to recency score (0–1). Defaults to 0.15. Only applied when ingestedAt is available.</p>
 </div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/vivantel/virage/blob/244dab25e12746a5e8942cadeacb2c0fdc6839c0/packages/virage-core/src/interfaces/vector-store.ts#L96">packages/virage-core/src/interfaces/vector-store.ts:96</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/vivantel/virage/blob/aa8c20c467b057c79b4a33e50809ffcd4de226a4/packages/virage-core/src/interfaces/vector-store.ts#L96">packages/virage-core/src/interfaces/vector-store.ts:96</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="filter"><code class="tsd-tag">Optional</code><span>filter</span><a href="#filter" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">filter</span><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">Record</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">,</span> <span class="tsd-signature-type">unknown</span><span class="tsd-signature-symbol">&gt;</span></div>
 <div class="tsd-comment tsd-typography"><p>Metadata key-value pairs to filter results (e.g. <code>{ branch: &quot;main&quot; }</code>). Applied as post-filter.</p>
 </div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/vivantel/virage/blob/244dab25e12746a5e8942cadeacb2c0fdc6839c0/packages/virage-core/src/interfaces/vector-store.ts#L98">packages/virage-core/src/interfaces/vector-store.ts:98</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/vivantel/virage/blob/aa8c20c467b057c79b4a33e50809ffcd4de226a4/packages/virage-core/src/interfaces/vector-store.ts#L98">packages/virage-core/src/interfaces/vector-store.ts:98</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="hybrid"><code class="tsd-tag">Optional</code><span>hybrid</span><a href="#hybrid" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">hybrid</span><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">boolean</span></div>
 <div class="tsd-comment tsd-typography"><p>Enable BM25 + vector hybrid search with Reciprocal Rank Fusion. Requires queryText. Default: false.</p>
 </div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/vivantel/virage/blob/244dab25e12746a5e8942cadeacb2c0fdc6839c0/packages/virage-core/src/interfaces/vector-store.ts#L106">packages/virage-core/src/interfaces/vector-store.ts:106</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/vivantel/virage/blob/aa8c20c467b057c79b4a33e50809ffcd4de226a4/packages/virage-core/src/interfaces/vector-store.ts#L106">packages/virage-core/src/interfaces/vector-store.ts:106</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="hybridalpha"><code class="tsd-tag">Optional</code><span>hybrid<wbr/>Alpha</span><a href="#hybridalpha" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">hybridAlpha</span><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">number</span></div>
 <div class="tsd-comment tsd-typography"><p>Blend weight for hybrid search: 0 = pure BM25, 1 = pure vector. Default: 0.6.</p>
 </div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/vivantel/virage/blob/244dab25e12746a5e8942cadeacb2c0fdc6839c0/packages/virage-core/src/interfaces/vector-store.ts#L108">packages/virage-core/src/interfaces/vector-store.ts:108</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/vivantel/virage/blob/aa8c20c467b057c79b4a33e50809ffcd4de226a4/packages/virage-core/src/interfaces/vector-store.ts#L108">packages/virage-core/src/interfaces/vector-store.ts:108</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="querytext"><code class="tsd-tag">Optional</code><span>query<wbr/>Text</span><a href="#querytext" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">queryText</span><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">string</span></div>
 <div class="tsd-comment tsd-typography"><p>Original query text, required for the BM25 side of hybrid search.</p>
 </div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/vivantel/virage/blob/244dab25e12746a5e8942cadeacb2c0fdc6839c0/packages/virage-core/src/interfaces/vector-store.ts#L110">packages/virage-core/src/interfaces/vector-store.ts:110</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/vivantel/virage/blob/aa8c20c467b057c79b4a33e50809ffcd4de226a4/packages/virage-core/src/interfaces/vector-store.ts#L110">packages/virage-core/src/interfaces/vector-store.ts:110</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="tagfilter"><code class="tsd-tag">Optional</code><span>tag<wbr/>Filter</span><a href="#tagfilter" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">tagFilter</span><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">[]</span></div>
@@ -84,7 +84,7 @@ Store adapters apply this at the earliest feasible point (WHERE clause if suppor
 otherwise post-retrieval). Undefined = no tag filtering (admin/unprotected mode).</p>
 </div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/vivantel/virage/blob/244dab25e12746a5e8942cadeacb2c0fdc6839c0/packages/virage-core/src/interfaces/vector-store.ts#L104">packages/virage-core/src/interfaces/vector-store.ts:104</a></li></ul></aside></section></section></details></div>
+<li>Defined in <a href="https://github.com/vivantel/virage/blob/aa8c20c467b057c79b4a33e50809ffcd4de226a4/packages/virage-core/src/interfaces/vector-store.ts#L104">packages/virage-core/src/interfaces/vector-store.ts:104</a></li></ul></aside></section></section></details></div>
 <div class="col-sidebar">
 <div class="page-menu">
 <div class="tsd-navigation settings">
