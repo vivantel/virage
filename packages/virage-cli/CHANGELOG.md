@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.3.14](https://github.com/vivantel/virage/compare/virage-cli@v0.3.13...virage-cli@v0.3.14) (2026-07-15)
+
+
+### Features
+
+* **config:** TypeScript CLI support for config schema v2 (IR-020) ([209dd57](https://github.com/vivantel/virage/commit/209dd57d2042b527379aeba348771a000cadb04a))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @vivantel/virage-core bumped from >=0.4.11 to >=0.4.12
+
 ## [0.3.13](https://github.com/vivantel/virage/compare/virage-cli@v0.3.12...virage-cli@v0.3.13) (2026-07-09)
 
 
