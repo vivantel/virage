@@ -10,10 +10,10 @@
     "bin/"
   ],
   "optionalDependencies": {
-    "@vivantel/virage-linux-x64-gnu": "2.1.0",
-    "@vivantel/virage-linux-arm64-gnu": "2.1.0",
-    "@vivantel/virage-darwin-arm64": "2.1.0",
-    "@vivantel/virage-win32-x64-msvc": "2.1.0"
+    "@vivantel/virage-linux-x64-gnu": "2.1.9",
+    "@vivantel/virage-linux-arm64-gnu": "2.1.9",
+    "@vivantel/virage-darwin-arm64": "2.1.9",
+    "@vivantel/virage-win32-x64-msvc": "2.1.9"
   },
   "engines": {
     "node": ">=20"

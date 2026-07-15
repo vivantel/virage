@@ -44,7 +44,7 @@
     "directory": "packages/virage-embedder-openai"
   },
   "dependencies": {
-    "openai": "^6.45.0",
+    "openai": "^6.47.0",
     "zod": "^4.4.3"
   },
   "peerDependencies": {
