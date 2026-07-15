@@ -70,16 +70,23 @@ Monorepo for the **Virage** ecosystem — a Git-aware RAG pipeline that turns yo
 
 ## Quick start
 
-Install the CLI globally (requires Node.js 20+):
+Install the CLI globally (requires Node.js 20+).
+
+On Unix / macOS / Linux:
 
 ```bash
-# Unix / macOS / Linux
 curl -fsSL https://raw.githubusercontent.com/vivantel/virage/master/scripts/install.sh | bash
+```
 
-# Windows (PowerShell)
+On Windows (PowerShell):
+
+```powershell
 irm https://raw.githubusercontent.com/vivantel/virage/master/scripts/install.ps1 | iex
+```
 
-# Or directly with npm
+Or directly with npm:
+
+```bash
 npm install -g @vivantel/virage
 ```
 
@@ -110,7 +117,7 @@ virage serve
 
 ## Configuration
 
-All configuration lives in `virage.config.json`. `${ENV_VAR}` patterns are expanded from the environment at runtime.
+All configuration lives in `virage.config.json`. Environment variables expand at runtime — use `${VAR}` syntax for secrets (e.g. `"apiKey": "${OPENAI_API_KEY}"`). Example config:
 
 ```json
 {
@@ -285,8 +292,8 @@ Run `virage update` to resync agent configs after upgrading plugin packages.
 Launch the web monitoring UI to inspect chunk distribution, embedding anomalies, pipeline status, search, and experiments:
 
 ```bash
-npx virage dashboard        # start on port 3000
-npx virage dashboard --port 8080 --verbose  # custom port + request logging
+virage dashboard        # start on port 3000
+virage dashboard --port 8080 --verbose  # custom port + request logging
 ```
 
 ## Use cases

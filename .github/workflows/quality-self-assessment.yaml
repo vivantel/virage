@@ -2,6 +2,8 @@ name: Quality Self-Assessment
 
 on:
   workflow_dispatch:
+  schedule:
+    - cron: '0 3 * * 1'
 
 jobs:
   quality:

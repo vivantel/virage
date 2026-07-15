@@ -341,8 +341,6 @@ fn get_npm_current(npm: &str, pkg: &str, cwd: &Path) -> Option<String> {
 /// Discovers all @vivantel/* packages referenced in virage.config.json and package.json.
 fn discover_virage_packages(cwd: &Path, config_path: &str) -> Vec<String> {
     let mut packages = std::collections::BTreeSet::new();
-    packages.insert("@vivantel/virage-core".to_string());
-    packages.insert("@vivantel/virage-skills".to_string());
 
     if let Ok(raw) = std::fs::read_to_string(config_path) {
         if let Ok(v) = serde_json::from_str::<serde_json::Value>(&raw) {
@@ -2311,7 +2309,7 @@ fn cmd_update(verbose: u8) -> anyhow::Result<()> {
     let defaults: Vec<bool> = statuses.iter().map(|s| s.outdated).collect();
 
     let selected = MultiSelect::new()
-        .with_prompt("Packages to update (Space = toggle, Enter = confirm)")
+        .with_prompt("Packages to update (Space = toggle · a = select all · Enter = confirm)")
         .items(&labels)
         .defaults(&defaults)
         .interact()?;

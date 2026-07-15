@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
 use futures::StreamExt;
@@ -144,21 +144,22 @@ pub async fn run_pipeline(
         for ec in result.chunks {
             batch.push(embedded_to_vecdoc(ec, &result.path));
             if batch.len() >= batch_size {
+                let deduped = dedup_by_id(std::mem::take(&mut batch));
                 if !config.skip_upload {
-                    store.upsert(&batch).await?;
+                    store.upsert(&deduped).await?;
                 }
-                chunks_upserted += batch.len();
-                progress.add_chunks(batch.len());
-                batch.clear();
+                chunks_upserted += deduped.len();
+                progress.add_chunks(deduped.len());
             }
         }
     }
     if !batch.is_empty() {
+        let deduped = dedup_by_id(batch);
         if !config.skip_upload {
-            store.upsert(&batch).await?;
+            store.upsert(&deduped).await?;
         }
-        chunks_upserted += batch.len();
-        progress.add_chunks(batch.len());
+        chunks_upserted += deduped.len();
+        progress.add_chunks(deduped.len());
     }
 
     // Wait for all workers to finish.
@@ -172,6 +173,18 @@ pub async fn run_pipeline(
         files_deleted: to_delete.len(),
         chunks_upserted,
     })
+}
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+/// Port of TS `deduplicateByHash` (uploader.ts). LanceDB's merge_insert rejects
+/// batches where multiple source rows share the same id; deduplicate first-occurrence wins.
+fn dedup_by_id(batch: Vec<VectorDocument>) -> Vec<VectorDocument> {
+    let mut seen = HashSet::new();
+    batch
+        .into_iter()
+        .filter(|d| seen.insert(d.id.clone()))
+        .collect()
 }
 
 // ─── Conversion ──────────────────────────────────────────────────────────────

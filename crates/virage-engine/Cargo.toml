@@ -1,6 +1,6 @@
 [package]
 name        = "virage-engine"
-version     = "0.1.0"
+version     = "2.1.0"
 edition     = "2021"
 description = "Virage CE Rust monolith — chunkers, embedders, pipeline (ADR-051)"
 license     = "MIT OR Apache-2.0"

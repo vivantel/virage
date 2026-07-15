@@ -564,6 +564,11 @@
           "type": "json",
           "path": "package.json",
           "jsonpath": "$.optionalDependencies['@vivantel/virage-win32-x64-msvc']"
+        },
+        {
+          "type": "toml",
+          "path": "../../crates/virage-engine/Cargo.toml",
+          "jsonpath": "$.package.version"
         }
       ]
     }
