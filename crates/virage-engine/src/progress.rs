@@ -1,3 +1,4 @@
+use console::style;
 use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
 
 use crate::output::OutputFormat;
@@ -56,4 +57,12 @@ impl Progress {
             }
         }
     }
+}
+
+/// Complete a stage spinner with a green ✓, keeping it visible on the terminal.
+/// Reads the label from the bar's current message (strips trailing "...").
+pub fn finish_stage(pb: ProgressBar) {
+    let raw = pb.message().to_string();
+    let label = raw.trim_end_matches("...");
+    pb.finish_with_message(style(format!("✓ {label}")).green().to_string());
 }
