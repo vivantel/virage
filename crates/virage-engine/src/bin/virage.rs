@@ -532,6 +532,13 @@ async fn cmd_index(
     format: OutputFormat,
     config: &str,
 ) -> anyhow::Result<()> {
+    if verbose >= 5 {
+        tracing_subscriber::fmt()
+            .with_max_level(tracing::Level::TRACE)
+            .with_writer(std::io::stderr)
+            .init();
+    }
+
     let t0 = std::time::Instant::now();
     let out = Out::new(verbose, format);
     let config_path = resolve_config_path(config)?;
@@ -551,14 +558,27 @@ async fn cmd_index(
     // ── Resolve providers ─────────────────────────────────────────────────────
     let prog = Progress::new(format);
 
+    let t_stage = std::time::Instant::now();
     let stage = prog.stage("Loading embedder...");
     let embedder = resolve_embedder(&cfg.providers.embedder)?;
     finish_stage(stage);
+    out.verbose(&format!(
+        "embedder: {}  ({}ms)",
+        cfg.providers.embedder.package,
+        t_stage.elapsed().as_millis()
+    ));
 
+    let t_stage = std::time::Instant::now();
     let stage = prog.stage("Connecting to vector store...");
     let store = resolve_store(&cfg.providers.vector_store, dims)?;
     finish_stage(stage);
+    out.verbose(&format!(
+        "store: {}  ({}ms)",
+        cfg.providers.vector_store.package,
+        t_stage.elapsed().as_millis()
+    ));
 
+    let t_stage = std::time::Instant::now();
     let stage = prog.stage("Opening state DB...");
     let db = open_or_init_db(&db_path)?;
     let known_revisions: HashMap<String, String> = if force {
@@ -568,10 +588,21 @@ async fn cmd_index(
             .map_err(|e| anyhow::anyhow!("DB read error: {e}"))?
     };
     finish_stage(stage);
+    out.verbose(&format!("state DB: {}ms", t_stage.elapsed().as_millis()));
 
+    let t_stage = std::time::Instant::now();
     let stage = prog.stage("Resolving source...");
     let source = resolve_source(cfg.providers.source.as_ref(), &cwd)?;
     finish_stage(stage);
+    out.verbose(&format!(
+        "source: {}  ({}ms)",
+        cfg.providers
+            .source
+            .as_ref()
+            .map(|s| s.package.as_str())
+            .unwrap_or("localfs"),
+        t_stage.elapsed().as_millis()
+    ));
 
     if args.watch {
         use notify_debouncer_mini::{new_debouncer, notify::RecursiveMode};
@@ -819,8 +850,20 @@ async fn cmd_index(
     file_bar.finish_and_clear();
     chunk_bar.finish_and_clear();
 
+    out.debug_msg(&format!(
+        "pipeline: {} files processed  {} chunks upserted  {} skipped  {} deleted",
+        stats.files_processed, stats.chunks_upserted, stats.files_skipped, stats.files_deleted
+    ));
+    if verbose >= 4 {
+        let (total, queued, done, chunks) = progress.snapshot();
+        out.debug_msg(&format!(
+            "ProgressCounters: total={total} queued={queued} done={done} chunks={chunks}"
+        ));
+    }
+
     // ── Update state DB with new revisions ────────────────────────────────────
     // Re-query current file revisions from the source now that the pipeline is done.
+    let t_db = std::time::Instant::now();
     {
         use futures::StreamExt;
         let mut stream = source.list_all(None);
@@ -848,6 +891,7 @@ async fn cmd_index(
             let _ = db.delete_file(&file);
         }
     }
+    out.debug_msg(&format!("DB flush: {}ms", t_db.elapsed().as_millis()));
 
     let elapsed_ms = t0.elapsed().as_millis();
     if format == OutputFormat::Json {

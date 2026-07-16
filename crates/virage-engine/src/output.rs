@@ -119,13 +119,13 @@ impl Out {
     }
 
     pub fn debug_msg(&self, msg: &str) {
-        if self.format == OutputFormat::Human && self.verbosity >= 2 {
+        if self.format == OutputFormat::Human && self.verbosity >= 3 {
             eprintln!("{}", style(format!("  [debug] {msg}")).color256(240).dim());
         }
     }
 
     pub fn trace_msg(&self, msg: &str) {
-        if self.format == OutputFormat::Human && self.verbosity >= 3 {
+        if self.format == OutputFormat::Human && self.verbosity >= 5 {
             eprintln!("{}", style(format!("  [trace] {msg}")).dim());
         }
     }
