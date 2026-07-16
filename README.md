@@ -115,6 +115,21 @@ Or start the MCP stdio server for AI assistant integration:
 virage serve
 ```
 
+Check health and diagnose configuration problems:
+
+```bash
+virage status          # quick health summary
+virage doctor          # full diagnostic with fix hints
+```
+
+Generate shell completions:
+
+```bash
+virage completions bash >> ~/.bashrc   # or zsh / fish / powershell
+```
+
+All commands support `--format human|json|quiet` and `--no-color`.
+
 ## Configuration
 
 All configuration lives in `virage.config.json`. Environment variables expand at runtime — use `${VAR}` syntax for secrets (e.g. `"apiKey": "${OPENAI_API_KEY}"`). Example config:

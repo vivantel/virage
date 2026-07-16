@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
-# Block commits with unformatted Rust code or clippy errors.
-# Catches direct `git commit` invocations outside Claude Code.
-# (Claude Code's PreToolUse hook auto-fixes with `cargo fmt` and runs clippy before any commit.)
+# Minimal CE pre-commit: formatting only.
+# Scoped clippy for EE-side Claude Code sessions lives in virage-ee/.claude/settings.json.
 set -euo pipefail
 
 if ! cargo fmt --check 2>/dev/null; then
@@ -11,11 +10,3 @@ if ! cargo fmt --check 2>/dev/null; then
   echo ""
   exit 1
 fi
-
-cargo clippy --workspace -- -D warnings || {
-  echo ""
-  echo "pre-commit: Rust clippy errors found."
-  echo "  Run: cargo clippy --workspace -- -D warnings"
-  echo ""
-  exit 1
-}

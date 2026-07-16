@@ -1,4 +1,15 @@
 {
+  "env": {
+    "CLAUDE_CODE_TMPDIR": "/home/ubuntu/claude-tmp"
+  },
+  "permissions": {
+    "allow": [
+      "Bash(gh workflow run *)",
+      "Bash(gh run view *)",
+      "Bash(gh run list *)",
+      "Bash(gh run delete *)"
+    ]
+  },
   "hooks": {
     "PreToolUse": [
       {
