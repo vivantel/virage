@@ -4,7 +4,8 @@ use std::sync::Arc;
 
 use clap::{Args, Parser, Subcommand};
 use indicatif::{ProgressBar, ProgressStyle};
-use virage_engine::output::Out;
+use virage_engine::output::{Out, OutputFormat};
+use virage_engine::progress::Progress;
 
 #[cfg(any(feature = "embedder-onnx", feature = "download-binaries"))]
 use virage_engine::config::resolve::resolve_reranker;
@@ -33,8 +34,37 @@ struct Cli {
     #[arg(long = "no-banner", global = true)]
     no_banner: bool,
 
+    /// Output format: human (default), json (machine-readable), quiet (errors only)
+    #[arg(long, global = true, value_enum, default_value_t = CliFormat::Human)]
+    format: CliFormat,
+
+    /// Disable ANSI colors (also honoured via NO_COLOR env var)
+    #[arg(long = "no-color", global = true)]
+    no_color: bool,
+
+    /// Path to virage.config.json (overrides auto-discovery)
+    #[arg(short = 'c', long, global = true, default_value = "")]
+    config: String,
+
     #[command(subcommand)]
     command: Option<Commands>,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, clap::ValueEnum)]
+enum CliFormat {
+    Human,
+    Json,
+    Quiet,
+}
+
+impl From<CliFormat> for OutputFormat {
+    fn from(f: CliFormat) -> Self {
+        match f {
+            CliFormat::Human => OutputFormat::Human,
+            CliFormat::Json => OutputFormat::Json,
+            CliFormat::Quiet => OutputFormat::Quiet,
+        }
+    }
 }
 
 #[derive(Subcommand)]
@@ -86,6 +116,15 @@ enum Commands {
     /// Print the first 20 lines of each skill file.
     #[command(aliases = ["skill"])]
     ReadSkillSummary,
+    /// Show health summary: config, index, store, providers.
+    Status(DbPathArg),
+    /// Self-diagnostic with remediation steps.
+    Doctor(DbPathArg),
+    /// Generate shell completion script.
+    Completions {
+        /// Target shell.
+        shell: clap_complete::Shell,
+    },
     /// Start the virage dashboard web UI (requires Node.js).
     #[command(aliases = ["d"])]
     Dashboard(DashboardArgs),
@@ -99,11 +138,7 @@ enum Commands {
 // ─── Arg structs ──────────────────────────────────────────────────────────────
 
 #[derive(Args)]
-struct ConfigPathArg {
-    /// Path to virage.config.json.
-    #[arg(short, long, default_value = "")]
-    config: String,
-}
+struct ConfigPathArg {}
 
 #[derive(Args)]
 struct DbPathArg {
@@ -114,9 +149,6 @@ struct DbPathArg {
 
 #[derive(Args)]
 struct IndexArgs {
-    /// Path to virage.config.json.
-    #[arg(short, long, default_value = "")]
-    config: String,
     /// Re-index all files even if unchanged.
     #[arg(long)]
     force: bool,
@@ -141,14 +173,11 @@ struct IndexArgs {
 struct QueryArgs {
     /// The query text.
     query: String,
-    /// Path to virage.config.json.
-    #[arg(short, long, default_value = "")]
-    config: String,
     /// Number of results to return.
     #[arg(long, default_value_t = 5)]
     top_k: usize,
-    /// Output results as JSON.
-    #[arg(long)]
+    /// [deprecated] Use --format json instead.
+    #[arg(long, hide = true)]
     json: bool,
     /// Enable hybrid (dense + sparse) search.
     #[arg(long)]
@@ -245,16 +274,10 @@ struct DashboardArgs {
     /// Path to virage.db.
     #[arg(long, default_value = "")]
     db: String,
-    /// Path to virage.config.json.
-    #[arg(short, long, default_value = "")]
-    config: String,
 }
 
 #[derive(Args)]
 struct QualityArgs {
-    /// Path to virage.config.json.
-    #[arg(short, long, default_value = "")]
-    config: String,
     #[command(subcommand)]
     command: Option<QualityCommand>,
 }
@@ -491,10 +514,15 @@ fn spinner(msg: &str) -> ProgressBar {
 
 // ─── Command implementations ──────────────────────────────────────────────────
 
-async fn cmd_index(args: IndexArgs, verbose: u8) -> anyhow::Result<()> {
+async fn cmd_index(
+    args: IndexArgs,
+    verbose: u8,
+    format: OutputFormat,
+    config: &str,
+) -> anyhow::Result<()> {
     let t0 = std::time::Instant::now();
-    let out = Out::new(verbose);
-    let config_path = resolve_config_path(&args.config)?;
+    let out = Out::new(verbose, format);
+    let config_path = resolve_config_path(config)?;
     let cfg = load_config(&config_path)?;
     let db_path = resolve_db_path(&args.db);
     let cwd = std::env::current_dir()?;
@@ -509,13 +537,17 @@ async fn cmd_index(args: IndexArgs, verbose: u8) -> anyhow::Result<()> {
             .unwrap_or(false);
 
     // ── Resolve providers ─────────────────────────────────────────────────────
-    let pb = spinner("Loading embedder...");
+    let prog = Progress::new(format);
+
+    let stage = prog.stage("Loading embedder...");
     let embedder = resolve_embedder(&cfg.providers.embedder)?;
+    stage.finish_and_clear();
 
-    pb.set_message("Connecting to vector store...");
+    let stage = prog.stage("Connecting to vector store...");
     let store = resolve_store(&cfg.providers.vector_store, dims)?;
+    stage.finish_and_clear();
 
-    pb.set_message("Opening state DB...");
+    let stage = prog.stage("Opening state DB...");
     let db = open_or_init_db(&db_path)?;
     let known_revisions: HashMap<String, String> = if force {
         HashMap::new()
@@ -523,14 +555,163 @@ async fn cmd_index(args: IndexArgs, verbose: u8) -> anyhow::Result<()> {
         db.get_file_revisions()
             .map_err(|e| anyhow::anyhow!("DB read error: {e}"))?
     };
+    stage.finish_and_clear();
 
-    pb.set_message("Resolving source...");
+    let stage = prog.stage("Resolving source...");
     let source = resolve_source(cfg.providers.source.as_ref(), &cwd)?;
-    pb.finish_and_clear();
+    stage.finish_and_clear();
 
     if args.watch {
-        out.warn("--watch is not yet implemented");
-        return Ok(());
+        use notify_debouncer_mini::{new_debouncer, notify::RecursiveMode};
+        use std::sync::mpsc::TryRecvError;
+
+        // Run initial full index before entering watch loop.
+        {
+            let progress = ProgressCounters::new();
+            let workers = args
+                .workers
+                .or_else(|| cfg.pipeline.as_ref().and_then(|p| p.concurrency))
+                .unwrap_or_else(|| {
+                    std::thread::available_parallelism()
+                        .map(|n| n.get())
+                        .unwrap_or(4)
+                });
+            let pipeline_cfg = PipelineConfig {
+                workers,
+                upload_batch_size: cfg
+                    .pipeline
+                    .as_ref()
+                    .and_then(|p| p.min_upload_batch_size)
+                    .unwrap_or(64),
+                max_tokens: 512,
+                progress: Some(progress.clone()),
+                skip_upload: args.no_upload,
+                ..Default::default()
+            };
+            let file_bar = prog.file_bar(0, "Indexing");
+            let chunk_bar = prog.stage("0 chunks embedded");
+            let pt = {
+                let p = progress.clone();
+                let fb = file_bar.clone();
+                let cb = chunk_bar.clone();
+                tokio::spawn(async move {
+                    loop {
+                        let (total, _, done, chunks) = p.snapshot();
+                        if total > 0 {
+                            fb.set_length(total as u64);
+                            fb.set_position(done as u64);
+                        }
+                        cb.set_message(format!("{chunks} chunks embedded"));
+                        tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+                    }
+                })
+            };
+            let _ = run_pipeline(
+                &pipeline_cfg,
+                source.clone(),
+                vec![],
+                embedder.clone(),
+                store.clone(),
+                known_revisions.clone(),
+            )
+            .await;
+            pt.abort();
+            file_bar.finish_and_clear();
+            chunk_bar.finish_and_clear();
+        }
+
+        let (tx, rx) = std::sync::mpsc::channel();
+        let mut debouncer = new_debouncer(std::time::Duration::from_millis(300), tx)
+            .map_err(|e| anyhow::anyhow!("watcher error: {e}"))?;
+        debouncer
+            .watcher()
+            .watch(&cwd, RecursiveMode::Recursive)
+            .map_err(|e| anyhow::anyhow!("watcher error: {e}"))?;
+
+        let indexed = db.get_file_revisions().map(|m| m.len()).unwrap_or(0);
+        out.info(&format!(
+            "Watching — {indexed} files indexed · Ctrl+C to stop"
+        ));
+
+        loop {
+            match rx.try_recv() {
+                Ok(Ok(events)) => {
+                    let changed: Vec<_> = events
+                        .iter()
+                        .filter(|e| !e.path.to_string_lossy().contains(".virage"))
+                        .collect();
+                    if changed.is_empty() {
+                        continue;
+                    }
+
+                    let now = {
+                        let d = std::time::SystemTime::now()
+                            .duration_since(std::time::UNIX_EPOCH)
+                            .unwrap_or_default();
+                        let secs = d.as_secs();
+                        format!(
+                            "{:02}:{:02}:{:02}",
+                            (secs / 3600) % 24,
+                            (secs / 60) % 60,
+                            secs % 60
+                        )
+                    };
+                    eprintln!("[{now}] {} file(s) changed — re-indexing...", changed.len());
+
+                    let t_watch = std::time::Instant::now();
+                    let known = db.get_file_revisions().unwrap_or_default();
+                    let progress = ProgressCounters::new();
+                    let workers = args
+                        .workers
+                        .or_else(|| cfg.pipeline.as_ref().and_then(|p| p.concurrency))
+                        .unwrap_or(4);
+                    let pipeline_cfg = PipelineConfig {
+                        workers,
+                        upload_batch_size: cfg
+                            .pipeline
+                            .as_ref()
+                            .and_then(|p| p.min_upload_batch_size)
+                            .unwrap_or(64),
+                        max_tokens: 512,
+                        progress: Some(progress.clone()),
+                        skip_upload: args.no_upload,
+                        ..Default::default()
+                    };
+                    match run_pipeline(
+                        &pipeline_cfg,
+                        source.clone(),
+                        vec![],
+                        embedder.clone(),
+                        store.clone(),
+                        known,
+                    )
+                    .await
+                    {
+                        Ok(stats) => {
+                            let ms = t_watch.elapsed().as_millis();
+                            let count = db.get_file_revisions().map(|m| m.len()).unwrap_or(0);
+                            eprintln!(
+                                "  ✓ Done — {} file(s) · {} chunks · {ms}ms · {count} total",
+                                stats.files_processed, stats.chunks_upserted
+                            );
+                        }
+                        Err(e) => {
+                            eprintln!("  ⚠ Re-index failed — {e}");
+                            eprintln!("      Watching continues. Fix the file to re-trigger.");
+                        }
+                    }
+                }
+                Ok(Err(e)) => {
+                    eprintln!("⚠ Watch error: {e:?}");
+                }
+                Err(TryRecvError::Empty) => {
+                    tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+                }
+                Err(TryRecvError::Disconnected) => break,
+            }
+        }
+        eprintln!("Stopped watching.");
+        std::process::exit(130);
     }
 
     // ── Dry-run mode ──────────────────────────────────────────────────────────
@@ -592,26 +773,8 @@ async fn cmd_index(args: IndexArgs, verbose: u8) -> anyhow::Result<()> {
     };
 
     // ── Multi-stage progress display ──────────────────────────────────────────
-    let mp = indicatif::MultiProgress::new();
-    let file_bar = mp.add(ProgressBar::new(0));
-    file_bar.set_style(
-        ProgressStyle::with_template(
-            "{spinner:.cyan} {msg} [{bar:30.cyan/blue}] {pos}/{len} files",
-        )
-        .unwrap()
-        .tick_strings(&["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"])
-        .progress_chars("█▓░"),
-    );
-    file_bar.set_message("Indexing");
-    file_bar.enable_steady_tick(std::time::Duration::from_millis(80));
-
-    let chunk_bar = mp.add(ProgressBar::new_spinner());
-    chunk_bar.set_style(
-        ProgressStyle::with_template("{spinner:.green} {msg}")
-            .unwrap()
-            .tick_strings(&["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"]),
-    );
-    chunk_bar.enable_steady_tick(std::time::Duration::from_millis(80));
+    let file_bar = prog.file_bar(0, "Indexing");
+    let chunk_bar = prog.stage("0 chunks embedded");
 
     let progress_task = {
         let p = progress.clone();
@@ -674,10 +837,21 @@ async fn cmd_index(args: IndexArgs, verbose: u8) -> anyhow::Result<()> {
         }
     }
 
-    out.success(&format!(
-        "Done.  Processed: {}  Skipped: {}  Deleted: {}  Chunks: {}",
-        stats.files_processed, stats.files_skipped, stats.files_deleted, stats.chunks_upserted,
-    ));
+    let elapsed_ms = t0.elapsed().as_millis();
+    if format == OutputFormat::Json {
+        out.data_json(&serde_json::json!({
+            "filesProcessed": stats.files_processed,
+            "filesSkipped": stats.files_skipped,
+            "filesDeleted": stats.files_deleted,
+            "chunksUpserted": stats.chunks_upserted,
+            "elapsedMs": elapsed_ms,
+        }));
+    } else {
+        out.success(&format!(
+            "Done.  Processed: {}  Skipped: {}  Deleted: {}  Chunks: {}  ({elapsed_ms}ms)",
+            stats.files_processed, stats.files_skipped, stats.files_deleted, stats.chunks_upserted,
+        ));
+    }
     // Write index metadata for `virage check` comparisons.
     let _ = store
         .write_meta(&virage_engine::stores::IndexMeta {
@@ -689,10 +863,15 @@ async fn cmd_index(args: IndexArgs, verbose: u8) -> anyhow::Result<()> {
     Ok(())
 }
 
-async fn cmd_query(args: QueryArgs, verbose: u8) -> anyhow::Result<()> {
+async fn cmd_query(
+    args: QueryArgs,
+    verbose: u8,
+    format: OutputFormat,
+    config: &str,
+) -> anyhow::Result<()> {
     let t0 = std::time::Instant::now();
-    let out = Out::new(verbose);
-    let config_path = resolve_config_path(&args.config)?;
+    let out = Out::new(verbose, format);
+    let config_path = resolve_config_path(config)?;
     let cfg = load_config(&config_path)?;
     let dims = embedder_dims(&cfg);
 
@@ -767,25 +946,39 @@ async fn cmd_query(args: QueryArgs, verbose: u8) -> anyhow::Result<()> {
         }
     };
 
-    if args.json {
+    // --json is a deprecated alias for --format json
+    let use_json = format == OutputFormat::Json || args.json;
+
+    if use_json {
         let json: Vec<serde_json::Value> = results
             .iter()
-            .map(|r| {
+            .enumerate()
+            .map(|(i, r)| {
                 serde_json::json!({
-                    "denseText": r.dense_text,
-                    "sourceFile": r.source_file,
+                    "rank": i + 1,
                     "similarity": r.similarity,
+                    "sourceFile": r.source_file,
+                    "denseText": r.dense_text,
                     "metadata": r.metadata,
                 })
             })
             .collect();
-        println!("{}", serde_json::to_string_pretty(&json)?);
+        out.data_json(&serde_json::Value::Array(json));
         record_telemetry(true);
         return Ok(());
     }
 
     if results.is_empty() {
         out.warn("No results found.");
+        record_telemetry(true);
+        return Ok(());
+    }
+
+    if format == OutputFormat::Quiet {
+        for r in &results {
+            let src = r.source_file.as_deref().unwrap_or("unknown");
+            println!("{:.2}  {src}", r.similarity);
+        }
         record_telemetry(true);
         return Ok(());
     }
@@ -816,10 +1009,15 @@ async fn cmd_query(args: QueryArgs, verbose: u8) -> anyhow::Result<()> {
     Ok(())
 }
 
-async fn cmd_validate(args: ConfigPathArg, verbose: u8) -> anyhow::Result<()> {
+async fn cmd_validate(
+    _args: ConfigPathArg,
+    verbose: u8,
+    format: OutputFormat,
+    config: &str,
+) -> anyhow::Result<()> {
     let t0 = std::time::Instant::now();
-    let out = Out::new(verbose);
-    let config_path = resolve_config_path(&args.config)?;
+    let out = Out::new(verbose, format);
+    let config_path = resolve_config_path(config)?;
     out.section("Validate");
     out.dim(&format!("Config: {config_path}"));
 
@@ -833,6 +1031,8 @@ async fn cmd_validate(args: ConfigPathArg, verbose: u8) -> anyhow::Result<()> {
     }
 
     let mut warnings = 0usize;
+    let mut warning_msgs: Vec<String> = Vec::new();
+    let mut file_set_counts: Vec<serde_json::Value> = Vec::new();
     let cwd = std::env::current_dir()?;
 
     // A2 — spinner around glob file scan loop (E1: count matches per fileSet)
@@ -889,11 +1089,14 @@ async fn cmd_validate(args: ConfigPathArg, verbose: u8) -> anyhow::Result<()> {
             "  fileSet {:?}: {} file(s) matched",
             fs.name, match_count
         ));
+        file_set_counts.push(serde_json::json!({
+            "name": fs.name,
+            "matchCount": match_count,
+        }));
         if match_count == 0 {
-            out.warn(&format!(
-                "fileSet {:?}: no files matched include patterns",
-                fs.name
-            ));
+            let msg = format!("fileSet {:?}: no files matched include patterns", fs.name);
+            out.warn(&msg);
+            warning_msgs.push(msg);
             warnings += 1;
         }
     }
@@ -954,7 +1157,13 @@ async fn cmd_validate(args: ConfigPathArg, verbose: u8) -> anyhow::Result<()> {
     }
     pb.finish_and_clear();
 
-    if warnings > 0 {
+    if format == OutputFormat::Json {
+        out.data_json(&serde_json::json!({
+            "valid": warnings == 0,
+            "warnings": warning_msgs,
+            "fileSets": file_set_counts,
+        }));
+    } else if warnings > 0 {
         out.warn(&format!("Config loaded with {warnings} warning(s)."));
     } else {
         out.success("Config is valid.");
@@ -966,10 +1175,15 @@ async fn cmd_validate(args: ConfigPathArg, verbose: u8) -> anyhow::Result<()> {
     Ok(())
 }
 
-async fn cmd_check(args: ConfigPathArg, verbose: u8) -> anyhow::Result<()> {
+async fn cmd_check(
+    _args: ConfigPathArg,
+    verbose: u8,
+    format: OutputFormat,
+    config: &str,
+) -> anyhow::Result<()> {
     let t0 = std::time::Instant::now();
-    let out = Out::new(verbose);
-    let config_path = resolve_config_path(&args.config)?;
+    let out = Out::new(verbose, format);
+    let config_path = resolve_config_path(config)?;
     let cfg = load_config(&config_path)?;
     let dims = embedder_dims(&cfg);
 
@@ -1017,7 +1231,17 @@ async fn cmd_check(args: ConfigPathArg, verbose: u8) -> anyhow::Result<()> {
         let _ = db.record_cli_command("check", t0.elapsed().as_millis() as u64, ok);
     }
 
-    if ok {
+    if format == OutputFormat::Json {
+        out.data_json(&serde_json::json!({
+            "ok": ok,
+            "embedder": cfg.providers.embedder.package,
+            "dimensions": dims,
+        }));
+        if !ok {
+            std::process::exit(1);
+        }
+        Ok(())
+    } else if ok {
         out.success("Status: OK");
         Ok(())
     } else {
@@ -1026,8 +1250,8 @@ async fn cmd_check(args: ConfigPathArg, verbose: u8) -> anyhow::Result<()> {
     }
 }
 
-fn cmd_report(args: DbPathArg, verbose: u8) -> anyhow::Result<()> {
-    let out = Out::new(verbose);
+fn cmd_report(args: DbPathArg, verbose: u8, format: OutputFormat) -> anyhow::Result<()> {
+    let out = Out::new(verbose, format);
     let db_path = resolve_db_path(&args.db);
     let db = open_or_init_db(&db_path)?;
 
@@ -1041,16 +1265,25 @@ fn cmd_report(args: DbPathArg, verbose: u8) -> anyhow::Result<()> {
         .pending_upload_count()
         .map_err(|e| anyhow::anyhow!("DB read error: {e}"))?;
 
-    out.section("Virage Report");
-    out.info(&format!("DB path          : {db_path}"));
-    out.info(&format!("Indexed files    : {}", revisions.len()));
-    out.info(&format!("Pending embed    : {pending_embed}"));
-    out.info(&format!("Pending upload   : {pending_upload}"));
+    if format == OutputFormat::Json {
+        out.data_json(&serde_json::json!({
+            "dbPath": db_path,
+            "indexedFiles": revisions.len(),
+            "pendingEmbed": pending_embed,
+            "pendingUpload": pending_upload,
+        }));
+    } else {
+        out.section("Virage Report");
+        out.info(&format!("DB path          : {db_path}"));
+        out.info(&format!("Indexed files    : {}", revisions.len()));
+        out.info(&format!("Pending embed    : {pending_embed}"));
+        out.info(&format!("Pending upload   : {pending_upload}"));
+    }
     Ok(())
 }
 
-fn cmd_chunks_report(args: DbPathArg, verbose: u8) -> anyhow::Result<()> {
-    let out = Out::new(verbose);
+fn cmd_chunks_report(args: DbPathArg, verbose: u8, format: OutputFormat) -> anyhow::Result<()> {
+    let out = Out::new(verbose, format);
     let db_path = resolve_db_path(&args.db);
     let db = open_or_init_db(&db_path)?;
     let revisions = db
@@ -1071,9 +1304,14 @@ fn cmd_chunks_report(args: DbPathArg, verbose: u8) -> anyhow::Result<()> {
     Ok(())
 }
 
-async fn cmd_store_stats(args: ConfigPathArg, verbose: u8) -> anyhow::Result<()> {
-    let out = Out::new(verbose);
-    let config_path = resolve_config_path(&args.config)?;
+async fn cmd_store_stats(
+    _args: ConfigPathArg,
+    verbose: u8,
+    format: OutputFormat,
+    config: &str,
+) -> anyhow::Result<()> {
+    let out = Out::new(verbose, format);
+    let config_path = resolve_config_path(config)?;
     let cfg = load_config(&config_path)?;
     let dims = embedder_dims(&cfg);
 
@@ -1083,19 +1321,32 @@ async fn cmd_store_stats(args: ConfigPathArg, verbose: u8) -> anyhow::Result<()>
     pb.finish_and_clear();
 
     let state = store.current_state().await?;
-    out.section("Store Stats");
-    out.info(&format!(
-        "Package       : {}",
-        cfg.providers.vector_store.package
-    ));
-    out.info(&format!("Indexed files : {}", state.len()));
-    out.info(&format!("Dimensions    : {dims}"));
+    if format == OutputFormat::Json {
+        out.data_json(&serde_json::json!({
+            "package": cfg.providers.vector_store.package,
+            "indexedFiles": state.len(),
+            "dimensions": dims,
+        }));
+    } else {
+        out.section("Store Stats");
+        out.info(&format!(
+            "Package       : {}",
+            cfg.providers.vector_store.package
+        ));
+        out.info(&format!("Indexed files : {}", state.len()));
+        out.info(&format!("Dimensions    : {dims}"));
+    }
     Ok(())
 }
 
-async fn cmd_store_perf(args: ConfigPathArg, verbose: u8) -> anyhow::Result<()> {
-    let out = Out::new(verbose);
-    let config_path = resolve_config_path(&args.config)?;
+async fn cmd_store_perf(
+    _args: ConfigPathArg,
+    verbose: u8,
+    format: OutputFormat,
+    config: &str,
+) -> anyhow::Result<()> {
+    let out = Out::new(verbose, format);
+    let config_path = resolve_config_path(config)?;
     let cfg = load_config(&config_path)?;
     let dims = embedder_dims(&cfg);
 
@@ -1145,16 +1396,31 @@ async fn cmd_store_perf(args: ConfigPathArg, verbose: u8) -> anyhow::Result<()> 
     let total: f64 = durations_ms.iter().sum();
     let qps = N as f64 / (total / 1000.0);
 
-    out.info(&format!("  p50 : {p50:.1}ms"));
-    out.info(&format!("  p95 : {p95:.1}ms"));
-    out.info(&format!("  p99 : {p99:.1}ms"));
-    out.info(&format!("  QPS : {qps:.0}  (sequential, {N} queries)"));
+    if format == OutputFormat::Json {
+        out.data_json(&serde_json::json!({
+            "queries": N,
+            "p50Ms": p50,
+            "p95Ms": p95,
+            "p99Ms": p99,
+            "qps": qps,
+        }));
+    } else {
+        out.info(&format!("  p50 : {p50:.1}ms"));
+        out.info(&format!("  p95 : {p95:.1}ms"));
+        out.info(&format!("  p99 : {p99:.1}ms"));
+        out.info(&format!("  QPS : {qps:.0}  (sequential, {N} queries)"));
+    }
     Ok(())
 }
 
-fn cmd_migrate(args: ConfigPathArg, verbose: u8) -> anyhow::Result<()> {
-    let out = Out::new(verbose);
-    let config_path = resolve_config_path(&args.config)?;
+fn cmd_migrate(
+    _args: ConfigPathArg,
+    verbose: u8,
+    format: OutputFormat,
+    config: &str,
+) -> anyhow::Result<()> {
+    let out = Out::new(verbose, format);
+    let config_path = resolve_config_path(config)?;
     let text = std::fs::read_to_string(&config_path)
         .map_err(|e| anyhow::anyhow!("Cannot read {:?}: {e}", config_path))?;
     let mut value: serde_json::Value = serde_json::from_str(&text)?;
@@ -1176,10 +1442,14 @@ fn cmd_migrate(args: ConfigPathArg, verbose: u8) -> anyhow::Result<()> {
     Ok(())
 }
 
-fn cmd_install_hooks(args: ConfigPathArg, verbose: u8) -> anyhow::Result<()> {
-    let out = Out::new(verbose);
-    let config_path =
-        resolve_config_path(&args.config).unwrap_or_else(|_| "virage.config.json".into());
+fn cmd_install_hooks(
+    _args: ConfigPathArg,
+    verbose: u8,
+    format: OutputFormat,
+    config: &str,
+) -> anyhow::Result<()> {
+    let out = Out::new(verbose, format);
+    let config_path = resolve_config_path(config).unwrap_or_else(|_| "virage.config.json".into());
     let hooks_dir = PathBuf::from(".git/hooks");
     if !hooks_dir.exists() {
         return Err(anyhow::anyhow!(
@@ -1203,10 +1473,15 @@ fn cmd_install_hooks(args: ConfigPathArg, verbose: u8) -> anyhow::Result<()> {
     Ok(())
 }
 
-fn cmd_telemetry(args: TelemetryArgs, verbose: u8) -> anyhow::Result<()> {
-    let out = Out::new(verbose);
-    let home = std::env::var("HOME").unwrap_or_else(|_| ".".into());
-    let config_dir = PathBuf::from(home).join(".config").join("virage");
+fn virage_config_dir() -> PathBuf {
+    dirs::config_dir()
+        .unwrap_or_else(|| PathBuf::from("."))
+        .join("virage")
+}
+
+fn cmd_telemetry(args: TelemetryArgs, verbose: u8, format: OutputFormat) -> anyhow::Result<()> {
+    let out = Out::new(verbose, format);
+    let config_dir = virage_config_dir();
     let flag_file = config_dir.join("telemetry.enabled");
     let telemetry_cfg = config_dir.join("telemetry.json");
     match args.command {
@@ -1468,12 +1743,17 @@ fn cmd_telemetry_init(
     Ok(())
 }
 
-fn cmd_quality(args: QualityArgs, verbose: u8) -> anyhow::Result<()> {
-    let out = Out::new(verbose);
+fn cmd_quality(
+    args: QualityArgs,
+    verbose: u8,
+    format: OutputFormat,
+    config: &str,
+) -> anyhow::Result<()> {
+    let out = Out::new(verbose, format);
     let stub = |label: &str| out.dim(&format!("{label}: not yet implemented (Phase 5b)"));
     match args.command {
         None => {
-            let config_path = resolve_config_path(&args.config)?;
+            let config_path = resolve_config_path(config)?;
             out.section("Quality Metrics");
             out.dim(&format!("Config: {config_path}"));
             stub("quality");
@@ -1584,8 +1864,13 @@ const FILE_TYPE_META: &[(&str, &str, &[&str], &str)] = &[
     ),
 ];
 
-fn cmd_init(args: ConfigPathArg, verbose: u8) -> anyhow::Result<()> {
-    let out = Out::new(verbose);
+fn cmd_init(
+    _args: ConfigPathArg,
+    verbose: u8,
+    format: OutputFormat,
+    config: &str,
+) -> anyhow::Result<()> {
+    let out = Out::new(verbose, format);
     use dialoguer::{MultiSelect, Select};
 
     out.section("Virage Setup");
@@ -1595,10 +1880,10 @@ fn cmd_init(args: ConfigPathArg, verbose: u8) -> anyhow::Result<()> {
     const BACK: &str = "← Back";
 
     // Wizard state
-    let default_config = if args.config.is_empty() {
+    let default_config = if config.is_empty() {
         "virage.config.json".to_string()
     } else {
-        args.config.clone()
+        config.to_string()
     };
     let cwd = std::env::current_dir()?;
     let mut config_path = default_config.clone();
@@ -2234,8 +2519,8 @@ fn format_wizard_summary(
 
 // ─── update ──────────────────────────────────────────────────────────────────
 
-fn cmd_update(verbose: u8) -> anyhow::Result<()> {
-    let out = Out::new(verbose);
+fn cmd_update(verbose: u8, format: OutputFormat) -> anyhow::Result<()> {
+    let out = Out::new(verbose, format);
     use console::style;
     use dialoguer::MultiSelect;
 
@@ -2367,9 +2652,9 @@ fn cmd_update(verbose: u8) -> anyhow::Result<()> {
 
 // ─── pack ────────────────────────────────────────────────────────────────────
 
-fn cmd_pack(args: PackArgs, verbose: u8) -> anyhow::Result<()> {
+fn cmd_pack(args: PackArgs, verbose: u8, format: OutputFormat) -> anyhow::Result<()> {
     use flate2::{write::GzEncoder, Compression};
-    let out = Out::new(verbose);
+    let out = Out::new(verbose, format);
 
     let virage_dir = PathBuf::from(".virage");
     if !virage_dir.exists() {
@@ -2397,8 +2682,8 @@ fn cmd_pack(args: PackArgs, verbose: u8) -> anyhow::Result<()> {
 
 // ─── uninstall ───────────────────────────────────────────────────────────────
 
-fn cmd_uninstall(verbose: u8) -> anyhow::Result<()> {
-    let out = Out::new(verbose);
+fn cmd_uninstall(verbose: u8, format: OutputFormat) -> anyhow::Result<()> {
+    let out = Out::new(verbose, format);
     use dialoguer::Confirm;
 
     out.section("Virage Uninstall");
@@ -2447,8 +2732,13 @@ fn cmd_uninstall(verbose: u8) -> anyhow::Result<()> {
 
 // ─── dashboard ───────────────────────────────────────────────────────────────
 
-fn cmd_dashboard(args: DashboardArgs, verbose: u8) -> anyhow::Result<()> {
-    let out = Out::new(verbose);
+fn cmd_dashboard(
+    args: DashboardArgs,
+    verbose: u8,
+    format: OutputFormat,
+    config: &str,
+) -> anyhow::Result<()> {
+    let out = Out::new(verbose, format);
     let db_path = resolve_db_path(&args.db);
     let mut cmd = std::process::Command::new("npx");
     cmd.args([
@@ -2458,8 +2748,8 @@ fn cmd_dashboard(args: DashboardArgs, verbose: u8) -> anyhow::Result<()> {
         "--db",
         &db_path,
     ]);
-    if !args.config.is_empty() {
-        cmd.args(["--config", &args.config]);
+    if !config.is_empty() {
+        cmd.args(["--config", config]);
     }
     out.info(&format!(
         "Starting dashboard on http://localhost:{} ...",
@@ -2475,10 +2765,10 @@ fn cmd_dashboard(args: DashboardArgs, verbose: u8) -> anyhow::Result<()> {
     Ok(())
 }
 
-async fn cmd_serve(args: ConfigPathArg) -> anyhow::Result<()> {
+async fn cmd_serve(config: &str) -> anyhow::Result<()> {
     use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 
-    let config_path = resolve_config_path(&args.config)?;
+    let config_path = resolve_config_path(config)?;
     let cfg = load_config(&config_path)?;
     let dims = embedder_dims(&cfg);
     let db_path = default_db_path();
@@ -2703,28 +2993,28 @@ async fn mcp_tool_call(
     }
 }
 
-fn cmd_plugin(args: PluginArgs, verbose: u8) -> anyhow::Result<()> {
+fn cmd_plugin(args: PluginArgs, verbose: u8, format: OutputFormat) -> anyhow::Result<()> {
     match args.command {
-        PluginCommand::Test { path } => cmd_plugin_test(&path, verbose),
+        PluginCommand::Test { path } => cmd_plugin_test(&path, verbose, format),
     }
 }
 
-fn cmd_plugin_test(path: &str, verbose: u8) -> anyhow::Result<()> {
+fn cmd_plugin_test(path: &str, verbose: u8, format: OutputFormat) -> anyhow::Result<()> {
     #[cfg(feature = "wasm-host")]
-    return cmd_plugin_test_wasm(path, verbose);
+    return cmd_plugin_test_wasm(path, verbose, format);
     #[cfg(not(feature = "wasm-host"))]
     {
-        let out = Out::new(verbose);
+        let out = Out::new(verbose, format);
         out.warn("WASM host not available — rebuild with --features wasm-host.");
         Ok(())
     }
 }
 
 #[cfg(feature = "wasm-host")]
-fn cmd_plugin_test_wasm(path: &str, verbose: u8) -> anyhow::Result<()> {
+fn cmd_plugin_test_wasm(path: &str, verbose: u8, format: OutputFormat) -> anyhow::Result<()> {
     use virage_engine::plugins::wasm::chunker::WasmChunkerAdapter;
     use virage_engine::plugins::wasm::{FileInfo, WasmPluginHost, WasmRegistry};
-    let out = Out::new(verbose);
+    let out = Out::new(verbose, format);
 
     let wasm_path = std::path::Path::new(path);
     if !wasm_path.exists() {
@@ -2753,15 +3043,15 @@ fn cmd_plugin_test_wasm(path: &str, verbose: u8) -> anyhow::Result<()> {
     Ok(())
 }
 
-fn cmd_usage(verbose: u8) -> anyhow::Result<()> {
-    let out = Out::new(verbose);
+fn cmd_usage(verbose: u8, format: OutputFormat) -> anyhow::Result<()> {
+    let out = Out::new(verbose, format);
     out.info("Usage tracking is handled by the virage-agent-claude plugin.");
     out.dim("See: https://vivantel.com/virage/docs/telemetry");
     Ok(())
 }
 
-fn cmd_read_skill_summary(verbose: u8) -> anyhow::Result<()> {
-    let out = Out::new(verbose);
+fn cmd_read_skill_summary(verbose: u8, format: OutputFormat) -> anyhow::Result<()> {
+    let out = Out::new(verbose, format);
     let skill_dirs = [".agents/skills", ".virage/skills"];
     let mut found = false;
     for dir in &skill_dirs {
@@ -2790,10 +3080,289 @@ fn cmd_read_skill_summary(verbose: u8) -> anyhow::Result<()> {
     Ok(())
 }
 
-fn cmd_viz(verbose: u8) -> anyhow::Result<()> {
-    let out = Out::new(verbose);
+fn cmd_viz(verbose: u8, format: OutputFormat) -> anyhow::Result<()> {
+    let out = Out::new(verbose, format);
     out.dim("virage viz: embedding visualisation is deferred post-v2.");
     Ok(())
+}
+
+// ─── status ──────────────────────────────────────────────────────────────────
+
+async fn cmd_status(
+    _args: DbPathArg,
+    verbose: u8,
+    format: OutputFormat,
+    config: &str,
+) -> anyhow::Result<()> {
+    let out = Out::new(verbose, format);
+    let mut all_ok = true;
+
+    // 1. Config
+    let (config_ok, cfg_opt) =
+        match resolve_config_path(config).and_then(|p| load_config(&p).map(|c| (p, c))) {
+            Ok((path, cfg)) => {
+                out.info(&format!("  Config      ✓  {path}"));
+                (true, Some(cfg))
+            }
+            Err(e) => {
+                out.info(&format!("  Config      ✕  {e}"));
+                all_ok = false;
+                (false, None)
+            }
+        };
+
+    // 2. Index DB
+    let db_path = resolve_db_path("");
+    let index_count = match open_or_init_db(&db_path) {
+        Ok(db) => {
+            let count = db.get_file_revisions().map(|m| m.len()).unwrap_or(0);
+            out.info(&format!("  Index       ✓  {count} files  ({db_path})"));
+            Some(count)
+        }
+        Err(e) => {
+            out.info(&format!("  Index       ✕  {e}"));
+            all_ok = false;
+            None
+        }
+    };
+
+    // 3. Store (150ms timeout)
+    let store_status = if let Some(ref cfg) = cfg_opt {
+        let dims = embedder_dims(cfg);
+        match resolve_store(&cfg.providers.vector_store, dims) {
+            Ok(store) => {
+                let ping =
+                    tokio::time::timeout(std::time::Duration::from_millis(150), store.initialize())
+                        .await;
+                match ping {
+                    Ok(Ok(_)) => {
+                        out.info(&format!(
+                            "  Store       ✓  {}",
+                            cfg.providers.vector_store.package
+                        ));
+                        true
+                    }
+                    Ok(Err(e)) => {
+                        out.info(&format!("  Store       ✕  {e}"));
+                        all_ok = false;
+                        false
+                    }
+                    Err(_) => {
+                        out.info("  Store       ✕  timeout (>150ms)");
+                        all_ok = false;
+                        false
+                    }
+                }
+            }
+            Err(e) => {
+                out.info(&format!("  Store       ✕  {e}"));
+                all_ok = false;
+                false
+            }
+        }
+    } else {
+        false
+    };
+
+    // 4. Embedder
+    let embedder_status = if let Some(ref cfg) = cfg_opt {
+        match resolve_embedder(&cfg.providers.embedder) {
+            Ok(_) => {
+                out.info(&format!(
+                    "  Embedder    ✓  {}",
+                    cfg.providers.embedder.package
+                ));
+                true
+            }
+            Err(e) => {
+                out.info(&format!("  Embedder    ✕  {e}"));
+                all_ok = false;
+                false
+            }
+        }
+    } else {
+        false
+    };
+
+    if format == OutputFormat::Json {
+        out.data_json(&serde_json::json!({
+            "ok": all_ok,
+            "config": config_ok,
+            "indexedFiles": index_count,
+            "store": store_status,
+            "embedder": embedder_status,
+        }));
+    } else {
+        out.section("Status");
+        if all_ok {
+            out.success("All checks passed.");
+        } else {
+            out.warn("One or more checks failed — run `virage doctor` for details.");
+        }
+    }
+
+    if !all_ok {
+        std::process::exit(1);
+    }
+    Ok(())
+}
+
+// ─── doctor ──────────────────────────────────────────────────────────────────
+
+async fn cmd_doctor(
+    _args: DbPathArg,
+    verbose: u8,
+    format: OutputFormat,
+    config: &str,
+) -> anyhow::Result<()> {
+    let out = Out::new(verbose, format);
+    let mut errors = 0usize;
+    let mut warnings = 0usize;
+
+    out.section("Virage Doctor");
+
+    // 1. Config
+    match resolve_config_path(config).and_then(|p| load_config(&p).map(|c| (p, c))) {
+        Err(e) => {
+            out.error_hint(
+                &format!("Config not found or invalid: {e}"),
+                "Run `virage init` to create a config file.",
+            );
+            errors += 1;
+        }
+        Ok((path, cfg)) => {
+            out.success(&format!("Config found: {path}"));
+
+            // 2. fileSets not empty
+            if cfg.file_sets.is_empty() {
+                out.warn("No fileSets configured.");
+                out.dim("      Fix: add at least one fileSet to virage.config.json");
+                warnings += 1;
+            }
+
+            // 3. Embedder resolvable
+            match resolve_embedder(&cfg.providers.embedder) {
+                Ok(_) => out.success(&format!("Embedder OK: {}", cfg.providers.embedder.package)),
+                Err(e) => {
+                    out.error_hint(
+                        &format!("Embedder unavailable: {e}"),
+                        "Check the embedder package name and ensure the model is downloaded.",
+                    );
+                    errors += 1;
+                }
+            }
+
+            // 4. Store reachable (150ms timeout)
+            let dims = embedder_dims(&cfg);
+            match resolve_store(&cfg.providers.vector_store, dims) {
+                Err(e) => {
+                    let hint = store_hint(&cfg.providers.vector_store.package)
+                        .unwrap_or("Check your store configuration.");
+                    out.error_hint(&format!("Store not reachable: {e}"), hint);
+                    errors += 1;
+                }
+                Ok(store) => {
+                    let ping = tokio::time::timeout(
+                        std::time::Duration::from_millis(150),
+                        store.initialize(),
+                    )
+                    .await;
+                    match ping {
+                        Ok(Ok(_)) => out
+                            .success(&format!("Store OK: {}", cfg.providers.vector_store.package)),
+                        Ok(Err(e)) => {
+                            let hint = store_hint(&cfg.providers.vector_store.package)
+                                .unwrap_or("Check your store configuration.");
+                            out.error_hint(&format!("Store error: {e}"), hint);
+                            errors += 1;
+                        }
+                        Err(_) => {
+                            out.error("Store timed out (>150ms).");
+                            out.dim("      Fix: ensure the store is running and reachable.");
+                            errors += 1;
+                        }
+                    }
+                }
+            }
+
+            // 5. Index DB
+            let db_path = resolve_db_path("");
+            match open_or_init_db(&db_path) {
+                Ok(db) => {
+                    let count = db.get_file_revisions().map(|m| m.len()).unwrap_or(0);
+                    if count == 0 {
+                        out.warn("Index is empty — run `virage index` to build the index.");
+                        warnings += 1;
+                    } else {
+                        out.success(&format!("Index OK: {count} files"));
+                    }
+                }
+                Err(e) => {
+                    out.error_hint(
+                        &format!("Cannot open state DB: {e}"),
+                        "Run `virage index` to initialize the index.",
+                    );
+                    errors += 1;
+                }
+            }
+        }
+    }
+
+    if errors == 0 && warnings == 0 {
+        out.success("All checks passed.");
+    } else {
+        out.info(&format!("\n{errors} error(s) · {warnings} warning(s)"));
+    }
+
+    if errors > 0 {
+        std::process::exit(1);
+    }
+    Ok(())
+}
+
+fn store_hint(package: &str) -> Option<&'static str> {
+    if package.contains("qdrant") {
+        Some("Start Qdrant: docker run -p 6333:6333 qdrant/qdrant")
+    } else if package.contains("chromadb") {
+        Some("Start ChromaDB: docker run -p 8000:8000 chromadb/chroma")
+    } else if package.contains("postgres") {
+        Some("Check your PostgreSQL connection string in virage.config.json")
+    } else {
+        None
+    }
+}
+
+fn cmd_completions(shell: clap_complete::Shell) {
+    use clap::CommandFactory;
+    clap_complete::generate(shell, &mut Cli::command(), "virage", &mut std::io::stdout());
+}
+
+// ─── Platform helpers ─────────────────────────────────────────────────────────
+
+fn is_legacy_windows_console() -> bool {
+    #[cfg(windows)]
+    {
+        std::env::var_os("WT_SESSION").is_none() && std::env::var_os("TERM_PROGRAM").is_none()
+    }
+    #[cfg(not(windows))]
+    {
+        false
+    }
+}
+
+fn box_chars() -> (
+    &'static str,
+    &'static str,
+    &'static str,
+    &'static str,
+    &'static str,
+    &'static str,
+) {
+    if is_legacy_windows_console() {
+        ("+", "+", "+", "+", "-", "|")
+    } else {
+        ("╔", "╗", "╚", "╝", "═", "║")
+    }
 }
 
 // ─── Banner ───────────────────────────────────────────────────────────────────
@@ -2801,8 +3370,9 @@ fn cmd_viz(verbose: u8) -> anyhow::Result<()> {
 // J1: shows config summary (N chunkers · embedder-short · store-short) when config loads
 fn print_banner() {
     use console::style;
-    println!();
-    println!(
+    let _ = box_chars(); // ensure box_chars is available for future banner use
+    eprintln!();
+    eprintln!(
         "  {} {}",
         style("virage").bold().cyan(),
         style(env!("CARGO_PKG_VERSION")).dim()
@@ -2828,7 +3398,7 @@ fn print_banner() {
                 .last()
                 .unwrap_or(&cfg.providers.vector_store.package)
                 .trim_start_matches("virage-store-");
-            println!(
+            eprintln!(
                 "  {}",
                 style(format!(
                     "{chunker_count} chunker{} · {embedder_short} · {store_short}",
@@ -2837,27 +3407,32 @@ fn print_banner() {
                 .dim()
             );
         } else {
-            println!("  {}", style("AI code-search indexer").dim());
+            eprintln!("  {}", style("AI code-search indexer").dim());
         }
     } else {
-        println!("  {}", style("AI code-search indexer").dim());
+        eprintln!("  {}", style("AI code-search indexer").dim());
     }
-    println!();
+    eprintln!();
 }
 
 // ─── Entry point ──────────────────────────────────────────────────────────────
 
 #[tokio::main]
 async fn main() {
-    // J2: disable colors when NO_COLOR is set or stdout is not a tty
-    if std::env::var_os("NO_COLOR").is_some() || !console::Term::stdout().is_term() {
+    let cli = Cli::parse();
+
+    // Apply color suppression before any output
+    if cli.no_color || std::env::var_os("NO_COLOR").is_some() || !console::Term::stderr().is_term()
+    {
         console::set_colors_enabled(false);
+        console::set_colors_enabled_stderr(false);
     }
 
-    let cli = Cli::parse();
-    let out = Out::new(cli.verbose);
+    let format: OutputFormat = cli.format.into();
+    let config = cli.config.as_str();
+    let out = Out::new(cli.verbose, format);
 
-    if !cli.no_banner {
+    if !cli.no_banner && format == OutputFormat::Human {
         if matches!(
             cli.command,
             Some(Commands::Index(_))
@@ -2875,49 +3450,78 @@ async fn main() {
             Cli::parse_from(["virage", "--help"]);
             return;
         }
-        Some(Commands::Index(args)) => cmd_index(args, cli.verbose).await,
-        Some(Commands::Query(args)) => cmd_query(args, cli.verbose).await,
-        Some(Commands::Validate(args)) => cmd_validate(args, cli.verbose).await,
-        Some(Commands::Check(args)) => cmd_check(args, cli.verbose).await,
-        Some(Commands::Report(args)) => cmd_report(args, cli.verbose),
+        Some(Commands::Index(args)) => cmd_index(args, cli.verbose, format, config).await,
+        Some(Commands::Query(args)) => cmd_query(args, cli.verbose, format, config).await,
+        Some(Commands::Validate(args)) => cmd_validate(args, cli.verbose, format, config).await,
+        Some(Commands::Check(args)) => cmd_check(args, cli.verbose, format, config).await,
+        Some(Commands::Report(args)) => cmd_report(args, cli.verbose, format),
         // H14: treat dialoguer Interrupted errors as clean cancellation
-        Some(Commands::Init(args)) => cmd_init(args, cli.verbose).map_err(|e| {
+        Some(Commands::Init(args)) => cmd_init(args, cli.verbose, format, config).map_err(|e| {
             if e.to_string().contains("interrupted") || e.to_string().contains("Interrupted") {
                 eprintln!("Cancelled.");
                 std::process::exit(0);
             }
             e
         }),
-        Some(Commands::Update) => cmd_update(cli.verbose).map_err(|e| {
+        Some(Commands::Update) => cmd_update(cli.verbose, format).map_err(|e| {
             if e.to_string().contains("interrupted") || e.to_string().contains("Interrupted") {
                 eprintln!("Cancelled.");
                 std::process::exit(0);
             }
             e
         }),
-        Some(Commands::Migrate(args)) => cmd_migrate(args, cli.verbose),
-        Some(Commands::Pack(args)) => cmd_pack(args, cli.verbose),
-        Some(Commands::InstallHooks(args)) => cmd_install_hooks(args, cli.verbose),
-        Some(Commands::Uninstall) => cmd_uninstall(cli.verbose),
-        Some(Commands::Telemetry(args)) => cmd_telemetry(args, cli.verbose),
+        Some(Commands::Migrate(args)) => cmd_migrate(args, cli.verbose, format, config),
+        Some(Commands::Pack(args)) => cmd_pack(args, cli.verbose, format),
+        Some(Commands::InstallHooks(args)) => cmd_install_hooks(args, cli.verbose, format, config),
+        Some(Commands::Uninstall) => cmd_uninstall(cli.verbose, format),
+        Some(Commands::Telemetry(args)) => cmd_telemetry(args, cli.verbose, format),
         Some(Commands::Store(args)) => match args.command {
-            StoreCommand::Stats(a) => cmd_store_stats(a, cli.verbose).await,
-            StoreCommand::Perf(a) => cmd_store_perf(a, cli.verbose).await,
+            StoreCommand::Stats(a) => cmd_store_stats(a, cli.verbose, format, config).await,
+            StoreCommand::Perf(a) => cmd_store_perf(a, cli.verbose, format, config).await,
         },
         Some(Commands::Chunks(args)) => match args.command {
-            ChunksCommand::Report(a) => cmd_chunks_report(a, cli.verbose),
+            ChunksCommand::Report(a) => cmd_chunks_report(a, cli.verbose, format),
         },
-        Some(Commands::Serve(args)) => cmd_serve(args).await,
-        Some(Commands::Plugin(args)) => cmd_plugin(args, cli.verbose),
-        Some(Commands::Usage) => cmd_usage(cli.verbose),
-        Some(Commands::ReadSkillSummary) => cmd_read_skill_summary(cli.verbose),
-        Some(Commands::Dashboard(args)) => cmd_dashboard(args, cli.verbose),
-        Some(Commands::Viz) => cmd_viz(cli.verbose),
-        Some(Commands::Quality(args)) => cmd_quality(args, cli.verbose),
+        Some(Commands::Serve(_args)) => cmd_serve(config).await,
+        Some(Commands::Plugin(args)) => cmd_plugin(args, cli.verbose, format),
+        Some(Commands::Usage) => cmd_usage(cli.verbose, format),
+        Some(Commands::ReadSkillSummary) => cmd_read_skill_summary(cli.verbose, format),
+        Some(Commands::Status(args)) => cmd_status(args, cli.verbose, format, config).await,
+        Some(Commands::Doctor(args)) => cmd_doctor(args, cli.verbose, format, config).await,
+        Some(Commands::Completions { shell }) => {
+            cmd_completions(shell);
+            Ok(())
+        }
+        Some(Commands::Dashboard(args)) => cmd_dashboard(args, cli.verbose, format, config),
+        Some(Commands::Viz) => cmd_viz(cli.verbose, format),
+        Some(Commands::Quality(args)) => cmd_quality(args, cli.verbose, format, config),
     };
 
     if let Err(e) = result {
-        out.error(&e.to_string());
+        let msg = e.to_string();
+        if let Some(hint) = error_hint_for(&msg) {
+            out.error_hint(&msg, hint);
+        } else {
+            out.error(&msg);
+        }
         std::process::exit(1);
+    }
+}
+
+fn error_hint_for(msg: &str) -> Option<&'static str> {
+    if msg.contains("virage.config.json")
+        && (msg.contains("not found") || msg.contains("No such file"))
+    {
+        Some("Run `virage init` to create a config file.")
+    } else if msg.contains("JSON") || msg.contains("parse error") || msg.contains("expected") {
+        Some("Check virage.config.json for syntax errors. Run `virage validate` for details.")
+    } else if msg.contains("embedder mismatch") || msg.contains("Dimension mismatch") {
+        Some("Run `virage index --force` to rebuild with the current embedder.")
+    } else if msg.contains("Connection refused") && msg.contains("6333") {
+        Some("Start Qdrant: docker run -p 6333:6333 qdrant/qdrant")
+    } else if msg.contains("Connection refused") && msg.contains("8000") {
+        Some("Start ChromaDB: docker run -p 8000:8000 chromadb/chroma")
+    } else {
+        None
     }
 }

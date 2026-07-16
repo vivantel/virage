@@ -14,6 +14,8 @@ pub mod output;
 pub mod pipeline;
 #[cfg(feature = "wasm-host")]
 pub mod plugins;
+#[cfg(feature = "cli-binary")]
+pub mod progress;
 pub mod rerankers;
 #[cfg(any(
     feature = "source-git",

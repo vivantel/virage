@@ -62,6 +62,7 @@ cli-binary = [
     "config",
     "dep:clap", "dep:indicatif", "dep:dialoguer", "dep:console", "dep:flate2", "dep:tar",
     "dep:ureq",
+    "dep:clap_complete", "dep:dirs", "dep:notify-debouncer-mini",
 ]
 # cli: local dev — same as cli-binary but also pulls in embedder-onnx (ort/load-dynamic).
 cli = ["cli-binary", "embedder-onnx"]
@@ -128,8 +129,11 @@ clap         = { version = "4",    features = ["derive"], optional = true }
 indicatif    = { version = "0.17", optional = true }
 dialoguer    = { version = "0.11", optional = true }
 console      = { version = "0.15", optional = true }
-flate2       = { version = "1",    optional = true }
-tar          = { version = "0.4",  optional = true }
+flate2                = { version = "1",   optional = true }
+tar                   = { version = "0.4", optional = true }
+clap_complete         = { version = "4",   optional = true }
+dirs                  = { version = "6",   optional = true }
+notify-debouncer-mini = { version = "0.6", optional = true }
 # WASM plugin host
 wasmtime     = { version = "46", default-features = false, features = ["cranelift", "component-model", "std", "runtime", "threads", "anyhow"], optional = true }
 wasmtime-wasi = { version = "46", optional = true }
