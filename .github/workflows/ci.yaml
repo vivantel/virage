@@ -232,6 +232,10 @@ jobs:
     env:
       # mold: faster Linux linker; appends after config.toml's -fuse-ld=bfd (last flag wins) (IR-021)
       RUSTFLAGS: "-C link-arg=-fuse-ld=mold"
+      # sccache: set explicitly so cargo sees RUSTC_WRAPPER even if action export is late (IR-021)
+      RUSTC_WRAPPER: sccache
+      # force GHA cache backend; without this sccache falls back to local disk (ephemeral) (IR-021)
+      SCCACHE_GHA_ENABLED: "true"
     steps:
       - uses: actions/checkout@v7
 
@@ -253,8 +257,8 @@ jobs:
           restore-keys: ${{ runner.os }}-cargo-reg-
 
       - name: Setup sccache
-        # sccache: per-crate artifact cache, replaces target/ in actions/cache (IR-021)
-        uses: mozilla-actions/sccache-action@v0.0.9
+        # sccache: per-crate artifact cache; v0.0.10 required for Node 24 runner compat (IR-021)
+        uses: mozilla-actions/sccache-action@v0.0.10
 
       - uses: actions/setup-node@v6
         with:
@@ -313,10 +317,6 @@ jobs:
             ~/.cargo/git
           key: ${{ runner.os }}-coverage-reg-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: ${{ runner.os }}-coverage-reg-
-
-      - name: Setup sccache
-        # sccache: per-crate artifact cache, replaces target/ in actions/cache (IR-021)
-        uses: mozilla-actions/sccache-action@v0.0.9
 
       - uses: actions/setup-node@v6
         with:
