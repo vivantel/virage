@@ -1,3 +1,9 @@
+[env]
+# Disable incremental compilation — eliminates target/debug/incremental/ (the largest target/ consumer).
+# CI uses sccache for per-crate artifact sharing instead. Local builds benefit from reduced disk usage.
+# IR-021: local build environment hygiene.
+CARGO_INCREMENTAL = { value = "0", force = true }
+
 # Cross-compilation linker for Linux ARM64.
 # Install: sudo apt-get install gcc-aarch64-linux-gnu
 # Or use `cross` (Docker-based): cargo install cross --git https://github.com/cross-rs/cross

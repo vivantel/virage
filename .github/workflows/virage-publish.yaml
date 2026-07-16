@@ -50,10 +50,24 @@ jobs:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
-            target
-          key: ${{ runner.os }}-${{ matrix.target }}-virage-bin-${{ hashFiles('**/Cargo.lock') }}
+          key: ${{ runner.os }}-${{ matrix.target }}-cargo-reg-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: |
-            ${{ runner.os }}-${{ matrix.target }}-virage-bin-
+            ${{ runner.os }}-${{ matrix.target }}-cargo-reg-
+
+      - name: Cache build artifacts (linux-x64-gnu Docker build)
+        # target/ cache for the manylinux2014 Docker build — sccache cannot run inside the container (IR-021)
+        if: matrix.platform-name == 'linux-x64-gnu'
+        uses: actions/cache@v6
+        with:
+          path: target
+          key: ${{ runner.os }}-${{ matrix.target }}-virage-target-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ matrix.target }}-virage-target-
+
+      - name: Setup sccache (native platforms)
+        # sccache: per-crate artifact cache, replaces target/ for non-Docker cargo builds (IR-021)
+        if: matrix.platform-name != 'linux-x64-gnu'
+        uses: mozilla-actions/sccache-action@v0.0.9
 
       # ── protoc (required by lance-encoding / prost-build) ─────────────────
 
