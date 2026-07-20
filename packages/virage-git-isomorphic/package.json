@@ -46,7 +46,7 @@
     "directory": "packages/virage-git-isomorphic"
   },
   "dependencies": {
-    "isomorphic-git": "^1.38.6"
+    "isomorphic-git": "^1.38.9"
   },
   "peerDependencies": {
     "@vivantel/virage-core": "*"
