@@ -106,8 +106,8 @@ enum Commands {
     Store(StoreArgs),
     /// Chunk-level sub-commands.
     Chunks(ChunksArgs),
-    /// Start the MCP stdio server.
-    Serve(ConfigPathArg),
+    /// Start the MCP server.
+    Serve(ServeArgs),
     /// Test a WASM plugin against fixture data.
     Plugin(PluginArgs),
     /// Print the virage-agent-claude usage notice.
@@ -139,6 +139,19 @@ enum Commands {
 
 #[derive(Args)]
 struct ConfigPathArg {}
+
+#[derive(Args)]
+struct ServeArgs {
+    /// Transport to use: stdio (default) or http.
+    /// HTTP transport requires a serve extension; without one virage exits with an error.
+    #[arg(long, default_value = "stdio")]
+    transport: String,
+
+    /// Bearer token hint passed to a serve extension for auth configuration.
+    /// Ignored when no serve extension is installed.
+    #[arg(long)]
+    auth_token: Option<String>,
+}
 
 #[derive(Args)]
 struct DbPathArg {
@@ -2900,8 +2913,23 @@ fn cmd_dashboard(
     Ok(())
 }
 
-async fn cmd_serve(config: &str) -> anyhow::Result<()> {
+async fn cmd_serve(args: &ServeArgs, config: &str) -> anyhow::Result<()> {
     use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
+
+    if args.transport == "http" {
+        anyhow::bail!(
+            "HTTP transport requires a serve extension to be installed. \
+             Running an unauthenticated HTTP MCP server is not safe; install a serve \
+             extension or use --transport stdio."
+        );
+    }
+
+    if args.auth_token.is_some() {
+        eprintln!(
+            "[virage] warning: --auth-token provided but no serve extension is installed; \
+             token ignored."
+        );
+    }
 
     let config_path = resolve_config_path(config)?;
     let cfg = load_config(&config_path)?;
@@ -3609,7 +3637,7 @@ async fn main() {
         Some(Commands::Chunks(args)) => match args.command {
             ChunksCommand::Report(a) => cmd_chunks_report(a, cli.verbose, format),
         },
-        Some(Commands::Serve(_args)) => cmd_serve(config).await,
+        Some(Commands::Serve(args)) => cmd_serve(&args, config).await,
         Some(Commands::Plugin(args)) => cmd_plugin(args, cli.verbose, format),
         Some(Commands::Usage) => cmd_usage(cli.verbose, format),
         Some(Commands::ReadSkillSummary) => cmd_read_skill_summary(cli.verbose, format),
