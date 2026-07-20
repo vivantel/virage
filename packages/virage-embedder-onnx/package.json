@@ -1,0 +1,52 @@
+{
+  "name": "@vivantel/virage-embedder-onnx",
+  "version": "1.1.0",
+  "description": "ONNX Runtime embedder for Virage — run local embedding models entirely in Rust (napi-rs)",
+  "type": "module",
+  "main": "./dist/index.js",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "files": [
+    "dist",
+    "npm",
+    "*.node"
+  ],
+  "scripts": {
+    "build": "tsc --build",
+    "build:native": "napi build --release --platform",
+    "type-check": "tsc --build --noEmit",
+    "test": "vitest run",
+    "prepublishOnly": "npm run build"
+  },
+  "peerDependencies": {
+    "@vivantel/virage-core": ">=0.2"
+  },
+  "optionalDependencies": {
+    "@vivantel/virage-embedder-onnx-linux-x64-gnu": "1.1.0",
+    "@vivantel/virage-embedder-onnx-linux-arm64-gnu": "1.1.0",
+    "@vivantel/virage-embedder-onnx-darwin-arm64": "1.1.0",
+    "@vivantel/virage-embedder-onnx-win32-x64-msvc": "1.1.0"
+  },
+  "rag-plugin": {
+    "type": "embedder",
+    "label": "ONNX Runtime (local, Rust)",
+    "key": "onnx",
+    "defaultConfig": {
+      "model": "Xenova/all-MiniLM-L6-v2",
+      "dimensions": 384
+    }
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "license": "MIT OR Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/vivantel/virage.git",
+    "directory": "packages/virage-embedder-onnx"
+  }
+}

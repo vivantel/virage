@@ -1,0 +1,35 @@
+[package]
+name    = "virage-embedder-onnx"
+version = "0.1.0"
+edition = "2021"
+description = "ONNX Runtime embedder for Virage — run local embedding models entirely in Rust"
+license = "MIT OR Apache-2.0"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+napi        = { workspace = true }
+napi-derive = { workspace = true }
+
+# default-features=false so our [features] section controls everything.
+# With load-dynamic (default): ort-sys/disable-linking is set → no ORT link dep at all
+#   → cargo build/test/clippy work without system ORT.
+# With --no-default-features --features download-binaries (production napi build):
+#   ORT 1.24.2 is downloaded from cdn.pyke.io at build time and statically linked
+#   → the .node file is self-contained, no runtime dlopen needed.
+ort         = { version = "2.0.0-rc.12", default-features = false }
+
+# HuggingFace tokenizers — full Rust implementation, no subprocess
+tokenizers  = { version = "0.21", default-features = false, features = ["onig"] }
+
+[features]
+# Dev/lint: dlopen at runtime, no link-time ORT dep. Default so cargo build/clippy work anywhere.
+default = ["load-dynamic"]
+load-dynamic = ["ort/load-dynamic", "ort/std", "ort/api-24"]
+# Prod: used with --no-default-features so load-dynamic is absent.
+# Downloads ORT 1.24.2 from cdn.pyke.io at build time and statically links it.
+download-binaries = ["ort/download-binaries", "ort/std", "ort/api-24", "ort/tls-native"]
+
+[build-dependencies]
+napi-build = "2"
