@@ -67,7 +67,7 @@ jobs:
       - name: Setup sccache (native platforms)
         # sccache: per-crate artifact cache, replaces target/ for non-Docker cargo builds (IR-021)
         if: matrix.platform-name != 'linux-x64-gnu'
-        uses: mozilla-actions/sccache-action@v0.0.9
+        uses: mozilla-actions/sccache-action@v0.0.10
 
       # ── protoc (required by lance-encoding / prost-build) ─────────────────
 
