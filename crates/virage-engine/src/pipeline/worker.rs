@@ -60,9 +60,11 @@ fn find_chunker<'a>(
     chunkers: &'a [Arc<dyn crate::chunkers::FileChunker>],
     path: &str,
 ) -> Option<&'a Arc<dyn crate::chunkers::FileChunker>> {
-    chunkers
-        .iter()
-        .find(|c| c.patterns().iter().any(|pat| crate::sources::glob_match(pat, path)))
+    chunkers.iter().find(|c| {
+        c.patterns()
+            .iter()
+            .any(|pat| crate::sources::glob_match(pat, path))
+    })
 }
 
 async fn process_item(

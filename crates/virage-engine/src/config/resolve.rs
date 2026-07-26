@@ -598,6 +598,10 @@ mod chunker_resolution_tests {
             plugin_ref("@vivantel/virage-chunker-ce-pdf"),
         ];
         let chunkers = resolve_chunkers(&specs).unwrap();
-        assert_eq!(chunkers.len(), 1, "same package referenced twice should dedupe to 1");
+        assert_eq!(
+            chunkers.len(),
+            1,
+            "same package referenced twice should dedupe to 1"
+        );
     }
 }
