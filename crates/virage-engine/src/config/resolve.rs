@@ -481,3 +481,127 @@ fn resolve_default_source(cwd: &Path) -> anyhow::Result<Arc<dyn SourceProvider>>
     #[allow(unreachable_code)]
     Err(anyhow!("no source feature compiled in"))
 }
+
+// ─── Chunker resolution ────────────────────────────────────────────────────────
+
+/// Instantiate a built-in `FileChunker` from a single `PluginRef`.
+///
+/// Supported packages (or `builtin:` shorthands):
+/// - `@vivantel/virage-chunker-ce-pdf`   / `pdf`          → PdfChunker
+/// - `@vivantel/virage-chunker-ce-docx`  / `docx`, `word`  → DocxChunker
+/// - `@vivantel/virage-chunker-ce-md`    / `md`, `markdown` → MdChunker
+/// - `@vivantel/virage-chunker-ce-latex` / `latex`, `tex`   → LatexChunker
+/// - `@vivantel/virage-chunker-ce-lang`  / `lang`, `code`   → LangChunker
+fn resolve_chunker(spec: &PluginRef) -> anyhow::Result<Arc<dyn crate::chunkers::FileChunker>> {
+    match spec.package.as_str() {
+        p if p.contains("chunker-ce-pdf") => {
+            #[cfg(feature = "chunker-pdf")]
+            {
+                Ok(Arc::new(crate::chunkers::pdf::PdfChunker))
+            }
+            #[cfg(not(feature = "chunker-pdf"))]
+            Err(anyhow!("chunker-pdf feature not compiled in"))
+        }
+        p if p.contains("chunker-ce-docx") => {
+            #[cfg(feature = "chunker-docx")]
+            {
+                Ok(Arc::new(crate::chunkers::docx::DocxChunker))
+            }
+            #[cfg(not(feature = "chunker-docx"))]
+            Err(anyhow!("chunker-docx feature not compiled in"))
+        }
+        p if p.contains("chunker-ce-md") => {
+            #[cfg(feature = "chunker-md")]
+            {
+                Ok(Arc::new(crate::chunkers::md::MdChunker))
+            }
+            #[cfg(not(feature = "chunker-md"))]
+            Err(anyhow!("chunker-md feature not compiled in"))
+        }
+        p if p.contains("chunker-ce-latex") => {
+            #[cfg(feature = "chunker-latex")]
+            {
+                Ok(Arc::new(crate::chunkers::latex::LatexChunker))
+            }
+            #[cfg(not(feature = "chunker-latex"))]
+            Err(anyhow!("chunker-latex feature not compiled in"))
+        }
+        p if p.contains("chunker-ce-lang") => {
+            #[cfg(feature = "chunker-lang")]
+            {
+                Ok(Arc::new(crate::chunkers::lang::LangChunker))
+            }
+            #[cfg(not(feature = "chunker-lang"))]
+            Err(anyhow!("chunker-lang feature not compiled in"))
+        }
+        other => Err(anyhow!("unknown chunker package {:?}", other)),
+    }
+}
+
+/// Resolve every distinct chunker `PluginRef` referenced across all fileSets into
+/// `FileChunker` instances. Callers match files to chunkers via `FileChunker::patterns()`
+/// at dispatch time (see `pipeline::worker::process_item`) — this function only handles
+/// package → instance resolution, deduplicated by package name so the same chunker isn't
+/// constructed twice when multiple fileSets reference it.
+pub fn resolve_chunkers(
+    specs: &[PluginRef],
+) -> anyhow::Result<Vec<Arc<dyn crate::chunkers::FileChunker>>> {
+    let mut seen = std::collections::HashSet::new();
+    let mut chunkers = Vec::new();
+    for spec in specs {
+        if seen.insert(spec.package.clone()) {
+            chunkers.push(resolve_chunker(spec)?);
+        }
+    }
+    Ok(chunkers)
+}
+
+#[cfg(test)]
+mod chunker_resolution_tests {
+    use super::*;
+
+    fn plugin_ref(package: &str) -> PluginRef {
+        PluginRef {
+            package: package.to_string(),
+            options: std::collections::HashMap::new(),
+        }
+    }
+
+    #[test]
+    #[cfg(feature = "chunker-pdf")]
+    fn resolves_pdf_chunker() {
+        let c = resolve_chunker(&plugin_ref("@vivantel/virage-chunker-ce-pdf")).unwrap();
+        assert_eq!(c.name(), "pdf");
+        assert_eq!(c.patterns(), &["*.pdf"]);
+    }
+
+    #[test]
+    #[cfg(feature = "chunker-md")]
+    fn resolves_md_chunker() {
+        let c = resolve_chunker(&plugin_ref("@vivantel/virage-chunker-ce-md")).unwrap();
+        assert_eq!(c.name(), "md");
+    }
+
+    #[test]
+    fn unknown_package_is_an_error() {
+        let err = resolve_chunker(&plugin_ref("@vivantel/virage-chunker-ce-unknown"))
+            .unwrap_err()
+            .to_string();
+        assert!(err.contains("unknown chunker package"), "got: {err}");
+    }
+
+    #[test]
+    #[cfg(feature = "chunker-pdf")]
+    fn resolve_chunkers_dedupes_by_package() {
+        let specs = vec![
+            plugin_ref("@vivantel/virage-chunker-ce-pdf"),
+            plugin_ref("@vivantel/virage-chunker-ce-pdf"),
+        ];
+        let chunkers = resolve_chunkers(&specs).unwrap();
+        assert_eq!(
+            chunkers.len(),
+            1,
+            "same package referenced twice should dedupe to 1"
+        );
+    }
+}
