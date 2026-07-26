@@ -294,8 +294,8 @@ jobs:
             echo "::endgroup::"
           done
 
-      - name: Test virage-engine
-        run: cargo test -p virage-engine --features "pipeline,db-sqlite,wasm-host" --lib
+      - name: Test virage-engine (unit + chunker integration)
+        run: cargo test -p virage-engine --features "chunker-all,pipeline,db-sqlite,wasm-host" --lib --test integration_chunkers
 
       - name: Build CE native (linux-x64 validation)
         run: cargo build --release

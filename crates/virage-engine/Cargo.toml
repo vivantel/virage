@@ -143,3 +143,10 @@ wasmtime-wasi = { version = "46", optional = true }
 
 [build-dependencies]
 cc = "1"
+
+# Used by tests/integration_chunkers.rs to construct real PDF/DOCX bytes
+# in-memory (mirrors the optional prod deps above; same version/feature set
+# so cargo unifies rather than resolving a second copy).
+[dev-dependencies]
+lopdf   = { version = "0.41", default-features = false }
+docx-rs = { version = "0.4",  default-features = false }
