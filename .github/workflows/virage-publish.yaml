@@ -149,6 +149,16 @@ jobs:
               chown -R \$HOST_GID /workspace/target /workspace/virage-linux-x64-gnu
             "
 
+      - name: Smoke test (linux-x64-gnu — real index run, not just compile)
+        if: matrix.platform-name == 'linux-x64-gnu' && (inputs.platform == '' || inputs.platform == matrix.platform-name)
+        timeout-minutes: 10
+        env:
+          RUST_BACKTRACE: "1"
+        run: |
+          chmod +x ./virage-linux-x64-gnu
+          ./virage-linux-x64-gnu --no-banner validate --config virage.config.ci.json
+          ./virage-linux-x64-gnu -v index --config virage.config.ci.json
+
       # ── linux-arm64-gnu: cross-compile ─────────────────────────────────────
 
       - name: Install cross-compilation toolchain (ARM64 Linux)
