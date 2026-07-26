@@ -10,6 +10,12 @@
       "Bash(gh run delete *)"
     ]
   },
+  "autoMode": {
+    "allow": [
+      "$defaults",
+      "Bash(gh workflow run *)"
+    ]
+  },
   "hooks": {
     "PreToolUse": [
       {
