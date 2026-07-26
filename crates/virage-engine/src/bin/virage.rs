@@ -9,7 +9,9 @@ use virage_engine::progress::{finish_stage, Progress};
 
 #[cfg(any(feature = "embedder-onnx", feature = "download-binaries"))]
 use virage_engine::config::resolve::resolve_reranker;
-use virage_engine::config::resolve::{resolve_embedder, resolve_source, resolve_store};
+use virage_engine::config::resolve::{
+    resolve_chunkers, resolve_embedder, resolve_source, resolve_store,
+};
 use virage_engine::config::{default_db_path, find_config, load_config, VirageConfigJson};
 use virage_engine::db::VirageDb;
 use virage_engine::embedders::Embedder;
@@ -617,6 +619,21 @@ async fn cmd_index(
         t_stage.elapsed().as_millis()
     ));
 
+    let t_stage = std::time::Instant::now();
+    let stage = prog.stage("Resolving chunkers...");
+    let chunker_specs: Vec<_> = cfg
+        .file_sets
+        .iter()
+        .flat_map(|fs| fs.chunkers.iter().cloned())
+        .collect();
+    let chunkers = resolve_chunkers(&chunker_specs)?;
+    finish_stage(stage);
+    out.verbose(&format!(
+        "chunkers: {}  ({}ms)",
+        chunkers.len(),
+        t_stage.elapsed().as_millis()
+    ));
+
     if args.watch {
         use notify_debouncer_mini::{new_debouncer, notify::RecursiveMode};
         use std::sync::mpsc::TryRecvError;
@@ -665,7 +682,7 @@ async fn cmd_index(
             let _ = run_pipeline(
                 &pipeline_cfg,
                 source.clone(),
-                vec![],
+                chunkers.clone(),
                 embedder.clone(),
                 store.clone(),
                 known_revisions.clone(),
@@ -736,7 +753,7 @@ async fn cmd_index(
                     match run_pipeline(
                         &pipeline_cfg,
                         source.clone(),
-                        vec![],
+                        chunkers.clone(),
                         embedder.clone(),
                         store.clone(),
                         known,
@@ -852,7 +869,7 @@ async fn cmd_index(
     let stats = run_pipeline(
         &pipeline_cfg,
         source.clone(),
-        vec![],
+        chunkers.clone(),
         embedder,
         store.clone(),
         known_revisions,

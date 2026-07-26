@@ -57,7 +57,7 @@ config = ["dep:serde"]
 # cli-binary: everything the binary needs except embedder-onnx (no ort/load-dynamic).
 # Used by publish CI: --features cli-binary,download-binaries --no-default-features
 cli-binary = [
-    "pipeline", "source-all",
+    "pipeline", "source-all", "chunker-all",
     "store-lancedb", "store-qdrant", "store-postgres", "store-chromadb", "db-sqlite",
     "config",
     "dep:clap", "dep:indicatif", "dep:dialoguer", "dep:console", "dep:flate2", "dep:tar",
