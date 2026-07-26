@@ -43,8 +43,13 @@ pub fn parse(bytes: &[u8]) -> Result<DocNode, Box<dyn std::error::Error>> {
     let mut children: Vec<DocNode> = Vec::new();
     let mut byte_cursor: u64 = 0;
 
-    for (&page_num, &page_id) in &pages {
-        let page_text = match doc.extract_text(&[page_id.0]) {
+    for &page_num in pages.keys() {
+        // `extract_text` takes logical page numbers (the same 1-based
+        // sequence as `pages`'s keys), not PDF object numbers — passing an
+        // ObjectId's own number here silently extracted nothing on any
+        // document where object numbering doesn't happen to match page
+        // order (i.e. almost all real PDFs).
+        let page_text = match doc.extract_text(&[page_num]) {
             Ok(t) => t,
             Err(_) => continue, // skip pages with unextractable text (images, encrypted)
         };
