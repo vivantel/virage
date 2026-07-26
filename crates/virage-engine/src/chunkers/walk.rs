@@ -516,6 +516,12 @@ mod tests {
         make_node(DocNodeType::Heading, Some(text), Some(level), None)
     }
 
+    fn para_with_page(text: &str, page: u32) -> DocNode {
+        let mut node = para(text);
+        node.attrs.page_number = Some(page);
+        node
+    }
+
     fn doc(children: Vec<DocNode>) -> DocNode {
         make_node(DocNodeType::Document, None, None, Some(children))
     }
@@ -690,6 +696,29 @@ mod tests {
         ]);
         let outline = extract_outline(&root);
         assert_eq!(outline, vec!["Chapter One", "Chapter Two"]);
+    }
+
+    #[test]
+    fn page_number_propagates_to_window_page_start_and_end() {
+        let root = doc(vec![
+            para_with_page("page one text", 1),
+            para_with_page("page two text", 2),
+        ]);
+        let mut o = opts();
+        o.max_tokens = 1000; // fit both segments in one window
+
+        let result = walk_to_chunks(&root, &o);
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].metadata["pageStart"].as_u64().unwrap(), 1);
+        assert_eq!(result[0].metadata["pageEnd"].as_u64().unwrap(), 2);
+    }
+
+    #[test]
+    fn page_number_absent_from_metadata_when_source_has_no_pagination() {
+        let root = doc(vec![para("no page info")]);
+        let result = walk_to_chunks(&root, &opts());
+        assert!(!result[0].metadata.contains_key("pageStart"));
+        assert!(!result[0].metadata.contains_key("pageEnd"));
     }
 
     #[test]
