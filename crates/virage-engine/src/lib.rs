@@ -6,6 +6,8 @@ pub mod config;
 #[cfg(feature = "db-sqlite")]
 pub mod db;
 pub mod embedders;
+#[cfg(feature = "cli-binary")]
+pub mod mcp;
 #[cfg(any(feature = "embedder-onnx", feature = "download-binaries"))]
 pub mod onnx;
 #[cfg(feature = "cli-binary")]
