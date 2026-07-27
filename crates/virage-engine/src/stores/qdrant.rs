@@ -8,7 +8,7 @@ use qdrant_client::qdrant::{
 use qdrant_client::{Payload, Qdrant};
 use serde_json::Value;
 
-use super::{SearchOptions, SearchResult, VectorDocument, VectorStore};
+use super::{validate_tag_filter, SearchOptions, SearchResult, VectorDocument, VectorStore};
 
 // ─── QdrantStore ──────────────────────────────────────────────────────────────
 
@@ -90,6 +90,10 @@ impl QdrantStore {
         meta.insert(
             "commit_hash".to_string(),
             Value::String(doc.commit_hash.clone()),
+        );
+        meta.insert(
+            "tags".to_string(),
+            Value::Array(doc.tags.iter().cloned().map(Value::String).collect()),
         );
         let payload: Payload = serde_json::Value::Object(meta).try_into()?;
         Ok(PointStruct::new(
@@ -228,15 +232,22 @@ impl VectorStore for QdrantStore {
         &self,
         query: &[f32],
         top_k: usize,
-        _opts: SearchOptions,
+        opts: SearchOptions,
     ) -> anyhow::Result<Vec<SearchResult>> {
         let client = self.get_client().await?;
-        let resp = client
-            .search_points(
-                SearchPointsBuilder::new(&self.collection, query.to_vec(), top_k as u64)
-                    .with_payload(true),
-            )
-            .await?;
+        let mut builder = SearchPointsBuilder::new(&self.collection, query.to_vec(), top_k as u64)
+            .with_payload(true);
+        if let Some(tag_filter) = &opts.tag_filter {
+            validate_tag_filter(tag_filter)?;
+            if !tag_filter.is_empty() {
+                let conditions: Vec<qdrant_client::qdrant::Condition> = tag_filter
+                    .iter()
+                    .map(|t| qdrant_client::qdrant::Condition::matches("tags", t.clone()))
+                    .collect();
+                builder = builder.filter(Filter::should(conditions));
+            }
+        }
+        let resp = client.search_points(builder).await?;
 
         let results = resp
             .result
@@ -258,6 +269,7 @@ impl VectorStore for QdrantStore {
                     "metadata_generator_id",
                     "source_file",
                     "commit_hash",
+                    "tags",
                 ];
                 let metadata: HashMap<String, serde_json::Value> = pt
                     .payload

@@ -230,10 +230,10 @@ impl SourceProvider for GitSourceProvider {
                     true
                 })
                 .map(|(path, blob_sha)| {
-                    let labels = self
+                    let tags = self
                         .codeowners
                         .as_ref()
-                        .map(|co| co.labels_for_file(&path))
+                        .map(|co| co.tags_for_file(&path))
                         .unwrap_or_default();
                     let mut meta = HashMap::new();
                     meta.insert("blobSha".to_string(), json!(blob_sha.clone()));
@@ -241,7 +241,7 @@ impl SourceProvider for GitSourceProvider {
                         id: blob_sha,
                         path,
                         provider_name: self.provider_name.clone(),
-                        labels,
+                        tags,
                         meta,
                     }
                 })
@@ -316,7 +316,7 @@ impl Codeowners {
         Codeowners { entries }
     }
 
-    fn labels_for_file(&self, path: &str) -> Vec<String> {
+    fn tags_for_file(&self, path: &str) -> Vec<String> {
         let normalized = path.trim_start_matches('/');
         let mut last_match: Option<&[String]> = None;
         for entry in &self.entries {
@@ -338,12 +338,12 @@ impl Codeowners {
             }
         }
         last_match
-            .map(|owners| owners.iter().map(|o| owner_to_label(o)).collect())
+            .map(|owners| owners.iter().map(|o| owner_to_tag(o)).collect())
             .unwrap_or_default()
     }
 }
 
-fn owner_to_label(owner: &str) -> String {
+fn owner_to_tag(owner: &str) -> String {
     let stripped = owner.trim_start_matches('@');
     match stripped.find('/') {
         Some(idx) => format!("team:{}", &stripped[idx + 1..]),
@@ -484,46 +484,46 @@ mod tests {
     #[test]
     fn codeowners_org_team_owner() {
         let co = Codeowners::from_content("*.rs @org/rust-team\n");
-        let labels = co.labels_for_file("src/lib.rs");
+        let tags = co.tags_for_file("src/lib.rs");
         assert!(
-            labels.contains(&"team:rust-team".to_string()),
-            "got: {labels:?}"
+            tags.contains(&"team:rust-team".to_string()),
+            "got: {tags:?}"
         );
     }
 
     #[test]
     fn codeowners_username_owner() {
         let co = Codeowners::from_content("* @alice\n");
-        let labels = co.labels_for_file("any/file.txt");
-        assert_eq!(labels, vec!["owner:alice".to_string()]);
+        let tags = co.tags_for_file("any/file.txt");
+        assert_eq!(tags, vec!["owner:alice".to_string()]);
     }
 
     #[test]
     fn codeowners_last_rule_wins() {
         let co = Codeowners::from_content("* @org/everyone\n/src/** @org/core\n");
-        let labels = co.labels_for_file("src/lib.rs");
-        assert_eq!(labels, vec!["team:core".to_string()]);
+        let tags = co.tags_for_file("src/lib.rs");
+        assert_eq!(tags, vec!["team:core".to_string()]);
     }
 
     #[test]
     fn codeowners_no_match_returns_empty() {
         let co = Codeowners::from_content("/docs/** @org/docs-team\n");
-        let labels = co.labels_for_file("src/lib.rs");
-        assert!(labels.is_empty());
+        let tags = co.tags_for_file("src/lib.rs");
+        assert!(tags.is_empty());
     }
 
     #[test]
     fn codeowners_comment_lines_ignored() {
         let co = Codeowners::from_content("# this is a comment\n*.rs @org/team\n");
-        let labels = co.labels_for_file("lib.rs");
-        assert!(!labels.is_empty());
+        let tags = co.tags_for_file("lib.rs");
+        assert!(!tags.is_empty());
     }
 
     #[test]
-    fn owner_to_label_converts_correctly() {
-        assert_eq!(owner_to_label("@org/team-name"), "team:team-name");
-        assert_eq!(owner_to_label("@username"), "owner:username");
-        assert_eq!(owner_to_label("username"), "owner:username");
+    fn owner_to_tag_converts_correctly() {
+        assert_eq!(owner_to_tag("@org/team-name"), "team:team-name");
+        assert_eq!(owner_to_tag("@username"), "owner:username");
+        assert_eq!(owner_to_tag("username"), "owner:username");
     }
 
     // ── apply_range (via mod) ─────────────────────────────────────────────────

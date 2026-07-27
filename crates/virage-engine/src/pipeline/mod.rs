@@ -12,8 +12,8 @@ pub struct WorkItem {
     pub path: String,
     /// Stable content revision token (git blob SHA or content hash).
     pub revision: String,
-    /// Labels applied by the index-time label pipeline.
-    pub labels: Vec<String>,
+    /// Tags applied by the index-time tag pipeline.
+    pub tags: Vec<String>,
 }
 
 /// Chunks produced by a worker for a single `WorkItem`.
@@ -193,7 +193,7 @@ mod tests {
                         id: i.id.clone(),
                         path: i.path.clone(),
                         provider_name: i.provider_name.clone(),
-                        labels: i.labels.clone(),
+                        tags: i.tags.clone(),
                         meta: i.meta.clone(),
                     })
                 })
@@ -308,7 +308,7 @@ mod tests {
                 id: "f1".into(),
                 path: "README.md".into(),
                 provider_name: "mock".into(),
-                labels: vec![],
+                tags: vec![],
                 meta: HashMap::new(),
             }],
         });
