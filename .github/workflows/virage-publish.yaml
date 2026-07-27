@@ -113,12 +113,11 @@ jobs:
             -v "$HOME/.cargo-manylinux:/cargo" \
             -v "$HOME/.cache/ort.pyke.io:/root/.cache/ort.pyke.io" \
             -e CARGO_HOME=/cargo \
-            quay.io/pypa/manylinux2014_x86_64 \
+            quay.io/pypa/manylinux_2_28_x86_64 \
             bash -ec "
-              ls /opt/rh/ 2>&1
-              source /opt/rh/devtoolset-11/enable
+              gcc --version
 
-              # protoc — CentOS 7 EPEL is pre-3.12; install from GitHub (includes well-known protos)
+              # protoc — install from GitHub (includes well-known protos)
               curl -sSfL "https://github.com/protocolbuffers/protobuf/releases/download/v29.3/protoc-29.3-linux-x86_64.zip" \
                 -o /tmp/protoc.zip
               unzip -q /tmp/protoc.zip -d /usr/local
