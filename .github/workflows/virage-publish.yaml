@@ -55,7 +55,7 @@ jobs:
             ${{ runner.os }}-${{ matrix.target }}-cargo-reg-
 
       - name: Cache build artifacts (linux-x64-gnu Docker build)
-        # target/ cache for the manylinux2014 Docker build — sccache cannot run inside the container (IR-021)
+        # target/ cache for the manylinux_2_28 Docker build — sccache cannot run inside the container (IR-021)
         if: matrix.platform-name == 'linux-x64-gnu'
         uses: actions/cache@v6
         with:
@@ -84,27 +84,27 @@ jobs:
         run: choco install protoc -y
         shell: pwsh
 
-      # ── linux-x64-gnu: manylinux2014 Docker → glibc 2.17 ─────────────────────
+      # ── linux-x64-gnu: manylinux_2_28 Docker → glibc 2.28 ─────────────────────
 
-      - name: Cache Rust toolchain (manylinux2014 x64)
+      - name: Cache Rust toolchain (manylinux_2_28 x64)
         if: matrix.platform-name == 'linux-x64-gnu' && (inputs.platform == '' || inputs.platform == matrix.platform-name)
         uses: actions/cache@v6
         with:
           path: ~/.cargo-manylinux
-          key: manylinux2014-x64-cargo-${{ hashFiles('**/Cargo.lock') }}
+          key: manylinux228-x64-cargo-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: |
-            manylinux2014-x64-cargo-
+            manylinux228-x64-cargo-
 
-      - name: Cache ORT download (manylinux2014 x64)
+      - name: Cache ORT download (manylinux_2_28 x64)
         if: matrix.platform-name == 'linux-x64-gnu' && (inputs.platform == '' || inputs.platform == matrix.platform-name)
         uses: actions/cache@v6
         with:
           path: ~/.cache/ort.pyke.io
-          key: ort-manylinux-x64-${{ hashFiles('**/Cargo.lock') }}
+          key: ort-manylinux228-x64-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: |
-            ort-manylinux-x64-
+            ort-manylinux228-x64-
 
-      - name: Build (linux-x64-gnu — manylinux2014 glibc 2.17)
+      - name: Build (linux-x64-gnu — manylinux_2_28 glibc 2.28)
         if: matrix.platform-name == 'linux-x64-gnu' && (inputs.platform == '' || inputs.platform == matrix.platform-name)
         run: |
           mkdir -p "$HOME/.cargo-manylinux" "$HOME/.cache/ort.pyke.io"
@@ -137,7 +137,7 @@ jobs:
               rustup target add x86_64-unknown-linux-gnu
 
               cd /workspace
-              CARGO_PROFILE_RELEASE_STRIP=false cargo build -p virage-engine --bin virage --release \
+              cargo build -p virage-engine --bin virage --release \
                 --target x86_64-unknown-linux-gnu \
                 --features cli-binary,download-binaries,store-lancedb \
                 --no-default-features
@@ -157,16 +157,7 @@ jobs:
         run: |
           chmod +x ./virage-linux-x64-gnu
           ./virage-linux-x64-gnu --no-banner validate --config virage.config.ci.json
-          sudo apt-get update -y && sudo apt-get install -y gdb strace
-          sudo strace -f -o /tmp/virage-strace.log ./virage-linux-x64-gnu -v index --config virage.config.ci.json
-
-      - name: Dump smoke-test diagnostics on failure
-        if: failure()
-        run: |
-          echo "=== strace signal/exit lines ==="
-          sudo grep -E "\+\+\+|SIG|SEGV|exited with" /tmp/virage-strace.log 2>/dev/null || echo "no signal lines found"
-          echo "=== strace tail (last 200 lines) ==="
-          sudo tail -200 /tmp/virage-strace.log 2>/dev/null || echo "no strace log"
+          ./virage-linux-x64-gnu -v index --config virage.config.ci.json
           echo "=== gdb backtrace ==="
           ulimit -c unlimited
           sudo gdb --batch -ex run -ex "bt full" -ex "info registers" -ex "x/10i \$pc-20" \
