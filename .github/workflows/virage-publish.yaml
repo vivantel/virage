@@ -158,10 +158,6 @@ jobs:
           chmod +x ./virage-linux-x64-gnu
           ./virage-linux-x64-gnu --no-banner validate --config virage.config.ci.json
           ./virage-linux-x64-gnu -v index --config virage.config.ci.json
-          echo "=== gdb backtrace ==="
-          ulimit -c unlimited
-          sudo gdb --batch -ex run -ex "bt full" -ex "info registers" -ex "x/10i \$pc-20" \
-            --args ./virage-linux-x64-gnu -v index --config virage.config.ci.json 2>&1 | tail -100 || true
 
       # ── linux-arm64-gnu: cross-compile ─────────────────────────────────────
 
