@@ -55,7 +55,7 @@ jobs:
             ${{ runner.os }}-${{ matrix.target }}-cargo-reg-
 
       - name: Cache build artifacts (linux-x64-gnu Docker build)
-        # target/ cache for the manylinux2014 Docker build — sccache cannot run inside the container (IR-021)
+        # target/ cache for the manylinux_2_28 Docker build — sccache cannot run inside the container (IR-021)
         if: matrix.platform-name == 'linux-x64-gnu'
         uses: actions/cache@v6
         with:
@@ -84,27 +84,27 @@ jobs:
         run: choco install protoc -y
         shell: pwsh
 
-      # ── linux-x64-gnu: manylinux2014 Docker → glibc 2.17 ─────────────────────
+      # ── linux-x64-gnu: manylinux_2_28 Docker → glibc 2.28 ─────────────────────
 
-      - name: Cache Rust toolchain (manylinux2014 x64)
+      - name: Cache Rust toolchain (manylinux_2_28 x64)
         if: matrix.platform-name == 'linux-x64-gnu' && (inputs.platform == '' || inputs.platform == matrix.platform-name)
         uses: actions/cache@v6
         with:
           path: ~/.cargo-manylinux
-          key: manylinux2014-x64-cargo-${{ hashFiles('**/Cargo.lock') }}
+          key: manylinux228-x64-cargo-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: |
-            manylinux2014-x64-cargo-
+            manylinux228-x64-cargo-
 
-      - name: Cache ORT download (manylinux2014 x64)
+      - name: Cache ORT download (manylinux_2_28 x64)
         if: matrix.platform-name == 'linux-x64-gnu' && (inputs.platform == '' || inputs.platform == matrix.platform-name)
         uses: actions/cache@v6
         with:
           path: ~/.cache/ort.pyke.io
-          key: ort-manylinux-x64-${{ hashFiles('**/Cargo.lock') }}
+          key: ort-manylinux228-x64-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: |
-            ort-manylinux-x64-
+            ort-manylinux228-x64-
 
-      - name: Build (linux-x64-gnu — manylinux2014 glibc 2.17)
+      - name: Build (linux-x64-gnu — manylinux_2_28 glibc 2.28)
         if: matrix.platform-name == 'linux-x64-gnu' && (inputs.platform == '' || inputs.platform == matrix.platform-name)
         run: |
           mkdir -p "$HOME/.cargo-manylinux" "$HOME/.cache/ort.pyke.io"
@@ -113,11 +113,11 @@ jobs:
             -v "$HOME/.cargo-manylinux:/cargo" \
             -v "$HOME/.cache/ort.pyke.io:/root/.cache/ort.pyke.io" \
             -e CARGO_HOME=/cargo \
-            quay.io/pypa/manylinux2014_x86_64 \
+            quay.io/pypa/manylinux_2_28_x86_64 \
             bash -ec "
-              source /opt/rh/devtoolset-10/enable
+              gcc --version
 
-              # protoc — CentOS 7 EPEL is pre-3.12; install from GitHub (includes well-known protos)
+              # protoc — install from GitHub (includes well-known protos)
               curl -sSfL "https://github.com/protocolbuffers/protobuf/releases/download/v29.3/protoc-29.3-linux-x86_64.zip" \
                 -o /tmp/protoc.zip
               unzip -q /tmp/protoc.zip -d /usr/local
@@ -148,6 +148,16 @@ jobs:
               chown -R \$HOST_GID /cargo /root/.cache/ort.pyke.io
               chown -R \$HOST_GID /workspace/target /workspace/virage-linux-x64-gnu
             "
+
+      - name: Smoke test (linux-x64-gnu — real index run, not just compile)
+        if: matrix.platform-name == 'linux-x64-gnu' && (inputs.platform == '' || inputs.platform == matrix.platform-name)
+        timeout-minutes: 10
+        env:
+          RUST_BACKTRACE: "1"
+        run: |
+          chmod +x ./virage-linux-x64-gnu
+          ./virage-linux-x64-gnu --no-banner validate --config virage.config.ci.json
+          ./virage-linux-x64-gnu -v index --config virage.config.ci.json
 
       # ── linux-arm64-gnu: cross-compile ─────────────────────────────────────
 
