@@ -11,6 +11,17 @@ fn main() {
             .compile("ort_glibc_compat");
         println!("cargo:rustc-link-arg=-Wl,--whole-archive,-Bstatic,-lort_glibc_compat,-Bdynamic,--no-whole-archive");
 
+        // Forces libstdc++ global locale construction (see ort_locale_init.cpp) before
+        // any ORT code runs. Same --whole-archive requirement as the stub above: cc::Build
+        // wraps this in a static archive too, so it needs forcing or the linker drops it
+        // as unreferenced (nothing calls its symbols directly -- only its global
+        // constructor matters).
+        cc::Build::new()
+            .cpp(true)
+            .file("src/ort_locale_init.cpp")
+            .compile("ort_locale_init");
+        println!("cargo:rustc-link-arg=-Wl,--whole-archive,-Bstatic,-lort_locale_init,-Bdynamic,--no-whole-archive");
+
         // libonnxruntime.a is a C++ archive; GCC does not auto-link libstdc++.
         println!("cargo:rustc-link-lib=stdc++");
     }
