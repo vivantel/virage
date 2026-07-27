@@ -16,7 +16,12 @@
 namespace {
 struct ForceLocaleInit {
   ForceLocaleInit() {
-    std::locale::global(std::locale::classic());
+    // std::locale::classic() is itself a lazily-initialized magic static (the "C" locale
+    // singleton) -- if it suffers the same archive-elimination problem as everything else
+    // here, calling global(classic()) just propagates an already-broken locale. Building
+    // one from scratch via the "C" name goes through full construction, not a singleton
+    // lookup.
+    std::locale::global(std::locale("C"));
     std::fprintf(stderr, "[ort_locale_init] global locale constructor ran\n");
   }
 };
