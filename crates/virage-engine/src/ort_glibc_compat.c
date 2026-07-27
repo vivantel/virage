@@ -39,8 +39,11 @@ __attribute__((weak))
 unsigned long long __isoc23_strtoull_l(const char *n, char **e, int b, void *l) { return strtoull_l(n, e, b, l); }
 
 /* glibc 2.32+: global flag used by libstdc++ to skip locks in single-threaded programs.
- * 0 = multi-threaded (conservative; takes the full thread-safe path). */
-__attribute__((weak)) char __libc_single_threaded = 0;
+ * EXPERIMENT (2026-07-27, E-10 magic-static investigation): testing 1 (single-threaded,
+ * skip-lock fast path) instead of the previous conservative 0, to check whether the
+ * multi-threaded/locked path is where a magic-static guard (e.g. a function-local static
+ * std::regex in onnxruntime::DeviceDiscovery::GetDevices()) is misbehaving. */
+__attribute__((weak)) char __libc_single_threaded = 1;
 
 /* libstdc++ 11+: called on allocation size overflow. Mangled name used directly for
  * C-file compatibility. abort() is safe — only reached on pathological inputs. */
