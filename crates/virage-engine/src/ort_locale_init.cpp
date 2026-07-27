@@ -10,11 +10,15 @@
 // symbols directly), leaving global locale facets zero-initialized until first use.
 // Compiling this as our own object file (not inside an archive) guarantees it's linked
 // and its constructor runs via .init_array before Rust's main().
+#include <cstdio>
 #include <locale>
 
 namespace {
 struct ForceLocaleInit {
-  ForceLocaleInit() { std::locale::global(std::locale::classic()); }
+  ForceLocaleInit() {
+    std::locale::global(std::locale::classic());
+    std::fprintf(stderr, "[ort_locale_init] global locale constructor ran\n");
+  }
 };
 
 __attribute__((init_priority(101))) ForceLocaleInit force_locale_init_instance;
