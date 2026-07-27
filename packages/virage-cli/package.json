@@ -61,7 +61,7 @@
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
     "glob": "^13.0.6",
-    "ws": "^8.21.0"
+    "ws": "^8.21.1"
   },
   "optionalDependencies": {
     "@vivantel/virage-agent-claude": ">=0.2.30",
