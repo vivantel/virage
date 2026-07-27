@@ -21,5 +21,5 @@ virage-vidoc = { path = "crates/virage-vidoc" }
 
 [profile.release]
 opt-level = 3
-lto = false
+lto = "thin"
 strip = true
