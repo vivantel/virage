@@ -40,6 +40,8 @@ pub struct WalkOptions<'a> {
     pub file_hash: Option<&'a str>,
     pub file_size_bytes: Option<u64>,
     pub file_modified_at: Option<&'a str>,
+    /// Tags applied by the index-time tag pipeline (e.g. CODEOWNERS-derived).
+    pub tags: &'a [String],
 }
 
 impl<'a> Default for WalkOptions<'a> {
@@ -59,6 +61,7 @@ impl<'a> Default for WalkOptions<'a> {
             file_hash: None,
             file_size_bytes: None,
             file_modified_at: None,
+            tags: &[],
         }
     }
 }
@@ -443,6 +446,9 @@ pub fn walk_to_chunks(root: &DocNode, opts: &WalkOptions) -> Vec<ArtifactSet> {
             }
             if win.truncated {
                 meta.insert("truncated".into(), json!(true));
+            }
+            if !opts.tags.is_empty() {
+                meta.insert("tags".into(), json!(opts.tags));
             }
 
             ArtifactSet {

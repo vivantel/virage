@@ -122,6 +122,7 @@ async fn process_item(
         file_hash: file_hash.as_deref(),
         file_size_bytes,
         file_modified_at: None,
+        tags: &item.tags,
     };
     let artifacts = walk_to_chunks(&root, &opts);
 
@@ -427,7 +428,7 @@ mod tests {
         let item = WorkItem {
             path: path.to_string_lossy().to_string(),
             revision: "rev1".into(),
-            labels: vec![],
+            tags: vec![],
         };
         let source: Arc<dyn SourceProvider> = Arc::new(NoopSource);
         let chunkers: Vec<Arc<dyn crate::chunkers::FileChunker>> = vec![Arc::new(MdOnlyChunker)];

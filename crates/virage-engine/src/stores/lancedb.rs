@@ -14,7 +14,9 @@ use lancedb::index::Index;
 use lancedb::query::{ExecutableQuery, QueryBase, Select};
 use lancedb::{Connection, Table};
 
-use super::{IndexMeta, SearchOptions, SearchResult, VectorDocument, VectorStore};
+use super::{
+    validate_tag_filter, IndexMeta, SearchOptions, SearchResult, VectorDocument, VectorStore,
+};
 
 fn sql_in_list(items: &[&str]) -> String {
     items
@@ -22,6 +24,24 @@ fn sql_in_list(items: &[&str]) -> String {
         .map(|s| format!("'{}'", s.replace('\'', "''")))
         .collect::<Vec<_>>()
         .join(", ")
+}
+
+/// Tags are packed as a single `|`-delimited string (`|tag1|tag2|`) — LanceDB's
+/// query engine (DataFusion) has no native array-containment operator over a
+/// plain Arrow list column reachable from `.only_if`, so containment is
+/// expressed as a substring match against the delimited packing instead. Safe
+/// because tag values are restricted (by `validate_tag_filter`/`is_valid_tag`)
+/// to `[a-z0-9\-_:]`, which cannot contain the `|` delimiter.
+fn pack_tags(tags: &[String]) -> String {
+    format!("|{}|", tags.join("|"))
+}
+
+fn tag_filter_expr(tags: &[String]) -> String {
+    let clauses: Vec<String> = tags
+        .iter()
+        .map(|t| format!("tags LIKE '%|{t}|%'"))
+        .collect();
+    format!("({})", clauses.join(" OR "))
 }
 
 // ─── LanceDbStore ─────────────────────────────────────────────────────────────
@@ -59,6 +79,7 @@ impl LanceDbStore {
                 false,
             ),
             Field::new("metadata_json", DataType::Utf8, false),
+            Field::new("tags", DataType::Utf8, false),
             Field::new("source_file", DataType::Utf8, false),
             Field::new("commit_hash", DataType::Utf8, false),
         ]));
@@ -130,6 +151,10 @@ impl LanceDbStore {
         let meta_json_arr = Arc::new(StringArray::from(
             meta_jsons.iter().map(|s| s.as_str()).collect::<Vec<_>>(),
         ));
+        let tags_packed: Vec<String> = docs.iter().map(|d| pack_tags(&d.tags)).collect();
+        let tags_arr = Arc::new(StringArray::from(
+            tags_packed.iter().map(|s| s.as_str()).collect::<Vec<_>>(),
+        ));
         let source_files = Arc::new(StringArray::from(
             docs.iter()
                 .map(|d| d.source_file.as_str())
@@ -152,6 +177,7 @@ impl LanceDbStore {
                 meta_gen_ids as ArrayRef,
                 vec_arr,
                 meta_json_arr as ArrayRef,
+                tags_arr as ArrayRef,
                 source_files as ArrayRef,
                 commit_hashes as ArrayRef,
             ],
@@ -334,10 +360,10 @@ impl VectorStore for LanceDbStore {
         &self,
         query: &[f32],
         top_k: usize,
-        _opts: SearchOptions,
+        opts: SearchOptions,
     ) -> anyhow::Result<Vec<SearchResult>> {
         let table = self.get_table().await?;
-        let stream = table
+        let mut q = table
             .query()
             .nearest_to(query)?
             .column("dense_vector")
@@ -351,9 +377,14 @@ impl VectorStore for LanceDbStore {
                 "metadata_generator_id".to_string(),
                 "metadata_json".to_string(),
                 "source_file".to_string(),
-            ]))
-            .execute()
-            .await?;
+            ]));
+        if let Some(tag_filter) = &opts.tag_filter {
+            validate_tag_filter(tag_filter)?;
+            if !tag_filter.is_empty() {
+                q = q.only_if(tag_filter_expr(tag_filter));
+            }
+        }
+        let stream = q.execute().await?;
         let batches: Vec<RecordBatch> = stream.try_collect().await?;
         Ok(Self::batches_to_results(batches))
     }

@@ -62,7 +62,7 @@ pub async fn run_pipeline(
                 to_process.push(WorkItem {
                     path: item.path.clone(),
                     revision: current_rev,
-                    labels: item.labels.clone(),
+                    tags: item.tags.clone(),
                 });
                 progress.inc_queued();
             }
@@ -193,7 +193,7 @@ fn embedded_to_vecdoc(ec: EmbeddedChunk, _path: &str) -> VectorDocument {
     let tags: Vec<String> = ec
         .artifact
         .metadata
-        .get("labels")
+        .get("tags")
         .and_then(|v| v.as_array())
         .map(|arr| {
             arr.iter()

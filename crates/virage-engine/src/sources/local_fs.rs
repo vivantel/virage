@@ -144,7 +144,7 @@ impl SourceProvider for LocalFsSourceProvider {
                     id: sha,
                     path: rel,
                     provider_name: self.provider_name.clone(),
-                    labels: vec![],
+                    tags: vec![],
                     meta,
                 })
             })

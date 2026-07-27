@@ -5,7 +5,16 @@ use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-use super::{SearchOptions, SearchResult, VectorDocument, VectorStore};
+use super::{validate_tag_filter, SearchOptions, SearchResult, VectorDocument, VectorStore};
+
+/// Chroma metadata values must be scalar (str/int/float/bool) — arrays aren't
+/// supported, so each tag is stored as its own boolean key rather than as a
+/// `tags: [...]` array. Prefix keeps it distinguishable from user metadata.
+const TAG_KEY_PREFIX: &str = "tag__";
+
+fn tag_key(tag: &str) -> String {
+    format!("{TAG_KEY_PREFIX}{tag}")
+}
 
 // ─── ChromaDB REST types ──────────────────────────────────────────────────────
 
@@ -41,6 +50,8 @@ struct QueryBody {
     query_embeddings: Vec<Vec<f32>>,
     n_results: usize,
     include: Vec<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    r#where: Option<Value>,
 }
 
 #[derive(Deserialize)]
@@ -121,6 +132,12 @@ impl ChromaDbStore {
 
     fn doc_to_meta(doc: &VectorDocument) -> HashMap<String, Value> {
         let mut meta = doc.metadata.clone();
+        // "tags" is a Vec-shaped key inserted upstream (chunkers/walk.rs) — Chroma
+        // metadata can't hold arrays, so drop it here in favor of the tag__* keys below.
+        meta.remove("tags");
+        for tag in &doc.tags {
+            meta.insert(tag_key(tag), Value::Bool(true));
+        }
         meta.insert("source_file".into(), Value::String(doc.source_file.clone()));
         meta.insert("commit_hash".into(), Value::String(doc.commit_hash.clone()));
         meta.insert(
@@ -307,9 +324,24 @@ impl VectorStore for ChromaDbStore {
         &self,
         query: &[f32],
         top_k: usize,
-        _opts: SearchOptions,
+        opts: SearchOptions,
     ) -> anyhow::Result<Vec<SearchResult>> {
         let col_id = self.get_collection_id().await?;
+        let where_clause = match &opts.tag_filter {
+            Some(tags) if !tags.is_empty() => {
+                validate_tag_filter(tags)?;
+                let conditions: Vec<Value> = tags
+                    .iter()
+                    .map(|t| serde_json::json!({ tag_key(t): { "$eq": true } }))
+                    .collect();
+                Some(if conditions.len() == 1 {
+                    conditions.into_iter().next().unwrap()
+                } else {
+                    serde_json::json!({ "$or": conditions })
+                })
+            }
+            _ => None,
+        };
         let body = QueryBody {
             query_embeddings: vec![query.to_vec()],
             n_results: top_k,
@@ -318,6 +350,7 @@ impl VectorStore for ChromaDbStore {
                 "metadatas".to_string(),
                 "distances".to_string(),
             ],
+            r#where: where_clause,
         };
         let resp = self
             .request_builder(
@@ -383,7 +416,9 @@ impl VectorStore for ChromaDbStore {
                 ];
                 let clean_meta: HashMap<String, Value> = meta
                     .into_iter()
-                    .filter(|(k, _)| !system_keys.contains(&k.as_str()))
+                    .filter(|(k, _)| {
+                        !system_keys.contains(&k.as_str()) && !k.starts_with(TAG_KEY_PREFIX)
+                    })
                     .collect();
                 SearchResult {
                     id,

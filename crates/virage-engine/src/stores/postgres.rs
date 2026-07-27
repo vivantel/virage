@@ -4,7 +4,7 @@ use async_trait::async_trait;
 use serde_json::Value;
 use sqlx::{AssertSqlSafe, PgPool};
 
-use super::{SearchOptions, SearchResult, VectorDocument, VectorStore};
+use super::{validate_tag_filter, SearchOptions, SearchResult, VectorDocument, VectorStore};
 
 // ─── PostgresStore ────────────────────────────────────────────────────────────
 
@@ -83,6 +83,7 @@ impl VectorStore for PostgresStore {
                 metadata_generator_id TEXT NOT NULL,
                 dense_vector vector({dims}) NOT NULL,
                 metadata_json TEXT NOT NULL DEFAULT '{{}}',
+                tags TEXT[] NOT NULL DEFAULT '{{}}',
                 source_file TEXT NOT NULL,
                 commit_hash TEXT NOT NULL
             )"
@@ -90,8 +91,20 @@ impl VectorStore for PostgresStore {
         .execute(&pool)
         .await?;
 
+        // Pre-existing tables from before tag filtering was added.
+        sqlx::query(AssertSqlSafe(format!(
+            "ALTER TABLE {table} ADD COLUMN IF NOT EXISTS tags TEXT[] NOT NULL DEFAULT '{{}}'"
+        )))
+        .execute(&pool)
+        .await?;
+
         sqlx::query(AssertSqlSafe(format!(
             "CREATE INDEX IF NOT EXISTS {table}_source_file_idx ON {table}(source_file)"
+        )))
+        .execute(&pool)
+        .await?;
+        sqlx::query(AssertSqlSafe(format!(
+            "CREATE INDEX IF NOT EXISTS {table}_tags_idx ON {table} USING GIN (tags)"
         )))
         .execute(&pool)
         .await?;
@@ -113,8 +126,8 @@ impl VectorStore for PostgresStore {
                 "INSERT INTO {table}
                     (id, dense_text, sparse_text, dense_text_hash,
                      sparse_text_generator_id, metadata_generator_id,
-                     dense_vector, metadata_json, source_file, commit_hash)
-                 VALUES ($1, $2, $3, $4, $5, $6, $7::vector, $8, $9, $10)
+                     dense_vector, metadata_json, tags, source_file, commit_hash)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7::vector, $8, $9, $10, $11)
                  ON CONFLICT (id) DO UPDATE SET
                      dense_text = EXCLUDED.dense_text,
                      sparse_text = EXCLUDED.sparse_text,
@@ -123,6 +136,7 @@ impl VectorStore for PostgresStore {
                      metadata_generator_id = EXCLUDED.metadata_generator_id,
                      dense_vector = EXCLUDED.dense_vector,
                      metadata_json = EXCLUDED.metadata_json,
+                     tags = EXCLUDED.tags,
                      source_file = EXCLUDED.source_file,
                      commit_hash = EXCLUDED.commit_hash"
             )))
@@ -134,6 +148,7 @@ impl VectorStore for PostgresStore {
             .bind(&doc.metadata_generator_id)
             .bind(&vec_sql)
             .bind(&meta_json)
+            .bind(&doc.tags)
             .bind(&doc.source_file)
             .bind(&doc.commit_hash)
             .execute(&pool)
@@ -195,25 +210,41 @@ impl VectorStore for PostgresStore {
         &self,
         query: &[f32],
         top_k: usize,
-        _opts: SearchOptions,
+        opts: SearchOptions,
     ) -> anyhow::Result<Vec<SearchResult>> {
         let pool = self.get_pool().await?;
         let table = &self.table;
         let vec_sql = Self::vec_to_sql(query);
 
+        let tag_filter = match &opts.tag_filter {
+            Some(tags) if !tags.is_empty() => {
+                validate_tag_filter(tags)?;
+                Some(tags)
+            }
+            _ => None,
+        };
+        let where_clause = if tag_filter.is_some() {
+            "WHERE tags && $3"
+        } else {
+            ""
+        };
+
         // cosine distance: 1 - similarity => similarity = 1 - distance
-        let rows: Vec<(String, String, String, String, String, f64)> =
-            sqlx::query_as(AssertSqlSafe(format!(
-                "SELECT id, dense_text, sparse_text, metadata_json, source_file,
-                    (dense_vector <=> $1::vector)::float8 AS distance
+        let query_sql = format!(
+            "SELECT id, dense_text, sparse_text, metadata_json, source_file,
+                (dense_vector <=> $1::vector)::float8 AS distance
              FROM {table}
+             {where_clause}
              ORDER BY distance
              LIMIT $2"
-            )))
+        );
+        let mut q = sqlx::query_as(AssertSqlSafe(query_sql))
             .bind(&vec_sql)
-            .bind(top_k as i64)
-            .fetch_all(&pool)
-            .await?;
+            .bind(top_k as i64);
+        if let Some(tags) = tag_filter {
+            q = q.bind(tags);
+        }
+        let rows: Vec<(String, String, String, String, String, f64)> = q.fetch_all(&pool).await?;
 
         Ok(rows
             .into_iter()

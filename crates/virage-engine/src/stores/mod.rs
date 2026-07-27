@@ -61,6 +61,58 @@ pub struct SearchResult {
     pub metadata_generator_id: Option<String>,
 }
 
+// ─── Tag validation ────────────────────────────────────────────────────────────
+
+/// Allow-list validation for tag values before they enter any store filter
+/// expression: `^[a-z0-9][a-z0-9\-_:]{0,63}$`. Guards against injection into
+/// backend-specific filter syntax (SQL, LanceDB `.only_if`, Qdrant filter DSL, ...).
+pub fn is_valid_tag(tag: &str) -> bool {
+    let mut chars = tag.chars();
+    let Some(first) = chars.next() else {
+        return false;
+    };
+    if !(first.is_ascii_lowercase() || first.is_ascii_digit()) {
+        return false;
+    }
+    if tag.len() > 64 {
+        return false;
+    }
+    chars.all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || matches!(c, '-' | '_' | ':'))
+}
+
+/// Reject the whole filter if any tag fails validation, rather than silently
+/// dropping the invalid ones.
+pub fn validate_tag_filter(tag_filter: &[String]) -> anyhow::Result<()> {
+    for tag in tag_filter {
+        if !is_valid_tag(tag) {
+            anyhow::bail!("invalid tag: {tag:?}");
+        }
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+mod tag_tests {
+    use super::*;
+
+    #[test]
+    fn accepts_canonical_tags() {
+        assert!(is_valid_tag("ns:acme-corp"));
+        assert!(is_valid_tag("team:payments"));
+        assert!(is_valid_tag("0abc_def"));
+    }
+
+    #[test]
+    fn rejects_injection_shaped_tags() {
+        assert!(!is_valid_tag(""));
+        assert!(!is_valid_tag("Ns:acme"));
+        assert!(!is_valid_tag("-leading-dash"));
+        assert!(!is_valid_tag("a'); DROP TABLE chunks;--"));
+        assert!(!is_valid_tag(&"a".repeat(65)));
+        assert!(validate_tag_filter(&["ok".into(), "NOT OK".into()]).is_err());
+    }
+}
+
 // ─── Index metadata ───────────────────────────────────────────────────────────
 
 /// Metadata stored alongside a vector index describing how it was built.

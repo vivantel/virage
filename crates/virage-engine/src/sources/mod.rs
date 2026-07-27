@@ -10,7 +10,7 @@ pub struct SourceItem {
     pub id: String,
     pub path: String,
     pub provider_name: String,
-    pub labels: Vec<String>,
+    pub tags: Vec<String>,
     pub meta: HashMap<String, Value>,
 }
 
