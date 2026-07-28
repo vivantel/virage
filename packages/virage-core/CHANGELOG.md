@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.13](https://github.com/vivantel/virage/compare/virage-core@v0.4.12...virage-core@v0.4.13) (2026-07-28)
+
+
+### Features
+
+* **engine:** Adopt tracing + tracing-subscriber for structured logging ([45b8ef0](https://github.com/vivantel/virage/commit/45b8ef0f3ec859a2bdb75767d010a732443cba83))
+
 ## [0.4.12](https://github.com/vivantel/virage/compare/virage-core@v0.4.11...virage-core@v0.4.12) (2026-07-15)
 
 
