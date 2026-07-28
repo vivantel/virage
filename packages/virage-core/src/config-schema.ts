@@ -149,6 +149,21 @@ const ZodPipelineOptions = z.object({
   noBanner: z.boolean().describe("Suppress the startup banner").optional(),
 });
 
+const ZodLoggingOptions = z.object({
+  level: z
+    .string()
+    .describe(
+      'tracing_subscriber EnvFilter directive string (e.g. "debug", "virage_engine=debug,warn"). Default "info". Overridden at runtime by RUST_LOG when set.',
+    )
+    .optional(),
+  transports: z
+    .array(z.record(z.string(), z.unknown()))
+    .describe(
+      "Remote log sinks. Parsed but not interpreted here — requires a downstream build with transport support to take effect.",
+    )
+    .optional(),
+});
+
 const ZodAgentRef = ZodPluginRef;
 
 // ─── Top-level config ─────────────────────────────────────────────────────────
@@ -179,6 +194,7 @@ export const ZodVirageConfig = z.object({
   search: ZodSearchConfig.optional(),
   agents: z.array(ZodAgentRef).optional(),
   pipeline: ZodPipelineOptions.optional(),
+  logging: ZodLoggingOptions.optional(),
   telemetry: z.record(z.string(), z.unknown()).optional(),
   quality: z.record(z.string(), z.unknown()).optional(),
 });

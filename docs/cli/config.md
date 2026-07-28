@@ -14,6 +14,7 @@ Full reference for the `virage.config.json` configuration file. Generate a start
 | `search` | object | No | Search behaviour (hybrid, alpha, re-rank oversample) |
 | `agents` | array | No | Agent plugins to configure (e.g. Claude Code, Copilot) |
 | `pipeline` | object | No | Throughput and concurrency tuning |
+| `logging` | object | No | Structured logging level (and, in some builds, remote transport sinks) — see [`logging`](#logging) |
 | `telemetry` | object | No | Telemetry configuration (provider-specific) |
 | `quality` | object | No | Quality pipeline configuration |
 
@@ -156,6 +157,21 @@ Tuning knobs for the indexing pipeline. All fields are optional. CLI flags overr
 | `minEmbeddingBatchSize` | integer | `10` | Minimum chunks to accumulate before sending an embedding request |
 | `minUploadingBatchSize` | integer | `20` | Minimum chunks to accumulate before uploading to the vector store |
 | `maxPendingFiles` | integer | — | Backpressure: max files queued for chunking before pausing reads |
+
+---
+
+## `logging`
+
+Structured logging via `tracing`. All fields are optional; the whole block may be omitted.
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `level` | string | `"info"` | `tracing_subscriber::EnvFilter` directive string (e.g. `"debug"`, `"virage_engine=debug,warn"`). Overridden at runtime by the `RUST_LOG` env var when set. |
+| `transports` | array | `[]` | Remote log sinks. Parsed but not interpreted here — requires a downstream build with transport support to have any effect. |
+
+Logs are always JSON, always written to stdout; there is no TTY-detected pretty-print mode. No
+file-writer rotation is provided — if you configure a log file, manage rotation externally (e.g.
+`logrotate`).
 
 ---
 

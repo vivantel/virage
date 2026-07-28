@@ -46,7 +46,7 @@ pub async fn worker_task(
             }
             Err(e) => {
                 // Log but don't abort — skip this file.
-                eprintln!("[virage-engine] worker skipped {:?}: {e}", item.path);
+                tracing::warn!(path = ?item.path, error = %e, "worker skipped file");
                 progress.inc_done();
             }
         }
@@ -86,10 +86,11 @@ async fn process_item(
                 // A format-specific parser matched but failed (e.g. corrupt file) —
                 // skip rather than silently falling back to raw-bytes decoding, which
                 // would mangle binary formats (PDF/DOCX) as lossy UTF-8 text.
-                eprintln!(
-                    "[virage-engine] chunker {:?} failed on {:?}: {e}",
-                    chunker.name(),
-                    item.path
+                tracing::warn!(
+                    chunker = chunker.name(),
+                    path = ?item.path,
+                    error = %e,
+                    "chunker failed on file"
                 );
                 return Ok(Vec::new());
             }

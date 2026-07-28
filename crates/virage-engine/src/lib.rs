@@ -7,6 +7,8 @@ pub mod config;
 pub mod db;
 pub mod embedders;
 #[cfg(feature = "cli-binary")]
+pub mod logging;
+#[cfg(feature = "cli-binary")]
 pub mod mcp;
 #[cfg(any(feature = "embedder-onnx", feature = "download-binaries"))]
 pub mod onnx;

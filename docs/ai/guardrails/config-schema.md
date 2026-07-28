@@ -85,6 +85,7 @@ VirageConfigJson
 ├── search?                SearchConfig
 ├── agents?                PluginRef[]
 ├── pipeline?              PipelineOptions (see docs/cli/config.md for all fields and defaults)
+├── logging?               LoggingOptions ← ADR-056; level: EnvFilter string, default "info"
 ├── telemetry?             TelemetryConfig
 └── quality?               QualityConfig
 ```
