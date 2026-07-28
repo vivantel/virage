@@ -13,6 +13,7 @@ use virage_engine::config::resolve::{
 };
 use virage_engine::config::{default_db_path, find_config, load_config, VirageConfigJson};
 use virage_engine::db::VirageDb;
+use virage_engine::logging::{self, LoggingConfig};
 use virage_engine::pipeline::{coordinator::run_pipeline, PipelineConfig, ProgressCounters};
 use virage_engine::stores::SearchOptions;
 
@@ -539,19 +540,35 @@ fn spinner(msg: &str) -> ProgressBar {
 
 // ─── Command implementations ──────────────────────────────────────────────────
 
+/// Best-effort logging init: reads `logging.level` from the config file if one resolves, falls
+/// back to the `-vvvvv` → trace convention otherwise. `RUST_LOG` always wins (see
+/// `virage_engine::logging`). Never fails the command — a missing/invalid config file just means
+/// default-level logging, the same as before this existed.
+fn init_logging(verbose: u8, config: &str) {
+    let level = resolve_config_path(config)
+        .ok()
+        .and_then(|path| load_config(&path).ok())
+        .and_then(|cfg| cfg.logging.and_then(|l| l.level))
+        .unwrap_or_else(|| {
+            if verbose >= 5 {
+                "trace".to_string()
+            } else {
+                "info".to_string()
+            }
+        });
+
+    logging::init(&LoggingConfig {
+        level,
+        file_path: None,
+    });
+}
+
 async fn cmd_index(
     args: IndexArgs,
     verbose: u8,
     format: OutputFormat,
     config: &str,
 ) -> anyhow::Result<()> {
-    if verbose >= 5 {
-        tracing_subscriber::fmt()
-            .with_max_level(tracing::Level::TRACE)
-            .with_writer(std::io::stderr)
-            .init();
-    }
-
     let t0 = std::time::Instant::now();
     let out = Out::new(verbose, format);
     let config_path = resolve_config_path(config)?;
@@ -2941,10 +2958,7 @@ async fn cmd_serve(args: &ServeArgs, config: &str) -> anyhow::Result<()> {
     }
 
     if args.auth_token.is_some() {
-        eprintln!(
-            "[virage] warning: --auth-token provided but no serve extension is installed; \
-             token ignored."
-        );
+        tracing::warn!("--auth-token provided but no serve extension is installed; token ignored.");
     }
 
     let config_path = resolve_config_path(config)?;
@@ -3457,6 +3471,8 @@ async fn main() {
     let format: OutputFormat = cli.format.into();
     let config = cli.config.as_str();
     let out = Out::new(cli.verbose, format);
+
+    init_logging(cli.verbose, config);
 
     if !cli.no_banner && format == OutputFormat::Human {
         print_banner();

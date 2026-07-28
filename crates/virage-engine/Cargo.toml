@@ -51,7 +51,8 @@ source-types  = ["dep:async-trait", "dep:futures", "dep:bytes", "dep:anyhow", "d
 store-types   = ["dep:async-trait", "dep:anyhow"]
 chunker-walk  = ["dep:sha2"]
 pipeline      = ["chunker-walk", "source-types", "store-types", "db-sqlite",
-                 "dep:tokio", "dep:async-trait", "dep:anyhow", "dep:futures", "dep:bytes"]
+                 "dep:tokio", "dep:async-trait", "dep:anyhow", "dep:futures", "dep:bytes",
+                 "dep:tracing"]
 # Phase 5 — CLI binary
 config = ["dep:serde"]
 # cli-binary: everything the binary needs except embedder-onnx (no ort/load-dynamic).
@@ -136,7 +137,7 @@ clap_complete         = { version = "4",   optional = true }
 dirs                  = { version = "6",   optional = true }
 notify-debouncer-mini = { version = "0.6", optional = true }
 tracing              = { version = "0.1", optional = true }
-tracing-subscriber   = { version = "0.3", features = ["fmt"], optional = true }
+tracing-subscriber   = { version = "0.3", features = ["fmt", "json", "env-filter"], optional = true }
 # WASM plugin host
 wasmtime     = { version = "46", default-features = false, features = ["cranelift", "component-model", "std", "runtime", "threads", "anyhow"], optional = true }
 wasmtime-wasi = { version = "46", optional = true }

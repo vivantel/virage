@@ -23,6 +23,7 @@ pub struct VirageConfigJson {
     pub ignore: Vec<String>,
     pub search: Option<SearchConfig>,
     pub pipeline: Option<PipelineOptions>,
+    pub logging: Option<LoggingOptions>,
 }
 
 /// Reference to a built-in or plugin provider.
@@ -142,6 +143,19 @@ pub struct SearchConfig {
     pub hybrid_alpha: Option<f32>,
     pub min_similarity: Option<f32>,
     pub rerank_oversample: Option<usize>,
+}
+
+#[derive(Debug, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct LoggingOptions {
+    /// `tracing_subscriber::EnvFilter` directive string. Defaults to `"info"` when the whole
+    /// `logging` block is absent; `RUST_LOG` overrides this at runtime.
+    pub level: Option<String>,
+    /// Remote transport sinks. This crate parses but does not interpret this field — each
+    /// entry's shape is transport-specific and resolved by whatever downstream consumer
+    /// supports remote log transport, if any.
+    #[serde(default)]
+    pub transports: Vec<Value>,
 }
 
 #[derive(Debug, Deserialize, Default)]

@@ -45,6 +45,9 @@
     "pipeline": {
       "$ref": "#/$defs/pipelineOptions"
     },
+    "logging": {
+      "$ref": "#/$defs/loggingOptions"
+    },
     "telemetry": {
       "type": "object",
       "description": "Telemetry configuration (provider-specific).",
@@ -316,6 +319,22 @@
         "noBanner": {
           "type": "boolean",
           "description": "Suppress the startup banner. Also configurable via VIRAGE_NO_BANNER=1."
+        }
+      }
+    },
+    "loggingOptions": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Structured logging configuration. All fields are optional; the whole block may be omitted.",
+      "properties": {
+        "level": {
+          "type": "string",
+          "description": "tracing_subscriber EnvFilter directive string (e.g. \"debug\", \"virage_engine=debug,warn\"). Default \"info\". Overridden at runtime by RUST_LOG when set."
+        },
+        "transports": {
+          "type": "array",
+          "items": { "type": "object" },
+          "description": "Remote log sinks. Parsed but not interpreted here — requires a downstream build with transport support to take effect."
         }
       }
     }
