@@ -183,7 +183,9 @@ struct CrossEncoderOptions {
     /// Index into the logits vector to use as the relevance score (default: 0).
     #[serde(default)]
     score_index: usize,
-    /// Number of results to return after reranking.
+    /// Number of results to return after reranking. Accepted for schema
+    /// compatibility; not yet consumed by the reranker itself.
+    #[allow(dead_code)]
     top_k: Option<usize>,
 }
 
@@ -262,6 +264,7 @@ struct GitSourceOptions {
     /// Reserved for future remote clone support — schema accepted, errors at runtime if set.
     url: Option<String>,
     /// Reserved for future shallow clone depth — schema accepted, ignored until url is implemented.
+    #[allow(dead_code)]
     depth: Option<u32>,
 }
 

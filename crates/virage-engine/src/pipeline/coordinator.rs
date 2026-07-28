@@ -9,7 +9,7 @@ use crate::embedders::Embedder;
 use crate::sources::SourceProvider;
 use crate::stores::{VectorDocument, VectorStore};
 
-use super::{PipelineConfig, PipelineStats, ProgressCounters};
+use super::{PipelineConfig, PipelineStats};
 
 /// Run the full CE indexing pipeline.
 ///
