@@ -1667,7 +1667,7 @@ fn cmd_telemetry_init(
     flag_file: &Path,
     telemetry_cfg: &Path,
 ) -> anyhow::Result<()> {
-    use dialoguer::{Confirm, Input, Select};
+    use dialoguer::{Input, Select};
 
     out.section("Telemetry Setup");
 
@@ -1713,7 +1713,7 @@ fn cmd_telemetry_init(
 
                 let choices = [BACK, "Continue"];
                 let idx = Select::with_theme(&virage_theme())
-                    .with_prompt(&format!("Use endpoint {url}?"))
+                    .with_prompt(format!("Use endpoint {url}?"))
                     .items(&choices)
                     .default(1)
                     .interact()?;
@@ -2615,6 +2615,7 @@ fn rotate_config_backup(path: &std::path::Path) -> anyhow::Result<()> {
 }
 
 // H12: produce a ╔═...═╗ summary box with all wizard selections
+#[allow(clippy::too_many_arguments)]
 fn format_wizard_summary(
     config_path: &str,
     type_names: &[&str],
@@ -2628,11 +2629,11 @@ fn format_wizard_summary(
 ) -> String {
     use console::style;
 
-    let embedder_short = embedder_pkg.split('/').last().unwrap_or(embedder_pkg);
-    let store_short = store_pkg.split('/').last().unwrap_or(store_pkg);
+    let embedder_short = embedder_pkg.split('/').next_back().unwrap_or(embedder_pkg);
+    let store_short = store_pkg.split('/').next_back().unwrap_or(store_pkg);
 
     let reranker_line = match reranker_pkg {
-        Some(pkg) => pkg.split('/').last().unwrap_or(pkg).to_string(),
+        Some(pkg) => pkg.split('/').next_back().unwrap_or(pkg).to_string(),
         None => "none".to_string(),
     };
     let hybrid_line = if use_hybrid {
@@ -3028,6 +3029,7 @@ fn cmd_plugin_test(path: &str, verbose: u8, format: OutputFormat) -> anyhow::Res
     return cmd_plugin_test_wasm(path, verbose, format);
     #[cfg(not(feature = "wasm-host"))]
     {
+        let _ = path;
         let out = Out::new(verbose, format);
         out.warn("WASM host not available — rebuild with --features wasm-host.");
         Ok(())
@@ -3411,7 +3413,7 @@ fn print_banner() {
                 .embedder
                 .package
                 .split('/')
-                .last()
+                .next_back()
                 .unwrap_or(&cfg.providers.embedder.package)
                 .trim_start_matches("virage-embedder-");
             let store_short = cfg
@@ -3419,7 +3421,7 @@ fn print_banner() {
                 .vector_store
                 .package
                 .split('/')
-                .last()
+                .next_back()
                 .unwrap_or(&cfg.providers.vector_store.package)
                 .trim_start_matches("virage-store-");
             eprintln!(
@@ -3472,19 +3474,19 @@ async fn main() {
         Some(Commands::Check(args)) => cmd_check(args, cli.verbose, format, config).await,
         Some(Commands::Report(args)) => cmd_report(args, cli.verbose, format),
         // H14: treat dialoguer Interrupted errors as clean cancellation
-        Some(Commands::Init(args)) => cmd_init(args, cli.verbose, format, config).map_err(|e| {
+        Some(Commands::Init(args)) => {
+            cmd_init(args, cli.verbose, format, config).inspect_err(|e| {
+                if e.to_string().contains("interrupted") || e.to_string().contains("Interrupted") {
+                    eprintln!("Cancelled.");
+                    std::process::exit(0);
+                }
+            })
+        }
+        Some(Commands::Update) => cmd_update(cli.verbose, format).inspect_err(|e| {
             if e.to_string().contains("interrupted") || e.to_string().contains("Interrupted") {
                 eprintln!("Cancelled.");
                 std::process::exit(0);
             }
-            e
-        }),
-        Some(Commands::Update) => cmd_update(cli.verbose, format).map_err(|e| {
-            if e.to_string().contains("interrupted") || e.to_string().contains("Interrupted") {
-                eprintln!("Cancelled.");
-                std::process::exit(0);
-            }
-            e
         }),
         Some(Commands::Migrate(args)) => cmd_migrate(args, cli.verbose, format, config),
         Some(Commands::Pack(args)) => cmd_pack(args, cli.verbose, format),
