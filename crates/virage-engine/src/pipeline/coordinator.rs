@@ -59,10 +59,21 @@ pub async fn run_pipeline(
                 files_skipped += 1;
             }
             _ => {
+                let mut tags = item.tags.clone();
+                for rule in &config.label_rules {
+                    if crate::sources::glob_match(&rule.pattern, &item.path) && !rule.add.is_empty()
+                    {
+                        for tag in &rule.add {
+                            if !tags.contains(tag) {
+                                tags.push(tag.clone());
+                            }
+                        }
+                    }
+                }
                 to_process.push(WorkItem {
                     path: item.path.clone(),
                     revision: current_rev,
-                    tags: item.tags.clone(),
+                    tags,
                 });
                 progress.inc_queued();
             }

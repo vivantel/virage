@@ -24,6 +24,21 @@ pub struct VirageConfigJson {
     pub search: Option<SearchConfig>,
     pub pipeline: Option<PipelineOptions>,
     pub logging: Option<LoggingOptions>,
+    /// Glob-matched tag rules, applied to every indexed item regardless of file set
+    /// (IR-037). Evaluated in list order; all matches union into the item's tags.
+    #[serde(default)]
+    pub label_rules: Vec<LabelRule>,
+}
+
+/// A single glob → tags rule (IR-037). `pattern` is matched against each item's
+/// source-relative path via the same glob engine as `FileSetConfig.include`/`ignore`.
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LabelRule {
+    #[serde(rename = "match")]
+    pub pattern: String,
+    #[serde(default)]
+    pub add: Vec<String>,
 }
 
 /// Reference to a built-in or plugin provider.

@@ -674,6 +674,7 @@ async fn cmd_index(
                 max_tokens: 512,
                 progress: Some(progress.clone()),
                 skip_upload: args.no_upload,
+                label_rules: cfg.label_rules.clone(),
                 ..Default::default()
             };
             let file_bar = prog.file_bar(0, "Indexing");
@@ -763,6 +764,7 @@ async fn cmd_index(
                         max_tokens: 512,
                         progress: Some(progress.clone()),
                         skip_upload: args.no_upload,
+                        label_rules: cfg.label_rules.clone(),
                         ..Default::default()
                     };
                     match run_pipeline(
@@ -857,6 +859,7 @@ async fn cmd_index(
         max_tokens: 512,
         progress: Some(progress.clone()),
         skip_upload: args.no_upload,
+        label_rules: cfg.label_rules.clone(),
         ..Default::default()
     };
 
