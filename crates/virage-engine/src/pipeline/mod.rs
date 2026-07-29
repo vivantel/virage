@@ -70,6 +70,20 @@ pub struct PipelineConfig {
     pub progress: Option<Arc<ProgressCounters>>,
     /// Skip uploading to the vector store (index locally only).
     pub skip_upload: bool,
+    /// Glob-matched tag rules (IR-037), applied to every item in addition to
+    /// whatever the source provider yields (e.g. CODEOWNERS).
+    pub label_rules: Vec<LabelRule>,
+}
+
+/// A single glob → tags rule (IR-037), independent of the `config` feature
+/// (`pipeline` and `config` are enabled independently — see Cargo.toml — so this
+/// type cannot depend on `crate::config`'s serde-derived counterpart). Callers that
+/// parse `virage.config.json` (`config::LabelRule`) convert into this at the one
+/// point both features are guaranteed present (`bin/virage.rs`, under `cli-binary`).
+#[derive(Debug, Clone)]
+pub struct LabelRule {
+    pub pattern: String,
+    pub add: Vec<String>,
 }
 
 impl Default for PipelineConfig {
@@ -90,6 +104,7 @@ impl Default for PipelineConfig {
             metadata_generator_id: String::new(),
             progress: None,
             skip_upload: false,
+            label_rules: Vec::new(),
         }
     }
 }
@@ -339,5 +354,70 @@ mod tests {
 
         assert_eq!(stats.files_processed, 1);
         assert!(store.upsert_count() > 0, "expected chunks to be upserted");
+    }
+
+    #[tokio::test]
+    async fn label_rules_add_matching_tags() {
+        let source = Arc::new(MockSource {
+            items: vec![
+                SourceItem {
+                    id: "f1".into(),
+                    path: "packages/project1/README.md".into(),
+                    provider_name: "mock".into(),
+                    tags: vec!["team:core".into()],
+                    meta: HashMap::new(),
+                },
+                SourceItem {
+                    id: "f2".into(),
+                    path: "packages/other/README.md".into(),
+                    provider_name: "mock".into(),
+                    tags: vec![],
+                    meta: HashMap::new(),
+                },
+            ],
+        });
+        let store = MockStore::new();
+        let embedder: Arc<std::sync::Mutex<dyn Embedder + Send>> =
+            Arc::new(std::sync::Mutex::new(MockEmbedder { dims: 4 }));
+
+        let config = PipelineConfig {
+            workers: 1,
+            upload_batch_size: 16,
+            max_tokens: 512,
+            strategy: "window".into(),
+            sparse_text_generator_id: "gen_v1".into(),
+            metadata_generator_id: "meta_v1".into(),
+            label_rules: vec![LabelRule {
+                pattern: "packages/project1/**".into(),
+                add: vec!["ns:acme-corp".into(), "project:project1".into()],
+            }],
+            ..Default::default()
+        };
+
+        coordinator::run_pipeline(
+            &config,
+            source,
+            vec![],
+            embedder,
+            store.clone(),
+            HashMap::new(),
+        )
+        .await
+        .unwrap();
+
+        let docs = store.upserted.lock().unwrap();
+        let project1_doc = docs
+            .iter()
+            .find(|d| d.source_file == "packages/project1/README.md")
+            .expect("expected a chunk from the matched file");
+        assert!(project1_doc.tags.contains(&"ns:acme-corp".to_string()));
+        assert!(project1_doc.tags.contains(&"project:project1".to_string()));
+        assert!(project1_doc.tags.contains(&"team:core".to_string()));
+
+        let other_doc = docs
+            .iter()
+            .find(|d| d.source_file == "packages/other/README.md")
+            .expect("expected a chunk from the unmatched file");
+        assert!(!other_doc.tags.contains(&"ns:acme-corp".to_string()));
     }
 }
