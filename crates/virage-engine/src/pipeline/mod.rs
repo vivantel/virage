@@ -72,7 +72,18 @@ pub struct PipelineConfig {
     pub skip_upload: bool,
     /// Glob-matched tag rules (IR-037), applied to every item in addition to
     /// whatever the source provider yields (e.g. CODEOWNERS).
-    pub label_rules: Vec<crate::config::LabelRule>,
+    pub label_rules: Vec<LabelRule>,
+}
+
+/// A single glob → tags rule (IR-037), independent of the `config` feature
+/// (`pipeline` and `config` are enabled independently — see Cargo.toml — so this
+/// type cannot depend on `crate::config`'s serde-derived counterpart). Callers that
+/// parse `virage.config.json` (`config::LabelRule`) convert into this at the one
+/// point both features are guaranteed present (`bin/virage.rs`, under `cli-binary`).
+#[derive(Debug, Clone)]
+pub struct LabelRule {
+    pub pattern: String,
+    pub add: Vec<String>,
 }
 
 impl Default for PipelineConfig {
@@ -376,7 +387,7 @@ mod tests {
             strategy: "window".into(),
             sparse_text_generator_id: "gen_v1".into(),
             metadata_generator_id: "meta_v1".into(),
-            label_rules: vec![crate::config::LabelRule {
+            label_rules: vec![LabelRule {
                 pattern: "packages/project1/**".into(),
                 add: vec!["ns:acme-corp".into(), "project:project1".into()],
             }],
