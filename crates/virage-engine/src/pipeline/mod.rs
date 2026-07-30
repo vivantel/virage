@@ -118,6 +118,9 @@ pub struct PipelineStats {
     pub files_skipped: usize,
     pub files_deleted: usize,
     pub chunks_upserted: usize,
+    /// Sum of each upserted chunk's `estimatedTokens` metadata (set by the chunker in
+    /// `chunkers::walk`). Used by `virage bench index` for a tokens/sec throughput figure.
+    pub tokens_processed: usize,
 }
 
 // ─── ProgressCounters ────────────────────────────────────────────────────────

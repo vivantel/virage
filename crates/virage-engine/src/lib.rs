@@ -1,5 +1,7 @@
 #![deny(clippy::all)]
 
+#[cfg(all(feature = "config", feature = "pipeline"))]
+pub mod bench;
 pub mod chunkers;
 #[cfg(feature = "config")]
 pub mod config;
