@@ -7,6 +7,10 @@ pub enum OutputFormat {
     Human,
     Json,
     Quiet,
+    /// PR-comment-bot-friendly Markdown. Diagnostic chrome (section headers, spinners) is
+    /// suppressed like Json/Quiet; data output goes to stdout as plain Markdown text via
+    /// `data_line`, not through `data_json`.
+    Markdown,
 }
 
 pub struct Out {
