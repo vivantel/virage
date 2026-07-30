@@ -28,6 +28,10 @@ pub struct VirageConfigJson {
     /// (IR-037). Evaluated in list order; all matches union into the item's tags.
     #[serde(default)]
     pub label_rules: Vec<LabelRule>,
+    /// Must-pass gate threshold overrides for `virage quality run --ci` (IR-038). Absent
+    /// fields fall back to the JS-predecessor defaults in `QualityThresholds`'s associated
+    /// constants.
+    pub quality: Option<QualityThresholds>,
 }
 
 /// A single glob → tags rule (IR-037). `pattern` is matched against each item's
@@ -171,6 +175,42 @@ pub struct LoggingOptions {
     /// supports remote log transport, if any.
     #[serde(default)]
     pub transports: Vec<Value>,
+}
+
+/// Must-pass gate thresholds for the 26-metric quality health model (IR-038). Only the three
+/// metrics the JS predecessor documented as must-pass are overridable here — the other 23
+/// metrics are informational (weighted into the overall score, not individually gating).
+/// Defaults match `dist/quality/metrics/{metadata,dense-embedding}.js`'s hardcoded values.
+#[derive(Debug, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct QualityThresholds {
+    /// Minimum fraction of import statements resolved to real files. Default: 0.70.
+    pub import_resolution_min: Option<f64>,
+    /// Minimum Self-Recall@K (chunk-as-query retrieval hit rate). Default: 0.80.
+    pub self_recall_min: Option<f64>,
+    /// Maximum fraction of embedding-space outliers (no close neighbours). Default: 0.05.
+    pub outlier_fraction_max: Option<f64>,
+}
+
+impl QualityThresholds {
+    pub const DEFAULT_IMPORT_RESOLUTION_MIN: f64 = 0.70;
+    pub const DEFAULT_SELF_RECALL_MIN: f64 = 0.80;
+    pub const DEFAULT_OUTLIER_FRACTION_MAX: f64 = 0.05;
+
+    pub fn import_resolution_min(&self) -> f64 {
+        self.import_resolution_min
+            .unwrap_or(Self::DEFAULT_IMPORT_RESOLUTION_MIN)
+    }
+
+    pub fn self_recall_min(&self) -> f64 {
+        self.self_recall_min
+            .unwrap_or(Self::DEFAULT_SELF_RECALL_MIN)
+    }
+
+    pub fn outlier_fraction_max(&self) -> f64 {
+        self.outlier_fraction_max
+            .unwrap_or(Self::DEFAULT_OUTLIER_FRACTION_MAX)
+    }
 }
 
 #[derive(Debug, Deserialize, Default)]

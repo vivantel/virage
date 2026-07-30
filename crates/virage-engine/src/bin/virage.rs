@@ -35,7 +35,8 @@ struct Cli {
     #[arg(long = "no-banner", global = true)]
     no_banner: bool,
 
-    /// Output format: human (default), json (machine-readable), quiet (errors only)
+    /// Output format: human (default), json (machine-readable), quiet (errors only),
+    /// markdown (PR-comment bots — eval/quality/bench commands only)
     #[arg(long, global = true, value_enum, default_value_t = CliFormat::Human)]
     format: CliFormat,
 
@@ -56,6 +57,7 @@ enum CliFormat {
     Human,
     Json,
     Quiet,
+    Markdown,
 }
 
 impl From<CliFormat> for OutputFormat {
@@ -64,6 +66,7 @@ impl From<CliFormat> for OutputFormat {
             CliFormat::Human => OutputFormat::Human,
             CliFormat::Json => OutputFormat::Json,
             CliFormat::Quiet => OutputFormat::Quiet,
+            CliFormat::Markdown => OutputFormat::Markdown,
         }
     }
 }
@@ -131,7 +134,13 @@ enum Commands {
     Dashboard(DashboardArgs),
     /// [Deferred post-v2] Visualise embeddings.
     Viz,
-    /// Validate, then run quality metrics and exit 1 if any gate fails.
+    /// Retrieval-accuracy evaluation against RAGBench or a custom dataset.
+    /// Under `--ci`, exits 4 if any must-pass metric fails its gate threshold.
+    Eval(EvalArgs),
+    /// Runtime performance benchmarking (indexing throughput).
+    /// Under `--ci`, exits 5 on a regression vs. the shared history store's last run.
+    Bench(BenchArgs),
+    /// 26-metric pipeline-health model. Under `--ci`, exits 3 if any must-pass metric fails.
     #[command(aliases = ["ql"])]
     Quality(QualityArgs),
 }
@@ -291,6 +300,69 @@ struct DashboardArgs {
 }
 
 #[derive(Args)]
+struct EvalArgs {
+    #[command(subcommand)]
+    command: EvalCommand,
+}
+
+#[derive(Subcommand)]
+enum EvalCommand {
+    /// Measure retrieval accuracy against a dataset.
+    Run(EvalRunArgs),
+    /// Compare two eval runs with bootstrap paired significance testing.
+    Compare(EvalCompareArgs),
+}
+
+#[derive(Args)]
+struct EvalRunArgs {
+    /// Dataset source. v1: `ragbench:<subset>` (12 galileo-ai/ragbench HuggingFace subsets).
+    /// Custom-dataset paths are accepted but unimplemented until eval generate ships (post-v1).
+    dataset: String,
+    /// Exit 4 if any must-pass metric fails its gate threshold. Without this flag, failures
+    /// print as warnings and the command exits 0.
+    #[arg(long)]
+    ci: bool,
+    /// Path to virage.db.
+    #[arg(long, default_value = "")]
+    db: String,
+}
+
+#[derive(Args)]
+struct EvalCompareArgs {
+    /// Baseline eval run identifier (shared history store key).
+    baseline: String,
+    /// Candidate eval run identifier (shared history store key).
+    candidate: String,
+    /// Exit 4 if the bootstrap significance test recommends "reject". Without this flag,
+    /// a "reject" recommendation prints as a warning and the command exits 0.
+    #[arg(long)]
+    ci: bool,
+}
+
+#[derive(Args)]
+struct BenchArgs {
+    #[command(subcommand)]
+    command: BenchCommand,
+}
+
+#[derive(Subcommand)]
+enum BenchCommand {
+    /// Measure indexing throughput: wall-clock, docs/sec, chunks/sec, tokens/sec.
+    Index(BenchIndexArgs),
+}
+
+#[derive(Args)]
+struct BenchIndexArgs {
+    /// Corpus path to index for benchmarking.
+    #[arg(long)]
+    path: PathBuf,
+    /// Exit 5 on a regression vs. the shared history store's last recorded run. Without this
+    /// flag, a regression prints as a warning and the command exits 0.
+    #[arg(long)]
+    ci: bool,
+}
+
+#[derive(Args)]
 struct QualityArgs {
     #[command(subcommand)]
     command: Option<QualityCommand>,
@@ -298,25 +370,28 @@ struct QualityArgs {
 
 #[derive(Subcommand)]
 enum QualityCommand {
-    Eval(QualityEvalArgs),
-    Bench,
-    Suite,
-    History,
+    /// Run the 26-metric pipeline-health model.
+    Run(QualityRunArgs),
+    /// Show historical quality run trends from the shared history store.
+    History(QualityHistoryArgs),
 }
 
 #[derive(Args)]
-struct QualityEvalArgs {
-    #[command(subcommand)]
-    command: QualityEvalCommand,
+struct QualityRunArgs {
+    /// Exit 3 if any must-pass metric fails its gate threshold. Without this flag, failures
+    /// print as warnings and the command exits 0.
+    #[arg(long)]
+    ci: bool,
+    /// Path to virage.db.
+    #[arg(long, default_value = "")]
+    db: String,
 }
 
-#[derive(Subcommand)]
-enum QualityEvalCommand {
-    Run,
-    Generate,
-    Save,
-    List,
-    Compare,
+#[derive(Args)]
+struct QualityHistoryArgs {
+    /// Number of most recent runs to show.
+    #[arg(long, default_value_t = 10)]
+    limit: usize,
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -1868,6 +1943,19 @@ fn cmd_telemetry_init(
     Ok(())
 }
 
+/// Exit codes reserved for `--ci` gate failures (IR-038). Each of `virage quality run`,
+/// `virage eval run`/`compare`, and `virage bench index` exits its own code under `--ci` when a
+/// must-pass metric or regression check fails; without `--ci`, the same failure prints as a
+/// warning and the command exits 0. Not yet wired to real gate logic — Steps 4-7 of
+/// docs/plans/eval-quality-bench-redesign.md (in virage-ee) implement the metrics that will call
+/// these.
+#[allow(dead_code)]
+mod ci_exit_codes {
+    pub const QUALITY_GATE_FAILURE: i32 = 3;
+    pub const EVAL_GATE_FAILURE: i32 = 4;
+    pub const BENCH_GATE_FAILURE: i32 = 5;
+}
+
 fn cmd_quality(
     args: QualityArgs,
     verbose: u8,
@@ -1875,24 +1963,61 @@ fn cmd_quality(
     config: &str,
 ) -> anyhow::Result<()> {
     let out = Out::new(verbose, format);
-    let stub = |label: &str| out.dim(&format!("{label}: not yet implemented (Phase 5b)"));
+    let not_yet_implemented =
+        |label: &str| out.dim(&format!("{label}: not yet implemented (IR-038 Step 4)"));
     match args.command {
-        None => {
+        None | Some(QualityCommand::Run(_)) => {
             let config_path = resolve_config_path(config)?;
             out.section("Quality Metrics");
             out.dim(&format!("Config: {config_path}"));
-            stub("quality");
+            not_yet_implemented("quality run");
         }
-        Some(QualityCommand::Eval(eval_args)) => match eval_args.command {
-            QualityEvalCommand::Run => stub("quality eval run"),
-            QualityEvalCommand::Generate => stub("quality eval generate"),
-            QualityEvalCommand::Save => stub("quality eval save"),
-            QualityEvalCommand::List => stub("quality eval list"),
-            QualityEvalCommand::Compare => stub("quality eval compare"),
-        },
-        Some(QualityCommand::Bench) => stub("quality bench"),
-        Some(QualityCommand::Suite) => stub("quality suite"),
-        Some(QualityCommand::History) => stub("quality history"),
+        Some(QualityCommand::History(_)) => not_yet_implemented("quality history"),
+    }
+    Ok(())
+}
+
+fn cmd_eval(args: EvalArgs, verbose: u8, format: OutputFormat, config: &str) -> anyhow::Result<()> {
+    let out = Out::new(verbose, format);
+    let not_yet_implemented =
+        |label: &str| out.dim(&format!("{label}: not yet implemented (IR-038 Step 5)"));
+    match args.command {
+        EvalCommand::Run(run_args) => {
+            let config_path = resolve_config_path(config)?;
+            out.section("Eval Run");
+            out.dim(&format!("Config: {config_path}"));
+            out.dim(&format!("Dataset: {}", run_args.dataset));
+            not_yet_implemented("eval run");
+        }
+        EvalCommand::Compare(compare_args) => {
+            out.section("Eval Compare");
+            out.dim(&format!(
+                "Baseline: {}  Candidate: {}",
+                compare_args.baseline, compare_args.candidate
+            ));
+            not_yet_implemented("eval compare");
+        }
+    }
+    Ok(())
+}
+
+fn cmd_bench(
+    args: BenchArgs,
+    verbose: u8,
+    format: OutputFormat,
+    config: &str,
+) -> anyhow::Result<()> {
+    let out = Out::new(verbose, format);
+    let not_yet_implemented =
+        |label: &str| out.dim(&format!("{label}: not yet implemented (IR-038 Step 6)"));
+    match args.command {
+        BenchCommand::Index(index_args) => {
+            let config_path = resolve_config_path(config)?;
+            out.section("Bench Index");
+            out.dim(&format!("Config: {config_path}"));
+            out.dim(&format!("Path: {}", index_args.path.display()));
+            not_yet_implemented("bench index");
+        }
     }
     Ok(())
 }
@@ -3552,6 +3677,8 @@ async fn main() {
         }
         Some(Commands::Dashboard(args)) => cmd_dashboard(args, cli.verbose, format, config),
         Some(Commands::Viz) => cmd_viz(cli.verbose, format),
+        Some(Commands::Eval(args)) => cmd_eval(args, cli.verbose, format, config),
+        Some(Commands::Bench(args)) => cmd_bench(args, cli.verbose, format, config),
         Some(Commands::Quality(args)) => cmd_quality(args, cli.verbose, format, config),
     };
 
