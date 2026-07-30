@@ -10,6 +10,8 @@ pub mod statistics;
 
 use serde::{Deserialize, Serialize};
 
+use crate::history::benchmark::{BenchmarkPoint, ToBenchmarkPoints};
+
 /// Results for one RAGBench subset.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -56,6 +58,38 @@ impl EvalReport {
     }
 }
 
+impl ToBenchmarkPoints for EvalReport {
+    fn to_benchmark_points(&self) -> Vec<BenchmarkPoint> {
+        let k = self.top_k;
+        let mut points = vec![
+            BenchmarkPoint::new(format!("Eval Macro MRR@{k}"), "score", self.macro_mrr_at_k),
+            BenchmarkPoint::new(
+                format!("Eval Macro NDCG@{k}"),
+                "score",
+                self.macro_ndcg_at_k,
+            ),
+            BenchmarkPoint::new(
+                format!("Eval Macro Recall@{k}"),
+                "score",
+                self.macro_recall_at_k,
+            ),
+            BenchmarkPoint::new(
+                format!("Eval Macro HitRate@{k}"),
+                "score",
+                self.macro_hit_rate_at_k,
+            ),
+        ];
+        for s in &self.subsets {
+            points.push(BenchmarkPoint::new(
+                format!("Eval {} MRR@{k}", s.subset),
+                "score",
+                s.mrr_at_k,
+            ));
+        }
+        points
+    }
+}
+
 fn avg(arr: impl Iterator<Item = f64> + Clone) -> f64 {
     let n = arr.clone().count();
     if n == 0 {
@@ -82,7 +116,7 @@ pub fn build_report(
     let gate_passed = macro_mrr_at_k >= gate_threshold;
 
     EvalReport {
-        timestamp: timestamp_now_iso(),
+        timestamp: crate::history::timestamp_now_iso(),
         dataset,
         subsets,
         total_queries,
@@ -96,34 +130,4 @@ pub fn build_report(
         gate_threshold,
         gate_passed,
     }
-}
-
-/// UTC `YYYY-MM-DDTHH:MM:SSZ` timestamp. Same hand-rolled implementation as
-/// `quality::runner::chrono_now_iso` — kept local rather than shared to avoid making either
-/// module depend on the other for one helper.
-fn timestamp_now_iso() -> String {
-    let secs = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_secs() as i64;
-    let days = secs.div_euclid(86_400);
-    let time_of_day = secs.rem_euclid(86_400);
-    let (hour, minute, second) = (
-        time_of_day / 3600,
-        (time_of_day / 60) % 60,
-        time_of_day % 60,
-    );
-
-    let z = days + 719_468;
-    let era = if z >= 0 { z } else { z - 146_096 } / 146_097;
-    let doe = (z - era * 146_097) as u64;
-    let yoe = (doe - doe / 1460 + doe / 36_524 - doe / 146_096) / 365;
-    let y = yoe as i64 + era * 400;
-    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
-    let mp = (5 * doy + 2) / 153;
-    let day = doy - (153 * mp + 2) / 5 + 1;
-    let month = if mp < 10 { mp + 3 } else { mp - 9 };
-    let year = if month <= 2 { y + 1 } else { y };
-
-    format!("{year:04}-{month:02}-{day:02}T{hour:02}:{minute:02}:{second:02}Z")
 }

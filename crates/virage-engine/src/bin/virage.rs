@@ -13,6 +13,7 @@ use virage_engine::config::resolve::{
 };
 use virage_engine::config::{default_db_path, find_config, load_config, VirageConfigJson};
 use virage_engine::db::VirageDb;
+use virage_engine::history::benchmark::ToBenchmarkPoints;
 use virage_engine::logging::{self, LoggingConfig};
 use virage_engine::pipeline::{coordinator::run_pipeline, PipelineConfig, ProgressCounters};
 use virage_engine::stores::SearchOptions;
@@ -329,10 +330,10 @@ struct EvalRunArgs {
 
 #[derive(Args)]
 struct EvalCompareArgs {
-    /// Baseline eval run: a JSON report file saved via `eval run --format json > file.json`.
-    /// Interim mechanism (IR-038 Step 5) — becomes a shared history store key once Step 7 lands.
+    /// Baseline eval run: the literal `latest`, a history id printed by `eval run` ("Saved to
+    /// history: <id>"), or the run's raw `timestamp` field.
     baseline: String,
-    /// Candidate eval run: a JSON report file saved via `eval run --format json > file.json`.
+    /// Candidate eval run: same reference forms as `baseline`.
     candidate: String,
     /// Exit 4 if the bootstrap significance test recommends "reject". Without this flag,
     /// a "reject" recommendation prints as a warning and the command exits 0.
@@ -1963,7 +1964,6 @@ async fn cmd_quality(
     format: OutputFormat,
     config: &str,
 ) -> anyhow::Result<()> {
-    let out = Out::new(verbose, format);
     match args.command {
         None => {
             cmd_quality_run(
@@ -1980,9 +1980,8 @@ async fn cmd_quality(
         Some(QualityCommand::Run(run_args)) => {
             cmd_quality_run(run_args, verbose, format, config).await
         }
-        Some(QualityCommand::History(_)) => {
-            out.dim("quality history: not yet implemented (IR-038 Step 7)");
-            Ok(())
+        Some(QualityCommand::History(history_args)) => {
+            cmd_quality_history(history_args, verbose, format)
         }
     }
 }
@@ -2011,6 +2010,13 @@ async fn cmd_quality_run(
     .await?;
     pb.finish_and_clear();
 
+    let history_dir = Path::new(virage_engine::history::DEFAULT_HISTORY_DIR);
+    let history_id =
+        virage_engine::history::save(history_dir, "quality", &report.timestamp, &report)?;
+    virage_engine::history::benchmark::upsert(history_dir, &report.to_benchmark_points())?;
+    virage_engine::quality::badge::write(history_dir, report.overall_score, report.status)?;
+    out.dim(&format!("Saved to history: {history_id}"));
+
     match format {
         OutputFormat::Json => out.data_json(&serde_json::to_value(&report)?),
         OutputFormat::Markdown => {
@@ -2024,6 +2030,57 @@ async fn cmd_quality_run(
 
     if args.ci && !report.status.is_pass() {
         std::process::exit(ci_exit_codes::QUALITY_GATE_FAILURE);
+    }
+    Ok(())
+}
+
+fn cmd_quality_history(
+    args: QualityHistoryArgs,
+    verbose: u8,
+    format: OutputFormat,
+) -> anyhow::Result<()> {
+    let out = Out::new(verbose, format);
+    let history_dir = Path::new(virage_engine::history::DEFAULT_HISTORY_DIR);
+    let entries: Vec<(String, virage_engine::quality::QualityReport)> =
+        virage_engine::history::list_ids(history_dir, "quality")
+            .into_iter()
+            .take(args.limit)
+            .filter_map(|id| {
+                virage_engine::history::load(history_dir, "quality", &id).map(|r| (id, r))
+            })
+            .collect();
+
+    match format {
+        OutputFormat::Json => out.data_json(&serde_json::json!(entries
+            .iter()
+            .map(|(id, r)| serde_json::json!({
+                "id": id,
+                "timestamp": r.timestamp,
+                "overallScore": r.overall_score,
+                "status": r.status,
+                "sampleSize": r.sample_size,
+                "durationMs": r.duration_ms,
+            }))
+            .collect::<Vec<_>>())),
+        _ => {
+            if entries.is_empty() {
+                println!("No quality history recorded yet — run `virage quality run` first.");
+            } else {
+                println!(
+                    "{:<22}  {:>7}  {:<6}  {:>10}",
+                    "Timestamp", "Score", "Status", "Duration"
+                );
+                for (_, r) in &entries {
+                    println!(
+                        "{:<22}  {:>6.1}%  {:<6}  {:>9}ms",
+                        r.timestamp,
+                        r.overall_score * 100.0,
+                        r.status,
+                        r.duration_ms
+                    );
+                }
+            }
+        }
     }
     Ok(())
 }
@@ -2106,6 +2163,11 @@ async fn cmd_eval_run(
         t0.elapsed().as_millis(),
     );
 
+    let history_dir = Path::new(virage_engine::history::DEFAULT_HISTORY_DIR);
+    let history_id = virage_engine::history::save(history_dir, "eval", &report.timestamp, &report)?;
+    virage_engine::history::benchmark::upsert(history_dir, &report.to_benchmark_points())?;
+    out.dim(&format!("Saved to history: {history_id}"));
+
     match format {
         OutputFormat::Json => out.data_json(&serde_json::to_value(&report)?),
         OutputFormat::Markdown => {
@@ -2120,13 +2182,17 @@ async fn cmd_eval_run(
     Ok(())
 }
 
-/// Load a saved `eval run --format json` report and extract its flattened per-query RR
-/// scores, for `eval compare`'s bootstrap significance test.
-fn load_eval_report_rr(path: &str) -> anyhow::Result<Vec<f64>> {
-    let text = std::fs::read_to_string(path)
-        .map_err(|e| anyhow::anyhow!("Cannot read eval report {path:?}: {e}"))?;
-    let report: virage_engine::eval::EvalReport = serde_json::from_str(&text)
-        .map_err(|e| anyhow::anyhow!("Cannot parse eval report {path:?}: {e}"))?;
+/// Resolves an `eval compare` baseline/candidate history reference (`"latest"`, a history id,
+/// or a raw timestamp — see `history::resolve_ref`) and extracts its flattened per-query RR
+/// scores for the bootstrap significance test.
+fn load_eval_report_ref(history_dir: &Path, reference: &str) -> anyhow::Result<Vec<f64>> {
+    let report: virage_engine::eval::EvalReport =
+        virage_engine::history::resolve_ref(history_dir, "eval", reference).ok_or_else(|| {
+            anyhow::anyhow!(
+                "No eval history entry found for {reference:?} — run `virage eval run` first, \
+                 or pass \"latest\""
+            )
+        })?;
     Ok(report.all_per_query_rr())
 }
 
@@ -2136,8 +2202,9 @@ fn cmd_eval_compare(
     format: OutputFormat,
 ) -> anyhow::Result<()> {
     let out = Out::new(verbose, format);
-    let baseline = load_eval_report_rr(&args.baseline)?;
-    let candidate = load_eval_report_rr(&args.candidate)?;
+    let history_dir = Path::new(virage_engine::history::DEFAULT_HISTORY_DIR);
+    let baseline = load_eval_report_ref(history_dir, &args.baseline)?;
+    let candidate = load_eval_report_ref(history_dir, &args.candidate)?;
 
     let result = virage_engine::eval::statistics::bootstrap_paired_test(
         &baseline,
@@ -2249,16 +2316,22 @@ async fn cmd_bench_index(
         duration_ms,
     );
 
-    let history_path = Path::new(virage_engine::bench::history::DEFAULT_HISTORY_PATH);
-    let history = virage_engine::bench::history::load(history_path);
-    let previous = virage_engine::bench::history::last_for_corpus(&history, &corpus_path);
+    let history_dir = Path::new(virage_engine::history::DEFAULT_HISTORY_DIR);
+    let previous = virage_engine::history::load_latest_where::<virage_engine::bench::BenchResult>(
+        history_dir,
+        "bench",
+        |r| r.corpus_path == corpus_path,
+    );
     let gate_threshold = cfg
         .bench
         .as_ref()
         .map(|b| b.max_regression_pct())
         .unwrap_or(virage_engine::config::BenchThresholds::DEFAULT_MAX_REGRESSION_PCT);
     let cmp = virage_engine::bench::compare(result.clone(), previous, gate_threshold);
-    virage_engine::bench::history::append(history_path, &result)?;
+    let history_id =
+        virage_engine::history::save(history_dir, "bench", &result.timestamp, &result)?;
+    virage_engine::history::benchmark::upsert(history_dir, &result.to_benchmark_points())?;
+    out.dim(&format!("Saved to history: {history_id}"));
 
     match format {
         OutputFormat::Json => out.data_json(&serde_json::to_value(&cmp)?),

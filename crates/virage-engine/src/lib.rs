@@ -10,6 +10,8 @@ pub mod db;
 pub mod embedders;
 #[cfg(all(feature = "config", feature = "eval-ragbench"))]
 pub mod eval;
+#[cfg(feature = "config")]
+pub mod history;
 #[cfg(feature = "cli-binary")]
 pub mod logging;
 #[cfg(feature = "cli-binary")]

@@ -3,6 +3,7 @@
 //! `docs/plans/eval-quality-bench-redesign.md`). Components 5-8 are optional; they
 //! auto-skip when the corresponding pipeline feature isn't configured.
 
+pub mod badge;
 pub mod metrics;
 pub mod report;
 pub mod runner;
@@ -10,9 +11,11 @@ pub mod scoring;
 
 use std::collections::HashMap;
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Serialize)]
+use crate::history::benchmark::{BenchmarkPoint, ToBenchmarkPoints};
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MetricResult {
     pub name: String,
@@ -67,7 +70,7 @@ impl MetricResult {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ComponentId {
     Chunking,
     Metadata,
@@ -79,7 +82,7 @@ pub enum ComponentId {
     Reranker,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ComponentResult {
     pub id: ComponentId,
@@ -114,7 +117,7 @@ impl ComponentResult {
     }
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MustPassGate {
     pub metric_name: String,
     pub threshold: f64,
@@ -122,7 +125,7 @@ pub struct MustPassGate {
     pub passed: bool,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum QualityStatus {
     Pass,
     Fail,
@@ -143,7 +146,7 @@ impl std::fmt::Display for QualityStatus {
     }
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct QualityReport {
     pub timestamp: String,
@@ -155,6 +158,33 @@ pub struct QualityReport {
     pub top_k: usize,
     pub config_file: String,
     pub duration_ms: u128,
+}
+
+impl ToBenchmarkPoints for QualityReport {
+    fn to_benchmark_points(&self) -> Vec<BenchmarkPoint> {
+        let mut points = vec![BenchmarkPoint::new(
+            "Overall Quality",
+            "score",
+            self.overall_score,
+        )];
+        for comp in &self.components {
+            if comp.skipped {
+                continue;
+            }
+            points.push(BenchmarkPoint::new(comp.label.clone(), "score", comp.score));
+            for m in &comp.metrics {
+                if m.skipped {
+                    continue;
+                }
+                points.push(BenchmarkPoint::new(
+                    m.name.clone(),
+                    "score",
+                    m.normalized_value,
+                ));
+            }
+        }
+        points
+    }
 }
 
 /// Chunk snapshot used as input to the metric computations. Values are pulled from

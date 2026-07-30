@@ -4,15 +4,14 @@
 //! benchmarking (`bench query`) is deferred past v1.
 //!
 //! The regression gate (`--ci`, exit 5) compares against the most recent prior run for the same
-//! corpus path in a local history file (`history::DEFAULT_HISTORY_PATH`). This is a provisional
-//! stand-in for the shared history store IR-038 Step 7 introduces — same design already used for
-//! `eval compare`'s baseline/candidate file args in Step 5. Step 7 swaps the storage backend;
-//! the `BenchResult`/`BenchComparison` shapes below are meant to survive that swap unchanged.
+//! corpus path, looked up via the shared `crate::history` store (IR-038 Step 7) — this module's
+//! own provisional `.virage/bench-history.json` (Step 6) is gone now that Step 7 landed.
 
-pub mod history;
 pub mod report;
 
 use serde::{Deserialize, Serialize};
+
+use crate::history::benchmark::{BenchmarkPoint, ToBenchmarkPoints};
 
 /// Result of a single `virage bench index` run.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -41,7 +40,7 @@ impl BenchResult {
         // infinite rate — it just reports a very high (but finite) throughput.
         let secs = (duration_ms.max(1) as f64) / 1000.0;
         Self {
-            timestamp: timestamp_now_iso(),
+            timestamp: crate::history::timestamp_now_iso(),
             corpus_path,
             files_processed,
             chunks_upserted,
@@ -94,34 +93,29 @@ pub fn compare(
     }
 }
 
-/// UTC `YYYY-MM-DDTHH:MM:SSZ` timestamp. Same hand-rolled implementation as
-/// `eval::timestamp_now_iso` / `quality::runner::chrono_now_iso` — kept local rather than shared
-/// to avoid making these modules depend on each other for one helper.
-fn timestamp_now_iso() -> String {
-    let secs = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_secs() as i64;
-    let days = secs.div_euclid(86_400);
-    let time_of_day = secs.rem_euclid(86_400);
-    let (hour, minute, second) = (
-        time_of_day / 3600,
-        (time_of_day / 60) % 60,
-        time_of_day % 60,
-    );
-
-    let z = days + 719_468;
-    let era = if z >= 0 { z } else { z - 146_096 } / 146_097;
-    let doe = (z - era * 146_097) as u64;
-    let yoe = (doe - doe / 1460 + doe / 36_524 - doe / 146_096) / 365;
-    let y = yoe as i64 + era * 400;
-    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
-    let mp = (5 * doy + 2) / 153;
-    let day = doy - (153 * mp + 2) / 5 + 1;
-    let month = if mp < 10 { mp + 3 } else { mp - 9 };
-    let year = if month <= 2 { y + 1 } else { y };
-
-    format!("{year:04}-{month:02}-{day:02}T{hour:02}:{minute:02}:{second:02}Z")
+impl ToBenchmarkPoints for BenchResult {
+    fn to_benchmark_points(&self) -> Vec<BenchmarkPoint> {
+        // Corpus path is folded into the point name — a flat "Bench docs/sec" name would
+        // collide across corpora sharing one benchmark-data.json feed.
+        let suffix = format!("({})", self.corpus_path);
+        vec![
+            BenchmarkPoint::new(
+                format!("Bench docs/sec {suffix}"),
+                "docs/sec",
+                self.docs_per_sec,
+            ),
+            BenchmarkPoint::new(
+                format!("Bench chunks/sec {suffix}"),
+                "chunks/sec",
+                self.chunks_per_sec,
+            ),
+            BenchmarkPoint::new(
+                format!("Bench tokens/sec {suffix}"),
+                "tokens/sec",
+                self.tokens_per_sec,
+            ),
+        ]
+    }
 }
 
 #[cfg(test)]
