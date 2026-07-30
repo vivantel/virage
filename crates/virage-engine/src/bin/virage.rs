@@ -1946,9 +1946,8 @@ fn cmd_telemetry_init(
 /// Exit codes reserved for `--ci` gate failures (IR-038). Each of `virage quality run`,
 /// `virage eval run`/`compare`, and `virage bench index` exits its own code under `--ci` when a
 /// must-pass metric or regression check fails; without `--ci`, the same failure prints as a
-/// warning and the command exits 0. Not yet wired to real gate logic — Steps 4-7 of
-/// docs/plans/eval-quality-bench-redesign.md (in virage-ee) implement the metrics that will call
-/// these.
+/// warning and the command exits 0. `quality run` is wired (Step 4); `eval`/`bench` (Steps 5-6,
+/// in virage-ee's docs/plans/eval-quality-bench-redesign.md) still call this stub.
 #[allow(dead_code)]
 mod ci_exit_codes {
     pub const QUALITY_GATE_FAILURE: i32 = 3;
@@ -1956,23 +1955,73 @@ mod ci_exit_codes {
     pub const BENCH_GATE_FAILURE: i32 = 5;
 }
 
-fn cmd_quality(
+async fn cmd_quality(
     args: QualityArgs,
     verbose: u8,
     format: OutputFormat,
     config: &str,
 ) -> anyhow::Result<()> {
     let out = Out::new(verbose, format);
-    let not_yet_implemented =
-        |label: &str| out.dim(&format!("{label}: not yet implemented (IR-038 Step 4)"));
     match args.command {
-        None | Some(QualityCommand::Run(_)) => {
-            let config_path = resolve_config_path(config)?;
-            out.section("Quality Metrics");
-            out.dim(&format!("Config: {config_path}"));
-            not_yet_implemented("quality run");
+        None => {
+            cmd_quality_run(
+                QualityRunArgs {
+                    ci: false,
+                    db: String::new(),
+                },
+                verbose,
+                format,
+                config,
+            )
+            .await
         }
-        Some(QualityCommand::History(_)) => not_yet_implemented("quality history"),
+        Some(QualityCommand::Run(run_args)) => {
+            cmd_quality_run(run_args, verbose, format, config).await
+        }
+        Some(QualityCommand::History(_)) => {
+            out.dim("quality history: not yet implemented (IR-038 Step 7)");
+            Ok(())
+        }
+    }
+}
+
+async fn cmd_quality_run(
+    args: QualityRunArgs,
+    verbose: u8,
+    format: OutputFormat,
+    config: &str,
+) -> anyhow::Result<()> {
+    let out = Out::new(verbose, format);
+    let config_path = resolve_config_path(config)?;
+    let cfg = load_config(&config_path)?;
+    let dims = embedder_dims(&cfg);
+
+    let pb = spinner("Running quality assessment...");
+    let report = virage_engine::quality::runner::run_quality_assessment(
+        &cfg,
+        dims,
+        &virage_engine::quality::runner::QualityRunOptions {
+            config_file: config_path.clone(),
+            sample_size: 100,
+            top_k: 10,
+        },
+    )
+    .await?;
+    pb.finish_and_clear();
+
+    match format {
+        OutputFormat::Json => out.data_json(&serde_json::to_value(&report)?),
+        OutputFormat::Markdown => {
+            out.data_line(&virage_engine::quality::report::format_markdown(&report))
+        }
+        _ => println!(
+            "{}",
+            virage_engine::quality::report::format_console(&report)
+        ),
+    }
+
+    if args.ci && !report.status.is_pass() {
+        std::process::exit(ci_exit_codes::QUALITY_GATE_FAILURE);
     }
     Ok(())
 }
@@ -3679,7 +3728,7 @@ async fn main() {
         Some(Commands::Viz) => cmd_viz(cli.verbose, format),
         Some(Commands::Eval(args)) => cmd_eval(args, cli.verbose, format, config),
         Some(Commands::Bench(args)) => cmd_bench(args, cli.verbose, format, config),
-        Some(Commands::Quality(args)) => cmd_quality(args, cli.verbose, format, config),
+        Some(Commands::Quality(args)) => cmd_quality(args, cli.verbose, format, config).await,
     };
 
     if let Err(e) = result {

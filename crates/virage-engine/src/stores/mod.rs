@@ -148,6 +148,12 @@ pub trait VectorStore: Send + Sync {
         top_k: usize,
         opts: SearchOptions,
     ) -> anyhow::Result<Vec<SearchResult>>;
+    /// Return every stored document, for tooling that needs a full scan (`virage quality
+    /// run`, IR-038). `Ok(None)` means this store doesn't support a full scan — callers
+    /// must treat that as "quality assessment unsupported on this backend", not an error.
+    async fn list_all(&self) -> anyhow::Result<Option<Vec<SearchResult>>> {
+        Ok(None)
+    }
     /// Read index metadata stored at last `virage index` run. Returns `None` if unavailable.
     async fn read_meta(&self) -> anyhow::Result<Option<IndexMeta>> {
         Ok(None)
