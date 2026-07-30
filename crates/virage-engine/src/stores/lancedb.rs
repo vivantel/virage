@@ -389,6 +389,25 @@ impl VectorStore for LanceDbStore {
         Ok(Self::batches_to_results(batches))
     }
 
+    async fn list_all(&self) -> anyhow::Result<Option<Vec<SearchResult>>> {
+        let table = self.get_table().await?;
+        let stream = table
+            .query()
+            .select(Select::Columns(vec![
+                "id".to_string(),
+                "dense_text".to_string(),
+                "sparse_text".to_string(),
+                "sparse_text_generator_id".to_string(),
+                "metadata_generator_id".to_string(),
+                "metadata_json".to_string(),
+                "source_file".to_string(),
+            ]))
+            .execute()
+            .await?;
+        let batches: Vec<RecordBatch> = stream.try_collect().await?;
+        Ok(Some(Self::batches_to_results(batches)))
+    }
+
     async fn read_meta(&self) -> anyhow::Result<Option<IndexMeta>> {
         let path = std::path::Path::new(&self.uri).join("_virage_meta.json");
         match std::fs::read_to_string(&path) {

@@ -20,6 +20,8 @@ pub mod pipeline;
 pub mod plugins;
 #[cfg(feature = "cli-binary")]
 pub mod progress;
+#[cfg(all(feature = "config", feature = "pipeline"))]
+pub mod quality;
 pub mod rerankers;
 #[cfg(any(
     feature = "source-git",
