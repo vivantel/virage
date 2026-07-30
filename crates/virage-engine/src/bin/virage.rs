@@ -329,9 +329,10 @@ struct EvalRunArgs {
 
 #[derive(Args)]
 struct EvalCompareArgs {
-    /// Baseline eval run identifier (shared history store key).
+    /// Baseline eval run: a JSON report file saved via `eval run --format json > file.json`.
+    /// Interim mechanism (IR-038 Step 5) — becomes a shared history store key once Step 7 lands.
     baseline: String,
-    /// Candidate eval run identifier (shared history store key).
+    /// Candidate eval run: a JSON report file saved via `eval run --format json > file.json`.
     candidate: String,
     /// Exit 4 if the bootstrap significance test recommends "reject". Without this flag,
     /// a "reject" recommendation prints as a warning and the command exits 0.
@@ -1946,8 +1947,9 @@ fn cmd_telemetry_init(
 /// Exit codes reserved for `--ci` gate failures (IR-038). Each of `virage quality run`,
 /// `virage eval run`/`compare`, and `virage bench index` exits its own code under `--ci` when a
 /// must-pass metric or regression check fails; without `--ci`, the same failure prints as a
-/// warning and the command exits 0. `quality run` is wired (Step 4); `eval`/`bench` (Steps 5-6,
-/// in virage-ee's docs/plans/eval-quality-bench-redesign.md) still call this stub.
+/// warning and the command exits 0. `quality run` (Step 4) and `eval run`/`compare` (Step 5) are
+/// wired; `bench index` (Step 6, in virage-ee's docs/plans/eval-quality-bench-redesign.md) still
+/// calls this stub.
 #[allow(dead_code)]
 mod ci_exit_codes {
     pub const QUALITY_GATE_FAILURE: i32 = 3;
@@ -2026,26 +2028,137 @@ async fn cmd_quality_run(
     Ok(())
 }
 
-fn cmd_eval(args: EvalArgs, verbose: u8, format: OutputFormat, config: &str) -> anyhow::Result<()> {
-    let out = Out::new(verbose, format);
-    let not_yet_implemented =
-        |label: &str| out.dim(&format!("{label}: not yet implemented (IR-038 Step 5)"));
+/// Rows fetched per RAGBench subset, matching the JS predecessor's default.
+const EVAL_MAX_ROWS_PER_SUBSET: usize = 50;
+/// Retrieval top-K, matching the JS predecessor's default.
+const EVAL_TOP_K: usize = 10;
+
+/// Parse a v1 `eval run` dataset spec. Only `ragbench:<subset>` (or `ragbench:all` for every
+/// subset) is supported — custom-corpus datasets are deferred past v1 (IR-038).
+fn parse_ragbench_subsets(dataset: &str) -> anyhow::Result<Vec<String>> {
+    let Some(spec) = dataset.strip_prefix("ragbench:") else {
+        anyhow::bail!(
+            "Unsupported dataset {dataset:?} — v1 only supports `ragbench:<subset>` \
+             (custom-dataset paths are deferred past v1, see IR-038)"
+        );
+    };
+    if spec == "all" {
+        return Ok(virage_engine::eval::ragbench::HF_RAGBENCH_SUBSETS
+            .iter()
+            .map(|s| s.to_string())
+            .collect());
+    }
+    if !virage_engine::eval::ragbench::HF_RAGBENCH_SUBSETS.contains(&spec) {
+        anyhow::bail!(
+            "Unknown ragbench subset {spec:?}. Valid subsets: {}",
+            virage_engine::eval::ragbench::HF_RAGBENCH_SUBSETS.join(", ")
+        );
+    }
+    Ok(vec![spec.to_string()])
+}
+
+async fn cmd_eval(
+    args: EvalArgs,
+    verbose: u8,
+    format: OutputFormat,
+    config: &str,
+) -> anyhow::Result<()> {
     match args.command {
-        EvalCommand::Run(run_args) => {
-            let config_path = resolve_config_path(config)?;
-            out.section("Eval Run");
-            out.dim(&format!("Config: {config_path}"));
-            out.dim(&format!("Dataset: {}", run_args.dataset));
-            not_yet_implemented("eval run");
+        EvalCommand::Run(run_args) => cmd_eval_run(run_args, verbose, format, config).await,
+        EvalCommand::Compare(compare_args) => cmd_eval_compare(compare_args, verbose, format),
+    }
+}
+
+async fn cmd_eval_run(
+    args: EvalRunArgs,
+    verbose: u8,
+    format: OutputFormat,
+    config: &str,
+) -> anyhow::Result<()> {
+    let out = Out::new(verbose, format);
+    let subsets = parse_ragbench_subsets(&args.dataset)?;
+
+    let config_path = resolve_config_path(config)?;
+    let cfg = load_config(&config_path)?;
+    let embedder = resolve_embedder(&cfg.providers.embedder)?;
+    let gate_threshold = cfg
+        .eval
+        .as_ref()
+        .map(|e| e.min_mrr())
+        .unwrap_or(virage_engine::config::EvalThresholds::DEFAULT_MIN_MRR);
+
+    let pb = spinner(&format!("Running eval against {}...", args.dataset));
+    let t0 = std::time::Instant::now();
+    let subset_results = virage_engine::eval::ragbench::run_subsets(
+        embedder.as_ref(),
+        &subsets,
+        EVAL_MAX_ROWS_PER_SUBSET,
+        EVAL_TOP_K,
+    )
+    .await?;
+    pb.finish_and_clear();
+
+    let report = virage_engine::eval::build_report(
+        args.dataset.clone(),
+        subset_results,
+        EVAL_TOP_K,
+        gate_threshold,
+        t0.elapsed().as_millis(),
+    );
+
+    match format {
+        OutputFormat::Json => out.data_json(&serde_json::to_value(&report)?),
+        OutputFormat::Markdown => {
+            out.data_line(&virage_engine::eval::report::format_markdown(&report))
         }
-        EvalCommand::Compare(compare_args) => {
-            out.section("Eval Compare");
-            out.dim(&format!(
-                "Baseline: {}  Candidate: {}",
-                compare_args.baseline, compare_args.candidate
-            ));
-            not_yet_implemented("eval compare");
-        }
+        _ => println!("{}", virage_engine::eval::report::format_console(&report)),
+    }
+
+    if args.ci && !report.gate_passed {
+        std::process::exit(ci_exit_codes::EVAL_GATE_FAILURE);
+    }
+    Ok(())
+}
+
+/// Load a saved `eval run --format json` report and extract its flattened per-query RR
+/// scores, for `eval compare`'s bootstrap significance test.
+fn load_eval_report_rr(path: &str) -> anyhow::Result<Vec<f64>> {
+    let text = std::fs::read_to_string(path)
+        .map_err(|e| anyhow::anyhow!("Cannot read eval report {path:?}: {e}"))?;
+    let report: virage_engine::eval::EvalReport = serde_json::from_str(&text)
+        .map_err(|e| anyhow::anyhow!("Cannot parse eval report {path:?}: {e}"))?;
+    Ok(report.all_per_query_rr())
+}
+
+fn cmd_eval_compare(
+    args: EvalCompareArgs,
+    verbose: u8,
+    format: OutputFormat,
+) -> anyhow::Result<()> {
+    let out = Out::new(verbose, format);
+    let baseline = load_eval_report_rr(&args.baseline)?;
+    let candidate = load_eval_report_rr(&args.candidate)?;
+
+    let result = virage_engine::eval::statistics::bootstrap_paired_test(
+        &baseline,
+        &candidate,
+        virage_engine::eval::statistics::DEFAULT_ITERATIONS,
+        virage_engine::eval::statistics::DEFAULT_SEED,
+    )?;
+
+    match format {
+        OutputFormat::Json => out.data_json(&serde_json::to_value(&result)?),
+        OutputFormat::Markdown => out.data_line(
+            &virage_engine::eval::report::format_compare_markdown(&result),
+        ),
+        _ => println!(
+            "{}",
+            virage_engine::eval::report::format_compare_console(&result)
+        ),
+    }
+
+    if args.ci && result.recommendation == virage_engine::eval::statistics::Recommendation::Reject {
+        std::process::exit(ci_exit_codes::EVAL_GATE_FAILURE);
     }
     Ok(())
 }
@@ -3726,7 +3839,7 @@ async fn main() {
         }
         Some(Commands::Dashboard(args)) => cmd_dashboard(args, cli.verbose, format, config),
         Some(Commands::Viz) => cmd_viz(cli.verbose, format),
-        Some(Commands::Eval(args)) => cmd_eval(args, cli.verbose, format, config),
+        Some(Commands::Eval(args)) => cmd_eval(args, cli.verbose, format, config).await,
         Some(Commands::Bench(args)) => cmd_bench(args, cli.verbose, format, config),
         Some(Commands::Quality(args)) => cmd_quality(args, cli.verbose, format, config).await,
     };

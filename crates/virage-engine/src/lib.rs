@@ -6,6 +6,8 @@ pub mod config;
 #[cfg(feature = "db-sqlite")]
 pub mod db;
 pub mod embedders;
+#[cfg(all(feature = "config", feature = "eval-ragbench"))]
+pub mod eval;
 #[cfg(feature = "cli-binary")]
 pub mod logging;
 #[cfg(feature = "cli-binary")]
