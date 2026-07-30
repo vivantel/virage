@@ -35,6 +35,9 @@ pub struct VirageConfigJson {
     /// Must-pass gate threshold override for `virage eval run --ci` (IR-038). Absent field
     /// falls back to `EvalThresholds::DEFAULT_MIN_MRR`.
     pub eval: Option<EvalThresholds>,
+    /// Must-pass gate threshold override for `virage bench index --ci` (IR-038 Step 6). Absent
+    /// field falls back to `BenchThresholds::DEFAULT_MAX_REGRESSION_PCT`.
+    pub bench: Option<BenchThresholds>,
 }
 
 /// A single glob → tags rule (IR-037). `pattern` is matched against each item's
@@ -232,6 +235,26 @@ impl EvalThresholds {
 
     pub fn min_mrr(&self) -> f64 {
         self.min_mrr.unwrap_or(Self::DEFAULT_MIN_MRR)
+    }
+}
+
+/// Must-pass gate threshold for `virage bench index --ci` (IR-038 Step 6). No JS predecessor
+/// measured indexing throughput at all, so this default is a conservative v1 starting point —
+/// tune per-deployment (CI runners are noisier than dedicated hardware).
+#[derive(Debug, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct BenchThresholds {
+    /// Maximum tolerated fractional drop in docs/sec vs. the previous recorded run for the
+    /// same corpus path, e.g. `0.20` = fail if throughput drops by more than 20%. Default: 0.20.
+    pub max_regression_pct: Option<f64>,
+}
+
+impl BenchThresholds {
+    pub const DEFAULT_MAX_REGRESSION_PCT: f64 = 0.20;
+
+    pub fn max_regression_pct(&self) -> f64 {
+        self.max_regression_pct
+            .unwrap_or(Self::DEFAULT_MAX_REGRESSION_PCT)
     }
 }
 

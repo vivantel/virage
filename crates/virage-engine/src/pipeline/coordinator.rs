@@ -102,6 +102,7 @@ pub async fn run_pipeline(
             files_skipped,
             files_deleted: to_delete.len(),
             chunks_upserted: 0,
+            tokens_processed: 0,
         });
     }
 
@@ -145,6 +146,7 @@ pub async fn run_pipeline(
     // ── Collect results and batch-upsert ──────────────────────────────────────
     let mut files_processed = 0usize;
     let mut chunks_upserted = 0usize;
+    let mut tokens_processed = 0usize;
     let batch_size = config.upload_batch_size;
     let mut batch: Vec<VectorDocument> = Vec::with_capacity(batch_size);
 
@@ -160,6 +162,7 @@ pub async fn run_pipeline(
                     store.upsert(&deduped).await?;
                 }
                 chunks_upserted += deduped.len();
+                tokens_processed += sum_estimated_tokens(&deduped);
                 progress.add_chunks(deduped.len());
             }
         }
@@ -170,6 +173,7 @@ pub async fn run_pipeline(
             store.upsert(&deduped).await?;
         }
         chunks_upserted += deduped.len();
+        tokens_processed += sum_estimated_tokens(&deduped);
         progress.add_chunks(deduped.len());
     }
 
@@ -183,6 +187,7 @@ pub async fn run_pipeline(
         files_skipped,
         files_deleted: to_delete.len(),
         chunks_upserted,
+        tokens_processed,
     })
 }
 
@@ -196,6 +201,16 @@ fn dedup_by_id(batch: Vec<VectorDocument>) -> Vec<VectorDocument> {
         .into_iter()
         .filter(|d| seen.insert(d.id.clone()))
         .collect()
+}
+
+/// Sums the `estimatedTokens` metadata field the chunker (`chunkers::walk`) attaches to every
+/// chunk. Missing/non-numeric values contribute 0 rather than failing the run.
+fn sum_estimated_tokens(docs: &[VectorDocument]) -> usize {
+    docs.iter()
+        .filter_map(|d| d.metadata.get("estimatedTokens"))
+        .filter_map(|v| v.as_f64())
+        .map(|t| t as usize)
+        .sum()
 }
 
 // ─── Conversion ──────────────────────────────────────────────────────────────
