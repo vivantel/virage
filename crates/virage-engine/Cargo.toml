@@ -55,12 +55,18 @@ pipeline      = ["chunker-walk", "source-types", "store-types", "db-sqlite",
                  "dep:tracing"]
 # Phase 5 — CLI binary
 config = ["dep:serde"]
+# IR-038 Step 5 — `virage eval run/compare` against RAGBench. RAGBench subset queries are
+# fetched from HuggingFace's Datasets Server rows API (plain JSON), not the raw per-subset
+# Parquet files in the dataset repo — see docs/decisions/IR-038-eval-quality-bench-redesign.md's
+# 2026-07-30 correction. Reuses reqwest (already vendored for store-chromadb) + sha2 (already
+# vendored for chunker-walk) — no new Cargo dependency.
+eval-ragbench = ["dep:reqwest", "dep:tokio", "dep:anyhow", "dep:sha2"]
 # cli-binary: everything the binary needs except embedder-onnx (no ort/load-dynamic).
 # Used by publish CI: --features cli-binary,download-binaries --no-default-features
 cli-binary = [
     "pipeline", "source-all", "chunker-all",
     "store-lancedb", "store-qdrant", "store-postgres", "store-chromadb", "db-sqlite",
-    "config",
+    "config", "eval-ragbench",
     "dep:clap", "dep:indicatif", "dep:dialoguer", "dep:console", "dep:flate2", "dep:tar",
     "dep:ureq",
     "dep:clap_complete", "dep:dirs", "dep:notify-debouncer-mini",

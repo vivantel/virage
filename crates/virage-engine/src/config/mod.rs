@@ -32,6 +32,9 @@ pub struct VirageConfigJson {
     /// fields fall back to the JS-predecessor defaults in `QualityThresholds`'s associated
     /// constants.
     pub quality: Option<QualityThresholds>,
+    /// Must-pass gate threshold override for `virage eval run --ci` (IR-038). Absent field
+    /// falls back to `EvalThresholds::DEFAULT_MIN_MRR`.
+    pub eval: Option<EvalThresholds>,
 }
 
 /// A single glob → tags rule (IR-037). `pattern` is matched against each item's
@@ -210,6 +213,25 @@ impl QualityThresholds {
     pub fn outlier_fraction_max(&self) -> f64 {
         self.outlier_fraction_max
             .unwrap_or(Self::DEFAULT_OUTLIER_FRACTION_MAX)
+    }
+}
+
+/// Must-pass gate threshold for `virage eval run --ci` (IR-038). Unlike `QualityThresholds`,
+/// there is no JS-predecessor value to inherit — RAGBench-subset MRR baselines depend heavily
+/// on the configured embedder/corpus, so this default is a conservative v1 starting point, not
+/// a derived value. Tune per-deployment.
+#[derive(Debug, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct EvalThresholds {
+    /// Minimum macro-averaged MRR@K across evaluated subsets. Default: 0.30.
+    pub min_mrr: Option<f64>,
+}
+
+impl EvalThresholds {
+    pub const DEFAULT_MIN_MRR: f64 = 0.30;
+
+    pub fn min_mrr(&self) -> f64 {
+        self.min_mrr.unwrap_or(Self::DEFAULT_MIN_MRR)
     }
 }
 
