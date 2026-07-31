@@ -25,18 +25,6 @@ jobs:
             eval-gate-${{ github.base_ref }}-
             eval-gate-
 
-      - name: DEBUG isolate --json / --top-k 5
-        run: |
-          echo "npm ls -g:"; npm ls -g @vivantel/virage || true
-          echo "=== A: top-k 1, no --json ==="
-          virage query "configure chunker package include ignore patterns ADR" --top-k 1 --config virage.config.ci.json || true
-          echo "=== B: top-k 5, no --json ==="
-          virage query "configure chunker package include ignore patterns ADR" --top-k 5 --config virage.config.ci.json || true
-          echo "=== C: top-k 1, --json ==="
-          virage query "configure chunker package include ignore patterns ADR" --top-k 1 --json --config virage.config.ci.json || true
-          echo "=== D: top-k 5, --json (exact script repro) ==="
-          virage query "configure chunker package include ignore patterns ADR" --top-k 5 --json --config virage.config.ci.json || true
-
       - name: Pipeline quality gate
         id: quality_run
         run: virage quality run --ci --config virage.config.ci.json

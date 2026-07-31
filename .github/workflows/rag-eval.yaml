@@ -37,6 +37,7 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version: lts/*
+          cache: npm
 
       - name: Install dependencies (for tsx)
         run: npm ci
@@ -47,9 +48,6 @@ jobs:
           cache-restore-keys: |
             rag-eval-${{ github.ref_name }}-
             rag-eval-
-
-      - name: DEBUG tsx repro
-        run: npx tsx eval/scripts/debug-repro.mts
 
       - name: Token efficiency (with vs without MCP)
         run: npx tsx eval/scripts/token-efficiency.mts
