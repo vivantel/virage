@@ -118,9 +118,9 @@ enum Commands {
     /// Print the virage-agent-claude usage notice.
     #[command(aliases = ["use"])]
     Usage,
-    /// Print the first 20 lines of each skill file.
+    /// Print a skill's summary, or the first 20 lines of each skill file if no name is given.
     #[command(aliases = ["skill"])]
-    ReadSkillSummary,
+    ReadSkillSummary(ReadSkillSummaryArgs),
     /// Show health summary: config, index, store, providers.
     Status(DbPathArg),
     /// Self-diagnostic with remediation steps.
@@ -218,6 +218,12 @@ struct QueryArgs {
     /// Minimum similarity threshold (0–1).
     #[arg(long)]
     min_similarity: Option<f32>,
+}
+
+#[derive(Args)]
+struct ReadSkillSummaryArgs {
+    /// Skill name to print (e.g. "planner"). Omit to dump all skill files.
+    skill_name: Option<String>,
 }
 
 #[derive(Args)]
@@ -3564,9 +3570,33 @@ fn cmd_usage(verbose: u8, format: OutputFormat) -> anyhow::Result<()> {
     Ok(())
 }
 
-fn cmd_read_skill_summary(verbose: u8, format: OutputFormat) -> anyhow::Result<()> {
+fn cmd_read_skill_summary(
+    skill_name: Option<String>,
+    verbose: u8,
+    format: OutputFormat,
+) -> anyhow::Result<()> {
     let out = Out::new(verbose, format);
-    let skill_dirs = [".agents/skills", ".virage/skills"];
+    // ".agents/skills/virage" is where `virage update` syncs the published
+    // @vivantel/virage-skills package for consuming projects; "packages/virage-skills/skills"
+    // is this monorepo's own source of truth, used when developing virage itself.
+    let skill_dirs = [".agents/skills/virage", "packages/virage-skills/skills"];
+
+    if let Some(name) = skill_name {
+        for dir in &skill_dirs {
+            let summary_path = Path::new(dir).join(&name).join("SKILL.summary.md");
+            if let Ok(text) = std::fs::read_to_string(&summary_path) {
+                print!("{text}");
+                return Ok(());
+            }
+            let full_path = Path::new(dir).join(&name).join("SKILL.md");
+            if let Ok(text) = std::fs::read_to_string(&full_path) {
+                println!("{}", text.lines().take(20).collect::<Vec<_>>().join("\n"));
+                return Ok(());
+            }
+        }
+        anyhow::bail!("skill '{name}' not found in {skill_dirs:?}");
+    }
+
     let mut found = false;
     for dir in &skill_dirs {
         let dir_path = Path::new(dir);
@@ -3993,7 +4023,9 @@ async fn main() {
         Some(Commands::Serve(args)) => cmd_serve(&args, config).await,
         Some(Commands::Plugin(args)) => cmd_plugin(args, cli.verbose, format),
         Some(Commands::Usage) => cmd_usage(cli.verbose, format),
-        Some(Commands::ReadSkillSummary) => cmd_read_skill_summary(cli.verbose, format),
+        Some(Commands::ReadSkillSummary(args)) => {
+            cmd_read_skill_summary(args.skill_name, cli.verbose, format)
+        }
         Some(Commands::Status(args)) => cmd_status(args, cli.verbose, format, config).await,
         Some(Commands::Doctor(args)) => cmd_doctor(args, cli.verbose, format, config).await,
         Some(Commands::Completions { shell }) => {
