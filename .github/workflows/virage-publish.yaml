@@ -73,10 +73,43 @@ jobs:
         # The action above only installs sccache and starts its server — it does not
         # wire cargo to use it. Without these, every `cargo build` bypasses sccache
         # entirely and its post-run stats always report 0 hits/0 requests.
+        #
+        # RUSTC_WRAPPER must be the absolute $SCCACHE_PATH the action just exported,
+        # not the bare "sccache" name: the action never adds its downloaded binary to
+        # PATH, so a bare name resolves to whatever (if anything) already happens to be
+        # on PATH on that runner image — a different binary/server than the one
+        # `${SCCACHE_PATH} --show-stats` queries in the action's own post-step, which
+        # is why stats stayed at 0 even after cargo was genuinely compiling hundreds of
+        # crates (confirmed: 596 real "Compiling" lines, 0 recorded sccache requests).
+        #
+        # SCCACHE_GHA_ENABLED is not used: GitHub has moved runners to Actions Cache
+        # Service V2, which no longer provides ACTIONS_CACHE_URL — the legacy variable
+        # sccache 0.17.0's GHA backend requires. With it unset, SCCACHE_GHA_ENABLED=true
+        # silently produced a passthrough with no caching or recorded stats at all.
+        # SCCACHE_DIR + actions/cache below is the same local-disk-cache-persisted-via-
+        # actions/cache pattern already used for the linux-x64-gnu Docker build's
+        # target/ cache, and doesn't depend on GitHub's cache-service version.
+        #
+        # `shell: bash` is required here: this step's syntax (`>> "$GITHUB_ENV"`) is
+        # bash-specific, but `run:` defaults to PowerShell on Windows. Without this,
+        # the step "succeeds" on win32-x64-msvc while silently doing nothing — which is
+        # why that platform showed "Local disk" cache_location even before the
+        # GHA-mode/ACTIONS_CACHE_URL issue above was found: neither env var was ever
+        # actually set there.
         if: matrix.platform-name != 'linux-x64-gnu'
+        shell: bash
         run: |
-          echo "RUSTC_WRAPPER=sccache" >> "$GITHUB_ENV"
-          echo "SCCACHE_GHA_ENABLED=true" >> "$GITHUB_ENV"
+          echo "RUSTC_WRAPPER=${SCCACHE_PATH}" >> "$GITHUB_ENV"
+          echo "SCCACHE_DIR=${{ runner.temp }}/sccache-dir" >> "$GITHUB_ENV"
+
+      - name: Cache sccache dir (native platforms)
+        if: matrix.platform-name != 'linux-x64-gnu'
+        uses: actions/cache@v6
+        with:
+          path: ${{ runner.temp }}/sccache-dir
+          key: ${{ runner.os }}-${{ matrix.target }}-sccache-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ matrix.target }}-sccache-
 
       # ── protoc (required by lance-encoding / prost-build) ─────────────────
 
