@@ -59,7 +59,7 @@ interface QueryMeasurement {
 function runQuery(query: string, topK: number): { ragTokens: number; sourceFiles: string[] } {
   try {
     const out = execSync(
-      `${VIRAGE_BIN} query ${JSON.stringify(query)} --top-k ${topK} --json --config ${VIRAGE_CONFIG}`,
+      `${VIRAGE_BIN} query ${JSON.stringify(query)} --top-k ${topK} --format json --config ${VIRAGE_CONFIG}`,
       { encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"], cwd: REPO_ROOT },
     );
     const results = JSON.parse(out) as QueryResult[];
