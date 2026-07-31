@@ -1,0 +1,48 @@
+name: Setup & Index Virage
+description: Install the published virage CLI and index the corpus, with cache restore/save around the index step.
+
+inputs:
+  cache-key:
+    description: Full actions/cache key for this run.
+    required: true
+  cache-restore-keys:
+    description: Newline-separated actions/cache restore-keys.
+    required: false
+    default: ""
+  config:
+    description: Path to the virage config file.
+    required: false
+    default: virage.config.ci.json
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-node@v6
+      with:
+        node-version: lts/*
+
+    - name: Install virage CLI
+      shell: bash
+      run: npm install -g @vivantel/virage@latest
+
+    - name: Restore Virage cache
+      uses: actions/cache/restore@v6
+      with:
+        path: |
+          .virage/lancedb
+          .virage/model-cache
+        key: ${{ inputs.cache-key }}
+        restore-keys: ${{ inputs.cache-restore-keys }}
+
+    - name: Index knowledge base
+      shell: bash
+      run: virage index --config ${{ inputs.config }}
+
+    - name: Save Virage cache
+      if: always()
+      uses: actions/cache/save@v6
+      with:
+        path: |
+          .virage/lancedb
+          .virage/model-cache
+        key: ${{ inputs.cache-key }}
