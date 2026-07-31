@@ -47,10 +47,9 @@ jobs:
           path: |
             .virage/lancedb
             .virage/model-cache
-          key: virage-${{ github.ref_name }}-${{ github.sha }}
+          key: virage-${{ github.ref_name }}-${{ hashFiles('crates/virage-engine/src/stores/*.rs') }}-${{ github.sha }}
           restore-keys: |
-            virage-${{ github.ref_name }}-
-            virage-
+            virage-${{ github.ref_name }}-${{ hashFiles('crates/virage-engine/src/stores/*.rs') }}-
 
       - name: Diagnose virage install
         env:
@@ -72,4 +71,4 @@ jobs:
           path: |
             .virage/lancedb
             .virage/model-cache
-          key: virage-${{ github.ref_name }}-${{ github.sha }}
+          key: virage-${{ github.ref_name }}-${{ hashFiles('crates/virage-engine/src/stores/*.rs') }}-${{ github.sha }}
