@@ -16,7 +16,15 @@ where
     T: for<'de> Deserialize<'de>,
 {
     let val = serde_json::Value::Object(spec.options.clone().into_iter().collect());
-    serde_json::from_value(val).map_err(|e| anyhow!("{}: invalid options: {e}", spec.package))
+    // Round-trip through a string rather than serde_json::from_value(val) directly: structs
+    // combining #[serde(flatten)] with an #[serde(untagged)] field (OnnxEmbedderOptions,
+    // CrossEncoderOptions) intermittently fail with "unknown field" through Value's Deserializer
+    // impl, which doesn't reliably support the buffering flatten needs — a known serde_json
+    // limitation. Deserializing from a string goes through the streaming Deserializer, which
+    // does support it correctly.
+    let text = serde_json::to_string(&val)
+        .map_err(|e| anyhow!("{}: invalid options: {e}", spec.package))?;
+    serde_json::from_str(&text).map_err(|e| anyhow!("{}: invalid options: {e}", spec.package))
 }
 
 // ── ONNX model source — three mutually exclusive variants ─────────────────────
@@ -164,6 +172,41 @@ struct OnnxEmbedderOptions {
 
 fn default_onnx_dims() -> usize {
     384
+}
+
+#[cfg(test)]
+mod onnx_embedder_options_tests {
+    use super::*;
+
+    #[test]
+    fn parses_flattened_source_alongside_named_fields() {
+        let mut options = std::collections::HashMap::new();
+        options.insert(
+            "model".to_string(),
+            serde_json::json!("Xenova/all-MiniLM-L6-v2"),
+        );
+        options.insert(
+            "cacheDir".to_string(),
+            serde_json::json!(".virage/model-cache"),
+        );
+        options.insert("dimensions".to_string(), serde_json::json!(384));
+        let spec = PluginRef {
+            package: "@vivantel/virage-embedder-onnx".to_string(),
+            options,
+        };
+
+        let opts: OnnxEmbedderOptions = parse_options(&spec).unwrap();
+        assert_eq!(opts.dimensions, 384);
+        match opts.source {
+            OnnxModelSource::HuggingFace {
+                model, cache_dir, ..
+            } => {
+                assert_eq!(model, "Xenova/all-MiniLM-L6-v2");
+                assert_eq!(cache_dir.as_deref(), Some(".virage/model-cache"));
+            }
+            _ => panic!("expected HuggingFace variant"),
+        }
+    }
 }
 
 fn default_true() -> bool {

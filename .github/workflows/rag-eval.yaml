@@ -4,8 +4,6 @@ on:
   workflow_dispatch:
 
 jobs:
-  # ── Static evals ──────────────────────────────────────────────────────────
-  # No index needed. Tests hook routing accuracy from live .claude/settings.json.
   static-evals:
     name: Skill Routing
     runs-on: ubuntu-latest
@@ -30,11 +28,8 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           npx tsx eval/scripts/skill-routing.mts --summary >> $GITHUB_STEP_SUMMARY || true
 
-  # ── RAG quality ───────────────────────────────────────────────────────────
-  # Installs published @vivantel/virage-cli (virage-runner pattern) so CI uses
-  # the same binary end-users install. Caches model + LanceDB between runs.
   rag-quality:
-    name: RAG Retrieval Quality & Token Efficiency
+    name: RAG Pipeline Quality & Token Efficiency
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -47,71 +42,29 @@ jobs:
       - name: Install dependencies (for tsx)
         run: npm ci
 
-      - name: Install Virage CLI + plugins (published versions)
-        run: |
-          npm install --prefix ./virage-runner \
-            @vivantel/virage-cli@latest \
-            @vivantel/virage-embedder-transformers@latest \
-            @vivantel/virage-store-lancedb@latest \
-            @vivantel/virage-chunker-ce-md@latest \
-            @vivantel/virage-code-chunk-chunker@latest
-
-      - name: Restore Virage cache
-        uses: actions/cache/restore@v6
+      - uses: ./.github/actions/virage-index
         with:
-          path: |
-            .virage/lancedb
-            .virage/model-cache
-          key: rag-eval-${{ github.ref_name }}-${{ github.sha }}
-          restore-keys: |
+          cache-key: rag-eval-${{ github.ref_name }}-${{ github.sha }}
+          cache-restore-keys: |
             rag-eval-${{ github.ref_name }}-
             rag-eval-
 
-      - name: Index knowledge base
-        run: ./virage-runner/node_modules/.bin/virage index --config virage.config.ci.json
-
-      - name: Save Virage cache
-        if: always()
-        uses: actions/cache/save@v6
-        with:
-          path: |
-            .virage/lancedb
-            .virage/model-cache
-          key: rag-eval-${{ github.ref_name }}-${{ github.sha }}
-
       - name: Token efficiency (with vs without MCP)
-        env:
-          VIRAGE_BIN: ./virage-runner/node_modules/.bin/virage
-          VIRAGE_CONFIG: virage.config.ci.json
         run: npx tsx eval/scripts/token-efficiency.mts
 
-      - name: RAG retrieval quality (P@5 / MRR)
-        run: |
-          if [ -f eval/quality-evaluation.ds.json ]; then
-            ./virage-runner/node_modules/.bin/virage quality eval run \
-              --dataset eval/quality-evaluation.ds.json \
-              --ci --threshold-mrr 0.35 \
-              --config virage.config.ci.json
-          else
-            echo "Skipping: eval/quality-evaluation.ds.json not found."
-          fi
+      - name: Pipeline quality assessment
+        id: quality_run
+        run: virage quality run --ci --config virage.config.ci.json
 
       - name: Write job summary
         if: always()
-        env:
-          VIRAGE_BIN: ./virage-runner/node_modules/.bin/virage
-          VIRAGE_CONFIG: virage.config.ci.json
         run: |
           echo "## Token Efficiency: With vs Without Virage MCP" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           npx tsx eval/scripts/token-efficiency.mts --summary >> $GITHUB_STEP_SUMMARY || true
           echo "" >> $GITHUB_STEP_SUMMARY
-          if [ -f eval/quality-evaluation.ds.json ]; then
-            echo "## RAG Retrieval Quality" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo '```' >> $GITHUB_STEP_SUMMARY
-            ./virage-runner/node_modules/.bin/virage quality eval run \
-              --dataset eval/quality-evaluation.ds.json \
-              --config virage.config.ci.json >> $GITHUB_STEP_SUMMARY || true
-            echo '```' >> $GITHUB_STEP_SUMMARY
-          fi
+          echo "## Pipeline Quality" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          virage --format markdown quality run --config virage.config.ci.json >> $GITHUB_STEP_SUMMARY 2>/dev/null || true
+          echo '```' >> $GITHUB_STEP_SUMMARY

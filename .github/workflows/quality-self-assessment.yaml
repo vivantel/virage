@@ -16,67 +16,15 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v6
+      - uses: ./.github/actions/virage-index
         with:
-          node-version: lts/*
-          cache: npm
-
-      - name: Build Virage packages from source
-        run: |
-          mkdir -p /tmp/virage-packs
-          node scripts/patch-lockfile-stubs.cjs
-          npm ci --ignore-scripts
-          npm run build -w packages/virage-core
-          npm run build -w packages/virage-cli
-          npm pack --workspace packages/virage-core --pack-destination /tmp/virage-packs
-          npm pack --workspace packages/virage-cli --pack-destination /tmp/virage-packs
-
-      - name: Install Virage CLI + plugins
-        run: |
-          CORE_TGZ=$(ls /tmp/virage-packs/vivantel-virage-core-*.tgz)
-          CLI_TGZ=$(ls /tmp/virage-packs/vivantel-virage-cli-*.tgz)
-          npm install --prefix ./virage-runner \
-            "$CORE_TGZ" \
-            "$CLI_TGZ" \
-            @vivantel/virage-embedder-transformers@latest \
-            @vivantel/virage-store-lancedb@latest \
-            @vivantel/virage-chunker-ce-md@latest \
-            @vivantel/virage-code-chunk-chunker@latest
-
-      - name: Restore Virage index cache
-        uses: actions/cache/restore@v6
-        with:
-          path: |
-            .virage/lancedb
-            .virage/model-cache
-          key: quality-self-assessment-${{ github.ref_name }}-${{ github.sha }}
-          restore-keys: |
+          cache-key: quality-self-assessment-${{ github.ref_name }}-${{ github.sha }}
+          cache-restore-keys: |
             quality-self-assessment-${{ github.ref_name }}-
             quality-self-assessment-
 
-      - name: Index knowledge base
-        run: ./virage-runner/node_modules/.bin/virage index --config virage.config.ci.json
-
-      - name: Save Virage index cache
-        if: always()
-        uses: actions/cache/save@v6
-        with:
-          path: |
-            .virage/lancedb
-            .virage/model-cache
-          key: quality-self-assessment-${{ github.ref_name }}-${{ github.sha }}
-
       - name: Run quality self-assessment
-        run: |
-          mkdir -p .virage/quality-history
-          ./virage-runner/node_modules/.bin/virage quality \
-            --json \
-            --history \
-            --fail-fast \
-            --benchmark-hf \
-            --benchmark-hf-rows 50 \
-            --output .virage/quality-report.json \
-            --config virage.config.ci.json
+        run: virage --format json quality run --ci --config virage.config.ci.json > .virage/quality-report.json
         continue-on-error: true
         id: quality_run
 
@@ -94,31 +42,21 @@ jobs:
           echo "## Pipeline Quality Self-Assessment" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           if [ -f .virage/quality-report.json ]; then
-            ./virage-runner/node_modules/.bin/virage quality \
-              --markdown \
-              --config virage.config.ci.json >> $GITHUB_STEP_SUMMARY 2>/dev/null || \
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            virage --format markdown quality run --config virage.config.ci.json >> $GITHUB_STEP_SUMMARY 2>/dev/null || \
             echo "> Quality report generated — see artifact for details." >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
           else
             echo "> ⚠️ Quality report not generated." >> $GITHUB_STEP_SUMMARY
           fi
 
-      # benchmark-action/github-action-benchmark switches to gh-pages, which git
-      # refuses if npm install modified virage-runner/package.json (a tracked file).
-      - name: Restore tracked files before gh-pages switch
-        if: always()
-        run: git checkout -- virage-runner/ 2>/dev/null || true
-
-      # ── Benchmark charts (benchmark-action/github-action-benchmark) ────────
-      # Reads benchmark-data.json written by `virage quality --history`
-      # Pushes results to gh-pages branch → generates charts at
-      # https://vivantel.github.io/virage/dev/bench/
       - name: Store benchmark data
         uses: benchmark-action/github-action-benchmark@v1
-        if: always() && hashFiles('.virage/quality-history/benchmark-data.json') != ''
+        if: always() && hashFiles('.virage/history/benchmark-data.json') != ''
         with:
           name: Virage Quality Metrics
           tool: customBiggerIsBetter
-          output-file-path: .virage/quality-history/benchmark-data.json
+          output-file-path: .virage/history/benchmark-data.json
           github-token: ${{ secrets.GITHUB_TOKEN }}
           gh-pages-branch: gh-pages
           benchmark-data-dir-path: dev/bench
@@ -127,17 +65,14 @@ jobs:
           comment-on-alert: false
           fail-on-alert: false
 
-      # ── Shields.io badge ──────────────────────────────────────────────────
-      # Commits quality-badge.json to gh-pages so the README badge stays live.
       - name: Publish quality badge to gh-pages
-        if: always() && hashFiles('.virage/quality-history/quality-badge.json') != ''
+        if: always() && hashFiles('.virage/history/quality/badge.json') != ''
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          BADGE_JSON=$(cat .virage/quality-history/quality-badge.json)
+          BADGE_JSON=$(cat .virage/history/quality/badge.json)
 
-          # Switch to the latest gh-pages (benchmark-action may have pushed already)
           git fetch origin gh-pages
           git checkout gh-pages
 
