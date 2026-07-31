@@ -27,7 +27,7 @@ jobs:
 
       - name: Pipeline quality gate
         id: quality_run
-        run: virage quality run --ci
+        run: virage quality run --ci --config virage.config.ci.json
 
       - name: Write job summary
         if: always()
@@ -35,5 +35,5 @@ jobs:
           echo "## Pipeline Quality Gate" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
-          virage --format markdown quality run >> $GITHUB_STEP_SUMMARY 2>/dev/null || true
+          virage --format markdown quality run --config virage.config.ci.json >> $GITHUB_STEP_SUMMARY 2>/dev/null || true
           echo '```' >> $GITHUB_STEP_SUMMARY

@@ -24,7 +24,7 @@ jobs:
             quality-self-assessment-
 
       - name: Run quality self-assessment
-        run: virage --format json quality run --ci > .virage/quality-report.json
+        run: virage --format json quality run --ci --config virage.config.ci.json > .virage/quality-report.json
         continue-on-error: true
         id: quality_run
 
@@ -43,7 +43,7 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           if [ -f .virage/quality-report.json ]; then
             echo '```' >> $GITHUB_STEP_SUMMARY
-            virage --format markdown quality run >> $GITHUB_STEP_SUMMARY 2>/dev/null || \
+            virage --format markdown quality run --config virage.config.ci.json >> $GITHUB_STEP_SUMMARY 2>/dev/null || \
             echo "> Quality report generated — see artifact for details." >> $GITHUB_STEP_SUMMARY
             echo '```' >> $GITHUB_STEP_SUMMARY
           else

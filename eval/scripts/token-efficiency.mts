@@ -14,7 +14,7 @@
  * both sides reference the same content, just at different granularity.
  *
  * Requires `virage index` to have been run.
- * Set VIRAGE_BIN to override the binary (e.g. ./virage-runner/node_modules/.bin/virage).
+ * Set VIRAGE_BIN to override the binary (default: virage, resolved from PATH).
  * Set VIRAGE_CONFIG to override the config file (default: virage.config.ci.json).
  */
 
@@ -45,7 +45,7 @@ const QUERIES: QueryCase[] = [
 ];
 
 interface QueryResult {
-  source_file: string;
+  sourceFile: string;
   [key: string]: unknown;
 }
 
@@ -64,9 +64,10 @@ function runQuery(query: string, topK: number): { ragTokens: number; sourceFiles
     );
     const results = JSON.parse(out) as QueryResult[];
     const ragTokens = Math.ceil(out.length / 4);
-    const sourceFiles = [...new Set(results.map((r) => r.source_file).filter(Boolean))];
+    const sourceFiles = [...new Set(results.map((r) => r.sourceFile).filter(Boolean))];
     return { ragTokens, sourceFiles };
-  } catch {
+  } catch (err) {
+    console.error(`Query failed for ${JSON.stringify(query)}:`, err);
     return { ragTokens: 0, sourceFiles: [] };
   }
 }
