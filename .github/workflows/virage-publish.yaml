@@ -69,6 +69,15 @@ jobs:
         if: matrix.platform-name != 'linux-x64-gnu'
         uses: mozilla-actions/sccache-action@v0.0.9
 
+      - name: Enable sccache for cargo
+        # The action above only installs sccache and starts its server — it does not
+        # wire cargo to use it. Without these, every `cargo build` bypasses sccache
+        # entirely and its post-run stats always report 0 hits/0 requests.
+        if: matrix.platform-name != 'linux-x64-gnu'
+        run: |
+          echo "RUSTC_WRAPPER=sccache" >> "$GITHUB_ENV"
+          echo "SCCACHE_GHA_ENABLED=true" >> "$GITHUB_ENV"
+
       # ── protoc (required by lance-encoding / prost-build) ─────────────────
 
       - name: Install protoc (Linux)
@@ -343,23 +352,24 @@ jobs:
             npm publish --workspace packages/virage --access public
           fi
 
-      - name: Sync lockfile post-publish
+      - name: Commit version bump + sync lockfile
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
         run: |
-          # Restore package.json versions to source before syncing the lockfile.
-          # "Bump package versions" wrote the publish version to these files, but
-          # source in git still has the previous version.  Running npm install with
-          # the bumped files commits a lockfile that references the new version,
-          # while patch-lockfile-stubs.cjs (which reads source) patches it back on
-          # every local push — permanently blocking git push.
-          git checkout -- packages/virage/package.json packages/virage/npm/*/package.json
-
+          # Previously this step reverted packages/virage/package.json + npm/*/package.json
+          # to source before regenerating the lockfile, so the just-published version was
+          # never reflected back into the repo. That meant any job doing plain `npm ci`
+          # against this repo (not `npm install -g @vivantel/virage@latest`) stayed
+          # permanently stuck on whichever version was last committed here — regardless of
+          # how many releases had been published since. Committing the bump forward keeps
+          # package.json and the lockfile in sync with each other, which is what
+          # patch-lockfile-stubs.cjs actually needs (it patches the lockfile to match
+          # package.json's pin, not to some other fixed value) — so this does not
+          # reintroduce the original push-blocking loop.
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          git checkout -- package-lock.json 2>/dev/null || true
-          git fetch origin master
-          git checkout -B master origin/master
-
+          committed=false
           for push_attempt in 1 2 3 4 5; do
             for resolve_attempt in 1 2 3; do
               npm install --package-lock-only --ignore-scripts --silent && break
@@ -368,14 +378,22 @@ jobs:
             done
             node scripts/patch-lockfile-stubs.cjs
 
-            git diff --quiet package-lock.json && exit 0
-            git add package-lock.json
-            git commit -m "chore: sync package-lock.json [skip ci]"
-            git push origin master && exit 0
+            git add packages/virage/package.json packages/virage/npm/*/package.json package-lock.json
+            if git diff --cached --quiet; then
+              if [ "$committed" = false ]; then
+                echo "Already up to date with origin/master — nothing to commit."
+                exit 0
+              fi
+            elif [ "$committed" = true ]; then
+              git commit --amend --no-edit
+            else
+              git commit -m "chore(release): bump @vivantel/virage to ${VERSION}"
+              committed=true
+            fi
 
-            echo "Push attempt $push_attempt failed, re-syncing..."
-            git reset HEAD~1
-            git checkout -- package-lock.json
+            git push origin HEAD:master && exit 0
+
+            echo "Push attempt $push_attempt failed, rebasing onto latest master..."
             git fetch origin master
             git rebase origin/master
           done
