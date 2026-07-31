@@ -25,6 +25,13 @@ jobs:
             eval-gate-${{ github.base_ref }}-
             eval-gate-
 
+      - name: DEBUG query vs quality run embedder resolution
+        run: |
+          echo "=== query (verbose) ==="
+          virage -vvv query "test" --top-k 1 --config virage.config.ci.json || true
+          echo "=== quality run (verbose) ==="
+          virage -vvv quality run --config virage.config.ci.json || true
+
       - name: Pipeline quality gate
         id: quality_run
         run: virage quality run --ci --config virage.config.ci.json
