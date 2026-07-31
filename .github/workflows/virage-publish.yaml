@@ -73,9 +73,17 @@ jobs:
         # The action above only installs sccache and starts its server — it does not
         # wire cargo to use it. Without these, every `cargo build` bypasses sccache
         # entirely and its post-run stats always report 0 hits/0 requests.
+        #
+        # RUSTC_WRAPPER must be the absolute $SCCACHE_PATH the action just exported,
+        # not the bare "sccache" name: the action never adds its downloaded binary to
+        # PATH, so a bare name resolves to whatever (if anything) already happens to be
+        # on PATH on that runner image — a different binary/server than the one
+        # `${SCCACHE_PATH} --show-stats` queries in the action's own post-step, which
+        # is why stats stayed at 0 even after cargo was genuinely compiling hundreds of
+        # crates (confirmed: 596 real "Compiling" lines, 0 recorded sccache requests).
         if: matrix.platform-name != 'linux-x64-gnu'
         run: |
-          echo "RUSTC_WRAPPER=sccache" >> "$GITHUB_ENV"
+          echo "RUSTC_WRAPPER=${SCCACHE_PATH}" >> "$GITHUB_ENV"
           echo "SCCACHE_GHA_ENABLED=true" >> "$GITHUB_ENV"
 
       # ── protoc (required by lance-encoding / prost-build) ─────────────────
