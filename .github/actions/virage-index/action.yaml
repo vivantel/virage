@@ -25,6 +25,15 @@ runs:
       shell: bash
       run: npm install -g @vivantel/virage@latest
 
+    - name: Pin resolved virage binary
+      # This repo's own npm workspace links a `virage` bin (packages/virage-cli, the
+      # outgoing JS CLI) into node_modules/.bin — anything invoked through npx/execSync
+      # prepends that to PATH and shadows the global install above. Export the absolute
+      # path so later steps (e.g. eval/scripts/token-efficiency.mts, which already reads
+      # VIRAGE_BIN) call the intended binary regardless of PATH resolution order.
+      shell: bash
+      run: echo "VIRAGE_BIN=$(command -v virage)" >> "$GITHUB_ENV"
+
     - name: Restore Virage cache
       uses: actions/cache/restore@v6
       with:
