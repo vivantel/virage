@@ -1,5 +1,8 @@
-//! Structured logging subscriber. Emits JSON to stdout and, optionally, an append-only file —
-//! no remote transport, no rotation. [`registry`] is exposed separately from [`init`] so a
+//! Structured logging subscriber. Emits JSON to stderr and, optionally, an append-only file —
+//! no remote transport, no rotation. Stderr, not stdout: commands like `virage query --format
+//! json`/`quality run --format json` write machine-readable results to stdout for piping, and
+//! log lines interleaved there would break any consumer's `JSON.parse` (see IR-038's Step 9 CI
+//! migration, which hit exactly this). [`registry`] is exposed separately from [`init`] so a
 //! downstream binary can attach additional `Layer`s (e.g. for remote transport) on top before
 //! calling `.init()` itself, rather than duplicating subscriber-init logic.
 
@@ -35,13 +38,13 @@ fn env_filter(config: &LoggingConfig) -> EnvFilter {
     EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new(config.level.clone()))
 }
 
-/// Build the base registry: env-filtered, always-JSON stdout layer, plus an optional JSON file
+/// Build the base registry: env-filtered, always-JSON stderr layer, plus an optional JSON file
 /// layer. Returns a `Subscriber` (not yet initialized as global default) so a caller can attach
 /// additional `Layer`s via `.with(layer)` before calling `.init()`.
 pub fn registry(
     config: &LoggingConfig,
 ) -> impl tracing::Subscriber + for<'a> tracing_subscriber::registry::LookupSpan<'a> {
-    let stdout_layer = fmt::layer().json().with_writer(std::io::stdout);
+    let stderr_layer = fmt::layer().json().with_writer(std::io::stderr);
 
     let file_layer = config.file_path.as_ref().and_then(|path| {
         OpenOptions::new()
@@ -54,7 +57,7 @@ pub fn registry(
 
     Registry::default()
         .with(env_filter(config))
-        .with(stdout_layer)
+        .with(stderr_layer)
         .with(file_layer)
 }
 

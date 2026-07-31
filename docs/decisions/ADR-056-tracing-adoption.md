@@ -16,11 +16,11 @@ downstream, non-open-source build).
 
 ## Decision
 
-Adopt `tracing` + `tracing-subscriber` for structured logging, CE-scope only (stdout + optional
+Adopt `tracing` + `tracing-subscriber` for structured logging, CE-scope only (stderr + optional
 append-only file, no remote transport, no rotation — those are out of scope for this ADR).
 
 **Subscriber init** — `virage_engine::logging::init(config)` (`src/logging.rs`) builds an
-env-filtered registry with a JSON stdout layer and an optional JSON file layer. `RUST_LOG`
+env-filtered registry with a JSON stderr layer and an optional JSON file layer. `RUST_LOG`
 overrides `virage.config.json`'s `logging.level` when set (standard `tracing` convention); no
 generic nested env-override scheme was introduced. `logging::registry(config)` is exposed
 separately (not just `init`) so a downstream binary can attach additional `Layer`s via
@@ -67,3 +67,18 @@ upgrade path.
   (`logging`) — non-breaking, no `VIRAGE_CONFIG_SCHEMA_VERSION` bump required.
 - No file-writer rotation ships in this change — append-only, external rotation is the
   customer's responsibility (documented as a known limitation, not a bug).
+
+## Correction (2026-07-31)
+
+Originally shipped with the JSON layer on **stdout**. Discovered while validating IR-038 Step
+9's migrated CI workflows: `virage query --format json` (and any other `--format json`/
+`--format markdown` command) writes its machine-readable result to stdout, and tracing's JSON
+log lines were landing on the same stream — a script piping stdout and calling `JSON.parse` hit
+the first log line's closing brace and failed with "Unexpected non-whitespace character after
+JSON". This is the standard Unix convention this ADR should have started from: **logs go to
+stderr, program output goes to stdout**, precisely so the two can be separated by a consumer.
+Changed the JSON layer's writer from `std::io::stdout` to `std::io::stderr` in `logging.rs`; no
+config-shape or dependency change. `Out`'s existing human/JSON/markdown output (`output.rs`) was
+never affected — it already writes data to stdout and chrome to stderr correctly (see
+`output.rs`'s `data_json`/`data_line` vs `section`/`dim` split); this correction just brings the
+tracing layer in line with that same convention.

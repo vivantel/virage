@@ -49,17 +49,6 @@ jobs:
             rag-eval-${{ github.ref_name }}-
             rag-eval-
 
-      - name: DEBUG raw query output
-        run: |
-          virage query "test" --top-k 5 --format json --config virage.config.ci.json > /tmp/out.json 2>/tmp/out.err
-          echo "=== stdout (head -c 500) ==="
-          head -c 500 /tmp/out.json
-          echo
-          echo "=== stdout bytes ==="
-          wc -c /tmp/out.json
-          echo "=== stderr ==="
-          cat /tmp/out.err
-
       - name: Token efficiency (with vs without MCP)
         run: npx tsx eval/scripts/token-efficiency.mts
 
