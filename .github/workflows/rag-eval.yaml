@@ -48,6 +48,25 @@ jobs:
             rag-eval-${{ github.ref_name }}-
             rag-eval-
 
+      - name: DEBUG node execSync vs shell
+        run: |
+          echo "shell which virage:"; which virage
+          echo "shell PATH: $PATH"
+          node -e '
+            const { execSync } = require("child_process");
+            console.log("node process.env.PATH:", process.env.PATH);
+            try {
+              const out = execSync("which virage", { encoding: "utf-8" });
+              console.log("node which virage:", out);
+            } catch (e) { console.log("node which virage FAILED:", e.message); }
+            try {
+              const out = execSync("virage query test --top-k 1 --json --config virage.config.ci.json", { encoding: "utf-8", stdio: ["pipe","pipe","pipe"], cwd: process.cwd() });
+              console.log("node execSync query SUCCESS, length:", out.length);
+            } catch (e) {
+              console.log("node execSync query FAILED. stderr:", e.stderr);
+            }
+          '
+
       - name: Token efficiency (with vs without MCP)
         run: npx tsx eval/scripts/token-efficiency.mts
 
