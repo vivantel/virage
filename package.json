@@ -46,7 +46,7 @@
     "@vivantel/virage-embedder-transformers": "^0.2.33",
     "@vivantel/virage-skills": "^0.1.8",
     "@vivantel/virage-store-lancedb": "^0.2.33",
-    "react": "^19.2.7",
-    "react-dom": "^19.2.7"
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8"
   }
 }

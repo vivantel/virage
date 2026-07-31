@@ -56,7 +56,7 @@
   },
   "dependencies": {
     "@lancedb/lancedb": "^0.31.0",
-    "apache-arrow": "^21.1.0",
+    "apache-arrow": "^21.2.0",
     "zod": "^4.4.3"
   },
   "peerDependencies": {
