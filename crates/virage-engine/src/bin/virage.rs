@@ -597,15 +597,56 @@ fn embedder_dims(cfg: &VirageConfigJson) -> usize {
         .unwrap_or(384)
 }
 
-fn virage_theme() -> dialoguer::theme::ColorfulTheme {
-    use console::Style;
-    dialoguer::theme::ColorfulTheme {
-        active_item_style: Style::new().cyan().bold(),
-        active_item_prefix: console::style("❯ ".to_string()).cyan().bold(),
-        inactive_item_prefix: console::style("  ".to_string()),
-        checked_item_prefix: console::style("[✓]".to_string()).green(),
-        unchecked_item_prefix: console::style("[ ]".to_string()).dim(),
-        ..Default::default()
+fn virage_render_config() -> inquire::ui::RenderConfig<'static> {
+    use inquire::ui::{Color, RenderConfig, StyleSheet, Styled};
+    RenderConfig::default_colored()
+        .with_highlighted_option_prefix(Styled::new("❯ ").with_fg(Color::DarkCyan))
+        .with_selected_option(Some(StyleSheet::new().with_fg(Color::DarkCyan)))
+        .with_selected_checkbox(Styled::new("[✓]").with_fg(Color::DarkGreen))
+        .with_unselected_checkbox(Styled::new("[ ]").with_fg(Color::DarkGrey))
+}
+
+/// Runs a single-select step from a fixed list, mapped back to its index in `items`. `Esc` maps to
+/// `Ok(None)` — the wizard's own "go back a step" signal (IR-040: back navigation via `Esc`, not a
+/// `← Back` list item) — instead of propagating as an error. `Ctrl+C`
+/// (`InquireError::OperationInterrupted`) still propagates via `?` for the existing top-level
+/// cancellation handling (H14, below).
+fn select_step(
+    prompt: &str,
+    items: &[&'static str],
+    default: usize,
+) -> anyhow::Result<Option<usize>> {
+    use inquire::{InquireError, Select};
+    match Select::new(prompt, items.to_vec())
+        .with_starting_cursor(default)
+        .with_render_config(virage_render_config())
+        .prompt()
+    {
+        Ok(choice) => Ok(items.iter().position(|&i| i == choice)),
+        Err(InquireError::OperationCanceled) => Ok(None),
+        Err(e) => Err(e.into()),
+    }
+}
+
+/// Runs a MultiSelect step over `items`, pre-checking `default_selected` indices. Returns the
+/// selected indices into `items` on Enter, or `None` on `Esc` (back navigation). No prepended
+/// control rows and no separate navigation prompt (IR-040) — `inquire` provides native bulk
+/// selection (`→` select all, `←` select none) and confirms/cancels on the same screen.
+fn multiselect_step(
+    prompt: &str,
+    items: &[String],
+    default_selected: &[usize],
+) -> anyhow::Result<Option<Vec<usize>>> {
+    use inquire::{InquireError, MultiSelect};
+    match MultiSelect::new(prompt, items.to_vec())
+        .with_default(default_selected)
+        .with_render_config(virage_render_config())
+        .with_help_message("↑↓ move · Space toggle · → all · ← none · Enter confirm · Esc back")
+        .raw_prompt()
+    {
+        Ok(picked) => Ok(Some(picked.into_iter().map(|o| o.index).collect())),
+        Err(InquireError::OperationCanceled) => Ok(None),
+        Err(e) => Err(e.into()),
     }
 }
 
@@ -1791,11 +1832,10 @@ fn cmd_telemetry_init(
     flag_file: &Path,
     telemetry_cfg: &Path,
 ) -> anyhow::Result<()> {
-    use dialoguer::{Input, Select};
+    use inquire::{Confirm, InquireError, Text};
 
     out.section("Telemetry Setup");
 
-    const BACK: &str = "← Back";
     let mut endpoint = String::from("https://telemetry.vivantel.com");
     let mut api_key = String::new();
     let mut tier2 = false;
@@ -1806,19 +1846,14 @@ fn cmd_telemetry_init(
         match step {
             // Step 1: Endpoint type
             0 => {
-                let choices = [BACK, "Vivantel hosted (default)", "Custom endpoint"];
-                let idx = Select::with_theme(&virage_theme())
-                    .with_prompt("Telemetry endpoint")
-                    .items(&choices)
-                    .default(1)
-                    .interact()?;
-                match idx {
-                    0 => {
+                let choices = ["Vivantel hosted (default)", "Custom endpoint"];
+                match select_step("Telemetry endpoint", &choices, 0)? {
+                    None => {
                         out.info("Cancelled.");
                         return Ok(());
                     }
-                    2 => step = 1,
-                    _ => {
+                    Some(1) => step = 1,
+                    Some(_) => {
                         endpoint = "https://telemetry.vivantel.com".into();
                         step = 2;
                     }
@@ -1826,22 +1861,41 @@ fn cmd_telemetry_init(
             }
             // Step 2: Custom endpoint URL + API key
             1 => {
-                let url: String = Input::with_theme(&virage_theme())
-                    .with_prompt("Endpoint URL")
-                    .default(endpoint.clone())
-                    .interact_text()?;
-                let key: String = Input::with_theme(&virage_theme())
-                    .with_prompt("API key (leave blank if not required)")
-                    .allow_empty(true)
-                    .interact_text()?;
+                let url = match Text::new("Endpoint URL")
+                    .with_default(&endpoint)
+                    .with_render_config(virage_render_config())
+                    .prompt()
+                {
+                    Ok(v) => v,
+                    Err(InquireError::OperationCanceled) => {
+                        step = 0;
+                        continue;
+                    }
+                    Err(e) => return Err(e.into()),
+                };
+                let key = match Text::new("API key (leave blank if not required)")
+                    .with_default("")
+                    .with_render_config(virage_render_config())
+                    .prompt()
+                {
+                    Ok(v) => v,
+                    Err(InquireError::OperationCanceled) => {
+                        step = 0;
+                        continue;
+                    }
+                    Err(e) => return Err(e.into()),
+                };
 
-                let choices = [BACK, "Continue"];
-                let idx = Select::with_theme(&virage_theme())
-                    .with_prompt(format!("Use endpoint {url}?"))
-                    .items(&choices)
-                    .default(1)
-                    .interact()?;
-                if idx == 0 {
+                let use_it = match Confirm::new(&format!("Use endpoint {url}?"))
+                    .with_default(true)
+                    .with_render_config(virage_render_config())
+                    .prompt()
+                {
+                    Ok(v) => v,
+                    Err(InquireError::OperationCanceled) => false,
+                    Err(e) => return Err(e.into()),
+                };
+                if !use_it {
                     step = 0;
                     continue;
                 }
@@ -1852,14 +1906,9 @@ fn cmd_telemetry_init(
             // Step 3: Tier-2 usage telemetry
             2 => {
                 out.dim("Tier-2 telemetry shares anonymised query patterns to improve relevance.");
-                let choices = [BACK, "Enable tier-2", "Skip tier-2"];
-                let idx = Select::with_theme(&virage_theme())
-                    .with_prompt("Enable tier-2 usage telemetry?")
-                    .items(&choices)
-                    .default(2)
-                    .interact()?;
-                match idx {
-                    0 => {
+                let choices = ["Enable tier-2", "Skip tier-2"];
+                match select_step("Enable tier-2 usage telemetry?", &choices, 1)? {
+                    None => {
                         step = if api_key.is_empty() && endpoint.contains("vivantel") {
                             0
                         } else {
@@ -1867,11 +1916,11 @@ fn cmd_telemetry_init(
                         };
                         continue;
                     }
-                    1 => {
+                    Some(0) => {
                         tier2 = true;
                         step = 3;
                     }
-                    _ => {
+                    Some(_) => {
                         tier2 = false;
                         step = 4;
                     }
@@ -1879,21 +1928,16 @@ fn cmd_telemetry_init(
             }
             // Step 4: Sampling rate (only if tier-2 enabled)
             3 => {
-                let choices = [BACK, "1% (minimal)", "5% (default)", "10%", "100% (full)"];
-                let idx = Select::with_theme(&virage_theme())
-                    .with_prompt("Sampling rate")
-                    .items(&choices)
-                    .default(2)
-                    .interact()?;
-                match idx {
-                    0 => {
+                let choices = ["1% (minimal)", "5% (default)", "10%", "100% (full)"];
+                match select_step("Sampling rate", &choices, 1)? {
+                    None => {
                         step = 2;
                         continue;
                     }
-                    1 => sampling_rate = 1,
-                    3 => sampling_rate = 10,
-                    4 => sampling_rate = 100,
-                    _ => sampling_rate = 5,
+                    Some(0) => sampling_rate = 1,
+                    Some(2) => sampling_rate = 10,
+                    Some(3) => sampling_rate = 100,
+                    Some(_) => sampling_rate = 5,
                 }
                 step = 4;
             }
@@ -1910,22 +1954,17 @@ fn cmd_telemetry_init(
                 }
                 println!();
 
-                let choices = [BACK, "Save and enable", "Cancel"];
-                let idx = Select::with_theme(&virage_theme())
-                    .with_prompt("Confirm")
-                    .items(&choices)
-                    .default(1)
-                    .interact()?;
-                match idx {
-                    0 => {
+                let choices = ["Save and enable", "Cancel"];
+                match select_step("Confirm", &choices, 0)? {
+                    None => {
                         step = if tier2 { 3 } else { 2 };
                         continue;
                     }
-                    2 => {
+                    Some(1) => {
                         out.info("Cancelled.");
                         return Ok(());
                     }
-                    _ => {}
+                    Some(_) => {}
                 }
                 break;
             }
@@ -2452,13 +2491,10 @@ fn cmd_init(
     config: &str,
 ) -> anyhow::Result<()> {
     let out = Out::new(verbose, format);
-    use dialoguer::{MultiSelect, Select};
 
     out.section("Virage Setup");
-    out.dim("Use ← Back to return to the previous step.");
+    out.dim("Esc: back to the previous step.");
     println!();
-
-    const BACK: &str = "← Back";
 
     // Wizard state
     let default_config = if config.is_empty() {
@@ -2485,33 +2521,31 @@ fn cmd_init(
             // ── Step 0: Config path (H1: Select instead of Input) ─────────────
             0 => {
                 let config_exists = std::path::Path::new(&config_path).exists();
-                let choices = if config_exists {
-                    vec![
-                        BACK,
+                let choices: [&'static str; 3] = if config_exists {
+                    [
                         "Use default path (overwrite existing)",
                         "Enter custom path",
-                        "← Exit",
+                        "Exit",
                     ]
                 } else {
-                    vec![BACK, "Use default path", "Enter custom path", "← Exit"]
+                    ["Use default path", "Enter custom path", "Exit"]
                 };
-                let idx = Select::with_theme(&virage_theme())
-                    .with_prompt(format!("Config path (default: {default_config})"))
-                    .items(&choices)
-                    .default(1)
-                    .interact()?;
-                match idx {
-                    0 | 3 => {
+                match select_step(
+                    &format!("Config path (default: {default_config})"),
+                    &choices,
+                    0,
+                )? {
+                    None | Some(2) => {
                         out.info("Cancelled.");
                         std::process::exit(0);
                     }
-                    2 => {
-                        config_path = dialoguer::Input::with_theme(&virage_theme())
-                            .with_prompt("Config file path")
-                            .default(default_config.clone())
-                            .interact_text()?;
+                    Some(1) => {
+                        config_path = inquire::Text::new("Config file path")
+                            .with_default(&default_config)
+                            .with_render_config(virage_render_config())
+                            .prompt()?;
                     }
-                    _ => {
+                    Some(_) => {
                         config_path = default_config.clone();
                     }
                 }
@@ -2534,69 +2568,30 @@ fn cmd_init(
                         }
                     })
                     .collect();
-                let mut selections: Vec<bool> = FILE_TYPE_META
+                let default_selected: Vec<usize> = FILE_TYPE_META
                     .iter()
-                    .map(|(key, _, _, _)| counts.contains_key(*key))
+                    .enumerate()
+                    .filter_map(|(i, (key, _, _, _))| counts.contains_key(*key).then_some(i))
                     .collect();
 
-                const CTRL_SELECT_ALL: usize = 0;
-                const CTRL_INVERT: usize = 1;
-                const CTRL_OFFSET: usize = 2;
-
-                loop {
-                    let items: Vec<String> = ["✓ Select all", "⟳ Invert selection"]
-                        .iter()
-                        .map(|s| s.to_string())
-                        .chain(content_labels.iter().cloned())
-                        .collect();
-                    let defaults: Vec<bool> = [false, false]
-                        .iter()
-                        .copied()
-                        .chain(selections.iter().copied())
-                        .collect();
-
-                    let picked = MultiSelect::with_theme(&virage_theme())
-                        .with_prompt("File types to index · Space: toggle  ·  Enter: confirm")
-                        .items(&items)
-                        .defaults(&defaults)
-                        .interact()?;
-
-                    if picked.contains(&CTRL_SELECT_ALL) {
-                        selections.fill(true);
+                let picked = match multiselect_step(
+                    "File types to index",
+                    &content_labels,
+                    &default_selected,
+                )? {
+                    None => {
+                        step = step.saturating_sub(1);
                         continue;
                     }
-                    if picked.contains(&CTRL_INVERT) {
-                        for s in &mut selections {
-                            *s = !*s;
-                        }
-                        continue;
-                    }
-                    for (i, s) in selections.iter_mut().enumerate() {
-                        *s = picked.contains(&(i + CTRL_OFFSET));
-                    }
-                    break;
-                }
+                    Some(p) => p,
+                };
 
-                if !selections.iter().any(|&s| s) {
+                if picked.is_empty() {
                     out.warn("Select at least one file type.");
                     continue;
                 }
 
-                let nav = Select::with_theme(&virage_theme())
-                    .with_prompt("")
-                    .items(&["→ Continue", "← Back"])
-                    .default(0)
-                    .interact()?;
-                if nav == 1 {
-                    step = step.saturating_sub(1);
-                    continue;
-                }
-
-                selected_type_indices = selections
-                    .iter()
-                    .enumerate()
-                    .filter_map(|(i, &s)| if s { Some(i) } else { None })
-                    .collect();
+                selected_type_indices = picked;
                 step += 1;
             }
 
@@ -2609,87 +2604,44 @@ fn cmd_init(
                     "Antigravity",
                 ];
                 let agent_keys = ["claude-code", "copilot", "codex", "antigravity"];
-                let mut selections: Vec<bool> = vec![true, false, false, false];
+                let agent_label_strings: Vec<String> =
+                    agent_labels.iter().map(|s| s.to_string()).collect();
 
-                const CTRL_SELECT_ALL: usize = 0;
-                const CTRL_INVERT: usize = 1;
-                const CTRL_OFFSET: usize = 2;
-
-                loop {
-                    let items: Vec<String> = ["✓ Select all", "⟳ Invert selection"]
-                        .iter()
-                        .map(|s| s.to_string())
-                        .chain(agent_labels.iter().map(|s| s.to_string()))
-                        .collect();
-                    let defaults: Vec<bool> = [false, false]
-                        .iter()
-                        .copied()
-                        .chain(selections.iter().copied())
-                        .collect();
-
-                    let picked = MultiSelect::with_theme(&virage_theme())
-                        .with_prompt("Coding agents to support · Space: toggle  ·  Enter: confirm")
-                        .items(&items)
-                        .defaults(&defaults)
-                        .interact()?;
-
-                    if picked.contains(&CTRL_SELECT_ALL) {
-                        selections.fill(true);
-                        continue;
-                    }
-                    if picked.contains(&CTRL_INVERT) {
-                        for s in &mut selections {
-                            *s = !*s;
+                let picked =
+                    match multiselect_step("Coding agents to support", &agent_label_strings, &[0])?
+                    {
+                        None => {
+                            step = step.saturating_sub(1);
+                            continue;
                         }
-                        continue;
-                    }
-                    for (i, s) in selections.iter_mut().enumerate() {
-                        *s = picked.contains(&(i + CTRL_OFFSET));
-                    }
-                    break;
-                }
+                        Some(p) => p,
+                    };
 
                 selected_agents = agent_keys
                     .iter()
                     .enumerate()
-                    .filter_map(|(i, &k)| if selections[i] { Some(k) } else { None })
+                    .filter_map(|(i, &k)| if picked.contains(&i) { Some(k) } else { None })
                     .collect();
-
-                let nav = Select::with_theme(&virage_theme())
-                    .with_prompt("")
-                    .items(&["→ Continue", "← Back"])
-                    .default(0)
-                    .interact()?;
-                if nav == 1 {
-                    step = step.saturating_sub(1);
-                    continue;
-                }
                 step += 1;
             }
 
             // ── Step 3: Embedder ──────────────────────────────────────────────
             3 => {
                 let choices = [
-                    BACK,
                     "ONNX (local, no API key needed)",
                     "OpenAI text-embedding-3-small",
                     "Cohere embed-english-v3",
                     "FastEmbed (Qdrant, local)",
                 ];
-                let idx = Select::with_theme(&virage_theme())
-                    .with_prompt("Embedder")
-                    .items(&choices)
-                    .default(1)
-                    .interact()?;
-                match idx {
-                    0 => {
+                match select_step("Embedder", &choices, 0)? {
+                    None => {
                         step = step.saturating_sub(1);
                         continue;
                     }
-                    2 => embedder_pkg = "@vivantel/virage-embedder-openai",
-                    3 => embedder_pkg = "@vivantel/virage-embedder-cohere",
-                    4 => embedder_pkg = "@vivantel/virage-embedder-fastembed",
-                    _ => embedder_pkg = "@vivantel/virage-embedder-onnx",
+                    Some(1) => embedder_pkg = "@vivantel/virage-embedder-openai",
+                    Some(2) => embedder_pkg = "@vivantel/virage-embedder-cohere",
+                    Some(3) => embedder_pkg = "@vivantel/virage-embedder-fastembed",
+                    Some(_) => embedder_pkg = "@vivantel/virage-embedder-onnx",
                 }
                 step += 1;
             }
@@ -2697,26 +2649,20 @@ fn cmd_init(
             // ── Step 4: Vector store ──────────────────────────────────────────
             4 => {
                 let choices = [
-                    BACK,
                     "LanceDB (local, file-based)",
                     "Qdrant (self-hosted or cloud)",
                     "PostgreSQL + pgvector",
                     "ChromaDB",
                 ];
-                let idx = Select::with_theme(&virage_theme())
-                    .with_prompt("Vector store")
-                    .items(&choices)
-                    .default(1)
-                    .interact()?;
-                match idx {
-                    0 => {
+                match select_step("Vector store", &choices, 0)? {
+                    None => {
                         step = step.saturating_sub(1);
                         continue;
                     }
-                    2 => store_pkg = "@vivantel/virage-store-qdrant",
-                    3 => store_pkg = "@vivantel/virage-store-postgres",
-                    4 => store_pkg = "@vivantel/virage-store-chromadb",
-                    _ => store_pkg = "@vivantel/virage-store-lancedb",
+                    Some(1) => store_pkg = "@vivantel/virage-store-qdrant",
+                    Some(2) => store_pkg = "@vivantel/virage-store-postgres",
+                    Some(3) => store_pkg = "@vivantel/virage-store-chromadb",
+                    Some(_) => store_pkg = "@vivantel/virage-store-lancedb",
                 }
                 step += 1;
             }
@@ -2724,81 +2670,68 @@ fn cmd_init(
             // ── Step 5: Reranker ──────────────────────────────────────────────
             5 => {
                 let choices = [
-                    BACK,
                     "None (skip, use vector similarity only)",
                     "ONNX cross-encoder (local, improves precision)",
                     "LLM re-ranker — Anthropic API (claude-haiku-4-5)",
                 ];
-                let idx = Select::with_theme(&virage_theme())
-                    .with_prompt("Reranker")
-                    .items(&choices)
-                    .default(1)
-                    .interact()?;
-                match idx {
-                    0 => {
+                match select_step("Reranker", &choices, 0)? {
+                    None => {
                         step = step.saturating_sub(1);
                         continue;
                     }
-                    2 => reranker_pkg = Some("@vivantel/virage-reranker-cross-encoder"),
-                    3 => reranker_pkg = Some("@vivantel/virage-reranker-llm"),
-                    _ => reranker_pkg = None,
+                    Some(1) => reranker_pkg = Some("@vivantel/virage-reranker-cross-encoder"),
+                    Some(2) => reranker_pkg = Some("@vivantel/virage-reranker-llm"),
+                    Some(_) => reranker_pkg = None,
                 }
                 step += 1;
             }
 
             // ── Step 6: Hybrid search (unconditional — G7) ───────────────────
             6 => {
-                let choices = [BACK, "Yes — enable hybrid (dense + sparse BM25)", "No"];
-                let idx = Select::with_theme(&virage_theme())
-                    .with_prompt("Enable hybrid search?")
-                    .items(&choices)
-                    .default(1)
-                    .interact()?;
-                match idx {
-                    0 => {
+                let choices = ["Yes — enable hybrid (dense + sparse BM25)", "No"];
+                match select_step("Enable hybrid search?", &choices, 0)? {
+                    None => {
                         step = step.saturating_sub(1);
                         continue;
                     }
-                    2 => {
+                    Some(1) => {
                         use_hybrid = false;
                         step += 1;
                         continue;
                     }
-                    _ => {}
+                    Some(_) => {}
                 }
                 use_hybrid = true;
 
                 // G8: alpha sub-select
                 let alpha_choices = [
-                    BACK,
                     "0.6 (default — balanced)",
                     "0.3 (sparse-heavy)",
                     "0.8 (dense-heavy)",
                     "Custom",
                 ];
                 loop {
-                    let aidx = Select::with_theme(&virage_theme())
-                        .with_prompt("Hybrid alpha (0 = sparse only, 1 = dense only)")
-                        .items(&alpha_choices)
-                        .default(1)
-                        .interact()?;
-                    match aidx {
-                        0 => {
+                    match select_step(
+                        "Hybrid alpha (0 = sparse only, 1 = dense only)",
+                        &alpha_choices,
+                        0,
+                    )? {
+                        None => {
                             use_hybrid = false;
                             break;
                         }
-                        2 => {
+                        Some(1) => {
                             hybrid_alpha = 0.3;
                             break;
                         }
-                        3 => {
+                        Some(2) => {
                             hybrid_alpha = 0.8;
                             break;
                         }
-                        4 => {
-                            let raw: String = dialoguer::Input::with_theme(&virage_theme())
-                                .with_prompt("Alpha (0.0–1.0)")
-                                .interact_text()?;
+                        Some(3) => {
+                            let raw = inquire::Text::new("Alpha (0.0–1.0)")
+                                .with_render_config(virage_render_config())
+                                .prompt()?;
                             match raw.parse::<f32>() {
                                 Ok(v) if (0.0..=1.0).contains(&v) => {
                                     hybrid_alpha = v;
@@ -2809,7 +2742,7 @@ fn cmd_init(
                                 }
                             }
                         }
-                        _ => {
+                        Some(_) => {
                             hybrid_alpha = 0.6;
                             break;
                         }
@@ -2820,19 +2753,14 @@ fn cmd_init(
 
             // ── Step 7: Install scope (H5) ───────────────────────────────────
             7 => {
-                let choices = [BACK, "Local (this project)", "Global (all projects)"];
-                let idx = Select::with_theme(&virage_theme())
-                    .with_prompt("Install scope")
-                    .items(&choices)
-                    .default(1)
-                    .interact()?;
-                match idx {
-                    0 => {
+                let choices = ["Local (this project)", "Global (all projects)"];
+                match select_step("Install scope", &choices, 0)? {
+                    None => {
                         step = step.saturating_sub(1);
                         continue;
                     }
-                    2 => install_scope = "global",
-                    _ => install_scope = "local",
+                    Some(1) => install_scope = "global",
+                    Some(_) => install_scope = "local",
                 }
                 step += 1;
             }
@@ -2860,18 +2788,13 @@ fn cmd_init(
                 println!("{summary}");
                 println!();
 
-                let choices = [BACK, "Write config", "Cancel"];
-                let idx = Select::with_theme(&virage_theme())
-                    .with_prompt("Confirm")
-                    .items(&choices)
-                    .default(1)
-                    .interact()?;
-                match idx {
-                    0 => {
+                let choices = ["Write config", "Cancel"];
+                match select_step("Confirm", &choices, 0)? {
+                    None => {
                         step = step.saturating_sub(1);
                         continue;
                     }
-                    2 => {
+                    Some(1) => {
                         out.info("Cancelled.");
                         return Ok(());
                     }
@@ -3183,7 +3106,6 @@ fn format_wizard_summary(
 fn cmd_update(verbose: u8, format: OutputFormat) -> anyhow::Result<()> {
     let out = Out::new(verbose, format);
     use console::style;
-    use dialoguer::MultiSelect;
 
     let npm = npm_bin();
     let cwd = std::env::current_dir()?;
@@ -3252,13 +3174,19 @@ fn cmd_update(verbose: u8, format: OutputFormat) -> anyhow::Result<()> {
         })
         .collect();
 
-    let defaults: Vec<bool> = statuses.iter().map(|s| s.outdated).collect();
+    let default_selected: Vec<usize> = statuses
+        .iter()
+        .enumerate()
+        .filter_map(|(i, s)| s.outdated.then_some(i))
+        .collect();
 
-    let selected = MultiSelect::with_theme(&virage_theme())
-        .with_prompt("Packages to update (Space = toggle · a = select all · Enter = confirm)")
-        .items(&labels)
-        .defaults(&defaults)
-        .interact()?;
+    let selected = match multiselect_step("Packages to update", &labels, &default_selected)? {
+        None => {
+            out.info("Cancelled.");
+            return Ok(());
+        }
+        Some(s) => s,
+    };
 
     if selected.is_empty() {
         out.info("Nothing selected.");
@@ -3345,7 +3273,7 @@ fn cmd_pack(args: PackArgs, verbose: u8, format: OutputFormat) -> anyhow::Result
 
 fn cmd_uninstall(verbose: u8, format: OutputFormat) -> anyhow::Result<()> {
     let out = Out::new(verbose, format);
-    use dialoguer::Confirm;
+    use inquire::Confirm;
 
     out.section("Virage Uninstall");
 
@@ -3354,10 +3282,10 @@ fn cmd_uninstall(verbose: u8, format: OutputFormat) -> anyhow::Result<()> {
         for hook in &["post-merge", "post-checkout"] {
             let p = hooks_dir.join(hook);
             if p.exists()
-                && Confirm::with_theme(&virage_theme())
-                    .with_prompt(format!("Remove git hook {hook}?"))
-                    .default(false)
-                    .interact()?
+                && Confirm::new(&format!("Remove git hook {hook}?"))
+                    .with_default(false)
+                    .with_render_config(virage_render_config())
+                    .prompt()?
             {
                 std::fs::remove_file(&p)?;
                 out.success(&format!("Removed: {}", p.display()));
@@ -3367,10 +3295,10 @@ fn cmd_uninstall(verbose: u8, format: OutputFormat) -> anyhow::Result<()> {
 
     let virage_dir = PathBuf::from(".virage");
     if virage_dir.exists()
-        && Confirm::with_theme(&virage_theme())
-            .with_prompt("Remove .virage/ (index DB)?")
-            .default(false)
-            .interact()?
+        && Confirm::new("Remove .virage/ (index DB)?")
+            .with_default(false)
+            .with_render_config(virage_render_config())
+            .prompt()?
     {
         std::fs::remove_dir_all(&virage_dir)?;
         out.success("Removed: .virage/");
@@ -3378,10 +3306,10 @@ fn cmd_uninstall(verbose: u8, format: OutputFormat) -> anyhow::Result<()> {
 
     let config = PathBuf::from("virage.config.json");
     if config.exists()
-        && Confirm::with_theme(&virage_theme())
-            .with_prompt("Remove virage.config.json?")
-            .default(false)
-            .interact()?
+        && Confirm::new("Remove virage.config.json?")
+            .with_default(false)
+            .with_render_config(virage_render_config())
+            .prompt()?
     {
         std::fs::remove_file(&config)?;
         out.success("Removed: virage.config.json");
@@ -3993,17 +3921,25 @@ async fn main() {
         Some(Commands::Validate(args)) => cmd_validate(args, cli.verbose, format, config).await,
         Some(Commands::Check(args)) => cmd_check(args, cli.verbose, format, config).await,
         Some(Commands::Report(args)) => cmd_report(args, cli.verbose, format),
-        // H14: treat dialoguer Interrupted errors as clean cancellation
+        // H14: treat Ctrl+C (inquire::InquireError::OperationInterrupted) as clean cancellation,
+        // exit 0 — not an error. `Esc` (OperationCanceled) never reaches here: every wizard step
+        // catches it internally as its own back-navigation signal (select_step/multiselect_step).
         Some(Commands::Init(args)) => {
             cmd_init(args, cli.verbose, format, config).inspect_err(|e| {
-                if e.to_string().contains("interrupted") || e.to_string().contains("Interrupted") {
+                if matches!(
+                    e.downcast_ref::<inquire::InquireError>(),
+                    Some(inquire::InquireError::OperationInterrupted)
+                ) {
                     eprintln!("Cancelled.");
                     std::process::exit(0);
                 }
             })
         }
         Some(Commands::Update) => cmd_update(cli.verbose, format).inspect_err(|e| {
-            if e.to_string().contains("interrupted") || e.to_string().contains("Interrupted") {
+            if matches!(
+                e.downcast_ref::<inquire::InquireError>(),
+                Some(inquire::InquireError::OperationInterrupted)
+            ) {
                 eprintln!("Cancelled.");
                 std::process::exit(0);
             }
