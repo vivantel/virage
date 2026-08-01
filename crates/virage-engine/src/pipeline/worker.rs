@@ -41,11 +41,17 @@ pub async fn worker_task(
                 if result_tx.send(result).await.is_err() {
                     break; // coordinator dropped result channel
                 }
-                progress.inc_done();
+                // Do NOT `progress.inc_done()` here — the coordinator counts this file once it
+                // receives the `WorkResult` above (coordinator.rs's `result_rx` loop). Counting it
+                // here too double-counted every successfully processed file (a real `630/504`
+                // overshoot was observed: 315 processed files × 2, found during the IR-040
+                // investigation). Failed files (below) have no matching `WorkResult`, so they're
+                // still counted here — this is the only place they're ever counted.
                 progress.add_chunks(n);
             }
             Err(e) => {
-                // Log but don't abort — skip this file.
+                // Log but don't abort — skip this file. No `WorkResult` is sent for it, so the
+                // coordinator never counts it — this is its only `inc_done()`.
                 tracing::warn!(path = ?item.path, error = %e, "worker skipped file");
                 progress.inc_done();
             }
