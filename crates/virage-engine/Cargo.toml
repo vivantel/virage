@@ -67,7 +67,7 @@ cli-binary = [
     "pipeline", "source-all", "chunker-all",
     "store-lancedb", "store-qdrant", "store-postgres", "store-chromadb", "db-sqlite",
     "config", "eval-ragbench",
-    "dep:clap", "dep:indicatif", "dep:dialoguer", "dep:console", "dep:flate2", "dep:tar",
+    "dep:clap", "dep:indicatif", "dep:inquire", "dep:console", "dep:flate2", "dep:tar",
     "dep:ureq",
     "dep:clap_complete", "dep:dirs", "dep:notify-debouncer-mini",
     "dep:tracing", "dep:tracing-subscriber",
@@ -135,7 +135,7 @@ rusqlite     = { version = "0.40",  features = ["bundled"], optional = true }
 # CLI binary
 clap         = { version = "4",    features = ["derive"], optional = true }
 indicatif    = { version = "0.17", optional = true }
-dialoguer    = { version = "0.11", optional = true }
+inquire      = { version = "0.9",  optional = true }
 console      = { version = "0.15", optional = true }
 flate2                = { version = "1",   optional = true }
 tar                   = { version = "0.4", optional = true }
