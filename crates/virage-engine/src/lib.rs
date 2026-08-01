@@ -3,6 +3,8 @@
 #[cfg(all(feature = "config", feature = "pipeline"))]
 pub mod bench;
 pub mod chunkers;
+#[cfg(feature = "cli-binary")]
+pub mod cli;
 #[cfg(feature = "config")]
 pub mod config;
 #[cfg(feature = "db-sqlite")]
