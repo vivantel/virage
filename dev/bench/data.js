@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1785483894620,
+  "lastUpdate": 1785738717419,
   "repoUrl": "https://github.com/vivantel/virage",
   "entries": {
     "Virage Quality Metrics": [
@@ -136,6 +136,153 @@ window.BENCHMARK_DATA = {
           {
             "name": "LexicalRecall@K",
             "value": 0.74,
+            "unit": "score"
+          },
+          {
+            "name": "Reranker Input",
+            "value": 0,
+            "unit": "score"
+          },
+          {
+            "name": "Reranker",
+            "value": 0,
+            "unit": "score"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "S. Strebulaev",
+            "username": "sergemso",
+            "email": "strebulaev@gmail.com"
+          },
+          "committer": {
+            "name": "GitHub",
+            "username": "web-flow",
+            "email": "noreply@github.com"
+          },
+          "id": "4a4e531821e29b96954c1853af245f3a1ce0a8fc",
+          "message": "refactor(engine): extract CLI command implementations into virage_engine::cli\n\nMoves the ~30 cmd_* command handlers and their clap Args structs out of\nbin/virage.rs into a new cli-binary-feature-gated virage_engine::cli module\ntree (IR-039 Step 5), so a downstream binary embedding this crate (EE's\nsuperset binary, Step 6) can drive the same command implementations instead\nof duplicating them. bin/virage.rs keeps only the Cli/Commands clap enum and\nmain()'s dispatch, now calling into cli::cmd_*.\n\nPer IR-039's council resolution (delegation, not reimplementation, see\nrust-engineer's card): the extracted surface is feature-gated behind\ncli-binary — not the unconditional library root — keeping the CLI-callers\nanyhow::Result carve-out scoped to callers that opt in.\n\nQ-LEVEL: Q2 — CI run https://github.com/vivantel/virage/actions/runs/30709494487\n(workspace) and PR run https://github.com/vivantel/virage/actions/runs/30709884765\n(both full ci.yaml including Rust lint + Coverage/cargo test, all green)\nCOUNCIL: IR-039 (Accepted) — rust-engineer's card\nEE LEAKAGE CHECK: none — grepped diff and new cli/ tree for EE crate names/concepts, zero hits (one stale doc-comment reference to virage-ee's docs was removed, not carried over)\nNOTE: \"Pipeline Quality Gate\" (eval-gate.yaml) failed on this PR but is the\nsame pre-existing chronic failure documented on PRs #324/#325 — unrelated to\nthis change, not a required check.",
+          "timestamp": "2026-08-01T17:19:19Z",
+          "url": "https://github.com/vivantel/virage/commit/4a4e531821e29b96954c1853af245f3a1ce0a8fc"
+        },
+        "date": 1785738715546,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "Overall Quality",
+            "value": 0.5019570917774945,
+            "unit": "score"
+          },
+          {
+            "name": "Chunking",
+            "value": 0.641314214353768,
+            "unit": "score"
+          },
+          {
+            "name": "Cohesion",
+            "value": 0.6223247155110639,
+            "unit": "score"
+          },
+          {
+            "name": "Coherence",
+            "value": 0.7599006384321203,
+            "unit": "score"
+          },
+          {
+            "name": "Coverage",
+            "value": 0.62,
+            "unit": "score"
+          },
+          {
+            "name": "Metadata Extraction",
+            "value": 0.518021978021978,
+            "unit": "score"
+          },
+          {
+            "name": "Completeness",
+            "value": 0.39,
+            "unit": "score"
+          },
+          {
+            "name": "BreadcrumbConsistency",
+            "value": 0.9230769230769231,
+            "unit": "score"
+          },
+          {
+            "name": "FQNCompleteness",
+            "value": 0,
+            "unit": "score"
+          },
+          {
+            "name": "SiblingIntegrity",
+            "value": 1,
+            "unit": "score"
+          },
+          {
+            "name": "Dense Input Prep",
+            "value": 0.9669204304018708,
+            "unit": "score"
+          },
+          {
+            "name": "TextPurity",
+            "value": 0.9722263134171143,
+            "unit": "score"
+          },
+          {
+            "name": "EnrichmentQuality",
+            "value": 0.9616145473866273,
+            "unit": "score"
+          },
+          {
+            "name": "Dense Embedding",
+            "value": 0.6572045430447964,
+            "unit": "score"
+          },
+          {
+            "name": "SelfRecall@K",
+            "value": 0.73,
+            "unit": "score"
+          },
+          {
+            "name": "IntrinsicDimension",
+            "value": 0.1860119047619048,
+            "unit": "score"
+          },
+          {
+            "name": "Uniformity",
+            "value": 0.8708083600786043,
+            "unit": "score"
+          },
+          {
+            "name": "Isotropy",
+            "value": 0.050018529901333694,
+            "unit": "score"
+          },
+          {
+            "name": "OutlierFraction",
+            "value": 1,
+            "unit": "score"
+          },
+          {
+            "name": "Sparse Input Prep",
+            "value": 0.9318387939385308,
+            "unit": "score"
+          },
+          {
+            "name": "TermCoverage",
+            "value": 0.9318387939385308,
+            "unit": "score"
+          },
+          {
+            "name": "Lexical Retrieval",
+            "value": 0.73,
+            "unit": "score"
+          },
+          {
+            "name": "LexicalRecall@K",
+            "value": 0.73,
             "unit": "score"
           },
           {
