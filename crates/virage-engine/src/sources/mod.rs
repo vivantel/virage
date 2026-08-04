@@ -15,6 +15,7 @@ pub struct SourceItem {
 }
 
 /// Filter applied when listing items from a source.
+#[derive(Clone)]
 pub struct SourceFilter {
     /// Only return items whose path matches at least one of these globs.
     pub include: Option<Vec<String>>,

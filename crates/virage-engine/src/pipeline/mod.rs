@@ -14,6 +14,72 @@ pub struct WorkItem {
     pub revision: String,
     /// Tags applied by the index-time tag pipeline.
     pub tags: Vec<String>,
+    /// Index into the `FileSetGroup` list this item was listed from — tells workers which
+    /// source to read content from and which chunkers apply (ADR-043 per-fileSet scoping).
+    pub group_idx: usize,
+}
+
+/// One fileSet's resolved source, filter, and per-format chunkers (ADR-043). `run_pipeline`
+/// iterates over these instead of a single global source/chunker pair, so each fileSet's
+/// `include`/`ignore`/`source` override actually scopes what gets walked and how it's chunked.
+#[derive(Clone)]
+pub struct FileSetGroup {
+    pub source: Arc<dyn crate::sources::SourceProvider>,
+    pub filter: Option<crate::sources::SourceFilter>,
+    pub chunkers: Vec<Arc<dyn crate::chunkers::FileChunker>>,
+    /// Tags applied to every item in this fileSet, in addition to whatever the source
+    /// provider and `label_rules` contribute.
+    pub tags: Vec<String>,
+}
+
+/// Whether fileSet-group revision keys need to be qualified by source name to avoid
+/// collisions between distinct sources indexing files at the same relative path.
+/// Single-source configs (the common case) keep bare-path keys so existing state-DB
+/// entries and incremental indexing aren't invalidated by this qualifier.
+pub fn groups_need_qualified_keys(groups: &[FileSetGroup]) -> bool {
+    let mut names = std::collections::HashSet::new();
+    for g in groups {
+        names.insert(g.source.name());
+    }
+    names.len() > 1
+}
+
+/// Build the state-DB / known-revisions key for `path` under `source_name`, qualified only
+/// when `qualify` (see `groups_need_qualified_keys`) is set.
+pub fn revision_key(qualify: bool, source_name: &str, path: &str) -> String {
+    if qualify {
+        format!("{source_name}:{path}")
+    } else {
+        path.to_string()
+    }
+}
+
+/// List every item across all `groups` (respecting each group's filter), returning
+/// `(key, path, revision)` triples. Used by callers that only need path/revision state
+/// (dry-run preview, post-index state-DB sync) rather than full `SourceItem`s.
+pub async fn list_current_state(
+    groups: &[FileSetGroup],
+) -> anyhow::Result<Vec<(String, String, String)>> {
+    use futures::StreamExt;
+
+    let qualify = groups_need_qualified_keys(groups);
+    let mut out = Vec::new();
+    for group in groups {
+        let mut stream = group.source.list_all(group.filter.clone());
+        let mut paths = Vec::new();
+        while let Some(item) = stream.next().await {
+            paths.push(item?.path);
+        }
+        let path_refs: Vec<&str> = paths.iter().map(String::as_str).collect();
+        let revs = group.source.file_revisions(&path_refs).await?;
+        let source_name = group.source.name();
+        for path in paths {
+            let rev = revs.get(&path).cloned().unwrap_or_default();
+            let key = revision_key(qualify, source_name, &path);
+            out.push((key, path, rev));
+        }
+    }
+    Ok(out)
 }
 
 /// Chunks produced by a worker for a single `WorkItem`.
@@ -344,10 +410,15 @@ mod tests {
             ..Default::default()
         };
 
+        let groups = vec![FileSetGroup {
+            source,
+            filter: None,
+            chunkers: vec![], // no file-format chunkers; walker handles raw bytes via markdown fallback
+            tags: vec![],
+        }];
         let stats = coordinator::run_pipeline(
             &config,
-            source,
-            vec![], // no file-format chunkers; walker handles raw bytes via markdown fallback
+            groups,
             embedder,
             store.clone(),
             HashMap::new(), // no known revisions → process everything
@@ -397,16 +468,15 @@ mod tests {
             ..Default::default()
         };
 
-        coordinator::run_pipeline(
-            &config,
+        let groups = vec![FileSetGroup {
             source,
-            vec![],
-            embedder,
-            store.clone(),
-            HashMap::new(),
-        )
-        .await
-        .unwrap();
+            filter: None,
+            chunkers: vec![],
+            tags: vec![],
+        }];
+        coordinator::run_pipeline(&config, groups, embedder, store.clone(), HashMap::new())
+            .await
+            .unwrap();
 
         let docs = store.upserted.lock().unwrap();
         let project1_doc = docs

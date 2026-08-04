@@ -11,10 +11,16 @@ use crate::sources::SourceProvider;
 
 use super::{PipelineConfig, ProgressCounters};
 
+/// A group's source + chunkers, stripped of the `filter`/`tags` already consumed by the
+/// coordinator when listing items — all a worker needs to read and chunk a `WorkItem`.
+pub struct GroupRuntime {
+    pub source: Arc<dyn SourceProvider>,
+    pub chunkers: Vec<Arc<dyn crate::chunkers::FileChunker>>,
+}
+
 /// Worker task: pulls `WorkItem`s, reads + chunks + embeds content, pushes `WorkResult`s.
 pub async fn worker_task(
-    source: Arc<dyn SourceProvider>,
-    chunkers: Vec<Arc<dyn crate::chunkers::FileChunker>>,
+    groups: Arc<Vec<GroupRuntime>>,
     embedder: Arc<std::sync::Mutex<dyn Embedder + Send>>,
     work_rx: Arc<tokio::sync::Mutex<mpsc::Receiver<WorkItem>>>,
     result_tx: mpsc::Sender<WorkResult>,
@@ -31,7 +37,7 @@ pub async fn worker_task(
             None => break, // channel closed — no more work
         };
 
-        match process_item(&item, &source, &chunkers, &embedder, config).await {
+        match process_item(&item, &groups, &embedder, config).await {
             Ok(chunks) => {
                 let n = chunks.len();
                 let result = WorkResult {
@@ -75,11 +81,14 @@ fn find_chunker<'a>(
 
 async fn process_item(
     item: &WorkItem,
-    source: &Arc<dyn SourceProvider>,
-    chunkers: &[Arc<dyn crate::chunkers::FileChunker>],
+    groups: &[GroupRuntime],
     embedder: &Arc<std::sync::Mutex<dyn Embedder + Send>>,
     config: &PipelineConfig,
 ) -> anyhow::Result<Vec<EmbeddedChunk>> {
+    let group = &groups[item.group_idx];
+    let source = &group.source;
+    let chunkers = &group.chunkers;
+
     // Parse into a ViDoc tree: a matching format-specific chunker if one is configured
     // and its patterns() match this path, otherwise a flat raw-text fallback.
     let matched = find_chunker(chunkers, &item.path);
@@ -436,9 +445,11 @@ mod tests {
             path: path.to_string_lossy().to_string(),
             revision: "rev1".into(),
             tags: vec![],
+            group_idx: 0,
         };
         let source: Arc<dyn SourceProvider> = Arc::new(NoopSource);
         let chunkers: Vec<Arc<dyn crate::chunkers::FileChunker>> = vec![Arc::new(MdOnlyChunker)];
+        let groups = vec![GroupRuntime { source, chunkers }];
         let embedder: Arc<std::sync::Mutex<dyn Embedder + Send>> =
             Arc::new(std::sync::Mutex::new(MockEmbedder));
         let config = PipelineConfig {
@@ -447,7 +458,7 @@ mod tests {
             ..Default::default()
         };
 
-        let result = process_item(&item, &source, &chunkers, &embedder, &config).await;
+        let result = process_item(&item, &groups, &embedder, &config).await;
         std::fs::remove_file(&path).ok();
         let result = result.unwrap();
 

@@ -4,25 +4,27 @@ use std::sync::Arc;
 use futures::StreamExt;
 use tokio::sync::mpsc;
 
-use super::{EmbeddedChunk, WorkItem, WorkResult};
+use super::worker::GroupRuntime;
+use super::{revision_key, EmbeddedChunk, FileSetGroup, WorkItem, WorkResult};
 use crate::embedders::Embedder;
-use crate::sources::SourceProvider;
 use crate::stores::{VectorDocument, VectorStore};
 
-use super::{PipelineConfig, PipelineStats};
+use super::{groups_need_qualified_keys, PipelineConfig, PipelineStats};
 
 /// Run the full CE indexing pipeline.
 ///
-/// 1. Lists all source items and performs change detection against `known_revisions`.
+/// 1. Lists all source items per fileSet `group` (respecting each group's `include`/`ignore`
+///    filter and source override — ADR-043) and performs change detection against
+///    `known_revisions`.
 /// 2. Distributes work to `config.workers` tokio tasks via bounded channels.
 /// 3. Collects `EmbeddedChunk` results and batch-upserts to `store`.
 ///
-/// `known_revisions` maps `source_file → file_revision` as previously stored
-/// in the VirageDb state store. Pass an empty map to (re-)process everything.
+/// `known_revisions` maps `revision_key → file_revision` as previously stored in the VirageDb
+/// state store (bare path, or `source_name:path` when `groups` span more than one distinct
+/// source — see `groups_need_qualified_keys`). Pass an empty map to (re-)process everything.
 pub async fn run_pipeline(
     config: &PipelineConfig,
-    source: Arc<dyn SourceProvider>,
-    chunkers: Vec<Arc<dyn crate::chunkers::FileChunker>>,
+    mut groups: Vec<FileSetGroup>,
     embedder: Arc<std::sync::Mutex<dyn Embedder + Send>>,
     store: Arc<dyn VectorStore>,
     known_revisions: HashMap<String, String>,
@@ -30,36 +32,59 @@ pub async fn run_pipeline(
     store.initialize().await?;
 
     let progress = config.progress.clone().unwrap_or_default();
+    let qualify_keys = groups_need_qualified_keys(&groups);
 
-    // ── Collect all source items ──────────────────────────────────────────────
-    let mut all_items = Vec::new();
-    {
-        let mut stream = source.list_all(None);
+    // ── Collect all source items across fileSet groups ─────────────────────────
+    let mut all_items: Vec<(usize, String, crate::sources::SourceItem)> = Vec::new();
+    for (group_idx, group) in groups.iter_mut().enumerate() {
+        let filter = group.filter.take();
+        let mut stream = group.source.list_all(filter);
         while let Some(item) = stream.next().await {
-            all_items.push(item?);
+            let item = item?;
+            let key = revision_key(qualify_keys, group.source.name(), &item.path);
+            all_items.push((group_idx, key, item));
         }
     }
     progress.set_total(all_items.len());
 
-    // ── Change detection ──────────────────────────────────────────────────────
-    let paths: Vec<&str> = all_items.iter().map(|i| i.path.as_str()).collect();
-    let current_revisions = source.file_revisions(&paths).await?;
+    // ── Change detection, batched per source to minimize file_revisions calls ──
+    let mut current_revisions: HashMap<String, String> = HashMap::new();
+    {
+        let mut per_group_paths: HashMap<usize, Vec<&str>> = HashMap::new();
+        for (group_idx, _key, item) in &all_items {
+            per_group_paths
+                .entry(*group_idx)
+                .or_default()
+                .push(item.path.as_str());
+        }
+        for (group_idx, paths) in per_group_paths {
+            let source_name = groups[group_idx].source.name().to_string();
+            let revs = groups[group_idx].source.file_revisions(&paths).await?;
+            for (path, rev) in revs {
+                current_revisions.insert(revision_key(qualify_keys, &source_name, &path), rev);
+            }
+        }
+    }
 
     let mut to_process: Vec<WorkItem> = Vec::new();
     let mut to_delete: Vec<String> = Vec::new();
     let mut files_skipped = 0usize;
+    let mut current_keys: HashSet<String> = HashSet::new();
 
-    for item in &all_items {
-        let current_rev = current_revisions
-            .get(&item.path)
-            .cloned()
-            .unwrap_or_default();
-        match known_revisions.get(&item.path) {
+    for (group_idx, key, item) in &all_items {
+        current_keys.insert(key.clone());
+        let current_rev = current_revisions.get(key).cloned().unwrap_or_default();
+        match known_revisions.get(key) {
             Some(known_rev) if known_rev == &current_rev => {
                 files_skipped += 1;
             }
             _ => {
                 let mut tags = item.tags.clone();
+                for t in &groups[*group_idx].tags {
+                    if !tags.contains(t) {
+                        tags.push(t.clone());
+                    }
+                }
                 for rule in &config.label_rules {
                     if crate::sources::glob_match(&rule.pattern, &item.path) && !rule.add.is_empty()
                     {
@@ -74,18 +99,17 @@ pub async fn run_pipeline(
                     path: item.path.clone(),
                     revision: current_rev,
                     tags,
+                    group_idx: *group_idx,
                 });
                 progress.inc_queued();
             }
         }
     }
 
-    // Files that were in the store but are no longer in the source.
-    let source_paths: std::collections::HashSet<&str> =
-        all_items.iter().map(|i| i.path.as_str()).collect();
-    for path in known_revisions.keys() {
-        if !source_paths.contains(path.as_str()) {
-            to_delete.push(path.clone());
+    // Files that were in the store but are no longer in any fileSet's source.
+    for key in known_revisions.keys() {
+        if !current_keys.contains(key) {
+            to_delete.push(key.clone());
         }
     }
 
@@ -106,6 +130,17 @@ pub async fn run_pipeline(
         });
     }
 
+    // ── Runtime group table for workers (source + chunkers; filters already applied) ──
+    let group_runtime: Arc<Vec<GroupRuntime>> = Arc::new(
+        groups
+            .iter()
+            .map(|g| GroupRuntime {
+                source: g.source.clone(),
+                chunkers: g.chunkers.clone(),
+            })
+            .collect(),
+    );
+
     // ── Set up channels ───────────────────────────────────────────────────────
     let cap = config.workers * 4;
     let (work_tx, work_rx) = mpsc::channel::<WorkItem>(cap);
@@ -116,8 +151,7 @@ pub async fn run_pipeline(
     let workers = config.workers.max(1);
     let mut handles = Vec::new();
     for _ in 0..workers {
-        let source2 = source.clone();
-        let chunkers2 = chunkers.clone();
+        let groups2 = group_runtime.clone();
         let embedder2 = embedder.clone();
         let result_tx2 = result_tx.clone();
         let work_rx2 = work_rx.clone();
@@ -126,7 +160,7 @@ pub async fn run_pipeline(
 
         handles.push(tokio::spawn(async move {
             super::worker::worker_task(
-                source2, chunkers2, embedder2, work_rx2, result_tx2, &config2, progress2,
+                groups2, embedder2, work_rx2, result_tx2, &config2, progress2,
             )
             .await
         }));

@@ -5,7 +5,7 @@ use crate::config::load_config;
 use crate::config::resolve::{resolve_chunkers, resolve_embedder, resolve_source, resolve_store};
 use crate::history::benchmark::ToBenchmarkPoints;
 use crate::output::{Out, OutputFormat};
-use crate::pipeline::{coordinator::run_pipeline, PipelineConfig};
+use crate::pipeline::{coordinator::run_pipeline, FileSetGroup, PipelineConfig};
 
 use super::util::{ci_exit_codes, embedder_dims, resolve_config_path, spinner};
 
@@ -97,15 +97,15 @@ pub async fn cmd_bench_index(
     let t0 = std::time::Instant::now();
     // Always a full run (no known_revisions) — a bench run must measure a comparable, complete
     // indexing workload every time, not whatever happens to be stale vs. the last `virage index`.
-    let stats = run_pipeline(
-        &pipeline_cfg,
+    // Benchmarks the whole given corpus path regardless of fileSet `include`/`ignore`
+    // scoping — a single unfiltered group over the resolved source.
+    let groups = vec![FileSetGroup {
         source,
+        filter: None,
         chunkers,
-        embedder,
-        store,
-        HashMap::new(),
-    )
-    .await?;
+        tags: Vec::new(),
+    }];
+    let stats = run_pipeline(&pipeline_cfg, groups, embedder, store, HashMap::new()).await?;
     let duration_ms = t0.elapsed().as_millis();
     pb.finish_and_clear();
 
