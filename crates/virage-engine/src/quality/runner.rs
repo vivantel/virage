@@ -303,25 +303,47 @@ pub async fn run_quality_assessment(
     ));
 
     // ─── Component 7: Reranker Input (optional) ───────────────────────────────
+    // Skipped whenever every metric is itself skipped, not just when no reranker is
+    // configured: v1 has no reranker-input-sample collection wired up yet regardless of
+    // config (see reranker_input.rs), so `!reranker_available` alone left this component
+    // "active" with zero active metrics — aggregate_component's empty-active-set case
+    // returns a hard 0.0, which then dragged aggregate_overall down instead of being
+    // excluded. Self-correcting once real metrics land: `all(skipped)` naturally flips
+    // to false and the component re-enters scoring.
     let reranker_input_metrics = compute_reranker_input_metrics(reranker_available);
+    let reranker_input_skipped = reranker_input_metrics.iter().all(|m| m.skipped);
     components.push(ComponentResult::new(
         ComponentId::RerankerInput,
         "Reranker Input",
         reranker_input_metrics,
         WEIGHT_RERANKER_INPUT,
-        !reranker_available,
-        (!reranker_available).then(|| "No reranker configured".to_string()),
+        reranker_input_skipped,
+        reranker_input_skipped.then(|| {
+            if reranker_available {
+                "No reranker input samples wired up yet (IR-038)".to_string()
+            } else {
+                "No reranker configured".to_string()
+            }
+        }),
     ));
 
     // ─── Component 8: Reranker (optional) ─────────────────────────────────────
+    // Same fix as Component 7 above — see that comment.
     let reranker_metrics = compute_reranker_metrics(reranker_available);
+    let reranker_skipped = reranker_metrics.iter().all(|m| m.skipped);
     components.push(ComponentResult::new(
         ComponentId::Reranker,
         "Reranker",
         reranker_metrics,
         WEIGHT_RERANKER,
-        !reranker_available,
-        (!reranker_available).then(|| "No reranker configured".to_string()),
+        reranker_skipped,
+        reranker_skipped.then(|| {
+            if reranker_available {
+                "Reranker MRR not available yet (IR-038)".to_string()
+            } else {
+                "No reranker configured".to_string()
+            }
+        }),
     ));
 
     let must_pass_gates = collect_must_pass_gates(&components);
@@ -339,4 +361,47 @@ pub async fn run_quality_assessment(
         config_file: opts.config_file.clone(),
         duration_ms: t0.elapsed().as_millis(),
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // Regression test for the bug fixed in Components 7/8 above: a configured-but-
+    // unimplemented-in-v1 reranker (`reranker_available == true`, all its metrics
+    // hardcoded `skipped`) must not drag the overall score down. Before the fix, the
+    // component's own `skipped` flag was derived only from `!reranker_available`, so
+    // this exact scenario left it "active" with an empty metric set, scoring a hard 0.0
+    // that counted in `aggregate_overall` at a huge weight.
+    #[test]
+    fn reranker_configured_but_unwired_does_not_drag_overall_down() {
+        let reranker_metrics = compute_reranker_metrics(true);
+        let reranker_skipped = reranker_metrics.iter().all(|m| m.skipped);
+        assert!(
+            reranker_skipped,
+            "v1 reranker metrics are always stub-skipped regardless of config"
+        );
+
+        let chunking_metrics = vec![crate::quality::MetricResult::new("perfect", 1.0, 1.0, 1.0)];
+        let components = vec![
+            ComponentResult::new(
+                ComponentId::Chunking,
+                "Chunking",
+                chunking_metrics,
+                3.0,
+                false,
+                None,
+            ),
+            ComponentResult::new(
+                ComponentId::Reranker,
+                "Reranker",
+                reranker_metrics,
+                WEIGHT_RERANKER, // large weight — would dominate if not excluded
+                reranker_skipped,
+                None,
+            ),
+        ];
+
+        assert_eq!(aggregate_overall(&components), 1.0);
+    }
 }

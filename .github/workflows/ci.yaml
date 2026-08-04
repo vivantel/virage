@@ -295,7 +295,7 @@ jobs:
           done
 
       - name: Test virage-engine (unit + chunker integration)
-        run: cargo test -p virage-engine --features "chunker-all,pipeline,db-sqlite,wasm-host" --lib --test integration_chunkers
+        run: cargo test -p virage-engine --features "chunker-all,pipeline,db-sqlite,wasm-host,config" --lib --test integration_chunkers
 
       - name: Build CE native (linux-x64 validation)
         run: cargo build --release
@@ -344,7 +344,7 @@ jobs:
         run: |
           cargo llvm-cov \
             --package virage-engine \
-            --features pipeline,db-sqlite,wasm-host \
+            --features pipeline,db-sqlite,wasm-host,config \
             --lib \
             --no-report
           cargo llvm-cov report --lcov --output-path lcov.info
