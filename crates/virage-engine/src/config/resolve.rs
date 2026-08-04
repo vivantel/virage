@@ -4,7 +4,7 @@ use std::sync::Arc;
 use anyhow::anyhow;
 use serde::Deserialize;
 
-use super::PluginRef;
+use super::{PluginRef, SourceRef};
 use crate::embedders::Embedder;
 use crate::sources::SourceProvider;
 use crate::stores::VectorStore;
@@ -510,6 +510,97 @@ pub fn resolve_source(
         }
         Some(p) => Err(anyhow!("unknown source package {:?}", p.package)),
     }
+}
+
+// ─── FileSet group resolution (ADR-043) ───────────────────────────────────────
+
+/// Resolve every fileSet in `cfg` into a `FileSetGroup`: its source provider (named,
+/// inline, or falling back to `providers.source`/auto-detect), its `SourceFilter`
+/// (top-level `ignore` + the fileSet's own `include`/`ignore`), and its chunkers.
+///
+/// Sources are memoized by name (named) or by "no override" (default), so fileSets that
+/// share a source reuse the same provider instance instead of e.g. re-opening the same
+/// git repo once per fileSet. Inline source overrides are resolved fresh per fileSet.
+///
+/// If `cfg.file_sets` is empty (no fileSets configured), returns a single implicit group
+/// scoped only by the top-level `ignore` list, over `providers.source`/auto-detect.
+#[cfg(feature = "pipeline")]
+pub fn resolve_file_set_groups(
+    cfg: &super::VirageConfigJson,
+    cwd: &Path,
+) -> anyhow::Result<Vec<crate::pipeline::FileSetGroup>> {
+    use crate::sources::SourceFilter;
+
+    if cfg.file_sets.is_empty() {
+        let source = resolve_source(cfg.providers.source.as_ref(), cwd)?;
+        let filter = if cfg.ignore.is_empty() {
+            None
+        } else {
+            Some(SourceFilter {
+                include: None,
+                ignore: cfg.ignore.clone(),
+            })
+        };
+        return Ok(vec![crate::pipeline::FileSetGroup {
+            source,
+            filter,
+            chunkers: Vec::new(),
+            tags: Vec::new(),
+        }]);
+    }
+
+    let mut named_cache: std::collections::HashMap<String, Arc<dyn SourceProvider>> =
+        std::collections::HashMap::new();
+    let mut default_source: Option<Arc<dyn SourceProvider>> = None;
+
+    let mut groups = Vec::with_capacity(cfg.file_sets.len());
+    for fs in &cfg.file_sets {
+        let source = match &fs.source {
+            None => match &default_source {
+                Some(s) => s.clone(),
+                None => {
+                    let s = resolve_source(cfg.providers.source.as_ref(), cwd)?;
+                    default_source = Some(s.clone());
+                    s
+                }
+            },
+            Some(SourceRef::Named(name)) => match named_cache.get(name) {
+                Some(s) => s.clone(),
+                None => {
+                    let plugin = cfg.sources.get(name).ok_or_else(|| {
+                        anyhow!(
+                            "fileSet {:?} references unknown source {:?} (not in top-level \"sources\")",
+                            fs.name,
+                            name
+                        )
+                    })?;
+                    let s = resolve_source(Some(plugin), cwd)?;
+                    named_cache.insert(name.clone(), s.clone());
+                    s
+                }
+            },
+            Some(SourceRef::Inline(plugin)) => resolve_source(Some(plugin), cwd)?,
+        };
+
+        let mut ignore = cfg.ignore.clone();
+        ignore.extend(fs.ignore.iter().cloned());
+        let filter = Some(SourceFilter {
+            include: if fs.include.is_empty() {
+                None
+            } else {
+                Some(fs.include.clone())
+            },
+            ignore,
+        });
+
+        groups.push(crate::pipeline::FileSetGroup {
+            source,
+            filter,
+            chunkers: resolve_chunkers(&fs.chunkers)?,
+            tags: fs.tags.clone(),
+        });
+    }
+    Ok(groups)
 }
 
 fn resolve_default_source(cwd: &Path) -> anyhow::Result<Arc<dyn SourceProvider>> {

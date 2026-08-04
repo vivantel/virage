@@ -1,9 +1,11 @@
 use std::collections::HashMap;
 
 use crate::config::load_config;
-use crate::config::resolve::{resolve_chunkers, resolve_embedder, resolve_source, resolve_store};
+use crate::config::resolve::{resolve_embedder, resolve_file_set_groups, resolve_store};
 use crate::output::{Out, OutputFormat};
-use crate::pipeline::{coordinator::run_pipeline, PipelineConfig, ProgressCounters};
+use crate::pipeline::{
+    coordinator::run_pipeline, list_current_state, PipelineConfig, ProgressCounters,
+};
 use crate::progress::{finish_stage, Progress};
 
 use super::util::{embedder_dims, open_or_init_db, resolve_config_path, resolve_db_path};
@@ -88,31 +90,12 @@ pub async fn cmd_index(
     out.verbose(&format!("state DB: {}ms", t_stage.elapsed().as_millis()));
 
     let t_stage = std::time::Instant::now();
-    let stage = prog.stage("Resolving source...");
-    let source = resolve_source(cfg.providers.source.as_ref(), &cwd)?;
+    let stage = prog.stage("Resolving fileSets...");
+    let groups = resolve_file_set_groups(&cfg, &cwd)?;
     finish_stage(stage);
     out.verbose(&format!(
-        "source: {}  ({}ms)",
-        cfg.providers
-            .source
-            .as_ref()
-            .map(|s| s.package.as_str())
-            .unwrap_or("localfs"),
-        t_stage.elapsed().as_millis()
-    ));
-
-    let t_stage = std::time::Instant::now();
-    let stage = prog.stage("Resolving chunkers...");
-    let chunker_specs: Vec<_> = cfg
-        .file_sets
-        .iter()
-        .flat_map(|fs| fs.chunkers.iter().cloned())
-        .collect();
-    let chunkers = resolve_chunkers(&chunker_specs)?;
-    finish_stage(stage);
-    out.verbose(&format!(
-        "chunkers: {}  ({}ms)",
-        chunkers.len(),
+        "fileSets: {}  ({}ms)",
+        groups.len(),
         t_stage.elapsed().as_millis()
     ));
 
@@ -171,8 +154,7 @@ pub async fn cmd_index(
             };
             let _ = run_pipeline(
                 &pipeline_cfg,
-                source.clone(),
-                chunkers.clone(),
+                groups.clone(),
                 embedder.clone(),
                 store.clone(),
                 known_revisions.clone(),
@@ -250,8 +232,7 @@ pub async fn cmd_index(
                     };
                     match run_pipeline(
                         &pipeline_cfg,
-                        source.clone(),
-                        chunkers.clone(),
+                        groups.clone(),
                         embedder.clone(),
                         store.clone(),
                         known,
@@ -287,35 +268,26 @@ pub async fn cmd_index(
 
     // ── Dry-run mode ──────────────────────────────────────────────────────────
     if dry_run {
-        use futures::StreamExt;
         out.section("Dry Run");
-        let mut stream = source.list_all(None);
-        let mut all_paths = Vec::new();
-        while let Some(item) = stream.next().await {
-            all_paths.push(item?.path);
-        }
-        let path_refs: Vec<&str> = all_paths.iter().map(String::as_str).collect();
-        let current_revs = source.file_revisions(&path_refs).await?;
-        let to_process: Vec<&str> = all_paths
+        let current = list_current_state(&groups).await?;
+        let to_process = current
             .iter()
-            .filter(|p| {
-                let cur = current_revs.get(*p).map(String::as_str).unwrap_or("");
-                let known = known_revisions.get(*p).map(String::as_str).unwrap_or("");
-                cur != known
+            .filter(|(key, _path, rev)| {
+                known_revisions.get(key).map(String::as_str).unwrap_or("") != rev.as_str()
             })
-            .map(String::as_str)
-            .collect();
-        let to_delete: Vec<&str> = known_revisions
+            .count();
+        let current_keys: std::collections::HashSet<&str> =
+            current.iter().map(|(k, _, _)| k.as_str()).collect();
+        let to_delete = known_revisions
             .keys()
-            .filter(|k| !all_paths.contains(k))
-            .map(String::as_str)
-            .collect();
-        out.info(&format!("  Files to index  : {}", to_process.len()));
+            .filter(|k| !current_keys.contains(k.as_str()))
+            .count();
+        out.info(&format!("  Files to index  : {to_process}"));
         out.info(&format!(
             "  Files unchanged : {}",
-            all_paths.len().saturating_sub(to_process.len())
+            current.len().saturating_sub(to_process)
         ));
-        out.info(&format!("  Files to delete : {}", to_delete.len()));
+        out.info(&format!("  Files to delete : {to_delete}"));
         return Ok(());
     }
 
@@ -374,8 +346,7 @@ pub async fn cmd_index(
 
     let stats = run_pipeline(
         &pipeline_cfg,
-        source.clone(),
-        chunkers.clone(),
+        groups.clone(),
         embedder,
         store.clone(),
         known_revisions,
@@ -398,29 +369,22 @@ pub async fn cmd_index(
     }
 
     // ── Update state DB with new revisions ────────────────────────────────────
-    // Re-query current file revisions from the source now that the pipeline is done.
+    // Re-query current file revisions across all fileSet groups now that the pipeline is done.
     let t_db = std::time::Instant::now();
     {
-        use futures::StreamExt;
-        let mut stream = source.list_all(None);
-        let mut all_paths = Vec::new();
-        while let Some(item) = stream.next().await {
-            all_paths.push(item?.path);
-        }
-        let path_refs: Vec<&str> = all_paths.iter().map(String::as_str).collect();
-        let new_revs = source.file_revisions(&path_refs).await?;
-        for (file, rev) in &new_revs {
-            db.set_file_revision(file, rev)
+        let current = list_current_state(&groups).await?;
+        for (key, _path, rev) in &current {
+            db.set_file_revision(key, rev)
                 .map_err(|e| anyhow::anyhow!("DB write error: {e}"))?;
         }
         // Remove deleted files from DB.
-        let source_set: std::collections::HashSet<&str> =
-            all_paths.iter().map(String::as_str).collect();
+        let current_keys: std::collections::HashSet<&str> =
+            current.iter().map(|(k, _, _)| k.as_str()).collect();
         for file in db
             .get_file_revisions()
             .unwrap_or_default()
             .keys()
-            .filter(|k| !source_set.contains(k.as_str()))
+            .filter(|k| !current_keys.contains(k.as_str()))
             .cloned()
             .collect::<Vec<_>>()
         {
