@@ -1,5 +1,7 @@
+use futures::StreamExt;
+
 use crate::config::load_config;
-use crate::config::resolve::resolve_store;
+use crate::config::resolve::{resolve_file_set_groups, resolve_store};
 use crate::output::{Out, OutputFormat};
 
 use super::util::{
@@ -34,7 +36,7 @@ pub async fn cmd_validate(
     let mut file_set_counts: Vec<serde_json::Value> = Vec::new();
     let cwd = std::env::current_dir()?;
 
-    // A2 — spinner around glob file scan loop (E1: count matches per fileSet)
+    // A2 — spinner around per-fileSet pattern validation + match counting
     let pb = spinner("Scanning file patterns...");
     for fs in &cfg.file_sets {
         if fs.chunkers.is_empty() {
@@ -49,53 +51,56 @@ pub async fn cmd_validate(
             warnings += 1;
             continue;
         }
-
-        // E1: build a globset and count matches on disk
-        let mut builder = globset::GlobSetBuilder::new();
-        let mut pattern_errors = 0usize;
         for pat in &fs.include {
             match globset::Glob::new(pat) {
-                Ok(g) => {
-                    out.verbose(&format!("fileSet {:?}: pattern {:?} OK", fs.name, pat));
-                    builder.add(g);
-                }
+                Ok(_) => out.verbose(&format!("fileSet {:?}: pattern {:?} OK", fs.name, pat)),
                 Err(e) => {
                     out.warn(&format!(
                         "fileSet {:?}: invalid pattern {:?}: {e}",
                         fs.name, pat
                     ));
                     warnings += 1;
-                    pattern_errors += 1;
                 }
             }
         }
-        if pattern_errors == fs.include.len() {
-            continue;
+    }
+
+    // E1: count matches per fileSet through the resolved SourceProvider (not a local disk
+    // walk) — this is the exact same source + SourceFilter (include/ignore/source override,
+    // ADR-043) `virage index` uses, so counts here can't drift from what index will actually
+    // process. Each provider does its own cheapest-possible listing (e.g. S3's prefix-scoped
+    // list_objects_v2); we deliberately don't call file_revisions() here since validate only
+    // needs counts, not per-file revision tokens (avoids e.g. one HeadObject call per S3 key).
+    match resolve_file_set_groups(&cfg, &cwd) {
+        Ok(groups) => {
+            for (fs, group) in cfg.file_sets.iter().zip(&groups) {
+                if fs.include.is_empty() {
+                    continue; // already warned above
+                }
+                let mut stream = group.source.list_all(group.filter.clone());
+                let mut match_count = 0usize;
+                while let Some(item) = stream.next().await {
+                    item?;
+                    match_count += 1;
+                }
+                out.info(&format!(
+                    "  fileSet {:?}: {} file(s) matched",
+                    fs.name, match_count
+                ));
+                file_set_counts.push(serde_json::json!({
+                    "name": fs.name,
+                    "matchCount": match_count,
+                }));
+                if match_count == 0 {
+                    let msg = format!("fileSet {:?}: no files matched include patterns", fs.name);
+                    out.warn(&msg);
+                    warning_msgs.push(msg);
+                    warnings += 1;
+                }
+            }
         }
-        let globset = builder.build().unwrap_or_default();
-        let match_count = walkdir::WalkDir::new(&cwd)
-            .into_iter()
-            .filter_map(|e| e.ok())
-            .filter(|e| e.file_type().is_file())
-            .filter(|e| {
-                e.path()
-                    .strip_prefix(&cwd)
-                    .map(|rel| globset.is_match(rel))
-                    .unwrap_or(false)
-            })
-            .count();
-        out.info(&format!(
-            "  fileSet {:?}: {} file(s) matched",
-            fs.name, match_count
-        ));
-        file_set_counts.push(serde_json::json!({
-            "name": fs.name,
-            "matchCount": match_count,
-        }));
-        if match_count == 0 {
-            let msg = format!("fileSet {:?}: no files matched include patterns", fs.name);
-            out.warn(&msg);
-            warning_msgs.push(msg);
+        Err(e) => {
+            out.warn(&format!("Could not resolve fileSet sources: {e}"));
             warnings += 1;
         }
     }
