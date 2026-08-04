@@ -721,9 +721,12 @@ mod chunker_resolution_tests {
 
     #[test]
     fn unknown_package_is_an_error() {
-        let err = resolve_chunker(&plugin_ref("@vivantel/virage-chunker-ce-unknown"))
-            .unwrap_err()
-            .to_string();
+        // Not .unwrap_err(): that requires the Ok type (Arc<dyn FileChunker>) to impl
+        // Debug for its panic message, which it doesn't.
+        let err = match resolve_chunker(&plugin_ref("@vivantel/virage-chunker-ce-unknown")) {
+            Err(e) => e.to_string(),
+            Ok(_) => panic!("expected an error for an unknown chunker package"),
+        };
         assert!(err.contains("unknown chunker package"), "got: {err}");
     }
 
