@@ -621,6 +621,27 @@ fn resolve_default_source(cwd: &Path) -> anyhow::Result<Arc<dyn SourceProvider>>
 
 // ─── Chunker resolution ────────────────────────────────────────────────────────
 
+/// Signature for an out-of-tree chunker resolver registered via
+/// [`register_chunker_fallback`].
+type ChunkerFallback =
+    dyn Fn(&PluginRef) -> anyhow::Result<Arc<dyn crate::chunkers::FileChunker>> + Send + Sync;
+
+static CHUNKER_FALLBACK: std::sync::OnceLock<Box<ChunkerFallback>> = std::sync::OnceLock::new();
+
+/// Register a fallback chunker resolver for packages this build's built-in
+/// `resolve_chunker` doesn't recognize. A superset binary (e.g. an EE build) calls
+/// this once at startup, before any config is resolved, to extend chunker
+/// resolution without this crate depending on the superset's chunker crates. Only
+/// the first call takes effect; later calls are silently ignored.
+pub fn register_chunker_fallback(
+    f: impl Fn(&PluginRef) -> anyhow::Result<Arc<dyn crate::chunkers::FileChunker>>
+        + Send
+        + Sync
+        + 'static,
+) {
+    let _ = CHUNKER_FALLBACK.set(Box::new(f));
+}
+
 /// Instantiate a built-in `FileChunker` from a single `PluginRef`.
 ///
 /// Supported packages (or `builtin:` shorthands):
@@ -629,6 +650,9 @@ fn resolve_default_source(cwd: &Path) -> anyhow::Result<Arc<dyn SourceProvider>>
 /// - `@vivantel/virage-chunker-ce-md`    / `md`, `markdown` → MdChunker
 /// - `@vivantel/virage-chunker-ce-latex` / `latex`, `tex`   → LatexChunker
 /// - `@vivantel/virage-chunker-ce-lang`  / `lang`, `code`   → LangChunker
+///
+/// Packages not in this list fall through to a resolver registered via
+/// [`register_chunker_fallback`], if any.
 fn resolve_chunker(spec: &PluginRef) -> anyhow::Result<Arc<dyn crate::chunkers::FileChunker>> {
     match spec.package.as_str() {
         p if p.contains("chunker-ce-pdf") => {
@@ -671,7 +695,10 @@ fn resolve_chunker(spec: &PluginRef) -> anyhow::Result<Arc<dyn crate::chunkers::
             #[cfg(not(feature = "chunker-lang"))]
             Err(anyhow!("chunker-lang feature not compiled in"))
         }
-        other => Err(anyhow!("unknown chunker package {:?}", other)),
+        other => match CHUNKER_FALLBACK.get() {
+            Some(fallback) => fallback(spec),
+            None => Err(anyhow!("unknown chunker package {:?}", other)),
+        },
     }
 }
 
@@ -717,6 +744,27 @@ mod chunker_resolution_tests {
     fn resolves_md_chunker() {
         let c = resolve_chunker(&plugin_ref("@vivantel/virage-chunker-ce-md")).unwrap();
         assert_eq!(c.name(), "md");
+    }
+
+    #[test]
+    fn fallback_is_consulted_for_unrecognized_packages() {
+        // CHUNKER_FALLBACK is a process-global OnceLock shared by every test in this
+        // binary, so this closure must preserve the built-in "unknown chunker
+        // package" error text for anything but its own probe package — otherwise it
+        // would silently change the outcome of unrecognized_package_is_an_error
+        // depending on test execution order.
+        register_chunker_fallback(|spec| {
+            if spec.package == "@vivantel/virage-chunker-ee-fallback-probe" {
+                Err(anyhow!("fallback reached for {:?}", spec.package))
+            } else {
+                Err(anyhow!("unknown chunker package {:?}", spec.package))
+            }
+        });
+        let err = match resolve_chunker(&plugin_ref("@vivantel/virage-chunker-ee-fallback-probe")) {
+            Err(e) => e.to_string(),
+            Ok(_) => panic!("expected an error from the fallback probe"),
+        };
+        assert!(err.contains("fallback reached"), "got: {err}");
     }
 
     #[test]
