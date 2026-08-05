@@ -95,7 +95,7 @@ pub fn cmd_telemetry(args: TelemetryArgs, verbose: u8, format: OutputFormat) -> 
             if rows.is_empty() {
                 out.dim("No events to flush.");
             } else {
-                let telemetry_endpoint = "https://telemetry.vivantel.com/v1/cli";
+                let telemetry_endpoint = "https://telemetry.vivantel.dev/v1/cli";
                 let payload: Vec<serde_json::Value> = rows
                     .iter()
                     .map(|r| {
@@ -140,7 +140,7 @@ fn cmd_telemetry_init(
 
     out.section("Telemetry Setup");
 
-    let mut endpoint = String::from("https://telemetry.vivantel.com");
+    let mut endpoint = String::from("https://telemetry.vivantel.dev");
     let mut api_key = String::new();
     let mut tier2 = false;
     let mut sampling_rate = 5u8;
@@ -158,7 +158,7 @@ fn cmd_telemetry_init(
                     }
                     Some(1) => step = 1,
                     Some(_) => {
-                        endpoint = "https://telemetry.vivantel.com".into();
+                        endpoint = "https://telemetry.vivantel.dev".into();
                         step = 2;
                     }
                 }

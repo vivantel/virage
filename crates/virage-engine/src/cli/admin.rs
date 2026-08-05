@@ -16,7 +16,7 @@ pub struct ReadSkillSummaryArgs {
 pub fn cmd_usage(verbose: u8, format: OutputFormat) -> anyhow::Result<()> {
     let out = Out::new(verbose, format);
     out.info("Usage tracking is handled by the virage-agent-claude plugin.");
-    out.dim("See: https://vivantel.com/virage/docs/telemetry");
+    out.dim("See: https://vivantel.dev/virage/docs/telemetry");
     Ok(())
 }
 

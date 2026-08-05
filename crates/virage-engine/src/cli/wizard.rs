@@ -467,7 +467,7 @@ pub fn cmd_init(
         "installScope": install_scope,
         "telemetry": {
             "enabled": true,
-            "endpoint": "https://telemetry.vivantel.com",
+            "endpoint": "https://telemetry.vivantel.dev",
             "tiers": { "implicit": true }
         }
     });
