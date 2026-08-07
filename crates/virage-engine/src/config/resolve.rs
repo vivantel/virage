@@ -465,11 +465,37 @@ pub fn resolve_store(spec: &PluginRef, dims: usize) -> anyhow::Result<Arc<dyn Ve
 
 // ─── Source provider resolution ───────────────────────────────────────────────
 
+/// Signature for an out-of-tree source resolver registered via
+/// [`register_source_fallback`].
+type SourceFallback =
+    dyn Fn(&PluginRef, &Path) -> anyhow::Result<Arc<dyn SourceProvider>> + Send + Sync;
+
+static SOURCE_FALLBACK: std::sync::OnceLock<Box<SourceFallback>> = std::sync::OnceLock::new();
+
+/// Register a fallback source resolver for packages this build's built-in
+/// `resolve_source` doesn't recognize. A superset binary (e.g. an EE build) calls
+/// this once at startup, before any config is resolved, to extend source
+/// resolution without this crate depending on the superset's source crates. Only
+/// the first call takes effect; later calls are silently ignored.
+///
+/// Mirrors [`register_chunker_fallback`] below — same `OnceLock`/first-writer-wins
+/// mechanics. Kept synchronous like the chunker hook: providers with async
+/// constructors (e.g. one that loads cloud SDK config) must defer that work to
+/// first use rather than doing it in the fallback closure.
+pub fn register_source_fallback(
+    f: impl Fn(&PluginRef, &Path) -> anyhow::Result<Arc<dyn SourceProvider>> + Send + Sync + 'static,
+) {
+    let _ = SOURCE_FALLBACK.set(Box::new(f));
+}
+
 /// Instantiate a built-in `SourceProvider` from a `PluginRef` and fallback cwd.
 ///
 /// Supported packages (or `builtin:` shorthands):
 /// - `@vivantel/virage-source-git`     → GitSourceProvider
 /// - `@vivantel/virage-source-localfs` → LocalFsSourceProvider
+///
+/// Packages not in this list fall through to a resolver registered via
+/// [`register_source_fallback`], if any.
 ///
 /// If `spec` is `None`, defaults to `LocalFsSourceProvider` at `cwd`.
 pub fn resolve_source(
@@ -508,7 +534,60 @@ pub fn resolve_source(
             #[cfg(not(feature = "source-localfs"))]
             Err(anyhow!("source-localfs feature not compiled in"))
         }
-        Some(p) => Err(anyhow!("unknown source package {:?}", p.package)),
+        Some(p) => match SOURCE_FALLBACK.get() {
+            Some(fallback) => fallback(p, cwd),
+            None => Err(anyhow!("unknown source package {:?}", p.package)),
+        },
+    }
+}
+
+#[cfg(test)]
+mod source_resolution_tests {
+    use super::*;
+
+    fn plugin_ref(package: &str) -> PluginRef {
+        PluginRef {
+            package: package.to_string(),
+            options: std::collections::HashMap::new(),
+        }
+    }
+
+    #[test]
+    fn fallback_is_consulted_for_unrecognized_packages() {
+        // SOURCE_FALLBACK is a process-global OnceLock shared by every test in this
+        // binary, so this closure must preserve the built-in "unknown source
+        // package" error text for anything but its own probe package — otherwise it
+        // would silently change the outcome of unknown_package_is_an_error depending
+        // on test execution order.
+        register_source_fallback(|spec, _cwd| {
+            if spec.package == "@vivantel/virage-source-ee-fallback-probe" {
+                Err(anyhow!("fallback reached for {:?}", spec.package))
+            } else {
+                Err(anyhow!("unknown source package {:?}", spec.package))
+            }
+        });
+        let err = match resolve_source(
+            Some(&plugin_ref("@vivantel/virage-source-ee-fallback-probe")),
+            Path::new("."),
+        ) {
+            Err(e) => e.to_string(),
+            Ok(_) => panic!("expected an error from the fallback probe"),
+        };
+        assert!(err.contains("fallback reached"), "got: {err}");
+    }
+
+    #[test]
+    fn unknown_package_is_an_error() {
+        // Relies on the probe closure registered above preserving this error text
+        // for any package it doesn't recognize (see comment there).
+        let err = match resolve_source(
+            Some(&plugin_ref("@vivantel/virage-source-ce-unknown")),
+            Path::new("."),
+        ) {
+            Err(e) => e.to_string(),
+            Ok(_) => panic!("expected an error"),
+        };
+        assert!(err.contains("unknown source package"), "got: {err}");
     }
 }
 
