@@ -1,0 +1,343 @@
+# vivantel/virage
+
+Monorepo for the **Virage** ecosystem — a Git-aware RAG pipeline that turns your codebase and docs into a searchable vector store. Pick your embedder and vector store, run one command, and keep the index in sync as code changes.
+
+[![CI](https://github.com/vivantel/virage/actions/workflows/ci.yaml/badge.svg)](https://github.com/vivantel/virage/actions/workflows/ci.yaml)
+[![RAG Pipeline](https://github.com/vivantel/virage/actions/workflows/virage-index-pipeline.yaml/badge.svg)](https://github.com/vivantel/virage/actions/workflows/virage-index-pipeline.yaml)
+[![Release](https://github.com/vivantel/virage/actions/workflows/release.yaml/badge.svg)](https://github.com/vivantel/virage/actions/workflows/release.yaml)
+[![codecov](https://codecov.io/gh/vivantel/virage/branch/master/graph/badge.svg)](https://codecov.io/gh/vivantel/virage)
+[![Quality](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/vivantel/virage/gh-pages/badges/quality.json)](https://vivantel.github.io/virage/dev/bench/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
+## Packages
+
+### Core & CLI
+
+| Package | Version | Description |
+| ------- | ------- | ----------- |
+| [`@vivantel/virage`](packages/virage) | [![npm](https://img.shields.io/npm/v/@vivantel/virage.svg)](https://www.npmjs.com/package/@vivantel/virage) | Rust CLI binary — primary install |
+| [`@vivantel/virage-core`](packages/virage-core) | [![npm](https://img.shields.io/npm/v/@vivantel/virage-core.svg)](https://www.npmjs.com/package/@vivantel/virage-core) | Pipeline orchestrator, interfaces, config loading |
+| [`@vivantel/virage-dashboard`](packages/virage-dashboard) | [![npm](https://img.shields.io/npm/v/@vivantel/virage-dashboard.svg)](https://www.npmjs.com/package/@vivantel/virage-dashboard) | React web UI for pipeline monitoring |
+
+### Chunkers
+
+| Package | Version | Description |
+| ------- | ------- | ----------- |
+| [`@vivantel/virage-chunker-ce-ast`](packages/virage-chunker-ce-ast) | [![npm](https://img.shields.io/npm/v/@vivantel/virage-chunker-ce-ast.svg)](https://www.npmjs.com/package/@vivantel/virage-chunker-ce-ast) | Shared AST walker used by all CE native chunkers |
+| [`@vivantel/virage-chunker-ce-ts`](packages/virage-chunker-ce-ts) | [![npm](https://img.shields.io/npm/v/@vivantel/virage-chunker-ce-ts.svg)](https://www.npmjs.com/package/@vivantel/virage-chunker-ce-ts) | TypeScript / JavaScript chunker (pure TS, no native binary) |
+| [`@vivantel/virage-code-chunk-chunker`](packages/virage-code-chunk-chunker) | [![npm](https://img.shields.io/npm/v/@vivantel/virage-code-chunk-chunker.svg)](https://www.npmjs.com/package/@vivantel/virage-code-chunk-chunker) | AST-aware code chunking for TS, JS, Python, Go, Java |
+
+### Embedders
+
+| Package | Version | Description |
+| ------- | ------- | ----------- |
+| [`@vivantel/virage-embedder-openai`](packages/virage-embedder-openai) | [![npm](https://img.shields.io/npm/v/@vivantel/virage-embedder-openai.svg)](https://www.npmjs.com/package/@vivantel/virage-embedder-openai) | OpenAI-compatible embedder (OpenAI, Azure, GitHub Models, Ollama) |
+| [`@vivantel/virage-embedder-fastembed`](packages/virage-embedder-fastembed) | [![npm](https://img.shields.io/npm/v/@vivantel/virage-embedder-fastembed.svg)](https://www.npmjs.com/package/@vivantel/virage-embedder-fastembed) | Fast local ONNX embeddings via FastEmbed |
+| [`@vivantel/virage-embedder-transformers`](packages/virage-embedder-transformers) | [![npm](https://img.shields.io/npm/v/@vivantel/virage-embedder-transformers.svg)](https://www.npmjs.com/package/@vivantel/virage-embedder-transformers) | Local embeddings via `@huggingface/transformers` |
+
+### Vector Stores
+
+| Package | Version | Description |
+| ------- | ------- | ----------- |
+| [`@vivantel/virage-store-lancedb`](packages/virage-store-lancedb) | [![npm](https://img.shields.io/npm/v/@vivantel/virage-store-lancedb.svg)](https://www.npmjs.com/package/@vivantel/virage-store-lancedb) | LanceDB vector store (embedded, file-based) |
+| [`@vivantel/virage-store-qdrant`](packages/virage-store-qdrant) | [![npm](https://img.shields.io/npm/v/@vivantel/virage-store-qdrant.svg)](https://www.npmjs.com/package/@vivantel/virage-store-qdrant) | Qdrant vector store (local and cloud) |
+| [`@vivantel/virage-store-postgres`](packages/virage-store-postgres) | [![npm](https://img.shields.io/npm/v/@vivantel/virage-store-postgres.svg)](https://www.npmjs.com/package/@vivantel/virage-store-postgres) | PostgreSQL + pgvector vector store |
+| [`@vivantel/virage-store-chromadb`](packages/virage-store-chromadb) | [![npm](https://img.shields.io/npm/v/@vivantel/virage-store-chromadb.svg)](https://www.npmjs.com/package/@vivantel/virage-store-chromadb) | ChromaDB vector store (local or hosted) |
+
+### Re-rankers
+
+| Package | Version | Description |
+| ------- | ------- | ----------- |
+| [`@vivantel/virage-reranker-cross-encoder`](packages/virage-reranker-cross-encoder) | [![npm](https://img.shields.io/npm/v/@vivantel/virage-reranker-cross-encoder.svg)](https://www.npmjs.com/package/@vivantel/virage-reranker-cross-encoder) | Local cross-encoder re-ranker (ONNX, no API key required) |
+| [`@vivantel/virage-reranker-llm`](packages/virage-reranker-llm) | [![npm](https://img.shields.io/npm/v/@vivantel/virage-reranker-llm.svg)](https://www.npmjs.com/package/@vivantel/virage-reranker-llm) | LLM-based re-ranker using the Anthropic API |
+
+### Agent plugins
+
+| Package | Version | Description |
+| ------- | ------- | ----------- |
+| [`@vivantel/virage-agent-core`](packages/virage-agent-core) | [![npm](https://img.shields.io/npm/v/@vivantel/virage-agent-core.svg)](https://www.npmjs.com/package/@vivantel/virage-agent-core) | Base interfaces and utilities for agent plugins |
+| [`@vivantel/virage-agent-claude`](packages/virage-agent-claude) | [![npm](https://img.shields.io/npm/v/@vivantel/virage-agent-claude.svg)](https://www.npmjs.com/package/@vivantel/virage-agent-claude) | Claude Code agent plugin |
+| [`@vivantel/virage-agent-copilot`](packages/virage-agent-copilot) | [![npm](https://img.shields.io/npm/v/@vivantel/virage-agent-copilot.svg)](https://www.npmjs.com/package/@vivantel/virage-agent-copilot) | GitHub Copilot agent plugin |
+| [`@vivantel/virage-agent-codex`](packages/virage-agent-codex) | [![npm](https://img.shields.io/npm/v/@vivantel/virage-agent-codex.svg)](https://www.npmjs.com/package/@vivantel/virage-agent-codex) | OpenAI Codex agent plugin |
+| [`@vivantel/virage-agent-antigravity`](packages/virage-agent-antigravity) | [![npm](https://img.shields.io/npm/v/@vivantel/virage-agent-antigravity.svg)](https://www.npmjs.com/package/@vivantel/virage-agent-antigravity) | Google Antigravity agent plugin |
+| [`@vivantel/virage-skills`](packages/virage-skills) | [![npm](https://img.shields.io/npm/v/@vivantel/virage-skills.svg)](https://www.npmjs.com/package/@vivantel/virage-skills) | AI agent skills for Claude Code, Copilot, and Codex |
+
+### Utilities
+
+| Package | Version | Description |
+| ------- | ------- | ----------- |
+| [`@vivantel/virage-git-isomorphic`](packages/virage-git-isomorphic) | [![npm](https://img.shields.io/npm/v/@vivantel/virage-git-isomorphic.svg)](https://www.npmjs.com/package/@vivantel/virage-git-isomorphic) | Pure-JS git source using isomorphic-git (no subprocess spawning) |
+
+## Quick start
+
+Install the CLI globally (requires Node.js 20+).
+
+On Unix / macOS / Linux:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/vivantel/virage/master/scripts/install.sh | bash
+```
+
+On Windows (PowerShell):
+
+```powershell
+irm https://raw.githubusercontent.com/vivantel/virage/master/scripts/install.ps1 | iex
+```
+
+Or directly with npm:
+
+```bash
+npm install -g @vivantel/virage
+```
+
+Set up a project (interactive wizard generates `virage.config.json`):
+
+```bash
+cd my-project
+virage init
+```
+
+Index your codebase:
+
+```bash
+virage index
+```
+
+Query the index:
+
+```bash
+virage query "how does authentication work?"
+```
+
+Or start the MCP stdio server for AI assistant integration:
+
+```bash
+virage serve
+```
+
+Check health and diagnose configuration problems:
+
+```bash
+virage status          # quick health summary
+virage doctor          # full diagnostic with fix hints
+```
+
+Generate shell completions:
+
+```bash
+virage completions bash >> ~/.bashrc   # or zsh / fish / powershell
+```
+
+All commands support `--format human|json|quiet` and `--no-color`.
+
+## Configuration
+
+All configuration lives in `virage.config.json`. Environment variables expand at runtime — use `${VAR}` syntax for secrets (e.g. `"apiKey": "${OPENAI_API_KEY}"`). Example config:
+
+```json
+{
+  "providers": {
+    "embedder": {
+      "builtin": "onnx",
+      "options": {
+        "source": { "model": "Xenova/all-MiniLM-L6-v2", "cacheDir": ".virage/model-cache" },
+        "dimensions": 384
+      }
+    },
+    "vectorStore": {
+      "builtin": "lancedb",
+      "options": { "uri": ".virage/lancedb" }
+    }
+  },
+  "fileSets": [
+    {
+      "name": "docs",
+      "include": ["docs/**/*.md", "**/*.md"],
+      "ignore": ["**/node_modules/**"],
+      "chunkers": [{ "builtin": "md" }]
+    },
+    {
+      "name": "code",
+      "include": ["src/**/*.ts", "src/**/*.py", "src/**/*.go"],
+      "chunkers": [{ "builtin": "lang" }]
+    }
+  ],
+  "search": { "hybrid": true, "hybridAlpha": 0.6 },
+  "pipeline": { "batchSize": 20 }
+}
+```
+
+Run `virage init` to generate a config interactively. Run `virage validate` to check it. See [docs/cli/config.md](docs/cli/config.md) for the full config reference.
+
+## CLI commands
+
+All commands have short aliases. Run `virage --help` to see the full list.
+
+```
+virage [options] [command]
+
+Options:
+  -v, --verbose   Increase verbosity (stackable: -v, -vv, -vvv…)
+  --no-banner     Suppress the startup banner (also: VIRAGE_NO_BANNER=1)
+  -h, --help      Display help
+
+Commands:
+  index     (i)     Run the indexing pipeline
+  init              Generate virage.config.json interactively
+  update    (up)    Update virage ecosystem packages and resync agent configs
+  check     (c)     Validate embedder config matches the stored index
+  validate  (val)   Validate config without running the pipeline
+  dashboard (d)     Start the local monitoring dashboard
+  query     (q)     Semantic search over the indexed knowledge base
+  quality   (ql)    Quality system: self-assessment, retrieval eval, benchmarks
+  report    (r)     Show observability report from pipeline runs
+  chunks            Chunk analysis tools
+  viz               Visualization tools
+  store             Vector store diagnostics
+  telemetry         Manage telemetry settings and data
+  install-hooks (hooks)  Install git hooks for auto-indexing
+  uninstall   (un)  Remove virage artefacts and optionally the global CLI
+```
+
+See [docs/cli/](docs/cli/) for per-command reference.
+
+`virage index` flags:
+
+```
+Options:
+  -c, --config <path>     Config file (default: virage.config.json)
+  -f, --force             Force full rebuild
+  --no-upload             Skip upload to vector store
+  --dry-run               Show what would change without uploading
+  --watch                 Re-run pipeline on file changes
+  (Use VIRAGE_DIR env var to override the .virage/ directory path)
+```
+
+`virage quality` (ql) — 26-metric pipeline self-assessment, retrieval eval, and performance benchmarks. See [docs/quality.md](docs/quality.md) for the full command reference.
+
+## Chunkers
+
+Chunkers split source files into embeddable chunks. PDF, Markdown, DOCX, LaTeX, and multi-language chunking are built into `@vivantel/virage` — no separate install needed. Configure chunkers per file set using the `builtin:` key:
+
+```json
+{
+  "fileSets": [
+    {
+      "name": "docs",
+      "include": ["**/*.md"],
+      "chunkers": [{ "builtin": "md" }]
+    },
+    {
+      "name": "code",
+      "include": ["src/**/*.ts", "src/**/*.py"],
+      "chunkers": [{ "builtin": "lang" }]
+    }
+  ]
+}
+```
+
+Plugin-based chunkers extend the built-in set:
+
+| Package | Language / format | Notes |
+| ------- | ----------------- | ----- |
+| `virage-chunker-ce-ast` | All (shared AST walker) | Base for TS/JS plugin chunkers |
+| `virage-chunker-ce-ts` | TypeScript / JavaScript | Pure TS, no native binary |
+| `virage-code-chunk-chunker` | TS, JS, Python, Go, Java | AST-aware, powered by code-chunk |
+
+## Embedders
+
+| Key / Package | Requires API key | Notes |
+| ------------- | ---------------- | ----- |
+| `builtin: "onnx"` | No | Built-in ORT inference; downloads from HuggingFace Hub; recommended default |
+| `virage-embedder-openai` | Yes | OpenAI, Azure, GitHub Models, Ollama, any OpenAI-compatible endpoint |
+| `virage-embedder-fastembed` | No | Fast local ONNX inference via FastEmbed |
+| `virage-embedder-transformers` | No | HuggingFace Transformers.js; wider model selection |
+
+The embedder model and dimensions are tracked in the index. Changing either value automatically invalidates the cache and triggers a full re-embed on the next run.
+
+## Vector stores
+
+| Package | Infrastructure | Best for |
+| ------- | -------------- | -------- |
+| `virage-store-lancedb` | None (file-based) | Local dev, CI, small projects |
+| `virage-store-postgres` | PostgreSQL + pgvector | Production, complex SQL queries |
+| `virage-store-qdrant` | Qdrant (Docker or cloud) | High-scale, distributed deployments |
+| `virage-store-chromadb` | ChromaDB (Docker or hosted) | Simple hosted deployments |
+
+## Re-rankers
+
+Optional post-retrieval re-rankers re-score results for higher precision. Configured under `providers.reranker` in `virage.config.json`. When set, `virage query` applies reranking automatically — no extra flag needed.
+
+| Key / Package | Requires API key | Notes |
+| ------------- | ---------------- | ----- |
+| `builtin: "cross-encoder"` | No | Built-in ORT cross-encoder; downloads from HuggingFace Hub |
+| `@vivantel/virage-reranker-llm` | Yes (Anthropic) | LLM-based re-ranker using claude-haiku-4-5 |
+
+## Tuning
+
+Fine-tune indexing performance via the `options` block in `virage.config.json`:
+
+| Option | Default | Effect |
+| ------ | ------- | ------ |
+| `rateLimitMs` | `0` | Milliseconds to wait between embedding API calls |
+| `batchSize` | `100` | Chunks sent per embedding request |
+| `chunkConcurrency` | CPU core count | Number of files chunked in parallel (I/O + AST parsing) |
+| `concurrency` | `1` | Parallel embedding requests (for remote embedders only) |
+
+Local embedder models are cached in `~/.virage/models` (overridable with `VIRAGE_GLOBAL_DIR`).
+
+Use `--force` to discard the incremental cache and re-index everything from scratch.  
+Use `-v` / `-vv` / `-vvv` with `virage index` to increase log verbosity for debugging.
+
+## AI assistant integration
+
+Agent plugins configure your coding assistant to use Virage for semantic search and context retrieval. Select one or more agents during `virage init` — the plugin is installed and configured automatically.
+
+| Agent | Plugin | What gets configured |
+| ----- | ------ | -------------------- |
+| Claude Code | `@vivantel/virage-agent-claude` | MCP server registration, slash commands, skills |
+| GitHub Copilot | `@vivantel/virage-agent-copilot` | `.github/copilot/` hooks and instructions |
+| OpenAI Codex | `@vivantel/virage-agent-codex` | `.codex/` hooks |
+| Google Antigravity | `@vivantel/virage-agent-antigravity` | `.antigravity/` hooks |
+
+Run `virage update` to resync agent configs after upgrading plugin packages.
+
+## Dashboard
+
+Launch the web monitoring UI to inspect chunk distribution, embedding anomalies, pipeline status, search, and experiments:
+
+```bash
+virage dashboard        # start on port 3000
+virage dashboard --port 8080 --verbose  # custom port + request logging
+```
+
+## Use cases
+
+See [docs/USE_CASES.md](docs/USE_CASES.md) for detailed scenarios:
+
+- Onboarding new engineers with instant codebase search
+- AI code review with full codebase context, not just the diff
+- Keeping docs in sync with code via post-commit hooks
+- Zero-cost local RAG for private or air-gapped codebases
+- Multi-strategy indexing for mixed-content monorepos
+- Measuring retrieval quality before and after config changes
+- Cost-bounded CI indexing — only changed files are re-embedded
+- Sharing project knowledge across Claude Code, Copilot, and Codex simultaneously
+
+## Roadmap
+
+Planned features:
+
+- **Cross-file import graph indexing** — so agents can follow call chains across files, not just within them
+- **Cost estimator** (`virage estimate`) — projected token count and API cost before any embedding call
+- **PR diff mode** — index only the files changed in a pull request, in an isolated namespace
+- **Semantic deduplication** — skip near-duplicate chunks before embedding to reduce index bloat
+- **GitHub Actions integration** — official `vivantel/virage-action` composite action for CI-driven indexing
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for setup instructions, commit conventions, and how to open a PR.
+
+## License
+
+MIT

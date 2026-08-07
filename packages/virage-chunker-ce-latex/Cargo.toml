@@ -1,0 +1,18 @@
+[package]
+name    = "virage-chunker-ce-latex"
+version = "0.1.0"
+edition = "2021"
+description = "LaTeX chunker for Virage — Rust napi-rs native addon (custom lexer/parser)"
+license = "MIT OR Apache-2.0"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+napi         = { workspace = true }
+napi-derive  = { workspace = true }
+serde_json   = { workspace = true }
+virage-vidoc = { workspace = true }
+
+[build-dependencies]
+napi-build = "2"
