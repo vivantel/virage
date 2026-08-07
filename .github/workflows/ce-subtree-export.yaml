@@ -48,6 +48,8 @@ jobs:
           cp -r crates/virage-vidoc "$tmp/crates/virage-vidoc"
           cp -r crates/virage-engine "$tmp/crates/virage-engine"
           cp -r crates/virage-engine-sdk "$tmp/crates/virage-engine-sdk"
+          cp tsconfig.base.json "$tmp/tsconfig.base.json"
+          cp README.md "$tmp/README.md"
 
           HEAD_SHORT=$(git rev-parse --short HEAD)
 
@@ -57,7 +59,7 @@ jobs:
           cp -r "$tmp/." .
           rm -rf "$tmp"
 
-          git add packages/ crates/
+          git add packages/ crates/ tsconfig.base.json README.md
           git commit -m "chore: ce-subtree export from $HEAD_SHORT"
 
           git branch -D ce-subtree 2>/dev/null || true
