@@ -34,7 +34,7 @@ jobs:
         with:
           name: quality-report
           path: .virage/quality-report.json
-          retention-days: 90
+          retention-days: 14
 
       - name: Write job summary
         if: always()

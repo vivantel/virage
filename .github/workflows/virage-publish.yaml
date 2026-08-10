@@ -272,6 +272,7 @@ jobs:
             virage-linux-arm64-gnu
             virage-darwin-arm64
             virage-win32-x64-msvc.exe
+          retention-days: 1
           if-no-files-found: ignore
 
   publish:
