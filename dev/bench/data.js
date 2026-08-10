@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1785738717419,
+  "lastUpdate": 1786337117484,
   "repoUrl": "https://github.com/vivantel/virage",
   "entries": {
     "Virage Quality Metrics": [
@@ -283,6 +283,153 @@ window.BENCHMARK_DATA = {
           {
             "name": "LexicalRecall@K",
             "value": 0.73,
+            "unit": "score"
+          },
+          {
+            "name": "Reranker Input",
+            "value": 0,
+            "unit": "score"
+          },
+          {
+            "name": "Reranker",
+            "value": 0,
+            "unit": "score"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "S. Strebulaev",
+            "username": "sergemso",
+            "email": "strebulaev@gmail.com"
+          },
+          "committer": {
+            "name": "GitHub",
+            "username": "web-flow",
+            "email": "noreply@github.com"
+          },
+          "id": "b05808f7bc87d8c51e8f4dcbe231d1516ebfbe7c",
+          "message": "fix(ci): copy tsconfig.base.json + README.md into the ce-subtree export\n\nThe ce-subtree export step only ever copied an explicit per-package/crate\nlist, never repo-root files — tsconfig.base.json (which every exported\npackage's tsconfig.json extends via ../../tsconfig.base.json) and\nREADME.md silently never existed on ce-subtree at all. Surfaced when\nvirage-ee ran a fresh npm run sync:ce: the subtree pull correctly detected\ntsconfig.base.json as \"deleted upstream\" (never present in any ce-subtree\ncommit) and removed EE's own copy, breaking every ce/ package's\nTypeScript build.\n\nQ-LEVEL: Q2 — workflow_dispatch CI run 31195552319 (green) and CE Subtree\nExport run 31195532482 (green, confirmed tsconfig.base.json + README.md\nnow present on the resulting ce-subtree branch via direct API check)\nCOUNCIL: none",
+          "timestamp": "2026-08-07T16:03:57Z",
+          "url": "https://github.com/vivantel/virage/commit/b05808f7bc87d8c51e8f4dcbe231d1516ebfbe7c"
+        },
+        "date": 1786337115794,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "Overall Quality",
+            "value": 0.5393421121704323,
+            "unit": "score"
+          },
+          {
+            "name": "Chunking",
+            "value": 0.693943797680363,
+            "unit": "score"
+          },
+          {
+            "name": "Cohesion",
+            "value": 0.6277798172342588,
+            "unit": "score"
+          },
+          {
+            "name": "Coherence",
+            "value": 0.7464873148255063,
+            "unit": "score"
+          },
+          {
+            "name": "Coverage",
+            "value": 0.8,
+            "unit": "score"
+          },
+          {
+            "name": "Metadata Extraction",
+            "value": 0.5414141414141415,
+            "unit": "score"
+          },
+          {
+            "name": "Completeness",
+            "value": 0.4,
+            "unit": "score"
+          },
+          {
+            "name": "BreadcrumbConsistency",
+            "value": 0.9949494949494949,
+            "unit": "score"
+          },
+          {
+            "name": "FQNCompleteness",
+            "value": 0,
+            "unit": "score"
+          },
+          {
+            "name": "SiblingIntegrity",
+            "value": 1,
+            "unit": "score"
+          },
+          {
+            "name": "Dense Input Prep",
+            "value": 0.9617371205111052,
+            "unit": "score"
+          },
+          {
+            "name": "TextPurity",
+            "value": 0.9847146357634355,
+            "unit": "score"
+          },
+          {
+            "name": "EnrichmentQuality",
+            "value": 0.9387596052587747,
+            "unit": "score"
+          },
+          {
+            "name": "Dense Embedding",
+            "value": 0.7060559487422545,
+            "unit": "score"
+          },
+          {
+            "name": "SelfRecall@K",
+            "value": 0.97,
+            "unit": "score"
+          },
+          {
+            "name": "IntrinsicDimension",
+            "value": 0.19345238095238096,
+            "unit": "score"
+          },
+          {
+            "name": "Uniformity",
+            "value": 0.44994863251290207,
+            "unit": "score"
+          },
+          {
+            "name": "Isotropy",
+            "value": 0.09192530671874227,
+            "unit": "score"
+          },
+          {
+            "name": "OutlierFraction",
+            "value": 0.99,
+            "unit": "score"
+          },
+          {
+            "name": "Sparse Input Prep",
+            "value": 0.9466858809933586,
+            "unit": "score"
+          },
+          {
+            "name": "TermCoverage",
+            "value": 0.9466858809933586,
+            "unit": "score"
+          },
+          {
+            "name": "Lexical Retrieval",
+            "value": 0.9700000000000001,
+            "unit": "score"
+          },
+          {
+            "name": "LexicalRecall@K",
+            "value": 0.97,
             "unit": "score"
           },
           {
