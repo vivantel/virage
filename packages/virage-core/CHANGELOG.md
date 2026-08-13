@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.14](https://github.com/vivantel/virage/compare/virage-core@v0.4.13...virage-core@v0.4.14) (2026-08-13)
+
+
+### Features
+
+* **pipeline:** Streaming indexing + resource-aware concurrency (ADR-057) ([89c5e61](https://github.com/vivantel/virage/commit/89c5e61f7c772dda18fcffac9221add7ddf026a6))
+
 ## [0.4.13](https://github.com/vivantel/virage/compare/virage-core@v0.4.12...virage-core@v0.4.13) (2026-07-28)
 
 
