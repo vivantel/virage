@@ -53,9 +53,28 @@ pub struct OnnxInferenceSession {
 }
 
 impl OnnxInferenceSession {
+    /// ADR-057: previously built with `Session::builder()`'s unbounded defaults — plausible
+    /// contributor to the OOM incident (not confirmed by profiling, but a real gap: an
+    /// un-configured session leaves ORT free to size its intra-op thread pool to the host's
+    /// core count and cache per-shape memory patterns indefinitely). This crate's callers
+    /// (`OnnxEmbedder`/`CrossEncoderReranker`) already serialize every inference call through an
+    /// `Arc<Mutex<..>>` — there is never more than one in-flight call per session — so ORT's own
+    /// intra/inter-op thread parallelism buys nothing and only holds extra per-thread buffers.
     pub fn from_paths(model_path: &str, tokenizer_path: &str) -> Result<Self, String> {
         let session = Session::builder()
             .map_err(|e| format!("ORT session builder error: {e}"))?
+            // Calls are already serialized by the caller's Mutex — no benefit to ORT spawning
+            // its own intra/inter-op thread pool (which otherwise defaults to core count).
+            .with_intra_threads(1)
+            .map_err(|e| format!("ORT intra_threads config error: {e}"))?
+            .with_inter_threads(1)
+            .map_err(|e| format!("ORT inter_threads config error: {e}"))?
+            // Memory-pattern optimization caches an allocation plan keyed by input shape; our
+            // batch size and sequence length vary per call (different files, different chunk
+            // counts), so the cache would just accumulate one pattern per distinct shape seen
+            // rather than reuse a fixed one — turn it off rather than let it grow unbounded.
+            .with_memory_pattern(false)
+            .map_err(|e| format!("ORT memory_pattern config error: {e}"))?
             .commit_from_file(model_path)
             .map_err(|e| format!("ORT model load error: {e}"))?;
         let tokenizer = Tokenizer::from_file(tokenizer_path)

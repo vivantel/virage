@@ -141,22 +141,24 @@ Extends `PluginRef` with optional chunking templates.
 ## `pipeline`
 
 Tuning knobs for the indexing pipeline. All fields are optional. CLI flags override config values.
+This table reflects the current Rust engine (`virage-engine`, ADR-053+) — fields below are the
+ones actually read by `crates/virage-engine/src/config/mod.rs`'s `PipelineOptions`.
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
 | `force` | boolean | `false` | Re-embed all chunks, bypassing file-change and hash dedup |
-| `skipUpload` | boolean | `false` | Embed but skip uploading to the vector store |
 | `dryRun` | boolean | `false` | Show what would change without writing anything |
-| `embeddingsFile` | string | — | Path to a pre-computed embeddings JSON file |
-| `noBanner` | boolean | `false` | Suppress the startup banner |
-| `rateLimitMs` | number | `0` | Minimum ms between embedding API calls |
-| `batchSize` | integer | — | Max chunks per embedding API request (plugin default applies if unset) |
-| `maxBatchChars` | integer | — | Max total characters per embedding API request |
-| `concurrency` | integer | — | Files processed in parallel |
-| `chunkConcurrency` | integer | — | Chunking workers per file |
-| `minEmbeddingBatchSize` | integer | `10` | Minimum chunks to accumulate before sending an embedding request |
-| `minUploadingBatchSize` | integer | `20` | Minimum chunks to accumulate before uploading to the vector store |
-| `maxPendingFiles` | integer | — | Backpressure: max files queued for chunking before pausing reads |
+| `concurrency` | integer | CPU core count | Worker ceiling — max files processed in parallel |
+| `concurrencyStrategy` | `"fixed"` \| `"ramSampling"` | `"ramSampling"` for `virage index`, `"fixed"` for `virage bench index` (ADR-057) | How the active worker count is chosen. `"ramSampling"` scales workers `1..concurrency` based on live free system memory, throttling under pressure. `"fixed"` pins `concurrency` for the whole run. An explicit `concurrency` value with no `concurrencyStrategy` also implies `"fixed"`, matching the pre-ADR-057 meaning of `--workers N`. |
+| `minUploadingBatchSize` | integer | `64` | Minimum chunks to accumulate before a vector-store write (each write is a full store commit, not a cheap append) |
+
+**Not implemented** (accepted by `virage init`'s older wizard output or copied from older docs, but silently
+ignored by the current Rust engine — remove them from your config, they do nothing): `skipUpload`
+(use `virage index --no-upload` instead), `embeddingsFile`, `noBanner` (use `--no-banner` or
+`VIRAGE_NO_BANNER=1`), `rateLimitMs`, `batchSize`, `maxBatchChars`, `chunkConcurrency`,
+`minEmbeddingBatchSize`, `maxPendingFiles`. These were config surface for the pre-ADR-053
+TypeScript pipeline; if you rely on any of them, please file an issue — this note exists so a
+silently-no-op config value doesn't look like a supported knob.
 
 ---
 
@@ -276,11 +278,9 @@ An array of agent plugin refs. Each entry uses the `PluginRef` shape.
     "rerankOversample": 3
   },
   "pipeline": {
-    "rateLimitMs": 200,
-    "batchSize": 20,
     "concurrency": 4,
-    "minEmbeddingBatchSize": 10,
-    "minUploadingBatchSize": 20
+    "concurrencyStrategy": "fixed",
+    "minUploadingBatchSize": 64
   }
 }
 ```

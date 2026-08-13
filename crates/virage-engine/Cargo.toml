@@ -50,9 +50,11 @@ db-sqlite = ["dep:rusqlite"]
 source-types  = ["dep:async-trait", "dep:futures", "dep:bytes", "dep:anyhow", "dep:globset"]
 store-types   = ["dep:async-trait", "dep:anyhow"]
 chunker-walk  = ["dep:sha2"]
+# ADR-057 — RamSampling ConcurrencyStrategy's free-memory sampling. `system` only: no
+# disk/network/user/component polling, which this pipeline never needs.
 pipeline      = ["chunker-walk", "source-types", "store-types", "db-sqlite",
                  "dep:tokio", "dep:async-trait", "dep:anyhow", "dep:futures", "dep:bytes",
-                 "dep:tracing"]
+                 "dep:tracing", "dep:sysinfo"]
 # Phase 5 — CLI binary
 config = ["dep:serde"]
 # IR-038 Step 5 — `virage eval run/compare` against RAGBench. RAGBench subset queries are
@@ -106,6 +108,9 @@ tree-sitter-cpp        = { version = "0.23", optional = true }
 tree-sitter-c-sharp    = { version = "0.23", optional = true }
 tree-sitter-ruby       = { version = "0.23", optional = true }
 
+# Pipeline deps — optional, enabled via the `pipeline` feature
+sysinfo    = { version = "0.39", default-features = false, features = ["system"], optional = true }
+
 # Embedder deps — optional, enabled via feature flags
 ort        = { version = "2.0.0-rc.12", default-features = false, optional = true }
 tokenizers = { version = "0.21", default-features = false, features = ["onig"], optional = true }
@@ -114,7 +119,7 @@ ureq       = { version = "2",   features = ["tls"], optional = true }
 # Source provider deps — optional, enabled via feature flags
 git2        = { version = "0.21", features = ["vendored-libgit2"], optional = true }
 walkdir     = { version = "2",    optional = true }
-tokio       = { version = "1",    features = ["fs", "rt", "rt-multi-thread", "macros", "sync"], optional = true }
+tokio       = { version = "1",    features = ["fs", "rt", "rt-multi-thread", "macros", "sync", "time"], optional = true }
 async-trait = { version = "0.1",  optional = true }
 futures     = { version = "0.3",  optional = true }
 bytes       = { version = "1",    optional = true }
@@ -157,3 +162,7 @@ cc = "1"
 [dev-dependencies]
 lopdf   = { version = "0.41", default-features = false }
 docx-rs = { version = "0.4",  default-features = false }
+# ADR-057 worker-gating test needs paused/advanceable time (tokio::time::advance) to exercise
+# CONCURRENCY_SAMPLE_INTERVAL without a real multi-second sleep. Same tokio version as the prod
+# dep above so cargo unifies to one copy with the union of features.
+tokio    = { version = "1", features = ["test-util"] }

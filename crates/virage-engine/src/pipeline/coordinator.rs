@@ -70,6 +70,10 @@ pub async fn run_pipeline(
     let mut to_delete: Vec<String> = Vec::new();
     let mut files_skipped = 0usize;
     let mut current_keys: HashSet<String> = HashSet::new();
+    // `path → revision_key`, captured while `key` is in scope below — needed after `to_process`
+    // is moved into the feed task, to map a completed `WorkResult.path` back to the key its
+    // revision should be recorded under (see `PipelineStats::processed_revisions`).
+    let mut to_process_keys: HashMap<String, String> = HashMap::new();
 
     for (group_idx, key, item) in &all_items {
         current_keys.insert(key.clone());
@@ -95,6 +99,7 @@ pub async fn run_pipeline(
                         }
                     }
                 }
+                to_process_keys.insert(item.path.clone(), key.clone());
                 to_process.push(WorkItem {
                     path: item.path.clone(),
                     revision: current_rev,
@@ -127,6 +132,7 @@ pub async fn run_pipeline(
             files_deleted: to_delete.len(),
             chunks_upserted: 0,
             tokens_processed: 0,
+            processed_revisions: HashMap::new(),
         });
     }
 
@@ -141,26 +147,64 @@ pub async fn run_pipeline(
             .collect(),
     );
 
+    // ── Spawn worker tasks ────────────────────────────────────────────────────
+    //
+    // ADR-057: worker count is no longer static for the whole run. `workers` below is the
+    // *ceiling* — we always spawn this many tokio tasks up front (cheap; an idle worker just
+    // awaits) — but each worker self-checks `strategy` between items (see `worker_task`) and
+    // voluntarily sits out the round when its index is at/above the strategy's currently
+    // reported count, instead of pulling more work. This is the "self-check between items"
+    // option from the plan, chosen over aborting/respawning `JoinHandle`s: it never cancels a
+    // worker mid-`embed_batch`/mid-`upsert`, and scaling back up is just idle workers resuming
+    // — no re-spawn bookkeeping needed. The tradeoff is reaction latency bounded by
+    // `worker::CONCURRENCY_SAMPLE_INTERVAL`, not the "hard stop everything now" of the abort
+    // option — acceptable since the incident this fixes is gradual memory pressure, not a
+    // page-fault emergency.
+    //
+    // Clamped *before* it's used for channel capacity below — `config.workers` can be 0
+    // (`--workers 0` passes straight through as an explicit `FixedWorkers` override; nothing
+    // upstream clamps it), and `mpsc::channel(0)` panics.
+    let workers = config.workers.max(1);
+    let strategy: Arc<dyn super::ConcurrencyStrategy> = config
+        .concurrency_strategy
+        .clone()
+        .unwrap_or_else(|| Arc::new(super::FixedWorkers::new(workers)));
+
     // ── Set up channels ───────────────────────────────────────────────────────
-    let cap = config.workers * 4;
+    let cap = workers * 4;
     let (work_tx, work_rx) = mpsc::channel::<WorkItem>(cap);
     let (result_tx, result_rx) = mpsc::channel::<WorkResult>(cap);
     let work_rx = Arc::new(tokio::sync::Mutex::new(work_rx));
 
-    // ── Spawn worker tasks ────────────────────────────────────────────────────
-    let workers = config.workers.max(1);
+    // Set once the feeder below has sent every item and dropped `work_tx`. A gated (throttled)
+    // worker checks this instead of `try_recv()`-ing the shared receiver on its own: touching
+    // the receiver at all while gated risks pulling a real item out from under the throttle
+    // (see `worker::worker_task`'s doc comment) — this flag lets a gated worker detect "no more
+    // work is coming" and exit cleanly without ever reaching into the channel itself.
+    let feeder_done = Arc::new(std::sync::atomic::AtomicBool::new(false));
+
     let mut handles = Vec::new();
-    for _ in 0..workers {
+    for idx in 0..workers {
         let groups2 = group_runtime.clone();
         let embedder2 = embedder.clone();
         let result_tx2 = result_tx.clone();
         let work_rx2 = work_rx.clone();
         let config2 = config.clone();
         let progress2 = progress.clone();
+        let strategy2 = strategy.clone();
+        let feeder_done2 = feeder_done.clone();
 
         handles.push(tokio::spawn(async move {
             super::worker::worker_task(
-                groups2, embedder2, work_rx2, result_tx2, &config2, progress2,
+                idx,
+                groups2,
+                embedder2,
+                work_rx2,
+                result_tx2,
+                &config2,
+                progress2,
+                strategy2,
+                feeder_done2,
             )
             .await
         }));
@@ -174,20 +218,36 @@ pub async fn run_pipeline(
                 break;
             }
         }
-        // Dropping work_tx closes the channel → workers see None and exit.
+        // Dropping work_tx closes the channel → ungated workers see None and exit; gated
+        // workers see this flag instead (they never touch the receiver while gated).
+        feeder_done.store(true, std::sync::atomic::Ordering::Release);
     });
 
     // ── Collect results and batch-upsert ──────────────────────────────────────
     let mut files_processed = 0usize;
     let mut chunks_upserted = 0usize;
     let mut tokens_processed = 0usize;
+    let mut processed_revisions: HashMap<String, String> = HashMap::new();
     let batch_size = config.upload_batch_size;
     let mut batch: Vec<VectorDocument> = Vec::with_capacity(batch_size);
 
     let mut result_rx = result_rx;
     while let Some(result) = result_rx.recv().await {
-        files_processed += 1;
-        progress.inc_done();
+        // ADR-057: a file can arrive as several micro-batch `WorkResult`s in a row (streaming
+        // chunk→embed→upload — see worker.rs). Only the final one marks the file done; every
+        // result's chunks still flow into the upsert batch below regardless of `is_final`. Only
+        // a file that reaches `is_final` gets its revision recorded — a file that fails partway
+        // through (some chunks already stored, no final marker sent) must not be recorded as
+        // "known", or it would never be retried despite having incomplete content in the store.
+        if result.is_final {
+            files_processed += 1;
+            progress.inc_done();
+            if let Some(key) = to_process_keys.get(&result.path) {
+                if let Some(rev) = current_revisions.get(key) {
+                    processed_revisions.insert(key.clone(), rev.clone());
+                }
+            }
+        }
         for ec in result.chunks {
             batch.push(embedded_to_vecdoc(ec, &result.path));
             if batch.len() >= batch_size {
@@ -222,6 +282,7 @@ pub async fn run_pipeline(
         files_deleted: to_delete.len(),
         chunks_upserted,
         tokens_processed,
+        processed_revisions,
     })
 }
 

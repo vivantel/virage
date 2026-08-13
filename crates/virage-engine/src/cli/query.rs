@@ -56,7 +56,7 @@ pub async fn cmd_query(
     let vec = embedder
         .lock()
         .map_err(|_| anyhow::anyhow!("embedder lock poisoned"))?
-        .embed_batch(std::slice::from_ref(&args.query))
+        .embed_batch(&[args.query.as_str()])
         .map_err(|e| anyhow::anyhow!("Embed error: {e}"))?;
     pb.finish_and_clear();
 

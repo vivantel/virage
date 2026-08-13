@@ -59,7 +59,7 @@ pub fn compute_dense_input_metrics(
         let dims = guard.dimensions();
         let mut sims = Vec::with_capacity(enriched_pairs.len());
         for chunk in &enriched_pairs {
-            let texts = [chunk.sparse_text.clone(), chunk.dense_text.clone()];
+            let texts = [chunk.sparse_text.as_str(), chunk.dense_text.as_str()];
             let flat = guard
                 .embed_batch(&texts)
                 .map_err(|e| anyhow::anyhow!("embed error: {e}"))?;

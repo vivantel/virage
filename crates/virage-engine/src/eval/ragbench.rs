@@ -193,12 +193,13 @@ fn embed_texts(
     if texts.is_empty() {
         return Ok(Vec::new());
     }
+    let text_refs: Vec<&str> = texts.iter().map(String::as_str).collect();
     let mut guard = embedder
         .lock()
         .map_err(|_| anyhow::anyhow!("embedder lock poisoned"))?;
     let dims = guard.dimensions();
     let flat = guard
-        .embed_batch(texts)
+        .embed_batch(&text_refs)
         .map_err(|e| anyhow::anyhow!("embed error: {e}"))?;
     Ok(flat.chunks(dims).map(|c| c.to_vec()).collect())
 }

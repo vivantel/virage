@@ -266,6 +266,15 @@ pub struct PipelineOptions {
     pub concurrency: Option<usize>,
     pub batch_size: Option<usize>,
     pub min_upload_batch_size: Option<usize>,
+    /// ADR-057: explicit `ConcurrencyStrategy` selection — `"fixed"` or `"ramSampling"`.
+    /// `None` falls back to each CLI command's own default (see
+    /// `cli/index.rs::resolve_concurrency`'s `default_dynamic` parameter): `virage index`
+    /// defaults to `ramSampling` when `concurrency` is unset; `virage bench index` defaults to
+    /// `"fixed"` regardless, so throughput benchmarks stay deterministic across runs unless a
+    /// caller explicitly opts into measuring the dynamic path. Unrecognized values fall back to
+    /// each command's default rather than erroring — review with `virage validate` if unsure
+    /// which one is active.
+    pub concurrency_strategy: Option<String>,
 }
 
 // ─── Loader ───────────────────────────────────────────────────────────────────
