@@ -84,7 +84,7 @@ async fn compute_recall(
                 .lock()
                 .map_err(|_| anyhow::anyhow!("embedder lock poisoned"))?;
             guard
-                .embed_batch(std::slice::from_ref(&query))
+                .embed_batch(&[query.as_str()])
                 .map_err(|e| anyhow::anyhow!("embed error: {e}"))?
         };
         let search_opts = SearchOptions {
@@ -213,7 +213,7 @@ pub async fn run_quality_assessment(
             .lock()
             .map_err(|_| anyhow::anyhow!("embedder lock poisoned"))?;
         let d = guard.dimensions();
-        let texts: Vec<String> = dense_sample.iter().map(|c| c.dense_text.clone()).collect();
+        let texts: Vec<&str> = dense_sample.iter().map(|c| c.dense_text.as_str()).collect();
         if texts.is_empty() {
             Vec::new()
         } else {

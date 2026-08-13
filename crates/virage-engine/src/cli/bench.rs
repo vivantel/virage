@@ -7,6 +7,7 @@ use crate::history::benchmark::ToBenchmarkPoints;
 use crate::output::{Out, OutputFormat};
 use crate::pipeline::{coordinator::run_pipeline, FileSetGroup, PipelineConfig};
 
+use super::index::{cores_or_four, resolve_concurrency};
 use super::util::{ci_exit_codes, embedder_dims, resolve_config_path, spinner};
 
 #[derive(clap::Args)]
@@ -66,16 +67,27 @@ pub async fn cmd_bench_index(
         .collect();
     let chunkers = resolve_chunkers(&chunker_specs)?;
 
-    let pipeline_cfg = PipelineConfig {
-        workers: cfg
-            .pipeline
+    // ADR-057 review fix, twice over: this call site originally predated `resolve_concurrency`
+    // entirely (always plain `FixedWorkers`), then briefly defaulted to `RamSampling` like
+    // `virage index` — which was itself wrong for a benchmark: `RamSampling` reacts to the
+    // runner's live, ambient memory pressure, so throughput numbers would vary run-to-run for
+    // reasons having nothing to do with the code being benchmarked, risking false-positive
+    // regression-gate trips (`cmp.gate_passed`) or masking real regressions with noise.
+    // `default_dynamic: false` keeps `virage bench index` deterministic by default; pass
+    // `concurrencyStrategy: "ramSampling"` in config to explicitly opt a benchmark run into
+    // measuring the dynamic path instead.
+    let (workers, concurrency_strategy) = resolve_concurrency(
+        None,
+        cfg.pipeline.as_ref().and_then(|p| p.concurrency),
+        cfg.pipeline
             .as_ref()
-            .and_then(|p| p.concurrency)
-            .unwrap_or_else(|| {
-                std::thread::available_parallelism()
-                    .map(|n| n.get())
-                    .unwrap_or(4)
-            }),
+            .and_then(|p| p.concurrency_strategy.as_deref()),
+        cores_or_four(),
+        false,
+    );
+    let pipeline_cfg = PipelineConfig {
+        workers,
+        concurrency_strategy,
         upload_batch_size: cfg
             .pipeline
             .as_ref()

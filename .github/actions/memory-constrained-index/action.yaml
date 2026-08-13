@@ -1,0 +1,164 @@
+name: Memory-constrained index run
+description: Build virage in release mode, warm the model cache, then run a full index under simulated system-wide memory pressure and record RSS/exit-code/OOM signals.
+
+inputs:
+  label:
+    description: Result label (e.g. baseline, after) — used for the artifact name and JSON file.
+    required: true
+  config:
+    description: Path to the virage config file to index.
+    required: false
+    default: virage.config.ci.json
+  target-available-mb:
+    description: Target system-wide MemAvailable (MB) to hold during the timed run.
+    required: false
+    default: "450"
+
+runs:
+  using: composite
+  steps:
+    - name: Install Rust toolchain
+      uses: dtolnay/rust-toolchain@stable
+
+    - name: Cache cargo registry
+      uses: actions/cache@v6
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+        key: ${{ runner.os }}-mem-verify-cargo-reg-${{ hashFiles('**/Cargo.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-mem-verify-cargo-reg-
+
+    - name: Restore compiled artifacts
+      uses: actions/cache/restore@v6
+      with:
+        path: target/
+        key: ${{ runner.os }}-mem-verify-cargo-target-${{ hashFiles('**/Cargo.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-mem-verify-cargo-target-
+
+    - name: Install build and verification system packages
+      shell: bash
+      run: sudo apt-get update -y && sudo apt-get install -y protobuf-compiler stress-ng time
+
+    - name: Build release virage binary
+      shell: bash
+      run: |
+        cargo build -p virage-engine --bin virage --release \
+          --features cli-binary,download-binaries,store-lancedb \
+          --no-default-features
+
+    - name: Save compiled artifacts
+      uses: actions/cache/save@v6
+      with:
+        path: target/
+        key: ${{ runner.os }}-mem-verify-cargo-target-${{ hashFiles('**/Cargo.lock') }}
+
+    - name: Warm model cache (unconstrained)
+      shell: bash
+      run: ./target/release/virage index --config ${{ inputs.config }}
+
+    - name: Reset index state, keep model cache
+      shell: bash
+      run: rm -rf .virage/lancedb .virage/virage.db
+
+    - name: Run index under simulated memory pressure
+      shell: bash
+      run: |
+        mkdir -p results
+        total_kb=$(awk '/MemTotal/{print $2}' /proc/meminfo)
+        target_available_kb=$(( ${{ inputs.target-available-mb }} * 1024 ))
+        safety_kb=$((150 * 1024))
+        hog_kb=$(( total_kb - target_available_kb - safety_kb ))
+        hog_mb=$(( hog_kb / 1024 ))
+        echo "total_kb=$total_kb hog_mb=$hog_mb target_available_mb=${{ inputs.target-available-mb }}"
+
+        stress-ng --vm 1 --vm-bytes "${hog_mb}M" --vm-keep --timeout 900s &
+        stress_pid=$!
+        echo "$stress_pid" > stress.pid
+        sleep 3
+        sudo bash -c "echo -900 > /proc/$stress_pid/oom_score_adj" || true
+        sleep 2
+        free -m
+        awk '/MemAvailable/{print int($2/1024)}' /proc/meminfo > available_mb.txt
+
+        set +e
+        start=$(date +%s)
+        /usr/bin/time -v -o time_stats.log \
+          ./target/release/virage -vvv index --config ${{ inputs.config }} --force > run.log 2>&1
+        rc=$?
+        end=$(date +%s)
+        set -e
+        echo "$rc" > exit_code.txt
+        echo "$((end - start))" > wall_seconds.txt
+
+        if kill -0 "$stress_pid" 2>/dev/null; then echo "true" > stress_survived.txt; else echo "false" > stress_survived.txt; fi
+        kill "$stress_pid" 2>/dev/null || true
+        wait "$stress_pid" 2>/dev/null || true
+
+    - name: Parse results and detect OOM
+      shell: bash
+      run: |
+        rc=$(cat exit_code.txt)
+        wall=$(cat wall_seconds.txt)
+        avail_mb=$(cat available_mb.txt)
+        stress_survived=$(cat stress_survived.txt)
+        max_rss_kb=$(grep "Maximum resident set size" time_stats.log | awk -F': ' '{print $2}')
+
+        oom_detected=false
+        if [ "$rc" -eq 137 ]; then oom_detected=true; fi
+        if sudo dmesg | tail -n 1000 | grep -qi "killed process.*virage"; then oom_detected=true; fi
+
+        files_processed=$(grep -oP 'pipeline: \K[0-9]+(?= files processed)' run.log || true)
+        chunks_upserted=$(grep -oP '[0-9]+(?= chunks upserted)' run.log || true)
+
+        jq -n \
+          --arg label "${{ inputs.label }}" \
+          --arg commit_sha "${{ github.sha }}" \
+          --argjson exit_code "$rc" \
+          --argjson oom_detected "$oom_detected" \
+          --argjson max_rss_kb "${max_rss_kb:-null}" \
+          --argjson wall_seconds "$wall" \
+          --argjson target_available_mb "${{ inputs.target-available-mb }}" \
+          --argjson confirmed_available_mb "$avail_mb" \
+          --argjson stress_ng_survived "$stress_survived" \
+          --argjson files_processed "${files_processed:-null}" \
+          --argjson chunks_upserted "${chunks_upserted:-null}" \
+          '{label:$label, commit_sha:$commit_sha, exit_code:$exit_code, oom_detected:$oom_detected,
+            max_rss_kb:$max_rss_kb, wall_seconds:$wall_seconds, target_available_mb:$target_available_mb,
+            confirmed_available_mb:$confirmed_available_mb, stress_ng_survived:$stress_ng_survived,
+            files_processed:$files_processed, chunks_upserted:$chunks_upserted}' \
+          > "results/${{ inputs.label }}.json"
+        cat "results/${{ inputs.label }}.json"
+
+        {
+          echo "### Memory-constrained index run — ${{ inputs.label }}"
+          echo ""
+          echo "| field | value |"
+          echo "|---|---|"
+          echo "| exit code | $rc |"
+          echo "| OOM detected | $oom_detected |"
+          echo "| max RSS (MB) | $(( ${max_rss_kb:-0} / 1024 )) |"
+          echo "| wall time (s) | $wall |"
+          echo "| target available (MB) | ${{ inputs.target-available-mb }} |"
+          echo "| confirmed available (MB) | $avail_mb |"
+          echo "| stress-ng survived | $stress_survived |"
+        } >> "$GITHUB_STEP_SUMMARY"
+
+    - name: Upload raw logs
+      if: always()
+      uses: actions/upload-artifact@v7
+      with:
+        name: mem-verify-run-logs-${{ inputs.label }}
+        path: |
+          run.log
+          time_stats.log
+        retention-days: 14
+
+    - name: Upload result
+      uses: actions/upload-artifact@v7
+      with:
+        name: memory-verification-${{ inputs.label }}
+        path: results/${{ inputs.label }}.json
+        retention-days: 90

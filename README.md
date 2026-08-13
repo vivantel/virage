@@ -275,14 +275,15 @@ Optional post-retrieval re-rankers re-score results for higher precision. Config
 
 ## Tuning
 
-Fine-tune indexing performance via the `options` block in `virage.config.json`:
+Fine-tune indexing performance via the `pipeline` block in `virage.config.json`:
 
 | Option | Default | Effect |
 | ------ | ------- | ------ |
-| `rateLimitMs` | `0` | Milliseconds to wait between embedding API calls |
-| `batchSize` | `100` | Chunks sent per embedding request |
-| `chunkConcurrency` | CPU core count | Number of files chunked in parallel (I/O + AST parsing) |
-| `concurrency` | `1` | Parallel embedding requests (for remote embedders only) |
+| `concurrency` | CPU core count | Worker ceiling — the max number of files processed in parallel. An explicit value also pins `concurrencyStrategy: "fixed"` unless overridden. |
+| `concurrencyStrategy` | `"ramSampling"` for `virage index`, `"fixed"` for `virage bench index` | `"ramSampling"` scales the active worker count (1..`concurrency`) based on live free system memory, throttling under pressure; `"fixed"` pins the count for the whole run. |
+| `minUploadingBatchSize` | `64` | Minimum chunks to accumulate before a vector-store write (each write is a full store commit, not a cheap append) |
+| `force` | `false` | Re-embed all chunks, bypassing file-change detection |
+| `dryRun` | `false` | Show what would change without writing anything |
 
 Local embedder models are cached in `~/.virage/models` (overridable with `VIRAGE_GLOBAL_DIR`).
 

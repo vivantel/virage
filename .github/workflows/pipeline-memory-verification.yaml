@@ -1,0 +1,122 @@
+name: Pipeline Memory Verification
+
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - 'crates/virage-engine/src/pipeline/**'
+      - 'crates/virage-engine/src/onnx/**'
+      - '.github/actions/memory-constrained-index/**'
+      - '.github/workflows/pipeline-memory-verification.yaml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: pipeline-memory-verification-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  baseline:
+    name: Baseline (PR base ref) constrained-memory index run
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          path: tooling
+
+      - uses: ./tooling/.github/actions/memory-constrained-index
+        with:
+          label: baseline
+
+  after:
+    name: After (PR head) constrained-memory index run
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - uses: ./.github/actions/memory-constrained-index
+        with:
+          label: after
+
+  report:
+    name: Compare baseline vs after
+    needs: [baseline, after]
+    if: always() && github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: memory-verification-*
+          path: results
+          merge-multiple: true
+
+      - name: Build comparison report
+        run: |
+          mkdir -p results
+          baseline_file="results/baseline.json"
+          after_file="results/after.json"
+          [ -f "$baseline_file" ] || echo '{}' > "$baseline_file"
+          [ -f "$after_file" ] || echo '{}' > "$after_file"
+
+          row() {
+            local field="$1" filt="${2:-.$1 // \"N/A\"}"
+            local b a
+            b=$(jq -r "$filt" "$baseline_file")
+            a=$(jq -r "$filt" "$after_file")
+            echo "| $field | $b | $a |"
+          }
+
+          {
+            echo "## Pipeline Memory Verification — baseline vs after (ADR-057)"
+            echo ""
+            echo "Both runs indexed the same corpus under simulated system-wide memory pressure"
+            echo "(~450MB MemAvailable held via stress-ng), reproducing the incident's confirmed"
+            echo "<500MB-free condition. baseline = PR base ref (pre-fix); after = this PR's head."
+            echo ""
+            echo "| | baseline | after |"
+            echo "|---|---|---|"
+            row "exit code" '.exit_code // "N/A"'
+            row "OOM detected" '(if .oom_detected == null then "N/A" else .oom_detected end)'
+            row "max RSS (MB)" '(if .max_rss_kb then (.max_rss_kb / 1024 | floor) else "N/A" end)'
+            row "wall time (s)" '.wall_seconds // "N/A"'
+            row "confirmed available (MB)" '.confirmed_available_mb // "N/A"'
+            row "stress-ng survived" '(if .stress_ng_survived == null then "N/A" else .stress_ng_survived end)'
+            row "files processed" '.files_processed // "N/A"'
+            row "chunks upserted" '.chunks_upserted // "N/A"'
+          } | tee report.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Comment on PR
+        run: gh pr comment "${{ github.event.pull_request.number }}" --repo "${{ github.repository }}" --body-file report.md --edit-last --create-if-none
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Gate on after-branch OOM/failure
+        run: |
+          after_file="results/after.json"
+          rc=$(jq -r '.exit_code // "missing"' "$after_file")
+          oom=$(jq -r 'if .oom_detected == null then "missing" else .oom_detected end' "$after_file")
+          if [ "$rc" = "missing" ] || [ "$oom" = "missing" ]; then
+            echo "::error::after job did not produce a usable result — treat as failed verification."
+            exit 1
+          fi
+          if [ "$oom" = "true" ] || [ "$rc" != "0" ]; then
+            echo "::error::this PR's branch was OOM-killed or exited non-zero under the reproduced incident conditions (exit_code=$rc oom_detected=$oom)."
+            exit 1
+          fi
+          baseline_file="results/baseline.json"
+          base_oom=$(jq -r 'if .oom_detected == null then "missing" else .oom_detected end' "$baseline_file")
+          base_rc=$(jq -r '.exit_code // "missing"' "$baseline_file")
+          if [ "$base_oom" != "true" ] && [ "$base_rc" = "0" ]; then
+            echo "::warning::baseline did not OOM either — the simulated memory pressure may not have reproduced the incident strongly enough on this runner. after-branch success is still valid, but the comparison is weaker evidence than a baseline that visibly failed."
+          fi

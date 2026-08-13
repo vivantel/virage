@@ -4,12 +4,12 @@ use bytes::Bytes;
 use tokio::sync::mpsc;
 use virage_vidoc::{DocNode, DocNodeAttrs, DocNodeType};
 
-use super::{EmbeddedChunk, WorkItem, WorkResult};
+use super::{ArtifactSet, EmbeddedChunk, WorkItem, WorkResult};
 use crate::chunkers::walk::{walk_to_chunks, WalkOptions};
 use crate::embedders::Embedder;
 use crate::sources::SourceProvider;
 
-use super::{PipelineConfig, ProgressCounters};
+use super::{ConcurrencyStrategy, PipelineConfig, ProgressCounters};
 
 /// A group's source + chunkers, stripped of the `filter`/`tags` already consumed by the
 /// coordinator when listing items — all a worker needs to read and chunk a `WorkItem`.
@@ -18,16 +18,47 @@ pub struct GroupRuntime {
     pub chunkers: Vec<Arc<dyn crate::chunkers::FileChunker>>,
 }
 
+/// How often an idle-gated worker re-checks whether it should resume pulling work (ADR-057).
+/// Chosen as a few-second cadence: responsive enough to react to a memory spike well before a
+/// handful more workers' embedding batches could compound it, without adding meaningful
+/// overhead (`ConcurrencyStrategy::current_workers` is a cheap `sysinfo` refresh, not I/O).
+pub const CONCURRENCY_SAMPLE_INTERVAL: std::time::Duration = std::time::Duration::from_secs(2);
+
 /// Worker task: pulls `WorkItem`s, reads + chunks + embeds content, pushes `WorkResult`s.
+///
+/// `idx` is this worker's slot (0..ceiling, see `coordinator.rs`). Before pulling each item,
+/// the worker checks `strategy.current_workers()`: if `idx >= current_workers`, it sits out —
+/// sleeps `CONCURRENCY_SAMPLE_INTERVAL` and re-checks — instead of blocking on `recv()`, so a
+/// memory-pressured run gracefully narrows down to its lowest-indexed workers (down to 1 under
+/// real pressure) without ever cancelling an in-flight item.
+///
+/// While gated, the worker never touches `work_rx` at all — pulling from the shared receiver
+/// (even non-blocking `try_recv()`) risks grabbing a real item out from under the throttle,
+/// which would make gating cosmetic under any real backlog (a gated worker only sits idle once
+/// the queue happens to run dry — i.e. right when the throttle matters least). Instead it polls
+/// `feeder_done` — set by `coordinator.rs`'s feed task once every item has been sent — to detect
+/// "no more work is coming" and exit without ever reaching into the channel.
+#[allow(clippy::too_many_arguments)]
 pub async fn worker_task(
+    idx: usize,
     groups: Arc<Vec<GroupRuntime>>,
     embedder: Arc<std::sync::Mutex<dyn Embedder + Send>>,
     work_rx: Arc<tokio::sync::Mutex<mpsc::Receiver<WorkItem>>>,
     result_tx: mpsc::Sender<WorkResult>,
     config: &PipelineConfig,
     progress: Arc<ProgressCounters>,
+    strategy: Arc<dyn ConcurrencyStrategy>,
+    feeder_done: Arc<std::sync::atomic::AtomicBool>,
 ) -> anyhow::Result<()> {
     loop {
+        if idx >= strategy.current_workers() {
+            if feeder_done.load(std::sync::atomic::Ordering::Acquire) {
+                break; // no more work will ever arrive — nothing left to gate on
+            }
+            tokio::time::sleep(CONCURRENCY_SAMPLE_INTERVAL).await;
+            continue;
+        }
+
         let item = {
             let mut rx = work_rx.lock().await;
             rx.recv().await
@@ -37,33 +68,166 @@ pub async fn worker_task(
             None => break, // channel closed — no more work
         };
 
-        match process_item(&item, &groups, &embedder, config).await {
-            Ok(chunks) => {
-                let n = chunks.len();
-                let result = WorkResult {
-                    path: item.path.clone(),
-                    chunks,
-                };
-                if result_tx.send(result).await.is_err() {
-                    break; // coordinator dropped result channel
-                }
-                // Do NOT `progress.inc_done()` here — the coordinator counts this file once it
-                // receives the `WorkResult` above (coordinator.rs's `result_rx` loop). Counting it
-                // here too double-counted every successfully processed file (a real `630/504`
-                // overshoot was observed: 315 processed files × 2, found during the IR-040
-                // investigation). Failed files (below) have no matching `WorkResult`, so they're
-                // still counted here — this is the only place they're ever counted.
-                progress.add_chunks(n);
-            }
+        let artifacts = match parse_and_chunk(&item, &groups, config).await {
+            Ok(a) => a,
             Err(e) => {
                 // Log but don't abort — skip this file. No `WorkResult` is sent for it, so the
                 // coordinator never counts it — this is its only `inc_done()`.
                 tracing::warn!(path = ?item.path, error = %e, "worker skipped file");
                 progress.inc_done();
+                continue;
             }
+        };
+
+        // ADR-057: embed and send in micro-batches as each is ready, rather than embedding the
+        // whole file's artifacts in one call and returning one fully-materialized WorkResult.
+        // `stream_embed_and_send` handles the empty-artifacts case and `is_final` bookkeeping —
+        // see its doc comment.
+        match stream_embed_and_send(
+            &item, artifacts, &embedder, &result_tx, &progress, &strategy,
+        )
+        .await
+        {
+            Ok(()) => {}
+            Err(SendFailed) => break, // coordinator dropped result channel
         }
     }
     Ok(())
+}
+
+/// Marker error: the coordinator's result channel is closed. Not an `anyhow::Error` — this
+/// isn't a per-file failure, it's "stop the whole worker", handled by breaking the outer loop.
+struct SendFailed;
+
+/// Default micro-batch size: how many texts go into a single `Embedder::embed_batch` call. This
+/// is independent of `PipelineConfig::upload_batch_size`, which bounds how many chunks
+/// accumulate before the coordinator calls `store.upsert()` (a full Lance manifest commit, so
+/// it still needs its own, larger floor to avoid a commit storm).
+const EMBED_MICRO_BATCH_SIZE: usize = 16;
+
+/// Micro-batch size used when `ConcurrencyStrategy` has throttled down to its floor (1 active
+/// worker) — the clearest signal available that memory is genuinely tight. Smaller than
+/// `EMBED_MICRO_BATCH_SIZE` so a single in-flight `embed_batch` call under real pressure stays
+/// proportionally smaller too, instead of worker-count and batch-size throttling operating on
+/// entirely independent knobs.
+const LOW_MEMORY_MICRO_BATCH_SIZE: usize = 4;
+
+/// Embeds `artifacts` in micro-batches and sends one `WorkResult` per micro-batch as soon as
+/// it's embedded — chunks reach the coordinator's upsert batch incrementally instead of only
+/// after the whole file is fully embedded (ADR-057 Decision 1).
+///
+/// Every data-carrying `WorkResult` sent from this function has `is_final: false`; a separate,
+/// empty `is_final: true` marker is sent only once the whole file has been embedded
+/// successfully — this keeps the "did this file fully succeed" signal (which the coordinator
+/// uses to count `files_processed`) independent of "how many micro-batches did it take". If a
+/// micro-batch fails to embed, the file's remaining artifacts are skipped (matching the
+/// pre-streaming, whole-file-embed behavior) and **no** final marker is sent — the coordinator
+/// never counts this file as processed, same as a `parse_and_chunk` failure.
+async fn stream_embed_and_send(
+    item: &WorkItem,
+    artifacts: Vec<ArtifactSet>,
+    embedder: &Arc<std::sync::Mutex<dyn Embedder + Send>>,
+    result_tx: &mpsc::Sender<WorkResult>,
+    progress: &ProgressCounters,
+    strategy: &Arc<dyn ConcurrencyStrategy>,
+) -> Result<(), SendFailed> {
+    if artifacts.is_empty() {
+        let result = WorkResult {
+            path: item.path.clone(),
+            chunks: Vec::new(),
+            is_final: true,
+        };
+        return result_tx.send(result).await.map_err(|_| SendFailed);
+    }
+
+    let micro_batch_size = if strategy.current_workers() <= 1 {
+        LOW_MEMORY_MICRO_BATCH_SIZE
+    } else {
+        EMBED_MICRO_BATCH_SIZE
+    };
+
+    let dims = match embedder
+        .lock()
+        .map_err(|e| anyhow::anyhow!("embedder lock poisoned: {e}"))
+    {
+        Ok(guard) => guard.dimensions(),
+        Err(e) => {
+            tracing::warn!(path = ?item.path, error = %e, "embedder lock poisoned — skipping file");
+            progress.inc_done();
+            return Ok(());
+        }
+    };
+
+    let mut artifacts_iter = artifacts.into_iter();
+    loop {
+        let micro_batch: Vec<ArtifactSet> =
+            artifacts_iter.by_ref().take(micro_batch_size).collect();
+        if micro_batch.is_empty() {
+            break;
+        }
+
+        let embedded = match embed_micro_batch(micro_batch, embedder, dims) {
+            Ok(chunks) => chunks,
+            Err(e) => {
+                // Stop processing the rest of this file — matches the pre-streaming behavior of
+                // a whole-file embed_batch() failure. Chunks from already-sent micro-batches for
+                // this file have already reached the coordinator and are not retracted, but no
+                // `is_final` marker follows, so the coordinator never counts this file as
+                // successfully processed.
+                tracing::warn!(path = ?item.path, error = %e, "embed_batch failed — skipping rest of file");
+                progress.inc_done();
+                return Ok(());
+            }
+        };
+
+        let result = WorkResult {
+            path: item.path.clone(),
+            chunks: embedded,
+            is_final: false,
+        };
+        result_tx.send(result).await.map_err(|_| SendFailed)?;
+    }
+
+    let done = WorkResult {
+        path: item.path.clone(),
+        chunks: Vec::new(),
+        is_final: true,
+    };
+    result_tx.send(done).await.map_err(|_| SendFailed)
+}
+
+/// Embed one micro-batch of already-chunked artifacts. `dims` is resolved once by the caller
+/// (constant for the whole run) rather than re-locking the shared embedder mutex per
+/// micro-batch just to read it. Borrows each `dense_text` for the embed call instead of cloning
+/// it — `Embedder::embed_batch` takes `&[&str]` specifically so this doesn't need to (see its
+/// doc comment); the borrow ends before `artifacts` is consumed into `EmbeddedChunk`s below.
+fn embed_micro_batch(
+    artifacts: Vec<ArtifactSet>,
+    embedder: &Arc<std::sync::Mutex<dyn Embedder + Send>>,
+    dims: usize,
+) -> anyhow::Result<Vec<EmbeddedChunk>> {
+    let texts: Vec<&str> = artifacts.iter().map(|a| a.dense_text.as_str()).collect();
+    let flat: Vec<f32> = {
+        let mut emb = embedder
+            .lock()
+            .map_err(|e| anyhow::anyhow!("embedder lock poisoned: {e}"))?;
+        emb.embed_batch(&texts)
+            .map_err(|e| anyhow::anyhow!("embed_batch failed: {e}"))?
+    };
+
+    Ok(artifacts
+        .into_iter()
+        .enumerate()
+        .map(|(i, artifact)| {
+            let start = i * dims;
+            let end = start + dims;
+            let dense_vector = flat.get(start..end).unwrap_or(&[]).to_vec();
+            EmbeddedChunk {
+                artifact,
+                dense_vector,
+            }
+        })
+        .collect())
 }
 
 /// Find the first configured chunker whose `patterns()` match `path`.
@@ -79,12 +243,15 @@ fn find_chunker<'a>(
     })
 }
 
-async fn process_item(
+/// Read + parse + chunk a `WorkItem` into `ArtifactSet`s — everything up to but not including
+/// embedding (ADR-057 split `process_item` in two so embedding could move to the streaming,
+/// micro-batched `stream_embed_and_send` above; this half is unchanged from the pre-ADR-057
+/// `process_item` other than no longer embedding at the end).
+async fn parse_and_chunk(
     item: &WorkItem,
     groups: &[GroupRuntime],
-    embedder: &Arc<std::sync::Mutex<dyn Embedder + Send>>,
     config: &PipelineConfig,
-) -> anyhow::Result<Vec<EmbeddedChunk>> {
+) -> anyhow::Result<Vec<ArtifactSet>> {
     let group = &groups[item.group_idx];
     let source = &group.source;
     let chunkers = &group.chunkers;
@@ -140,44 +307,7 @@ async fn process_item(
         file_modified_at: None,
         tags: &item.tags,
     };
-    let artifacts = walk_to_chunks(&root, &opts);
-
-    if artifacts.is_empty() {
-        return Ok(Vec::new());
-    }
-
-    // Embed all dense_text strings in one batch call.
-    let dims = {
-        embedder
-            .lock()
-            .map_err(|e| anyhow::anyhow!("embedder lock poisoned: {e}"))?
-            .dimensions()
-    };
-    let texts: Vec<String> = artifacts.iter().map(|a| a.dense_text.clone()).collect();
-    let flat: Vec<f32> = {
-        let mut emb = embedder
-            .lock()
-            .map_err(|e| anyhow::anyhow!("embedder lock poisoned: {e}"))?;
-        emb.embed_batch(&texts)
-            .map_err(|e| anyhow::anyhow!("embed_batch failed: {e}"))?
-    };
-
-    // Slice the flat vector into per-chunk embeddings.
-    let chunks: Vec<EmbeddedChunk> = artifacts
-        .into_iter()
-        .enumerate()
-        .map(|(i, artifact)| {
-            let start = i * dims;
-            let end = start + dims;
-            let dense_vector = flat.get(start..end).unwrap_or(&[]).to_vec();
-            EmbeddedChunk {
-                artifact,
-                dense_vector,
-            }
-        })
-        .collect();
-
-    Ok(chunks)
+    Ok(walk_to_chunks(&root, &opts))
 }
 
 /// Build a minimal ViDoc `Document` node from raw bytes.
@@ -253,6 +383,7 @@ fn extension_of(path: &str) -> &'static str {
 
 #[cfg(test)]
 mod tests {
+    use super::super::FixedWorkers;
     use super::*;
 
     #[test]
@@ -429,7 +560,7 @@ mod tests {
             fn dimensions(&self) -> usize {
                 2
             }
-            fn embed_batch(&mut self, texts: &[String]) -> Result<Vec<f32>, String> {
+            fn embed_batch(&mut self, texts: &[&str]) -> Result<Vec<f32>, String> {
                 Ok(vec![0.1f32; texts.len() * 2])
             }
         }
@@ -458,15 +589,262 @@ mod tests {
             ..Default::default()
         };
 
-        let result = process_item(&item, &groups, &embedder, &config).await;
+        let artifacts = parse_and_chunk(&item, &groups, &config).await.unwrap();
+        let progress = ProgressCounters::new();
+        let strategy: Arc<dyn ConcurrencyStrategy> = Arc::new(FixedWorkers::new(4));
+        let (tx, mut rx) = mpsc::channel(8);
+        stream_embed_and_send(&item, artifacts, &embedder, &tx, &progress, &strategy)
+            .await
+            .ok();
+        drop(tx);
         std::fs::remove_file(&path).ok();
-        let result = result.unwrap();
 
-        assert!(!result.is_empty());
+        let mut chunks = Vec::new();
+        while let Some(r) = rx.recv().await {
+            chunks.extend(r.chunks);
+        }
+
+        assert!(!chunks.is_empty());
         assert!(
-            result[0].artifact.dense_text.starts_with("Title."),
+            chunks[0].artifact.dense_text.starts_with("Title."),
             "expected breadcrumb from Heading node, got: {:?}",
-            result[0].artifact.dense_text
+            chunks[0].artifact.dense_text
+        );
+    }
+
+    /// ADR-057: proves a file's chunks reach the coordinator's channel incrementally — as
+    /// multiple `WorkResult`s, only the last one marked `is_final` — rather than all at once
+    /// after the whole file is embedded, using a synthetic file with more artifacts than
+    /// `EMBED_MICRO_BATCH_SIZE` so at least one intermediate micro-batch is observable.
+    #[tokio::test]
+    async fn stream_embed_and_send_delivers_multiple_micro_batches() {
+        struct MockEmbedder;
+        impl Embedder for MockEmbedder {
+            fn dimensions(&self) -> usize {
+                1
+            }
+            fn embed_batch(&mut self, texts: &[&str]) -> Result<Vec<f32>, String> {
+                Ok(vec![0.5f32; texts.len()])
+            }
+        }
+
+        // 40 artifacts > EMBED_MICRO_BATCH_SIZE (16) → at least 3 micro-batches.
+        let artifacts: Vec<ArtifactSet> = (0..40)
+            .map(|i| ArtifactSet {
+                dense_text: format!("chunk {i}"),
+                sparse_text: String::new(),
+                dense_text_hash: format!("hash{i}"),
+                sparse_text_generator_id: String::new(),
+                metadata_generator_id: String::new(),
+                metadata: Default::default(),
+                source_file: "synthetic.md".into(),
+                commit_hash: "rev1".into(),
+            })
+            .collect();
+
+        let item = WorkItem {
+            path: "synthetic.md".into(),
+            revision: "rev1".into(),
+            tags: vec![],
+            group_idx: 0,
+        };
+        let embedder: Arc<std::sync::Mutex<dyn Embedder + Send>> =
+            Arc::new(std::sync::Mutex::new(MockEmbedder));
+        let progress = ProgressCounters::new();
+        let strategy: Arc<dyn ConcurrencyStrategy> = Arc::new(FixedWorkers::new(8));
+        let (tx, mut rx) = mpsc::channel(16);
+
+        stream_embed_and_send(&item, artifacts, &embedder, &tx, &progress, &strategy)
+            .await
+            .ok();
+        drop(tx);
+
+        let mut results = Vec::new();
+        while let Some(r) = rx.recv().await {
+            results.push(r);
+        }
+
+        // 40 artifacts / 16 per micro-batch = 3 data batches + 1 empty is_final marker.
+        assert!(
+            results.len() >= 4,
+            "expected multiple incremental WorkResults plus a final marker, got {}",
+            results.len()
+        );
+        let final_count = results.iter().filter(|r| r.is_final).count();
+        assert_eq!(final_count, 1, "exactly one WorkResult must be final");
+        assert!(
+            results.last().unwrap().is_final,
+            "the final WorkResult must be the last one sent"
+        );
+        assert!(
+            results.last().unwrap().chunks.is_empty(),
+            "the final marker carries no chunks of its own"
+        );
+        let total_chunks: usize = results.iter().map(|r| r.chunks.len()).sum();
+        assert_eq!(total_chunks, 40);
+        // Progress chunk-counting is the coordinator's job (on upsert-batch flush) — worker.rs
+        // no longer double-counts by also incrementing it here (review fix).
+    }
+
+    /// ADR-057 review fix: a micro-batch embedding failure must not be silently reported as a
+    /// successful file. No `is_final: true` marker should be sent once embedding starts failing.
+    #[tokio::test]
+    async fn stream_embed_and_send_does_not_mark_final_on_embed_failure() {
+        struct FailingEmbedder;
+        impl Embedder for FailingEmbedder {
+            fn dimensions(&self) -> usize {
+                1
+            }
+            fn embed_batch(&mut self, _texts: &[&str]) -> Result<Vec<f32>, String> {
+                Err("simulated ORT failure".into())
+            }
+        }
+
+        let artifacts: Vec<ArtifactSet> = (0..5)
+            .map(|i| ArtifactSet {
+                dense_text: format!("chunk {i}"),
+                sparse_text: String::new(),
+                dense_text_hash: format!("hash{i}"),
+                sparse_text_generator_id: String::new(),
+                metadata_generator_id: String::new(),
+                metadata: Default::default(),
+                source_file: "broken.md".into(),
+                commit_hash: "rev1".into(),
+            })
+            .collect();
+
+        let item = WorkItem {
+            path: "broken.md".into(),
+            revision: "rev1".into(),
+            tags: vec![],
+            group_idx: 0,
+        };
+        let embedder: Arc<std::sync::Mutex<dyn Embedder + Send>> =
+            Arc::new(std::sync::Mutex::new(FailingEmbedder));
+        let progress = ProgressCounters::new();
+        let strategy: Arc<dyn ConcurrencyStrategy> = Arc::new(FixedWorkers::new(8));
+        let (tx, mut rx) = mpsc::channel(16);
+
+        stream_embed_and_send(&item, artifacts, &embedder, &tx, &progress, &strategy)
+            .await
+            .ok();
+        drop(tx);
+
+        let mut results = Vec::new();
+        while let Some(r) = rx.recv().await {
+            results.push(r);
+        }
+
+        assert!(
+            results.iter().all(|r| !r.is_final),
+            "a file whose embedding failed must never receive an is_final marker"
+        );
+        assert_eq!(
+            progress.snapshot().2,
+            1,
+            "failed file still counted as attempted"
+        );
+    }
+
+    /// ADR-057 review fix: a gated worker (idx >= strategy.current_workers()) must never pull
+    /// from `work_rx` — the original `try_recv()`-based gate made throttling cosmetic under any
+    /// real backlog, since a gated worker would keep grabbing and processing items whenever the
+    /// queue wasn't momentarily empty. This test queues real work, keeps the worker permanently
+    /// gated (`AlwaysGated`), and proves it produces zero results and never touches the
+    /// embedder — even with a full backlog sitting in the channel the whole time — until
+    /// `feeder_done` tells it no more work is coming, at which point it exits cleanly without
+    /// ever having pulled an item.
+    #[tokio::test(start_paused = true)]
+    async fn worker_task_never_pulls_work_while_gated() {
+        /// Reports 0 active workers forever — every worker index is gated, always.
+        struct AlwaysGated;
+        impl ConcurrencyStrategy for AlwaysGated {
+            fn initial_workers(&self) -> usize {
+                0
+            }
+            fn current_workers(&self) -> usize {
+                0
+            }
+        }
+
+        struct UnusedEmbedder;
+        impl Embedder for UnusedEmbedder {
+            fn dimensions(&self) -> usize {
+                unreachable!("a gated worker must never touch the embedder")
+            }
+            fn embed_batch(&mut self, _texts: &[&str]) -> Result<Vec<f32>, String> {
+                unreachable!("a gated worker must never touch the embedder")
+            }
+        }
+
+        let groups: Arc<Vec<GroupRuntime>> = Arc::new(Vec::new());
+        let embedder: Arc<std::sync::Mutex<dyn Embedder + Send>> =
+            Arc::new(std::sync::Mutex::new(UnusedEmbedder));
+        let progress = ProgressCounters::new();
+        let strategy: Arc<dyn ConcurrencyStrategy> = Arc::new(AlwaysGated);
+        let feeder_done = Arc::new(std::sync::atomic::AtomicBool::new(false));
+
+        let (work_tx, work_rx) = mpsc::channel::<WorkItem>(4);
+        let work_rx = Arc::new(tokio::sync::Mutex::new(work_rx));
+        let (result_tx, mut result_rx) = mpsc::channel::<WorkResult>(4);
+
+        // Queue real work — a worker that ignored the gate (e.g. via a bare `try_recv()`) would
+        // happily consume this instead of sitting idle.
+        for i in 0..3 {
+            work_tx
+                .send(WorkItem {
+                    path: format!("file{i}.md"),
+                    revision: "rev1".into(),
+                    tags: vec![],
+                    group_idx: 0,
+                })
+                .await
+                .unwrap();
+        }
+
+        let feeder_done_worker = feeder_done.clone();
+        let handle = tokio::spawn(async move {
+            let config = PipelineConfig::default();
+            worker_task(
+                0,
+                groups,
+                embedder,
+                work_rx,
+                result_tx,
+                &config,
+                progress,
+                strategy,
+                feeder_done_worker,
+            )
+            .await
+        });
+
+        // Cycle through several sample intervals — real work sits in the channel the whole
+        // time. If the gate were cosmetic, the worker would have drained and processed it by
+        // now (each item would panic on `UnusedEmbedder`, failing this test).
+        for _ in 0..3 {
+            tokio::time::advance(CONCURRENCY_SAMPLE_INTERVAL + std::time::Duration::from_millis(1))
+                .await;
+        }
+        assert!(
+            result_rx.try_recv().is_err(),
+            "gated worker must not have processed any work yet"
+        );
+
+        // Signal no more work is coming; the worker should exit without ever having pulled from
+        // work_tx — the 3 queued items are still unconsumed at this point.
+        feeder_done.store(true, std::sync::atomic::Ordering::Release);
+        tokio::time::advance(CONCURRENCY_SAMPLE_INTERVAL + std::time::Duration::from_millis(1))
+            .await;
+
+        let result = tokio::time::timeout(std::time::Duration::from_secs(5), handle)
+            .await
+            .expect("worker_task should have exited promptly after feeder_done")
+            .expect("worker_task must not panic");
+        assert!(result.is_ok(), "worker_task should return Ok(())");
+        assert!(
+            result_rx.try_recv().is_err(),
+            "gated worker still must not have produced any results"
         );
     }
 }

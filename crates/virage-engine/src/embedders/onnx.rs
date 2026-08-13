@@ -33,13 +33,12 @@ impl Embedder for OnnxEmbedder {
         self.dimensions
     }
 
-    fn embed_batch(&mut self, texts: &[String]) -> Result<Vec<f32>, String> {
+    fn embed_batch(&mut self, texts: &[&str]) -> Result<Vec<f32>, String> {
         if texts.is_empty() {
             return Ok(vec![]);
         }
 
-        let text_refs: Vec<&str> = texts.iter().map(String::as_str).collect();
-        let batch = self.session.encode_single(&text_refs, self.max_length)?;
+        let batch = self.session.encode_single(texts, self.max_length)?;
         let (ids_t, mask_t, types_t) = batch.to_tensors()?;
 
         let outputs = self

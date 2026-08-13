@@ -296,6 +296,11 @@
           "minimum": 1,
           "description": "Number of files processed in parallel."
         },
+        "concurrencyStrategy": {
+          "type": "string",
+          "enum": ["fixed", "ramSampling"],
+          "description": "ADR-057: how the active worker count is chosen. \"fixed\" pins the count from `concurrency` (or the core-count default) for the whole run. \"ramSampling\" scales workers 1..ceiling based on live free system memory, throttling under pressure. Defaults to \"ramSampling\" for `virage index`, \"fixed\" for `virage bench index` (keeps benchmark throughput comparable across runs)."
+        },
         "chunkConcurrency": {
           "type": "integer",
           "minimum": 1,

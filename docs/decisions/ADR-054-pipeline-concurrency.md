@@ -1,9 +1,10 @@
 ---
 id: ADR-054
 title: Multi-worker pipeline concurrency via bounded tokio channels
-status: Accepted
+status: Superseded
 date: 2026-07-08
 amended: 2026-07-09
+deprecated_by: ADR-057
 related: [ADR-051, ADR-053]
 ---
 

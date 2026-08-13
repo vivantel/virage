@@ -264,7 +264,7 @@ pub async fn tool_call(
             let vec = embedder
                 .lock()
                 .map_err(|_| serde_json::json!({"code":-32603,"message":"embedder lock poisoned"}))?
-                .embed_batch(std::slice::from_ref(&query))
+                .embed_batch(&[query.as_str()])
                 .map_err(|e| serde_json::json!({"code":-32603,"message":e.to_string()}))?;
             let opts = SearchOptions {
                 filter: None,
