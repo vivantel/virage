@@ -6,8 +6,6 @@
 set -euo pipefail
 
 # Regenerate lockfile metadata and patch stub versions, then check for drift.
-# The committed lockfile is kept canonical by native-publish.yaml post-publish,
-# so this only fires when there is genuine local drift.
 npm install --package-lock-only --ignore-scripts --silent 2>/dev/null
 node scripts/patch-lockfile-stubs.cjs 2>/dev/null || true
 
@@ -22,9 +20,9 @@ fi
 
 # Check production feature sets for native packages.
 # Add a line here whenever a native package uses non-default production flags.
-prod_checks=(
-  "virage-embedder-onnx|--no-default-features --features download-binaries"
-)
+# Currently empty - virage-embedder-onnx (the only past entry) was removed
+# (deprecated per ADR-051, migrated into virage-engine's own onnx feature).
+prod_checks=()
 for entry in "${prod_checks[@]}"; do
   pkg="${entry%%|*}"
   flags="${entry##*|}"
