@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.31](https://github.com/vivantel/virage/compare/virage-agent-claude@v0.2.30...virage-agent-claude@v0.2.31) (2026-08-14)
+
+
+### Bug Fixes
+
+* **virage-agent-claude:** Use --format json, not the nonexistent --json flag ([#355](https://github.com/vivantel/virage/issues/355)) ([7009dcc](https://github.com/vivantel/virage/commit/7009dcc628b1cb5aa0e4c4f4ddf1277f1882a616))
+
 ## [0.2.30](https://github.com/vivantel/virage/compare/virage-agent-claude@v0.2.29...virage-agent-claude@v0.2.30) (2026-07-08)
 
 
