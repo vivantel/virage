@@ -29,10 +29,7 @@ jobs:
       - name: Patch lockfile stub version fields
         run: node scripts/patch-lockfile-stubs.cjs
 
-      - run: npm ci --omit=optional
-
-      - name: Build TypeScript packages
-        run: npm run build
+      - run: npm ci
 
       - name: Resolve packages to publish
         id: resolve
@@ -43,6 +40,18 @@ jobs:
             PKGS=$(jq -r 'keys[]' .release-please-manifest.json | tr '\n' ' ')
           fi
           echo "pkgs=$PKGS" >> "$GITHUB_OUTPUT"
+
+      - name: Build TypeScript packages
+        run: |
+          # Foundational packages other CE packages depend on as workspace links —
+          # build these first regardless of what's being published, matching
+          # build:all's own established order (root package.json).
+          npm run build --workspace packages/virage-core --if-present
+          npm run build --workspace packages/virage-agent-core --if-present
+          for pkg in ${{ steps.resolve.outputs.pkgs }}; do
+            echo "Building $pkg …"
+            npm run build --workspace "$pkg" --if-present
+          done
 
       - name: Publish packages
         run: |
