@@ -58,15 +58,21 @@ class DaemonHandle {
         } else if (Array.isArray(parsed)) {
           pending.resolve(parsed);
         } else {
-          pending.reject(new Error(`unexpected query-serve response shape: ${line}`));
+          pending.reject(
+            new Error(`unexpected query-serve response shape: ${line}`),
+          );
         }
       } catch (e) {
         pending.reject(e instanceof Error ? e : new Error(String(e)));
       }
     });
 
-    this.proc.on("exit", () => this.killAllPending("query-serve process exited"));
-    this.proc.on("error", (e) => this.killAllPending(`query-serve spawn error: ${e.message}`));
+    this.proc.on("exit", () =>
+      this.killAllPending("query-serve process exited"),
+    );
+    this.proc.on("error", (e) =>
+      this.killAllPending(`query-serve spawn error: ${e.message}`),
+    );
   }
 
   private killAllPending(reason: string) {
@@ -82,7 +88,8 @@ class DaemonHandle {
   }
 
   query(req: QueryRequest, timeoutMs: number): Promise<unknown[]> {
-    if (this.dead) return Promise.reject(new Error("query-serve process is dead"));
+    if (this.dead)
+      return Promise.reject(new Error("query-serve process is dead"));
     return new Promise<unknown[]>((resolve, reject) => {
       const timer = setTimeout(() => {
         const idx = this.queue.findIndex((p) => p.resolve === resolve);
