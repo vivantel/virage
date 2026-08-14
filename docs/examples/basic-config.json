@@ -23,7 +23,7 @@
       "name": "docs",
       "include": ["docs/**/*.md", "docs/**/*.mdx"],
       "chunkers": [
-        { "package": "@vivantel/virage-chunker-ce-md" }
+        { "builtin": "md" }
       ]
     },
     {

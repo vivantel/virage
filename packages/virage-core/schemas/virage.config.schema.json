@@ -90,7 +90,7 @@
       "properties": {
         "embedder": {
           "allOf": [{ "$ref": "#/$defs/pluginRef" }],
-          "description": "Embedding model plugin used for indexing (e.g. '@vivantel/virage-embedder-onnx')."
+          "description": "Embedding model plugin used for indexing (e.g. '@vivantel/virage-embedder-fastembed', or { \"builtin\": \"fastembed\" } in v2)."
         },
         "queryEmbedder": {
           "allOf": [{ "$ref": "#/$defs/pluginRef" }],

@@ -69,14 +69,6 @@ jobs:
               - 'package.json'
               - 'package-lock.json'
               - '.github/workflows/ci.yaml'
-            virage-embedder-onnx:
-              - 'packages/virage-embedder-onnx/**'
-              - 'Cargo.toml'
-              - 'Cargo.lock'
-              - 'eslint.config.js'
-              - 'package.json'
-              - 'package-lock.json'
-              - '.github/workflows/ci.yaml'
             virage-store-postgres:
               - 'packages/virage-store-postgres/**'
               - 'eslint.config.js'
@@ -179,30 +171,6 @@ jobs:
               - 'package.json'
               - 'package-lock.json'
               - '.github/workflows/ci.yaml'
-            virage-chunker-ce-pdf:
-              - 'packages/virage-chunker-ce-pdf/**'
-              - 'crates/**'
-              - 'Cargo.toml'
-              - 'Cargo.lock'
-              - '.github/workflows/ci.yaml'
-            virage-chunker-ce-md:
-              - 'packages/virage-chunker-ce-md/**'
-              - 'crates/**'
-              - 'Cargo.toml'
-              - 'Cargo.lock'
-              - '.github/workflows/ci.yaml'
-            virage-chunker-ce-docx:
-              - 'packages/virage-chunker-ce-docx/**'
-              - 'crates/**'
-              - 'Cargo.toml'
-              - 'Cargo.lock'
-              - '.github/workflows/ci.yaml'
-            virage-chunker-ce-latex:
-              - 'packages/virage-chunker-ce-latex/**'
-              - 'crates/**'
-              - 'Cargo.toml'
-              - 'Cargo.lock'
-              - '.github/workflows/ci.yaml'
             virage-reranker-cross-encoder:
               - 'packages/virage-reranker-cross-encoder/**'
               - 'eslint.config.js'
@@ -222,7 +190,6 @@ jobs:
           filters: |
             changed:
               - 'packages/virage-chunker-ce-*/**'
-              - 'packages/virage-embedder-onnx/**'
               - 'crates/**'
               - 'Cargo.toml'
               - 'Cargo.lock'
@@ -283,9 +250,9 @@ jobs:
         run: |
           # Each entry: "package|flags"
           # Add a line here whenever a native package uses non-default production flags.
-          checks=(
-            "virage-embedder-onnx|--no-default-features --features download-binaries"
-          )
+          # Currently empty - virage-embedder-onnx (the only past entry) was removed
+          # (deprecated per ADR-051, migrated into virage-engine's own onnx feature).
+          checks=()
           for entry in "${checks[@]}"; do
             pkg="${entry%%|*}"
             flags="${entry##*|}"
@@ -408,8 +375,8 @@ jobs:
         if: matrix.package == 'virage-cli'
         run: npm run build --workspace packages/virage-agent-claude
 
-      - name: Build virage-chunker-ce-ast (required by CE native chunkers and virage-chunker-ce-ts)
-        if: contains(fromJSON('["virage-chunker-ce-pdf","virage-chunker-ce-md","virage-chunker-ce-docx","virage-chunker-ce-latex","virage-chunker-ce-ts"]'), matrix.package)
+      - name: Build virage-chunker-ce-ast (required by virage-chunker-ce-ts)
+        if: matrix.package == 'virage-chunker-ce-ts'
         run: npm run build --workspace packages/virage-chunker-ce-ast
 
       - name: Type check

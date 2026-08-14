@@ -22,11 +22,5 @@
   "packages/virage-git-isomorphic": "0.1.57",
   "packages/virage-chunker-ce-ast": "0.1.33",
   "packages/virage-chunker-ce-ts": "0.1.4",
-  "packages/virage-chunker-ce-pdf": "0.1.12",
-  "packages/virage-chunker-ce-md": "0.1.12",
-  "packages/virage-chunker-ce-docx": "0.1.9",
-  "packages/virage-chunker-ce-latex": "0.1.9",
-  "packages/virage-embedder-onnx": "1.1.0",
-  "packages/virage-chunker-ce-lang": "0.1.4",
   "packages/virage": "2.1.0"
 }

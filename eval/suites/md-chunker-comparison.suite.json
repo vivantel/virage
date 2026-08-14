@@ -1,4 +1,5 @@
 {
+  "_deprecatedChunkerNote": "DEPRECATED: @vivantel/virage-chunker-ce-md was removed (ADR-051, migrated into virage-engine's builtin md chunker). This suite is a historical/archival config, not executed by any live script in this repo (checked before annotating) - not rewired to a v2-equivalent invocation, since no v2 eval-runner replacement exists yet. Left as documentation of the last-working v1 config, not a runnable one.",
   "version": "1",
   "dataset": "../quality-evaluation.ds.json",
   "topK": 10,

@@ -2,12 +2,6 @@
 resolver = "2"
 members = [
   "crates/*",
-  "packages/virage-chunker-ce-pdf",
-  "packages/virage-chunker-ce-md",
-  "packages/virage-chunker-ce-docx",
-  "packages/virage-chunker-ce-latex",
-  "packages/virage-chunker-ce-lang",
-  "packages/virage-embedder-onnx",
 ]
 
 [workspace.dependencies]
