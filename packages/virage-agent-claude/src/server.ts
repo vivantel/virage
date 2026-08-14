@@ -8,6 +8,11 @@ import { execFile } from "child_process";
 import { promisify } from "util";
 import { configure } from "./plugin.js";
 import { buildSessionUsage } from "./session-usage.js";
+import {
+  transformSearchResults,
+  FULL_SEARCH_FIELDS,
+  type RawSearchResult,
+} from "./search-response.js";
 
 const execFileAsync = promisify(execFile);
 
@@ -317,8 +322,11 @@ export function createAgentMcpServer(): McpServer {
       "Semantic search over the project knowledge base indexed by Virage.",
       "Embeds the query and returns the top-k most similar chunks with source file and similarity score.",
       "Requires the project to have been indexed via `virage index`.",
-      "Response shape: JSON array of { content, sourceFile, similarity, metadata }.",
-      "Pass branch to scope results to a specific git branch (defaults to all branches).",
+      "Response shape: JSON array of flat objects. Default fields per result: denseText",
+      "(capped at 800 chars — truncated chunks carry a marker saying so), sourceFile, similarity,",
+      "citation (a line number or chunker-specific location reference, when available).",
+      "Pass `fields` to get back a different subset instead — see that parameter's own description",
+      "for the full list. Pass branch to scope results to a specific git branch (defaults to all branches).",
     ].join(" "),
     {
       query: z.string().describe("Search query text"),
@@ -334,8 +342,14 @@ export function createAgentMcpServer(): McpServer {
         .string()
         .optional()
         .describe("Filter to a specific git branch (e.g. 'main')"),
+      fields: z
+        .array(z.enum(FULL_SEARCH_FIELDS))
+        .optional()
+        .describe(
+          `Request specific fields instead of the trimmed default (denseText, sourceFile, similarity, citation). Full list: ${FULL_SEARCH_FIELDS.join(", ")}. When provided, denseText is returned untruncated.`,
+        ),
     },
-    async ({ query, top_k, branch }) => {
+    async ({ query, top_k, branch, fields }) => {
       const cwd = process.cwd();
       const localBin = join(cwd, "node_modules", ".bin", "virage");
       const virageBin = existsSync(localBin) ? localBin : "virage";
@@ -355,7 +369,11 @@ export function createAgentMcpServer(): McpServer {
           cwd,
           timeout: 30_000,
         });
-        return { content: [{ type: "text", text: stdout.trim() }] };
+        const raw = JSON.parse(stdout.trim()) as RawSearchResult[];
+        const shaped = transformSearchResults(raw, fields);
+        return {
+          content: [{ type: "text", text: JSON.stringify(shaped, null, 2) }],
+        };
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
         return {

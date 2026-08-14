@@ -13,7 +13,9 @@ const execFileAsync = promisify(execFile);
 const DEFAULT_TOP_K = 5;
 const DEFAULT_MIN_SIMILARITY = 0.65;
 const TOKEN_BUDGET = 2000;
-const CHUNK_CHAR_LIMIT = 800;
+// Exported: server.ts's search tool response trimming reuses this exact
+// budget for denseText truncation, rather than duplicating the number.
+export const CHUNK_CHAR_LIMIT = 800;
 
 interface SearchResult {
   denseText: string;
