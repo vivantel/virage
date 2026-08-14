@@ -29,7 +29,7 @@ jobs:
       - name: Patch lockfile stub version fields
         run: node scripts/patch-lockfile-stubs.cjs
 
-      - run: npm ci --omit=optional
+      - run: npm ci
 
       - name: Resolve packages to publish
         id: resolve
