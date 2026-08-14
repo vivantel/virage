@@ -27,7 +27,7 @@
     "@vivantel/virage-chunker-ce-ast": ">=0.1"
   },
   "dependencies": {
-    "minimatch": "^10.0.0"
+    "minimatch": "^10.2.6"
   },
   "optionalDependencies": {
     "@vivantel/virage-chunker-ce-md-linux-x64-gnu": "0.1.11",
