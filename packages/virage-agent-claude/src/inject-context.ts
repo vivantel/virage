@@ -58,7 +58,8 @@ export async function runInjectContext(
   const args = [
     "query",
     excerpt,
-    "--json",
+    "--format",
+    "json",
     "--top-k",
     String(DEFAULT_TOP_K),
     "--min-similarity",
