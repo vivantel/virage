@@ -18,7 +18,10 @@ function mockExecFileResult(stdout: string, err: Error | null = null): void {
       _file: string,
       _args: string[],
       _options: unknown,
-      callback: (err: Error | null, result: { stdout: string; stderr: string }) => void,
+      callback: (
+        err: Error | null,
+        result: { stdout: string; stderr: string },
+      ) => void,
     ) => {
       callback(err, { stdout, stderr: "" });
       return new EventEmitter();
