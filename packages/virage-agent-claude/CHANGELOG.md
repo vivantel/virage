@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.32](https://github.com/vivantel/virage/compare/virage-agent-claude@v0.2.31...virage-agent-claude@v0.2.32) (2026-08-14)
+
+
+### Features
+
+* **virage-agent-claude:** Flatten+trim MCP search response, fix line-number location, complete ADR-051 removal ([#363](https://github.com/vivantel/virage/issues/363)) ([9227329](https://github.com/vivantel/virage/commit/9227329d3372404b0388728f1d5d693e7b72b02a))
+
 ## [0.2.31](https://github.com/vivantel/virage/compare/virage-agent-claude@v0.2.30...virage-agent-claude@v0.2.31) (2026-08-14)
 
 
