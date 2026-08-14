@@ -56,12 +56,18 @@ fn byte_end(line: usize, col: usize, offsets: &[usize]) -> u64 {
     (line_base + col) as u64
 }
 
-fn node_range<'a>(node: &'a AstNode<'a>, offsets: &[usize]) -> (u64, u64) {
+/// Byte start/end plus the 1-based source line numbers they came from — comrak's
+/// sourcepos already tracks line/col against the *original* raw source (not any
+/// trimmed/normalized text later stored on the node), so these are the real
+/// original-file line numbers a citation should point at.
+fn node_range<'a>(node: &'a AstNode<'a>, offsets: &[usize]) -> (u64, u64, u32, u32) {
     let ast = node.data.borrow();
     let sp = ast.sourcepos;
     (
         byte_start(sp.start.line, sp.start.column, offsets),
         byte_end(sp.end.line, sp.end.column, offsets),
+        sp.start.line as u32,
+        sp.end.line as u32,
     )
 }
 
@@ -77,7 +83,7 @@ fn walk_block_children<'a>(
 }
 
 fn walk_node<'a>(node: &'a AstNode<'a>, offsets: &[usize], list_depth: u32) -> Option<DocNode> {
-    let (bs, be) = node_range(node, offsets);
+    let (bs, be, ls, le) = node_range(node, offsets);
 
     // Clone only the parts we need before recursing (avoids holding RefCell borrow).
     let val = node.data.borrow().value.clone();
@@ -98,6 +104,8 @@ fn walk_node<'a>(node: &'a AstNode<'a>, offsets: &[usize], list_depth: u32) -> O
                     heading_level: Some(h.level),
                     byte_start: bs,
                     byte_end: be,
+                    line_start: Some(ls),
+                    line_end: Some(le),
                     ..Default::default()
                 },
             })
@@ -115,6 +123,8 @@ fn walk_node<'a>(node: &'a AstNode<'a>, offsets: &[usize], list_depth: u32) -> O
                 attrs: DocNodeAttrs {
                     byte_start: bs,
                     byte_end: be,
+                    line_start: Some(ls),
+                    line_end: Some(le),
                     ..Default::default()
                 },
             })
@@ -131,6 +141,8 @@ fn walk_node<'a>(node: &'a AstNode<'a>, offsets: &[usize], list_depth: u32) -> O
                     code_language: lang,
                     byte_start: bs,
                     byte_end: be,
+                    line_start: Some(ls),
+                    line_end: Some(le),
                     ..Default::default()
                 },
             })
@@ -145,6 +157,8 @@ fn walk_node<'a>(node: &'a AstNode<'a>, offsets: &[usize], list_depth: u32) -> O
                 attrs: DocNodeAttrs {
                     byte_start: bs,
                     byte_end: be,
+                    line_start: Some(ls),
+                    line_end: Some(le),
                     ..Default::default()
                 },
             })
@@ -165,6 +179,8 @@ fn walk_node<'a>(node: &'a AstNode<'a>, offsets: &[usize], list_depth: u32) -> O
                     list_depth: Some(list_depth),
                     byte_start: bs,
                     byte_end: be,
+                    line_start: Some(ls),
+                    line_end: Some(le),
                     ..Default::default()
                 },
             })
@@ -195,6 +211,8 @@ fn walk_node<'a>(node: &'a AstNode<'a>, offsets: &[usize], list_depth: u32) -> O
                     list_depth: Some(list_depth),
                     byte_start: bs,
                     byte_end: be,
+                    line_start: Some(ls),
+                    line_end: Some(le),
                     ..Default::default()
                 },
             })
@@ -212,6 +230,8 @@ fn walk_node<'a>(node: &'a AstNode<'a>, offsets: &[usize], list_depth: u32) -> O
                 attrs: DocNodeAttrs {
                     byte_start: bs,
                     byte_end: be,
+                    line_start: Some(ls),
+                    line_end: Some(le),
                     ..Default::default()
                 },
             })
@@ -238,6 +258,8 @@ fn walk_node<'a>(node: &'a AstNode<'a>, offsets: &[usize], list_depth: u32) -> O
                     attrs: DocNodeAttrs {
                         byte_start: bs,
                         byte_end: be,
+                        line_start: Some(ls),
+                        line_end: Some(le),
                         ..Default::default()
                     },
                 })
@@ -251,12 +273,12 @@ fn walk_table_children<'a>(table: &'a AstNode<'a>, offsets: &[usize]) -> Vec<Doc
     for (row_idx, row_node) in table.children().enumerate() {
         let row_val = row_node.data.borrow().value.clone();
         if let NodeValue::TableRow(is_header) = row_val {
-            let (row_bs, row_be) = node_range(row_node, offsets);
+            let (row_bs, row_be, row_ls, row_le) = node_range(row_node, offsets);
             let cells: Vec<DocNode> = row_node
                 .children()
                 .enumerate()
                 .map(|(col_idx, cell)| {
-                    let (cell_bs, cell_be) = node_range(cell, offsets);
+                    let (cell_bs, cell_be, cell_ls, cell_le) = node_range(cell, offsets);
                     let text = collect_text(cell);
                     DocNode {
                         node_type: DocNodeType::TableCell,
@@ -268,6 +290,8 @@ fn walk_table_children<'a>(table: &'a AstNode<'a>, offsets: &[usize]) -> Vec<Doc
                             is_header: if is_header { Some(true) } else { None },
                             byte_start: cell_bs,
                             byte_end: cell_be,
+                            line_start: Some(cell_ls),
+                            line_end: Some(cell_le),
                             ..Default::default()
                         },
                     }
@@ -282,6 +306,8 @@ fn walk_table_children<'a>(table: &'a AstNode<'a>, offsets: &[usize]) -> Vec<Doc
                     is_header: if is_header { Some(true) } else { None },
                     byte_start: row_bs,
                     byte_end: row_be,
+                    line_start: Some(row_ls),
+                    line_end: Some(row_le),
                     ..Default::default()
                 },
             });
@@ -405,5 +431,35 @@ mod tests {
         for child in doc.children.unwrap() {
             assert!(child.attrs.byte_end > child.attrs.byte_start);
         }
+    }
+
+    #[test]
+    fn line_numbers_are_set_and_correct() {
+        let src = "# Title\n\nParagraph on line 3.\n\n## Second heading\n";
+        let doc = parse(src).unwrap();
+        let children = doc.children.unwrap();
+        assert_eq!(children[0].node_type, DocNodeType::Heading);
+        assert_eq!(children[0].attrs.line_start, Some(1));
+        assert_eq!(children[0].attrs.line_end, Some(1));
+        assert_eq!(children[1].node_type, DocNodeType::Paragraph);
+        assert_eq!(children[1].attrs.line_start, Some(3));
+        assert_eq!(children[2].node_type, DocNodeType::Heading);
+        assert_eq!(children[2].attrs.line_start, Some(5));
+    }
+
+    #[test]
+    fn line_numbers_survive_trailing_whitespace_trim_in_code_block() {
+        // The stored text is trim_end()'d, but line_start must still point at
+        // the original source line the code block *starts* on, not be thrown
+        // off by the trim.
+        let src = "Intro.\n\n```rust\nfn main() {}\n\n\n```\n";
+        let doc = parse(src).unwrap();
+        let children = doc.children.unwrap();
+        let code = children
+            .iter()
+            .find(|n| n.node_type == DocNodeType::Code)
+            .unwrap();
+        assert_eq!(code.attrs.line_start, Some(3));
+        assert_eq!(code.text.as_deref(), Some("fn main() {}"));
     }
 }
