@@ -9,7 +9,6 @@ on:
     branches: [master]
     paths:
       - 'packages/virage-chunker-ce-**'
-      - 'packages/virage-embedder-onnx/**'
       - 'crates/virage-vidoc/**'
       - 'crates/virage-engine/**'
       - 'crates/virage-engine-sdk/**'
@@ -39,10 +38,7 @@ jobs:
           tmp=$(mktemp -d)
           mkdir -p "$tmp/packages" "$tmp/crates"
 
-          for pkg in packages/virage-chunker-ce-ast packages/virage-chunker-ce-ts \
-                     packages/virage-chunker-ce-pdf packages/virage-chunker-ce-md \
-                     packages/virage-chunker-ce-docx packages/virage-chunker-ce-latex \
-                     packages/virage-embedder-onnx; do
+          for pkg in packages/virage-chunker-ce-ast packages/virage-chunker-ce-ts; do
             cp -r "$pkg" "$tmp/$pkg"
           done
           cp -r crates/virage-vidoc "$tmp/crates/virage-vidoc"
