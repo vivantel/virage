@@ -20,6 +20,7 @@ mod maintenance;
 mod plugin;
 mod quality;
 mod query;
+mod query_serve;
 mod report;
 mod serve;
 mod store;
@@ -46,6 +47,7 @@ pub use quality::{
     QualityHistoryArgs, QualityRunArgs,
 };
 pub use query::{cmd_query, QueryArgs};
+pub use query_serve::{cmd_query_serve, QueryServeArgs};
 pub use report::{cmd_chunks_report, cmd_report, ChunksArgs, ChunksCommand};
 pub use serve::{cmd_serve, ServeArgs};
 pub use store::{cmd_store_perf, cmd_store_stats, StoreArgs, StoreCommand};
