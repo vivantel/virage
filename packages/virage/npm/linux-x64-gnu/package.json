@@ -1,6 +1,6 @@
 {
   "name": "@vivantel/virage-linux-x64-gnu",
-  "version": "2.3.5",
+  "version": "2.4.0",
   "description": "Virage CE binary for linux-x64-gnu",
   "os": [
     "linux"

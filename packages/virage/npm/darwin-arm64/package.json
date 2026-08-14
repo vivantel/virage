@@ -1,6 +1,6 @@
 {
   "name": "@vivantel/virage-darwin-arm64",
-  "version": "2.3.5",
+  "version": "2.4.0",
   "description": "Virage CE binary for darwin-arm64",
   "os": [
     "darwin"
