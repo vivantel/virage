@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.12](https://github.com/vivantel/virage/compare/virage-chunker-ce-md@v0.1.11...virage-chunker-ce-md@v0.1.12) (2026-08-14)
+
+
+### Features
+
+* **chunker-ce-md:** Populate line_start/line_end from comrak's own sourcepos ([#359](https://github.com/vivantel/virage/issues/359)) ([c3e2db1](https://github.com/vivantel/virage/commit/c3e2db1aad7961d1aba2947c0a7d7d9862f0d577))
+
 ## [0.1.11](https://github.com/vivantel/virage/compare/virage-chunker-ce-md@v0.1.10...virage-chunker-ce-md@v0.1.11) (2026-07-09)
 
 
