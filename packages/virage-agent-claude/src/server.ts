@@ -340,7 +340,14 @@ export function createAgentMcpServer(): McpServer {
       const localBin = join(cwd, "node_modules", ".bin", "virage");
       const virageBin = existsSync(localBin) ? localBin : "virage";
 
-      const args = ["query", query, "--json", "--top-k", String(top_k)];
+      const args = [
+        "query",
+        query,
+        "--format",
+        "json",
+        "--top-k",
+        String(top_k),
+      ];
       if (branch) args.push("--branch", branch);
 
       try {
