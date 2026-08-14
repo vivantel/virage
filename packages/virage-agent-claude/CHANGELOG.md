@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.33](https://github.com/vivantel/virage/compare/virage-agent-claude@v0.2.32...virage-agent-claude@v0.2.33) (2026-08-14)
+
+
+### Features
+
+* **query:** Session-scoped warm query daemon + parallel model load + pagination (IR-049 Phase 1) ([e742dad](https://github.com/vivantel/virage/commit/e742dadaf1fe8710cbc4a8d3a723a2a6a490d44e))
+
 ## [0.2.32](https://github.com/vivantel/virage/compare/virage-agent-claude@v0.2.31...virage-agent-claude@v0.2.32) (2026-08-14)
 
 
