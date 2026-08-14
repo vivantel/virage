@@ -1,8 +1,8 @@
 use clap::{Parser, Subcommand};
 use virage_engine::cli::{
     self, BenchArgs, ChunksArgs, ChunksCommand, ConfigPathArg, DashboardArgs, DbPathArg, EvalArgs,
-    IndexArgs, PackArgs, PluginArgs, QualityArgs, QueryArgs, ReadSkillSummaryArgs, ServeArgs,
-    StoreArgs, StoreCommand, TelemetryArgs,
+    IndexArgs, PackArgs, PluginArgs, QualityArgs, QueryArgs, QueryServeArgs, ReadSkillSummaryArgs,
+    ServeArgs, StoreArgs, StoreCommand, TelemetryArgs,
 };
 use virage_engine::config::{find_config, load_config};
 use virage_engine::output::OutputFormat;
@@ -69,6 +69,12 @@ enum Commands {
     /// Search the vector index with a natural-language query.
     #[command(aliases = ["q"])]
     Query(QueryArgs),
+    /// [internal] Warm, session-scoped query daemon over stdin/stdout — resolves the
+    /// embedder once, then answers repeated newline-delimited JSON query requests.
+    /// Not meant to be run by hand; MCP server implementations spawn this instead of
+    /// re-invoking `query` per call.
+    #[command(hide = true)]
+    QueryServe(QueryServeArgs),
     /// Validate the config file and report issues.
     #[command(aliases = ["val", "v"])]
     Validate(ConfigPathArg),
@@ -244,6 +250,7 @@ async fn main() {
         }
         Some(Commands::Index(args)) => cli::cmd_index(args, cli.verbose, format, config).await,
         Some(Commands::Query(args)) => cli::cmd_query(args, cli.verbose, format, config).await,
+        Some(Commands::QueryServe(args)) => cli::cmd_query_serve(&args).await,
         Some(Commands::Validate(args)) => {
             cli::cmd_validate(args, cli.verbose, format, config).await
         }

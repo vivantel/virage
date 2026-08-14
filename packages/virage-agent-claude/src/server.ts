@@ -13,6 +13,7 @@ import {
   FULL_SEARCH_FIELDS,
   type RawSearchResult,
 } from "./search-response.js";
+import { daemonSearch } from "./query-daemon.js";
 
 const execFileAsync = promisify(execFile);
 
@@ -342,6 +343,13 @@ export function createAgentMcpServer(): McpServer {
         .string()
         .optional()
         .describe("Filter to a specific git branch (e.g. 'main')"),
+      offset: z
+        .number()
+        .int()
+        .min(0)
+        .optional()
+        .default(0)
+        .describe("Skip this many top results (for pagination)"),
       fields: z
         .array(z.enum(FULL_SEARCH_FIELDS))
         .optional()
@@ -349,42 +357,66 @@ export function createAgentMcpServer(): McpServer {
           `Request specific fields instead of the trimmed default (denseText, sourceFile, similarity, citation). Full list: ${FULL_SEARCH_FIELDS.join(", ")}. When provided, denseText is returned untruncated.`,
         ),
     },
-    async ({ query, top_k, branch, fields }) => {
+    async ({ query, top_k, branch, offset, fields }) => {
       const cwd = process.cwd();
       const localBin = join(cwd, "node_modules", ".bin", "virage");
       const virageBin = existsSync(localBin) ? localBin : "virage";
 
-      const args = [
-        "query",
-        query,
-        "--format",
-        "json",
-        "--top-k",
-        String(top_k),
-      ];
-      if (branch) args.push("--branch", branch);
-
+      let raw: RawSearchResult[];
       try {
-        const { stdout } = await execFileAsync(virageBin, args, {
-          cwd,
-          timeout: 30_000,
-        });
-        const raw = JSON.parse(stdout.trim()) as RawSearchResult[];
-        const shaped = transformSearchResults(raw, fields);
-        return {
-          content: [{ type: "text", text: JSON.stringify(shaped, null, 2) }],
-        };
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : String(err);
-        return {
-          content: [
-            {
-              type: "text",
-              text: `Search failed: ${msg}\n\nEnsure the project is indexed: run \`virage index\` first.`,
-            },
-          ],
-        };
+        // Warm path: a persistent query-serve process for this cwd, spawned on
+        // first use, pays the embedder's ~30s cold start once per session instead
+        // of once per search.
+        raw = (await daemonSearch(virageBin, cwd, {
+          query,
+          top_k,
+          branch,
+          offset,
+        })) as RawSearchResult[];
+      } catch {
+        // Fall back to a one-shot subprocess — older `virage` without query-serve,
+        // a daemon spawn failure, or any other daemon-path error. Correctness must
+        // not depend on the daemon; it's a latency optimization only.
+        const args = [
+          "query",
+          query,
+          "--format",
+          "json",
+          "--top-k",
+          String(top_k),
+          "--offset",
+          String(offset),
+        ];
+        if (branch) args.push("--branch", branch);
+        try {
+          const { stdout } = await execFileAsync(virageBin, args, {
+            cwd,
+            timeout: 30_000,
+          });
+          raw = JSON.parse(stdout.trim()) as RawSearchResult[];
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err);
+          return {
+            content: [
+              {
+                type: "text",
+                text: `Search failed: ${msg}\n\nEnsure the project is indexed: run \`virage index\` first.`,
+              },
+            ],
+          };
+        }
       }
+
+      const shaped = transformSearchResults(raw, fields);
+      const hint =
+        raw.length === top_k
+          ? `\n\n${top_k} result(s) shown — more may exist. Call again with offset:${offset + top_k} for the next page.`
+          : "";
+      return {
+        content: [
+          { type: "text", text: JSON.stringify(shaped, null, 2) + hint },
+        ],
+      };
     },
   );
 
