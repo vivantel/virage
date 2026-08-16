@@ -3,6 +3,18 @@ resolver = "2"
 members = [
   "crates/*",
 ]
+# virage-plugin-lancedb (and future virage-plugin-* dylib crates) deliberately excluded from
+# default-members: they pull the full lancedb/datafusion/arrow dependency chain into feature
+# unification for the whole build, so any command without an explicit -p/--workspace flag
+# (`cargo build --release`, plain `cargo check`) would otherwise silently recompile that entire
+# chain even when the change being validated has nothing to do with it. Explicit `-p
+# virage-plugin-lancedb` invocations (this repo's ci.yaml, virage-publish.yaml) are unaffected —
+# default-members only changes what a bare `cargo <cmd>` with no package selector resolves to.
+default-members = [
+  "crates/virage-engine",
+  "crates/virage-engine-sdk",
+  "crates/virage-vidoc",
+]
 
 [workspace.dependencies]
 napi = { version = "2", features = ["napi4"] }
