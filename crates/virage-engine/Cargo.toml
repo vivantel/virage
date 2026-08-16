@@ -85,6 +85,10 @@ wasm-host = [
     "dep:wasmtime", "dep:wasmtime-wasi",
     "dep:anyhow",
 ]
+# cdylib plugin host (chunker/store/embedder vtables) — lives here so any downstream consumer
+# loading a given plugin .so agrees on one canonical vtable shape rather than maintaining its own
+# copy. Hand-checked version symbol + libloading is the real ABI mechanism; no abi_stable needed.
+dylib-plugins = ["dep:libloading", "dep:anyhow"]
 
 [dependencies]
 virage-vidoc = { workspace = true }
@@ -126,6 +130,7 @@ bytes       = { version = "1",    optional = true }
 anyhow      = { version = "1",    optional = true }
 sha2        = { version = "0.10", optional = true }
 globset     = { version = "0.4",  optional = true }
+libloading  = { version = "0.8",  optional = true }
 
 # Store adapter deps — optional, enabled via feature flags
 lancedb      = { version = "0.31",  optional = true }
