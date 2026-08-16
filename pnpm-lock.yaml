@@ -14,9 +14,6 @@ importers:
       '@vivantel/virage-chunker-ce-ast':
         specifier: ^0.1.25
         version: 0.1.25(@vivantel/virage-core@0.2.63)
-      '@vivantel/virage-chunker-ce-md':
-        specifier: ^0.1.10
-        version: 0.1.10(@vivantel/virage-chunker-ce-ast@0.1.25(@vivantel/virage-core@0.2.63))(@vivantel/virage-core@0.2.63)
       '@vivantel/virage-code-chunk-chunker':
         specifier: ^0.1.16
         version: 0.1.50(@vivantel/virage-core@0.2.63)(typescript@6.0.3)
@@ -44,7 +41,7 @@ importers:
         version: 10.0.1(eslint@10.6.0)
       '@napi-rs/cli':
         specifier: ^3.8.2
-        version: 3.8.2(@emnapi/runtime@1.9.2)(@types/node@26.1.0)(node-addon-api@8.9.0)
+        version: 3.8.2(@emnapi/runtime@1.11.2)(@types/node@26.1.0)(node-addon-api@8.9.0)
       '@types/node':
         specifier: ^26.1.0
         version: 26.1.0
@@ -1217,32 +1214,6 @@ packages:
   '@vivantel/virage-chunker-ce-ast@0.1.25':
     resolution: {integrity: sha512-ORdUI5i0uKaBP5mUp+75QYKAQbBHZQsDvY1gz9bhgzTPbtAEuUQaxqgOShHF1sIRI4HBjLyvnDQNmB6fKme+SA==}
     peerDependencies:
-      '@vivantel/virage-core': '>=0.2'
-
-  '@vivantel/virage-chunker-ce-md-darwin-arm64@0.1.10':
-    resolution: {integrity: sha512-ppXLq7SgDwEU0LDROBe0e8cBQ0ZO7PkCPtMTJMVpv+q6O7UCBiXMnTh755AkDv4W+XAu++naVZeQFnIor64u2Q==}
-    cpu: [arm64]
-    os: [darwin]
-
-  '@vivantel/virage-chunker-ce-md-linux-arm64-gnu@0.1.10':
-    resolution: {integrity: sha512-orIMZ6mFC0d8J2RMDYARkgKR+rN24+okQFc5p2jjwYfP6+tYGyS6iT9GgQ1G9a8WcfpKFV0FC+/k4XqmmKHGkA==}
-    cpu: [arm64]
-    os: [linux]
-
-  '@vivantel/virage-chunker-ce-md-linux-x64-gnu@0.1.10':
-    resolution: {integrity: sha512-nEqIzqDUAPDVrRQ6l2pniSqcZt/6Rr4KlhwRQb/kCh8TSc29OpOAKct7HdH4KriHOdmVbxOmxGZ9ou3NDParyg==}
-    cpu: [x64]
-    os: [linux]
-
-  '@vivantel/virage-chunker-ce-md-win32-x64-msvc@0.1.10':
-    resolution: {integrity: sha512-prtGysV9uJ1BNuZorCIH+IWvhxDrMiNhpq96vXR2aax1cNqh2odhvNP9ejxJbUcAW3RCZ3UAjnA5/rIco3+5uA==}
-    cpu: [x64]
-    os: [win32]
-
-  '@vivantel/virage-chunker-ce-md@0.1.10':
-    resolution: {integrity: sha512-BuBVrPfymRkZa0x+krIqeo4UcGiaEC1GKS8QSfTJmdqWnV0NEcBWF+Hhg7tg7cUBv+rTS4Tk/ulABL6TqR2jDw==}
-    peerDependencies:
-      '@vivantel/virage-chunker-ce-ast': '>=0.1'
       '@vivantel/virage-core': '>=0.2'
 
   '@vivantel/virage-code-chunk-chunker@0.1.50':
@@ -3005,7 +2976,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@napi-rs/cli@3.8.2(@emnapi/runtime@1.9.2)(@types/node@26.1.0)(node-addon-api@8.9.0)':
+  '@napi-rs/cli@3.8.2(@emnapi/runtime@1.11.2)(@types/node@26.1.0)(node-addon-api@8.9.0)':
     dependencies:
       '@inquirer/prompts': 8.5.2(@types/node@26.1.0)
       '@napi-rs/cross-toolchain': 1.0.3
@@ -3021,7 +2992,7 @@ snapshots:
       typanion: 3.14.0
       typescript: 6.0.3
     optionalDependencies:
-      '@emnapi/runtime': 1.9.2
+      '@emnapi/runtime': 1.11.2
     transitivePeerDependencies:
       - '@napi-rs/cross-toolchain-arm64-target-aarch64'
       - '@napi-rs/cross-toolchain-arm64-target-armv7'
@@ -3607,29 +3578,6 @@ snapshots:
     dependencies:
       '@vivantel/virage-core': 0.2.63
       minimatch: 10.2.5
-
-  '@vivantel/virage-chunker-ce-md-darwin-arm64@0.1.10':
-    optional: true
-
-  '@vivantel/virage-chunker-ce-md-linux-arm64-gnu@0.1.10':
-    optional: true
-
-  '@vivantel/virage-chunker-ce-md-linux-x64-gnu@0.1.10':
-    optional: true
-
-  '@vivantel/virage-chunker-ce-md-win32-x64-msvc@0.1.10':
-    optional: true
-
-  '@vivantel/virage-chunker-ce-md@0.1.10(@vivantel/virage-chunker-ce-ast@0.1.25(@vivantel/virage-core@0.2.63))(@vivantel/virage-core@0.2.63)':
-    dependencies:
-      '@vivantel/virage-chunker-ce-ast': 0.1.25(@vivantel/virage-core@0.2.63)
-      '@vivantel/virage-core': 0.2.63
-      minimatch: 10.2.5
-    optionalDependencies:
-      '@vivantel/virage-chunker-ce-md-darwin-arm64': 0.1.10
-      '@vivantel/virage-chunker-ce-md-linux-arm64-gnu': 0.1.10
-      '@vivantel/virage-chunker-ce-md-linux-x64-gnu': 0.1.10
-      '@vivantel/virage-chunker-ce-md-win32-x64-msvc': 0.1.10
 
   '@vivantel/virage-code-chunk-chunker@0.1.50(@vivantel/virage-core@0.2.63)(typescript@6.0.3)':
     dependencies:
