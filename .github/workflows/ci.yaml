@@ -215,6 +215,9 @@ jobs:
         # mold: faster Linux linker for CI builds (IR-021)
         run: sudo apt-get install -y mold
 
+      - name: Install protoc
+        run: sudo apt-get install -y protobuf-compiler
+
       - uses: actions/cache@v6
         with:
           path: |
