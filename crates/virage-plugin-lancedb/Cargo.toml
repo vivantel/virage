@@ -1,0 +1,22 @@
+[package]
+name        = "virage-plugin-lancedb"
+version     = "0.1.0"
+edition     = "2021"
+description = "cdylib dylib-plugin wrapper around virage-engine's LanceDbStore (IR-050 Phase 2)"
+license     = "MIT OR Apache-2.0"
+publish     = false
+
+[lib]
+# cdylib for the real plugin artifact; rlib so `cargo test` can exercise the
+# wire-format conversions in-process without going through the FFI boundary.
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+# Wraps store-lancedb rather than moving it — CE's own binary keeps statically
+# linking lancedb exactly as it does today; this crate is an additional build
+# target, not a replacement (IR-050 Phase 2).
+virage-engine = { path = "../virage-engine", features = ["store-lancedb"], default-features = false }
+serde         = { version = "1", features = ["derive"] }
+serde_json    = { workspace = true }
+tokio         = { version = "1", features = ["rt-multi-thread"] }
+anyhow        = "1"
