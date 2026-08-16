@@ -273,6 +273,9 @@ jobs:
       - name: Build CE native (linux-x64 validation)
         run: cargo build --release
 
+      - name: Build virage-plugin-lancedb (release, cdylib)
+        run: cargo build -p virage-plugin-lancedb --release
+
       - name: Save compiled artifacts (master only, IR-021)
         uses: actions/cache/save@v6
         if: github.ref == 'refs/heads/master'
