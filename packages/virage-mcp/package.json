@@ -59,7 +59,7 @@
     "@vivantel/virage-core": "*"
   },
   "devDependencies": {
-    "@types/node": "^26.1.0",
+    "@types/node": "^26.2.0",
     "@vivantel/virage-core": "0.4.15",
     "rimraf": "^6.0.1",
     "typescript": "^6.0.3",
