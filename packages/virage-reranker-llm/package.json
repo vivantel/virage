@@ -40,7 +40,7 @@
     "directory": "packages/virage-reranker-llm"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.110.0",
+    "@anthropic-ai/sdk": "^0.117.1",
     "zod": "^4.4.3"
   },
   "peerDependencies": {
@@ -49,7 +49,7 @@
   "devDependencies": {
     "@vivantel/virage-core": "0.4.15",
     "@types/node": "^26.1.0",
-    "typescript": "^6.0.3",
+    "typescript": "^7.0.2",
     "vitest": "^4.1.10"
   },
   "engines": {
