@@ -80,8 +80,11 @@ async fn abi_mismatch_is_rejected_cleanly_not_a_crash() {
         Err(e) => e,
     };
     let msg = err.to_string();
+    // Deliberately specific, not `|| msg.contains("Cannot load")` — that broader OR would also
+    // match a plain file-not-found error (a different failure mode this test isn't exercising),
+    // silently passing for the wrong reason if the plugin path were ever misconfigured.
     assert!(
-        msg.contains("ABI version mismatch") || msg.contains("Cannot load"),
+        msg.contains("ABI version mismatch"),
         "expected an ABI-mismatch error message, got: {msg}"
     );
 }
