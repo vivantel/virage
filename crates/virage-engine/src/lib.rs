@@ -42,6 +42,7 @@ pub mod sources;
     feature = "store-qdrant",
     feature = "store-postgres",
     feature = "store-chromadb",
+    feature = "store-dylib",
     feature = "store-types"
 ))]
 pub mod stores;

@@ -394,6 +394,127 @@ pub fn resolve_reranker(
     }
 }
 
+#[cfg(feature = "store-dylib")]
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct DylibStoreOptions {
+    /// Explicit path to the plugin `.so`/`.dylib`/`.dll`. Overrides the default `.virage/plugins/`
+    /// lookup in [`resolve_dylib_plugin_path`].
+    #[serde(default)]
+    plugin_path: Option<String>,
+    /// Which plugin binary to look for in `.virage/plugins/` when `pluginPath` isn't given —
+    /// resolves to the real cdylib artifact name cargo produces for a `virage-plugin-<backend>`
+    /// crate (e.g. `libvirage_plugin_lancedb.so` on Linux).
+    #[serde(default = "default_dylib_backend")]
+    backend: String,
+    /// Everything else is forwarded verbatim as the plugin's own `config_json` — the host doesn't
+    /// need to know a given backend's option shape, only the plugin does.
+    #[serde(flatten)]
+    config: serde_json::Map<String, serde_json::Value>,
+}
+
+#[cfg(feature = "store-dylib")]
+fn default_dylib_backend() -> String {
+    "lancedb".to_string()
+}
+
+/// Resolves the plugin `.so`/`.dylib`/`.dll` path per the same `.virage/` project-local
+/// convention already used for `.virage/lancedb` (store-lancedb's default URI) and
+/// `.virage/model-cache` (the ONNX embedder's HuggingFace cache dir): `.virage/plugins/`.
+///
+/// Priority: explicit `pluginPath` option > `VIRAGE_STORE_PLUGIN_PATH` env var > the default path
+/// (`.virage/plugins/<platform DLL name for `backend`>`, via `std::env::consts::DLL_PREFIX`/
+/// `DLL_SUFFIX` — not a hand-rolled per-OS branch).
+#[cfg(feature = "store-dylib")]
+fn resolve_dylib_plugin_path(explicit: Option<&str>, backend: &str) -> std::path::PathBuf {
+    if let Some(p) = explicit {
+        return std::path::PathBuf::from(p);
+    }
+    if let Ok(p) = std::env::var("VIRAGE_STORE_PLUGIN_PATH") {
+        return std::path::PathBuf::from(p);
+    }
+    let filename = format!(
+        "{}virage_plugin_{}{}",
+        std::env::consts::DLL_PREFIX,
+        backend,
+        std::env::consts::DLL_SUFFIX
+    );
+    std::path::PathBuf::from(".virage")
+        .join("plugins")
+        .join(filename)
+}
+
+#[cfg(all(test, feature = "store-dylib"))]
+mod dylib_store_options_tests {
+    use super::*;
+
+    #[test]
+    fn explicit_plugin_path_takes_priority_over_default() {
+        let resolved = resolve_dylib_plugin_path(Some("/custom/path.so"), "lancedb");
+        assert_eq!(resolved, std::path::PathBuf::from("/custom/path.so"));
+    }
+
+    #[test]
+    fn default_path_uses_virage_plugins_dir_and_platform_dll_name() {
+        // This test assumes VIRAGE_STORE_PLUGIN_PATH isn't set in the test environment — nothing
+        // else in this codebase sets it, but assert rather than silently produce a false pass if
+        // that ever changes.
+        assert!(
+            std::env::var("VIRAGE_STORE_PLUGIN_PATH").is_err(),
+            "test assumes VIRAGE_STORE_PLUGIN_PATH is unset in the test environment"
+        );
+        let resolved = resolve_dylib_plugin_path(None, "lancedb");
+        let expected_filename = format!(
+            "{}virage_plugin_lancedb{}",
+            std::env::consts::DLL_PREFIX,
+            std::env::consts::DLL_SUFFIX
+        );
+        assert_eq!(
+            resolved,
+            std::path::PathBuf::from(".virage")
+                .join("plugins")
+                .join(expected_filename)
+        );
+    }
+
+    #[test]
+    fn dylib_store_options_defaults_backend_to_lancedb_and_flattens_rest() {
+        let mut options = std::collections::HashMap::new();
+        options.insert("uri".to_string(), serde_json::json!(".virage/lancedb"));
+        options.insert("tableName".to_string(), serde_json::json!("virage_chunks"));
+        let spec = PluginRef {
+            package: "@vivantel/virage-store-dylib".to_string(),
+            options,
+        };
+
+        let opts: DylibStoreOptions = parse_options(&spec).unwrap();
+        assert_eq!(opts.backend, "lancedb");
+        assert!(opts.plugin_path.is_none());
+        assert_eq!(
+            opts.config.get("uri").and_then(|v| v.as_str()),
+            Some(".virage/lancedb")
+        );
+    }
+
+    #[test]
+    fn dylib_store_options_accepts_explicit_plugin_path_and_backend() {
+        let mut options = std::collections::HashMap::new();
+        options.insert(
+            "pluginPath".to_string(),
+            serde_json::json!("/opt/plugins/custom.so"),
+        );
+        options.insert("backend".to_string(), serde_json::json!("qdrant"));
+        let spec = PluginRef {
+            package: "@vivantel/virage-store-dylib".to_string(),
+            options,
+        };
+
+        let opts: DylibStoreOptions = parse_options(&spec).unwrap();
+        assert_eq!(opts.plugin_path.as_deref(), Some("/opt/plugins/custom.so"));
+        assert_eq!(opts.backend, "qdrant");
+    }
+}
+
 // ─── Vector store resolution ──────────────────────────────────────────────────
 
 /// Instantiate a built-in `VectorStore` from a `PluginRef` and embedding dims.
@@ -403,6 +524,8 @@ pub fn resolve_reranker(
 /// - `@vivantel/virage-store-postgres`  / `postgres`  → PostgresStore
 /// - `@vivantel/virage-store-chromadb`  / `chromadb`  → ChromaDbStore
 /// - `@vivantel/virage-store-lancedb`   / `lancedb`   → LanceDbStore
+/// - `@vivantel/virage-store-dylib`     / `dylib`     → DylibStore (loads a `StoreVTable` plugin
+///   from `.virage/plugins/` — local-dev/CI-iteration alternative to `store-lancedb`)
 pub fn resolve_store(spec: &PluginRef, dims: usize) -> anyhow::Result<Arc<dyn VectorStore>> {
     match spec.package.as_str() {
         p if p.contains("store-qdrant") => {
@@ -458,6 +581,23 @@ pub fn resolve_store(spec: &PluginRef, dims: usize) -> anyhow::Result<Arc<dyn Ve
                 "package {:?}: store-lancedb feature not compiled in (requires ≥4GB RAM to build)",
                 spec.package
             ))
+        }
+        p if p.contains("store-dylib") => {
+            #[cfg(feature = "store-dylib")]
+            {
+                let opts: DylibStoreOptions = parse_options(spec)?;
+                let plugin_path =
+                    resolve_dylib_plugin_path(opts.plugin_path.as_deref(), &opts.backend);
+                let mut config = opts.config;
+                config.insert("dimensions".to_string(), serde_json::Value::from(dims));
+                let config_json = serde_json::to_string(&config)?;
+                Ok(Arc::new(crate::stores::dylib::DylibStore::open(
+                    &plugin_path,
+                    &config_json,
+                )?))
+            }
+            #[cfg(not(feature = "store-dylib"))]
+            Err(anyhow!("store-dylib feature not compiled in"))
         }
         other => Err(anyhow!("unknown vector store package {:?}", other)),
     }
