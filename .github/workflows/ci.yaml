@@ -264,6 +264,12 @@ jobs:
             echo "::endgroup::"
           done
 
+      - name: Benchmark cli (static lancedb, local dev baseline)
+        run: cargo check -p virage-engine --features cli
+
+      - name: Benchmark cli-dylib (dynamic lancedb, local dev)
+        run: cargo check -p virage-engine --features cli-dylib
+
       - name: Test virage-engine (unit + chunker integration)
         run: cargo test -p virage-engine --features "chunker-all,pipeline,db-sqlite,wasm-host,config,store-dylib" --lib --test integration_chunkers
 
