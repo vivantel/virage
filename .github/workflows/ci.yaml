@@ -265,7 +265,7 @@ jobs:
           done
 
       - name: Test virage-engine (unit + chunker integration)
-        run: cargo test -p virage-engine --features "chunker-all,pipeline,db-sqlite,wasm-host,config" --lib --test integration_chunkers
+        run: cargo test -p virage-engine --features "chunker-all,pipeline,db-sqlite,wasm-host,config,store-dylib" --lib --test integration_chunkers
 
       - name: Test virage-plugin-lancedb (wire-format unit tests)
         run: cargo test -p virage-plugin-lancedb --lib

@@ -166,6 +166,8 @@ pub trait VectorStore: Send + Sync {
 
 #[cfg(feature = "store-chromadb")]
 pub mod chromadb;
+#[cfg(feature = "store-dylib")]
+pub mod dylib;
 #[cfg(feature = "store-lancedb")]
 pub mod lancedb;
 #[cfg(feature = "store-postgres")]
