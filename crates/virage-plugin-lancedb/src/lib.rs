@@ -320,6 +320,14 @@ pub unsafe extern "C" fn virage_store_search(
                 .map_err(|e| anyhow::anyhow!("invalid opts_json: {e}"))?;
             wire.into()
         };
+        // Deliberate fault-injection hook for the panic-containment regression check (see
+        // qa-regression-surface.md's "CE dylib-plugin dev-loop boundary" entry) — inert for any
+        // real query, since no real query_text would ever equal this sentinel. Triggered via the
+        // request payload, not an env var, so it's explicit per-call and safe under parallel test
+        // execution rather than relying on shared mutable process state.
+        if opts.query_text.as_deref() == Some("__VIRAGE_TEST_TRIGGER_PANIC__") {
+            panic!("deliberate test panic (virage_store_search fault-injection hook)");
+        }
         let results = h.rt.block_on(h.store.search(query, top_k, opts))?;
         let out = results_to_json(&results)?;
         set_out_json(out_json, out);

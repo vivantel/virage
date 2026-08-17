@@ -1,0 +1,12 @@
+[package]
+name        = "virage-plugin-test-fixture-bad-abi"
+version     = "0.1.0"
+edition     = "2021"
+description = "Test-only fixture: a dylib plugin exporting only a mismatched virage_plugin_abi_version, for exercising the dylib-plugin host's ABI-mismatch rejection path"
+license     = "MIT OR Apache-2.0"
+publish     = false
+
+[lib]
+# cdylib only — this crate is never consumed as a normal Rust dependency, only loaded at
+# runtime by an integration test.
+crate-type = ["cdylib"]

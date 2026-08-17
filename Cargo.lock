@@ -8075,6 +8075,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "virage-plugin-test-fixture-bad-abi"
+version = "0.1.0"
+
+[[package]]
 name = "virage-vidoc"
 version = "0.1.0"
 dependencies = [

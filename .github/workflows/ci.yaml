@@ -276,6 +276,15 @@ jobs:
       - name: Build virage-plugin-lancedb (release, cdylib)
         run: cargo build -p virage-plugin-lancedb --release
 
+      - name: Build virage-plugin-test-fixture-bad-abi (release, cdylib)
+        run: cargo build -p virage-plugin-test-fixture-bad-abi --release
+
+      - name: Test dylib store regression checks (real plugin .so round-trip)
+        env:
+          VIRAGE_TEST_LANCEDB_PLUGIN_PATH: target/release/libvirage_plugin_lancedb.so
+          VIRAGE_TEST_BAD_ABI_PLUGIN_PATH: target/release/libvirage_plugin_test_fixture_bad_abi.so
+        run: cargo test -p virage-engine --features "store-dylib,store-lancedb" --test dylib_store_regression
+
       - name: Save compiled artifacts (master only, IR-021)
         uses: actions/cache/save@v6
         if: github.ref == 'refs/heads/master'
