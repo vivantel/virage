@@ -1,0 +1,339 @@
+name: Build & Publish virage-plugin-lancedb
+
+on:
+  push:
+    tags:
+      - 'virage-plugin-lancedb-v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to publish (e.g. 0.1.0)'
+        required: true
+        type: string
+      platform:
+        description: 'Single platform to build — leave blank for all (publish only runs on full builds)'
+        required: false
+        type: string
+
+concurrency:
+  group: virage-plugin-lancedb-publish-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build virage-plugin-lancedb / ${{ matrix.platform-name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        platform-name:
+          - linux-x64-gnu
+          - linux-arm64-gnu
+          - darwin-arm64
+          - win32-x64-msvc
+        include:
+          - { platform-name: linux-x64-gnu,   os: ubuntu-latest,  target: x86_64-unknown-linux-gnu }
+          - { platform-name: linux-arm64-gnu, os: ubuntu-latest,  target: aarch64-unknown-linux-gnu, use-cross: true }
+          - { platform-name: darwin-arm64,    os: macos-latest,   target: aarch64-apple-darwin }
+          - { platform-name: win32-x64-msvc,  os: windows-latest, target: x86_64-pc-windows-msvc }
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - uses: actions/cache@v6
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: ${{ runner.os }}-${{ matrix.target }}-plugin-lancedb-cargo-reg-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ matrix.target }}-plugin-lancedb-cargo-reg-
+
+      - name: Cache build artifacts (linux-x64-gnu Docker build)
+        if: matrix.platform-name == 'linux-x64-gnu'
+        uses: actions/cache@v6
+        with:
+          path: target
+          key: ${{ runner.os }}-${{ matrix.target }}-plugin-lancedb-target-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ matrix.target }}-plugin-lancedb-target-
+
+      - name: Setup sccache (native platforms)
+        if: matrix.platform-name != 'linux-x64-gnu'
+        uses: mozilla-actions/sccache-action@v0.0.11
+
+      - name: Enable sccache for cargo
+        if: matrix.platform-name != 'linux-x64-gnu'
+        shell: bash
+        run: |
+          echo "RUSTC_WRAPPER=${SCCACHE_PATH}" >> "$GITHUB_ENV"
+          echo "SCCACHE_DIR=${{ runner.temp }}/sccache-dir" >> "$GITHUB_ENV"
+
+      - name: Cache sccache dir (native platforms)
+        if: matrix.platform-name != 'linux-x64-gnu'
+        uses: actions/cache@v6
+        with:
+          path: ${{ runner.temp }}/sccache-dir
+          key: ${{ runner.os }}-${{ matrix.target }}-plugin-lancedb-sccache-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ matrix.target }}-plugin-lancedb-sccache-
+
+      # ── protoc (required by lance-encoding / prost-build) ─────────────────
+
+      - name: Install protoc (Linux)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update -y && sudo apt-get install -y protobuf-compiler
+
+      - name: Install protoc (macOS)
+        if: runner.os == 'macOS'
+        run: brew install protobuf
+
+      - name: Install protoc (Windows)
+        if: runner.os == 'Windows'
+        run: choco install protoc -y
+        shell: pwsh
+
+      # ── linux-x64-gnu: manylinux_2_28 Docker → glibc 2.28 ─────────────────────
+
+      - name: Cache Rust toolchain (manylinux_2_28 x64)
+        if: matrix.platform-name == 'linux-x64-gnu' && (inputs.platform == '' || inputs.platform == matrix.platform-name)
+        uses: actions/cache@v6
+        with:
+          path: ~/.cargo-manylinux
+          key: manylinux228-x64-plugin-lancedb-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            manylinux228-x64-plugin-lancedb-cargo-
+
+      - name: Build (linux-x64-gnu — manylinux_2_28 glibc 2.28)
+        if: matrix.platform-name == 'linux-x64-gnu' && (inputs.platform == '' || inputs.platform == matrix.platform-name)
+        run: |
+          mkdir -p "$HOME/.cargo-manylinux"
+          docker run --rm \
+            -v "${{ github.workspace }}:/workspace" \
+            -v "$HOME/.cargo-manylinux:/cargo" \
+            -e CARGO_HOME=/cargo \
+            quay.io/pypa/manylinux_2_28_x86_64 \
+            bash -ec "
+              gcc --version
+
+              curl -sSfL "https://github.com/protocolbuffers/protobuf/releases/download/v29.3/protoc-29.3-linux-x86_64.zip" \
+                -o /tmp/protoc.zip
+              unzip -q /tmp/protoc.zip -d /usr/local
+              chmod +x /usr/local/bin/protoc
+              rm /tmp/protoc.zip
+
+              if [ ! -x /cargo/bin/rustup ]; then
+                curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | \
+                  sh -s -- -y --no-modify-path --default-toolchain stable
+              fi
+              export PATH=/cargo/bin:\$PATH
+              rustup toolchain install stable --no-self-update
+              rustup default stable
+              rustup target add x86_64-unknown-linux-gnu
+
+              cd /workspace
+              cargo build -p virage-plugin-lancedb --release --target x86_64-unknown-linux-gnu
+              cp target/x86_64-unknown-linux-gnu/release/libvirage_plugin_lancedb.so /workspace/libvirage_plugin_lancedb-linux-x64-gnu.so
+
+              HOST_GID=\$(stat -c '%u:%g' /workspace)
+              chown -R \$HOST_GID /cargo
+              chown -R \$HOST_GID /workspace/target /workspace/libvirage_plugin_lancedb-linux-x64-gnu.so
+            "
+
+      # ── linux-arm64-gnu: cross-compile ─────────────────────────────────────
+
+      - name: Install cross-compilation toolchain (ARM64 Linux)
+        if: matrix.use-cross == true && (inputs.platform == '' || inputs.platform == matrix.platform-name)
+        run: sudo apt-get install -y gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
+
+      - name: Build (linux-arm64-gnu)
+        if: matrix.use-cross == true && (inputs.platform == '' || inputs.platform == matrix.platform-name)
+        env:
+          CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
+        run: |
+          cargo build -p virage-plugin-lancedb --release --target aarch64-unknown-linux-gnu
+          cp target/aarch64-unknown-linux-gnu/release/libvirage_plugin_lancedb.so libvirage_plugin_lancedb-linux-arm64-gnu.so
+
+      # ── darwin-arm64 ───────────────────────────────────────────────────────
+
+      - name: Build (darwin-arm64)
+        if: matrix.platform-name == 'darwin-arm64' && (inputs.platform == '' || inputs.platform == matrix.platform-name)
+        env:
+          MACOSX_DEPLOYMENT_TARGET: "11.0"
+        run: |
+          cargo build -p virage-plugin-lancedb --release --target aarch64-apple-darwin
+          cp target/aarch64-apple-darwin/release/libvirage_plugin_lancedb.dylib libvirage_plugin_lancedb-darwin-arm64.dylib
+
+      # ── win32-x64-msvc ─────────────────────────────────────────────────────
+
+      - name: Build (win32-x64-msvc)
+        if: matrix.platform-name == 'win32-x64-msvc' && (inputs.platform == '' || inputs.platform == matrix.platform-name)
+        run: |
+          cargo build -p virage-plugin-lancedb --release --target x86_64-pc-windows-msvc
+          Copy-Item target\x86_64-pc-windows-msvc\release\virage_plugin_lancedb.dll virage_plugin_lancedb-win32-x64-msvc.dll
+        shell: pwsh
+
+      # ── Upload ─────────────────────────────────────────────────────────────
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: virage-plugin-lancedb-${{ matrix.platform-name }}
+          path: |
+            libvirage_plugin_lancedb-linux-x64-gnu.so
+            libvirage_plugin_lancedb-linux-arm64-gnu.so
+            libvirage_plugin_lancedb-darwin-arm64.dylib
+            virage_plugin_lancedb-win32-x64-msvc.dll
+          retention-days: 1
+          if-no-files-found: ignore
+
+  publish:
+    name: Publish @vivantel/virage-plugin-lancedb
+    needs: build
+    if: >-
+      always() && needs.build.result == 'success' &&
+      (github.event_name != 'workflow_dispatch' || inputs.platform == '')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          token: ${{ secrets.RELEASE_TOKEN }}
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: lts/*
+          registry-url: https://registry.npmjs.org
+          cache: npm
+
+      - name: Patch lockfile stub version fields
+        run: node scripts/patch-lockfile-stubs.cjs
+
+      - run: npm ci --omit=optional
+
+      - name: Download binary artifacts
+        uses: actions/download-artifact@v8
+        with:
+          path: binaries/
+
+      - name: Place binaries into npm/ dirs
+        run: |
+          set -euo pipefail
+          declare -A files=(
+            [linux-x64-gnu]=libvirage_plugin_lancedb.so
+            [linux-arm64-gnu]=libvirage_plugin_lancedb.so
+            [darwin-arm64]=libvirage_plugin_lancedb.dylib
+            [win32-x64-msvc]=virage_plugin_lancedb.dll
+          )
+          for platform in "${!files[@]}"; do
+            filename="${files[$platform]}"
+            src=$(find "binaries/virage-plugin-lancedb-${platform}" -type f | head -1)
+            dst="packages/virage-plugin-lancedb/npm/${platform}/${filename}"
+            if [ -z "$src" ] || [ ! -f "$src" ]; then
+              echo "ERROR: missing plugin binary for ${platform}"
+              exit 1
+            fi
+            cp "$src" "$dst"
+          done
+
+      - name: Determine version
+        id: version
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "version=${{ inputs.version }}" >> "$GITHUB_OUTPUT"
+          else
+            tag="${GITHUB_REF#refs/tags/virage-plugin-lancedb-v}"
+            echo "version=${tag}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Bump package versions
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          node -e "
+            const fs = require('fs');
+            const ver = process.env.VERSION;
+            const mainPath = 'packages/virage-plugin-lancedb/package.json';
+            const main = JSON.parse(fs.readFileSync(mainPath, 'utf8'));
+            main.version = ver;
+            for (const k of Object.keys(main.optionalDependencies || {})) {
+              main.optionalDependencies[k] = ver;
+            }
+            fs.writeFileSync(mainPath, JSON.stringify(main, null, 2) + '\n');
+            for (const p of ['linux-x64-gnu','linux-arm64-gnu','darwin-arm64','win32-x64-msvc']) {
+              const path = 'packages/virage-plugin-lancedb/npm/' + p + '/package.json';
+              const pkg = JSON.parse(fs.readFileSync(path, 'utf8'));
+              pkg.version = ver;
+              fs.writeFileSync(path, JSON.stringify(pkg, null, 2) + '\n');
+            }
+            console.log('bumped all packages to', ver);
+          "
+
+      - name: Publish platform stubs
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          version="${{ steps.version.outputs.version }}"
+          for platform in linux-x64-gnu linux-arm64-gnu darwin-arm64 win32-x64-msvc; do
+            pkg_name="@vivantel/virage-plugin-lancedb-${platform}"
+            if npm view "${pkg_name}@${version}" version 2>/dev/null | grep -qF "${version}"; then
+              echo "ℹ️  ${pkg_name}@${version} already on npm — skipping"
+            else
+              npm publish "packages/virage-plugin-lancedb/npm/${platform}/" --access public
+            fi
+          done
+
+      - name: Publish @vivantel/virage-plugin-lancedb
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          version="${{ steps.version.outputs.version }}"
+          if npm view "@vivantel/virage-plugin-lancedb@${version}" version 2>/dev/null | grep -qF "${version}"; then
+            echo "ℹ️  @vivantel/virage-plugin-lancedb@${version} already on npm — skipping"
+          else
+            npm publish --workspace packages/virage-plugin-lancedb --access public
+          fi
+
+      - name: Commit version bump + sync lockfile
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          committed=false
+          for push_attempt in 1 2 3 4 5; do
+            for resolve_attempt in 1 2 3; do
+              npm install --package-lock-only --ignore-scripts --silent && break
+              echo "Registry not yet consistent, waiting 30s (attempt $resolve_attempt)..."
+              sleep 30
+            done
+            node scripts/patch-lockfile-stubs.cjs
+
+            git add packages/virage-plugin-lancedb/package.json packages/virage-plugin-lancedb/npm/*/package.json package-lock.json
+            if git diff --cached --quiet; then
+              if [ "$committed" = false ]; then
+                echo "Already up to date with origin/master — nothing to commit."
+                exit 0
+              fi
+            elif [ "$committed" = true ]; then
+              git commit --amend --no-edit
+            else
+              git commit -m "chore(release): bump @vivantel/virage-plugin-lancedb to ${VERSION}"
+              committed=true
+            fi
+
+            git push origin HEAD:master && exit 0
+
+            echo "Push attempt $push_attempt failed, rebasing onto latest master..."
+            git fetch origin master
+            git rebase origin/master
+          done
+          exit 1
