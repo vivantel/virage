@@ -62,8 +62,12 @@ use super::PLUGIN_ABI_VERSION;
 /// back on every call so the plugin can recover its state (including its owned Tokio runtime).
 pub type StoreHandle = *mut c_void;
 
-/// Raw function pointer table for a dylib `VectorStore` plugin.
+/// Raw function pointer table for a dylib `VectorStore` plugin. `Clone`/`Copy`: every field is a
+/// plain fn pointer (no interior data), so a bitwise copy is exactly correct — lets host callers
+/// (e.g. `stores::dylib::DylibStore`) move an owned copy into a `spawn_blocking` closure instead
+/// of holding a borrow across the `.await`.
 #[repr(C)]
+#[derive(Clone, Copy)]
 pub struct StoreVTable {
     /// Construct a store instance from a JSON-serialized backend config (`config_json`, e.g.
     /// LanceDB URI, table name, credentials). Returns a null handle and populates `err_out` on

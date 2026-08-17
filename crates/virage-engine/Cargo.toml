@@ -44,6 +44,9 @@ store-lancedb  = ["dep:lancedb", "dep:arrow-array", "dep:arrow-schema", "dep:tok
 store-qdrant   = ["dep:qdrant-client", "dep:tokio", "dep:async-trait", "dep:anyhow"]
 store-postgres = ["dep:sqlx", "dep:tokio", "dep:async-trait", "dep:anyhow"]
 store-chromadb = ["dep:reqwest", "dep:tokio", "dep:async-trait", "dep:anyhow", "dep:serde"]
+# VectorStore backed by a loaded dylib plugin instead of a statically-linked backend. Local-dev/
+# CI-iteration alternative to store-lancedb; does not touch the publish-gate combination.
+store-dylib    = ["dylib-plugins", "dep:tokio", "dep:async-trait", "dep:anyhow", "dep:serde"]
 # Phase 3 — SQLite state store
 db-sqlite = ["dep:rusqlite"]
 # Phase 4 — pipeline
