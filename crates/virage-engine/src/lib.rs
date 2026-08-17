@@ -24,7 +24,7 @@ pub mod onnx;
 pub mod output;
 #[cfg(feature = "pipeline")]
 pub mod pipeline;
-#[cfg(feature = "wasm-host")]
+#[cfg(any(feature = "wasm-host", feature = "dylib-plugins"))]
 pub mod plugins;
 #[cfg(feature = "cli-binary")]
 pub mod progress;
