@@ -69,10 +69,16 @@ async fn abi_mismatch_is_rejected_cleanly_not_a_crash() {
         return;
     };
     let result = DylibStore::open(Path::new(&path), "{}");
-    let err = result.expect_err(
-        "loading a plugin compiled against a mismatched PLUGIN_ABI_VERSION must fail cleanly, \
-         not succeed or crash the host process",
-    );
+    // Not .expect_err(): DylibStore doesn't implement Debug (it holds a loaded libloading::Library
+    // and raw fn pointers, nothing meaningfully Debug-able), which expect_err requires for its
+    // own panic message on the Ok path.
+    let err = match result {
+        Ok(_) => panic!(
+            "loading a plugin compiled against a mismatched PLUGIN_ABI_VERSION must fail \
+             cleanly, not succeed or crash the host process"
+        ),
+        Err(e) => e,
+    };
     let msg = err.to_string();
     assert!(
         msg.contains("ABI version mismatch") || msg.contains("Cannot load"),
@@ -102,7 +108,12 @@ async fn panic_inside_plugin_is_contained_not_a_host_crash() {
         ..SearchOptions::default()
     };
     let result = store.search(&[0.0; DIMS], 5, opts).await;
-    let err = result.expect_err("a deliberately panicking plugin call must surface as an Err");
+    // Not .expect_err(): SearchResult (inside the Ok(Vec<SearchResult>) side) doesn't implement
+    // Debug either.
+    let err = match result {
+        Ok(_) => panic!("a deliberately panicking plugin call must surface as an Err"),
+        Err(e) => e,
+    };
     assert!(
         err.to_string().contains("panicked"),
         "expected a 'plugin panicked' error message, got: {err}"
