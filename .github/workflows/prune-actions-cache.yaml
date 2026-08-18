@@ -1,0 +1,31 @@
+name: Prune Actions Cache
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 4 * * 0'
+
+jobs:
+  prune:
+    name: Delete all Actions caches
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+
+    steps:
+      - name: Delete all caches (paginated, all refs)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          page=1
+          while :; do
+            ids=$(gh api "/repos/${{ github.repository }}/actions/caches?per_page=100&page=$page" \
+              --jq '.actions_caches[].id')
+            [ -z "$ids" ] && break
+            for id in $ids; do
+              gh api -X DELETE "/repos/${{ github.repository }}/actions/caches/$id" || true
+            done
+            page=$((page + 1))
+          done
+          echo "Remaining cache usage:"
+          gh api "/repos/${{ github.repository }}/actions/cache/usage"

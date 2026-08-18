@@ -353,7 +353,7 @@ jobs:
         with:
           name: coverage-report
           path: coverage/
-          retention-days: 7
+          retention-days: 2
 
   build-and-test:
     needs: changes
