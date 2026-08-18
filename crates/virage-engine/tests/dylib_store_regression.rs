@@ -89,6 +89,43 @@ async fn abi_mismatch_is_rejected_cleanly_not_a_crash() {
     );
 }
 
+// ─── Check: missing plugin .so produces a clean, actionable error ─────────────
+
+#[tokio::test]
+async fn missing_plugin_file_is_a_clean_error_not_a_crash_or_confusing_message() {
+    // Deliberately not gated on either plugin-path env var — a nonexistent path is
+    // unconditionally reproducible, no built artifact required. Real-world trigger for this test:
+    // a CI misconfiguration during IR-051's own qa-regression-surface work pointed
+    // VIRAGE_TEST_LANCEDB_PLUGIN_PATH at a relative path that resolved wrong, hitting exactly
+    // this path for real (not deliberately) before the fix — this test pins that error's shape
+    // down so it can't silently regress into something less actionable.
+    let missing = std::env::temp_dir().join(format!(
+        "virage-dylib-store-test-definitely-missing-{}.so",
+        std::process::id()
+    ));
+    assert!(
+        !missing.exists(),
+        "test precondition violated: {missing:?} unexpectedly exists"
+    );
+
+    let result = DylibStore::open(&missing, "{}");
+    let err = match result {
+        Ok(_) => panic!("opening a store against a nonexistent plugin path must fail, not succeed"),
+        Err(e) => e,
+    };
+    let msg = err.to_string();
+    assert!(
+        msg.contains("Cannot load store plugin"),
+        "expected a clean 'Cannot load store plugin' message naming the missing path, got: {msg}"
+    );
+    assert!(
+        msg.contains(&missing.to_string_lossy().into_owned()),
+        "expected the error to name the actual path that was missing, got: {msg}"
+    );
+    // Not a panic, not a segfault, not a bare OS errno with no context — just got here via a
+    // normal Result, which is the actual assertion this test exists to make.
+}
+
 // ─── Check 2: panic containment ────────────────────────────────────────────────
 
 #[tokio::test]

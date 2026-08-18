@@ -79,6 +79,21 @@ cli-binary = [
 ]
 # cli: local dev — same as cli-binary but also pulls in embedder-onnx (ort/load-dynamic).
 cli = ["cli-binary", "embedder-onnx"]
+# cli-binary-dylib / cli-dylib: same as cli-binary/cli, but store-dylib instead of store-lancedb —
+# no lancedb/arrow/datafusion dependency chain, for local dev iteration that doesn't need lancedb
+# statically linked. store-lancedb can't just be omitted from cli-binary's own list and re-added
+# selectively: Cargo features don't support "minus a sub-feature", so this duplicates cli-binary's
+# list with store-dylib substituted in place of store-lancedb.
+cli-binary-dylib = [
+    "pipeline", "source-all", "chunker-all",
+    "store-dylib", "store-qdrant", "store-postgres", "store-chromadb", "db-sqlite",
+    "config", "eval-ragbench",
+    "dep:clap", "dep:indicatif", "dep:inquire", "dep:console", "dep:flate2", "dep:tar",
+    "dep:ureq",
+    "dep:clap_complete", "dep:dirs", "dep:notify-debouncer-mini",
+    "dep:tracing", "dep:tracing-subscriber",
+]
+cli-dylib = ["cli-binary-dylib", "embedder-onnx"]
 # Phase 6 — production binary builds: bundle ORT instead of loading dynamically.
 # Publish CI builds with --features cli-binary,download-binaries --no-default-features.
 # ort/load-dynamic is intentionally absent so the statically-linked ORT path is used.
