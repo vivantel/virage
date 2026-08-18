@@ -8075,6 +8075,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "virage-plugin-ort"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "serde",
+ "serde_json",
+ "virage-engine",
+]
+
+[[package]]
 name = "virage-plugin-test-fixture-bad-abi"
 version = "0.1.0"
 

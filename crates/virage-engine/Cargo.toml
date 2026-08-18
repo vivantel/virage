@@ -47,6 +47,9 @@ store-chromadb = ["dep:reqwest", "dep:tokio", "dep:async-trait", "dep:anyhow", "
 # VectorStore backed by a loaded dylib plugin instead of a statically-linked backend. Local-dev/
 # CI-iteration alternative to store-lancedb; does not touch the publish-gate combination.
 store-dylib    = ["dylib-plugins", "dep:tokio", "dep:async-trait", "dep:anyhow", "dep:serde"]
+# Embedder backed by a loaded dylib plugin instead of statically-linked ORT (IR-050 Phase 3/4).
+# Alternative to embedder-onnx/download-binaries — no ort_sys/tokenizers dependency chain.
+embedder-dylib = ["dylib-plugins", "dep:serde"]
 # Phase 3 — SQLite state store
 db-sqlite = ["dep:rusqlite"]
 # Phase 4 — pipeline
@@ -59,7 +62,10 @@ pipeline      = ["chunker-walk", "source-types", "store-types", "db-sqlite",
                  "dep:tokio", "dep:async-trait", "dep:anyhow", "dep:futures", "dep:bytes",
                  "dep:tracing", "dep:sysinfo"]
 # Phase 5 — CLI binary
-config = ["dep:serde"]
+# dep:anyhow: history/ (gated on this feature alone, lib.rs) needs it. Pre-existing gap that only
+# surfaced when virage-plugin-ort became the first consumer to request "config" without something
+# else (pipeline, cli-binary) also pulling anyhow in as a side effect.
+config = ["dep:serde", "dep:anyhow"]
 # IR-038 Step 5 — `virage eval run/compare` against RAGBench. RAGBench subset queries are
 # fetched from HuggingFace's Datasets Server rows API (plain JSON), not the raw per-subset
 # Parquet files in the dataset repo — see docs/decisions/IR-038-eval-quality-bench-redesign.md's
@@ -94,6 +100,22 @@ cli-binary-dylib = [
     "dep:tracing", "dep:tracing-subscriber",
 ]
 cli-dylib = ["cli-binary-dylib", "embedder-onnx"]
+# cli-binary-full-dylib: cli-binary-dylib (store-dylib) + embedder-dylib in place of
+# download-binaries -- the actual "no static third-party dependency" combination IR-050 Phase 4
+# targets for a fully dynamically-linked published binary. Distinct from cli-binary-dylib alone (which only drops the
+# lancedb chain): dropping ort/download-binaries too means swapping the embedder path as well, not
+# just the store path, since they're independent Cargo features gating independent dependency
+# chains.
+cli-binary-full-dylib = [
+    "pipeline", "source-all", "chunker-all",
+    "store-dylib", "store-qdrant", "store-postgres", "store-chromadb", "db-sqlite",
+    "embedder-dylib",
+    "config", "eval-ragbench",
+    "dep:clap", "dep:indicatif", "dep:inquire", "dep:console", "dep:flate2", "dep:tar",
+    "dep:ureq",
+    "dep:clap_complete", "dep:dirs", "dep:notify-debouncer-mini",
+    "dep:tracing", "dep:tracing-subscriber",
+]
 # Phase 6 — production binary builds: bundle ORT instead of loading dynamically.
 # Publish CI builds with --features cli-binary,download-binaries --no-default-features.
 # ort/load-dynamic is intentionally absent so the statically-linked ORT path is used.
