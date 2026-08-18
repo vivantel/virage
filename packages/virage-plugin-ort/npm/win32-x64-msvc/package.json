@@ -2,10 +2,21 @@
   "name": "@vivantel/virage-plugin-ort-win32-x64-msvc",
   "version": "0.1.0",
   "description": "virage-plugin-ort dylib for win32-x64-msvc",
-  "os": ["win32"],
-  "cpu": ["x64"],
-  "files": ["virage_plugin_ort.dll"],
-  "publishConfig": { "access": "public" },
+  "os": [
+    "win32"
+  ],
+  "cpu": [
+    "x64"
+  ],
+  "files": [
+    "virage_plugin_ort.dll"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
   "license": "MIT OR Apache-2.0",
-  "repository": { "type": "git", "url": "https://github.com/vivantel/virage.git" }
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/vivantel/virage.git"
+  }
 }
