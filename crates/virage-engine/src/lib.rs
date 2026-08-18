@@ -3,7 +3,7 @@
 #[cfg(all(feature = "config", feature = "pipeline"))]
 pub mod bench;
 pub mod chunkers;
-#[cfg(feature = "cli-binary")]
+#[cfg(any(feature = "cli-binary", feature = "cli-binary-dylib"))]
 pub mod cli;
 #[cfg(feature = "config")]
 pub mod config;
@@ -14,19 +14,19 @@ pub mod embedders;
 pub mod eval;
 #[cfg(feature = "config")]
 pub mod history;
-#[cfg(feature = "cli-binary")]
+#[cfg(any(feature = "cli-binary", feature = "cli-binary-dylib"))]
 pub mod logging;
-#[cfg(feature = "cli-binary")]
+#[cfg(any(feature = "cli-binary", feature = "cli-binary-dylib"))]
 pub mod mcp;
 #[cfg(any(feature = "embedder-onnx", feature = "download-binaries"))]
 pub mod onnx;
-#[cfg(feature = "cli-binary")]
+#[cfg(any(feature = "cli-binary", feature = "cli-binary-dylib"))]
 pub mod output;
 #[cfg(feature = "pipeline")]
 pub mod pipeline;
 #[cfg(any(feature = "wasm-host", feature = "dylib-plugins"))]
 pub mod plugins;
-#[cfg(feature = "cli-binary")]
+#[cfg(any(feature = "cli-binary", feature = "cli-binary-dylib"))]
 pub mod progress;
 #[cfg(all(feature = "config", feature = "pipeline"))]
 pub mod quality;
