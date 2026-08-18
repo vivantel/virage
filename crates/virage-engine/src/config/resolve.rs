@@ -234,7 +234,11 @@ struct CrossEncoderOptions {
 
 // ── Vector store options ──────────────────────────────────────────────────────
 
-#[cfg(feature = "store-lancedb")]
+// Used by both the store-lancedb arm and store-dylib's compiled-in fallback for it below — a
+// binary compiled with store-dylib instead of store-lancedb still needs to parse the same
+// "@vivantel/virage-store-lancedb" config shape, just to hand the fields to a loaded plugin
+// instead of a statically-linked LanceDbStore.
+#[cfg(any(feature = "store-lancedb", feature = "store-dylib"))]
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct LanceDbOptions {
@@ -244,11 +248,11 @@ struct LanceDbOptions {
     table_name: String,
 }
 
-#[cfg(feature = "store-lancedb")]
+#[cfg(any(feature = "store-lancedb", feature = "store-dylib"))]
 fn default_lancedb_uri() -> String {
     ".virage/lancedb".to_string()
 }
-#[cfg(feature = "store-lancedb")]
+#[cfg(any(feature = "store-lancedb", feature = "store-dylib"))]
 fn default_lancedb_table() -> String {
     "virage_chunks".to_string()
 }
@@ -576,9 +580,31 @@ pub fn resolve_store(spec: &PluginRef, dims: usize) -> anyhow::Result<Arc<dyn Ve
                     dims,
                 )))
             }
-            #[cfg(not(feature = "store-lancedb"))]
+            // A binary built with store-dylib instead of store-lancedb (no static lancedb link)
+            // still serves an existing "@vivantel/virage-store-lancedb" config transparently —
+            // the config names a logical backend, not a link strategy, so no config.json or
+            // wizard-generated default needs to change when a binary switches which one it was
+            // compiled with.
+            #[cfg(all(not(feature = "store-lancedb"), feature = "store-dylib"))]
+            {
+                let opts: LanceDbOptions = parse_options(spec)?;
+                let plugin_path = resolve_dylib_plugin_path(None, "lancedb");
+                let mut config = serde_json::Map::new();
+                config.insert("uri".to_string(), serde_json::Value::from(opts.uri));
+                config.insert(
+                    "table_name".to_string(),
+                    serde_json::Value::from(opts.table_name),
+                );
+                config.insert("dimensions".to_string(), serde_json::Value::from(dims));
+                let config_json = serde_json::to_string(&config)?;
+                Ok(Arc::new(crate::stores::dylib::DylibStore::open(
+                    &plugin_path,
+                    &config_json,
+                )?))
+            }
+            #[cfg(not(any(feature = "store-lancedb", feature = "store-dylib")))]
             Err(anyhow!(
-                "package {:?}: store-lancedb feature not compiled in (requires ≥4GB RAM to build)",
+                "package {:?}: neither store-lancedb nor store-dylib compiled in",
                 spec.package
             ))
         }
