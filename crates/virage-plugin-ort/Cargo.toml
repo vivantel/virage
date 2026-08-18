@@ -1,0 +1,31 @@
+[package]
+name        = "virage-plugin-ort"
+version     = "0.1.0"
+edition     = "2021"
+description = "cdylib dylib-plugin wrapper around virage-engine's OnnxEmbedder (IR-050 Phase 3)"
+license     = "MIT OR Apache-2.0"
+publish     = false
+
+[lib]
+# cdylib for the real plugin artifact; rlib so `cargo test` can exercise wire-format helpers
+# in-process without going through the FFI boundary (mirrors virage-plugin-lancedb).
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+# download-binaries, not embedder-onnx: this plugin must be a self-contained artifact -- ORT
+# statically embedded into this .so, not ort/load-dynamic (which would need a *separate*
+# ORT_DYLIB_PATH runtime dependency on top of this plugin, defeating the point of moving the
+# static-ORT weight out of a consumer's own binary and into one self-contained cdylib). Matches
+# the same download-binaries feature CE's own publish CI already uses for its own binary, not the
+# "cli" dev shortcut (ort/load-dynamic).
+# "config" feature pulls in OnnxModelSource::resolve_paths (the HuggingFace-download/local-cache
+# logic) so this crate doesn't duplicate it. "store-types"/"source-types": config/resolve.rs's
+# top-level `use crate::{stores::VectorStore, sources::SourceProvider}` are unconditional -- every
+# other "config" consumer also happens to pull in a concrete store-*/source-* feature that brings
+# those modules into scope as a side effect; these two are the lightweight trait-only features
+# meant for exactly this case (no concrete backend needed, just the module present to satisfy the
+# import), not a hack specific to this crate.
+virage-engine = { path = "../virage-engine", features = ["download-binaries", "config", "store-types", "source-types"], default-features = false }
+serde         = { version = "1", features = ["derive"] }
+serde_json    = { workspace = true }
+anyhow        = "1"

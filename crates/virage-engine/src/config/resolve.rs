@@ -4,7 +4,9 @@ use std::sync::Arc;
 use anyhow::anyhow;
 use serde::Deserialize;
 
-use super::{PluginRef, SourceRef};
+use super::PluginRef;
+#[cfg(feature = "pipeline")]
+use super::SourceRef;
 use crate::embedders::Embedder;
 use crate::sources::SourceProvider;
 use crate::stores::VectorStore;
@@ -62,7 +64,10 @@ pub enum OnnxModelSource {
 
 #[cfg(any(feature = "embedder-onnx", feature = "download-binaries"))]
 impl OnnxModelSource {
-    fn resolve_paths(&self) -> anyhow::Result<(String, String)> {
+    /// `pub`: reused by `virage-plugin-ort` (IR-050 Phase 3) to resolve the same HuggingFace/
+    /// URL/local source variants a statically-linked build would, without duplicating the
+    /// HuggingFace-download logic in the plugin crate.
+    pub fn resolve_paths(&self) -> anyhow::Result<(String, String)> {
         match self {
             OnnxModelSource::HuggingFace {
                 model,
@@ -156,21 +161,24 @@ fn hf_download(model_id: &str, filename: &str, dest: &std::path::Path) -> anyhow
 
 // ── Embedder options ──────────────────────────────────────────────────────────
 
+/// `pub`: reused by `virage-plugin-ort` (IR-050 Phase 3), which parses the identical
+/// `"@vivantel/virage-embedder-onnx"` config JSON directly (not via `parse_options`/`PluginRef`
+/// — the plugin receives a bare JSON string over the FFI boundary).
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
-struct OnnxEmbedderOptions {
+pub struct OnnxEmbedderOptions {
     #[serde(flatten)]
-    source: OnnxModelSource,
+    pub source: OnnxModelSource,
     #[serde(default = "default_onnx_dims")]
-    dimensions: usize,
-    max_length: Option<usize>,
+    pub dimensions: usize,
+    pub max_length: Option<usize>,
     /// Pooling strategy: "mean" (default) or "cls".
-    pooling: Option<String>,
+    pub pooling: Option<String>,
     #[serde(default = "default_true")]
-    normalize: bool,
+    pub normalize: bool,
 }
 
-fn default_onnx_dims() -> usize {
+pub fn default_onnx_dims() -> usize {
     384
 }
 
@@ -257,6 +265,12 @@ fn default_lancedb_table() -> String {
     "virage_chunks".to_string()
 }
 
+// Individually feature-gated (not just their resolve_store match arm): a consumer that pulls in
+// only store-types (the lightweight trait-only feature, e.g. virage-plugin-ort's config-parsing
+// dependency on this module) compiles resolve.rs without any concrete store-* feature, and
+// `cargo clippy --workspace -D warnings` turns "never constructed"/"never used" into hard errors
+// for whichever of these structs/fns aren't reachable under that narrow combination.
+#[cfg(feature = "store-qdrant")]
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct QdrantOptions {
@@ -266,13 +280,16 @@ struct QdrantOptions {
     collection: String,
 }
 
+#[cfg(feature = "store-qdrant")]
 fn default_qdrant_url() -> String {
     "http://localhost:6334".to_string()
 }
+#[cfg(feature = "store-qdrant")]
 fn default_qdrant_collection() -> String {
     "virage".to_string()
 }
 
+#[cfg(feature = "store-postgres")]
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct PostgresOptions {
@@ -281,10 +298,12 @@ struct PostgresOptions {
     table: String,
 }
 
+#[cfg(feature = "store-postgres")]
 fn default_postgres_table() -> String {
     "virage_chunks".to_string()
 }
 
+#[cfg(feature = "store-chromadb")]
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct ChromaDbOptions {
@@ -294,15 +313,18 @@ struct ChromaDbOptions {
     collection_name: String,
 }
 
+#[cfg(feature = "store-chromadb")]
 fn default_chroma_url() -> String {
     "http://localhost:8000".to_string()
 }
+#[cfg(feature = "store-chromadb")]
 fn default_chroma_collection() -> String {
     "virage".to_string()
 }
 
 // ── Source provider options ───────────────────────────────────────────────────
 
+#[cfg(feature = "source-git")]
 #[derive(Deserialize, Default)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct GitSourceOptions {
@@ -315,6 +337,7 @@ struct GitSourceOptions {
     depth: Option<u32>,
 }
 
+#[cfg(feature = "source-localfs")]
 #[derive(Deserialize, Default)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct LocalFsSourceOptions {
@@ -328,6 +351,7 @@ struct LocalFsSourceOptions {
 /// Supported packages (or `builtin:` shorthands):
 /// - `@vivantel/virage-embedder-onnx` / `onnx`       → ONNX inference via ORT
 /// - `@vivantel/virage-embedder-fastembed` / `fastembed` → same ORT backend
+/// - `@vivantel/virage-embedder-dylib` / `embedder-dylib` → loaded plugin (IR-050 Phase 4)
 pub fn resolve_embedder(
     spec: &PluginRef,
 ) -> anyhow::Result<Arc<std::sync::Mutex<dyn Embedder + Send>>> {
@@ -353,14 +377,76 @@ pub fn resolve_embedder(
                 );
                 Ok(Arc::new(std::sync::Mutex::new(emb)))
             }
-            #[cfg(not(any(feature = "embedder-onnx", feature = "download-binaries")))]
+            // A binary built with embedder-dylib instead of embedder-onnx/download-binaries (no
+            // static ort/tokenizers link) still serves an existing "@vivantel/virage-embedder-onnx"
+            // config transparently — same reasoning as resolve_store's store-lancedb fallback
+            // above: the config names a logical backend, not a link strategy. Reserializes the raw
+            // options map (not the typed `OnnxEmbedderOptions`, which isn't `Serialize`) so
+            // virage-plugin-ort's own `create()` parses the identical config shape.
+            #[cfg(all(
+                not(any(feature = "embedder-onnx", feature = "download-binaries")),
+                feature = "embedder-dylib"
+            ))]
+            {
+                let config_json = serde_json::to_string(&serde_json::Value::Object(
+                    spec.options.clone().into_iter().collect(),
+                ))?;
+                let plugin_path =
+                    resolve_dylib_plugin_path(None, "ort", "VIRAGE_EMBEDDER_PLUGIN_PATH");
+                Ok(Arc::new(std::sync::Mutex::new(
+                    crate::embedders::dylib::EmbedderDylib::open(&plugin_path, &config_json)?,
+                )))
+            }
+            #[cfg(not(any(
+                feature = "embedder-onnx",
+                feature = "download-binaries",
+                feature = "embedder-dylib"
+            )))]
             Err(anyhow!(
-                "package {:?}: embedder-onnx feature not compiled in",
+                "package {:?}: neither embedder-onnx/download-binaries nor embedder-dylib compiled in",
                 spec.package
             ))
         }
+        p if p.contains("embedder-dylib") => {
+            #[cfg(feature = "embedder-dylib")]
+            {
+                let opts: DylibEmbedderOptions = parse_options(spec)?;
+                let plugin_path = resolve_dylib_plugin_path(
+                    opts.plugin_path.as_deref(),
+                    &opts.backend,
+                    "VIRAGE_EMBEDDER_PLUGIN_PATH",
+                );
+                let config_json = serde_json::to_string(&opts.config)?;
+                Ok(Arc::new(std::sync::Mutex::new(
+                    crate::embedders::dylib::EmbedderDylib::open(&plugin_path, &config_json)?,
+                )))
+            }
+            #[cfg(not(feature = "embedder-dylib"))]
+            Err(anyhow!("embedder-dylib feature not compiled in"))
+        }
         other => Err(anyhow!("unknown embedder package {:?}", other)),
     }
+}
+
+#[cfg(feature = "embedder-dylib")]
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct DylibEmbedderOptions {
+    /// Explicit path to the plugin `.so`/`.dylib`/`.dll`. Overrides the default `.virage/plugins/`
+    /// lookup in [`resolve_dylib_plugin_path`].
+    #[serde(default)]
+    plugin_path: Option<String>,
+    /// Which plugin binary to look for in `.virage/plugins/` when `pluginPath` isn't given.
+    #[serde(default = "default_dylib_embedder_backend")]
+    backend: String,
+    /// Everything else is forwarded verbatim as the plugin's own `config_json`.
+    #[serde(flatten)]
+    config: serde_json::Map<String, serde_json::Value>,
+}
+
+#[cfg(feature = "embedder-dylib")]
+fn default_dylib_embedder_backend() -> String {
+    "ort".to_string()
 }
 
 // ─── Reranker resolution ──────────────────────────────────────────────────────
@@ -426,15 +512,21 @@ fn default_dylib_backend() -> String {
 /// convention already used for `.virage/lancedb` (store-lancedb's default URI) and
 /// `.virage/model-cache` (the ONNX embedder's HuggingFace cache dir): `.virage/plugins/`.
 ///
-/// Priority: explicit `pluginPath` option > `VIRAGE_STORE_PLUGIN_PATH` env var > the default path
-/// (`.virage/plugins/<platform DLL name for `backend`>`, via `std::env::consts::DLL_PREFIX`/
-/// `DLL_SUFFIX` — not a hand-rolled per-OS branch).
-#[cfg(feature = "store-dylib")]
-fn resolve_dylib_plugin_path(explicit: Option<&str>, backend: &str) -> std::path::PathBuf {
+/// Priority: explicit `pluginPath` option > `env_var` (`VIRAGE_STORE_PLUGIN_PATH` for stores,
+/// `VIRAGE_EMBEDDER_PLUGIN_PATH` for embedders — kept as separate env vars per plugin kind rather
+/// than one shared name, since a real deployment may load a store plugin and an embedder plugin
+/// from different paths) > the default path (`.virage/plugins/<platform DLL name for `backend`>`,
+/// via `std::env::consts::DLL_PREFIX`/`DLL_SUFFIX` — not a hand-rolled per-OS branch).
+#[cfg(any(feature = "store-dylib", feature = "embedder-dylib"))]
+fn resolve_dylib_plugin_path(
+    explicit: Option<&str>,
+    backend: &str,
+    env_var: &str,
+) -> std::path::PathBuf {
     if let Some(p) = explicit {
         return std::path::PathBuf::from(p);
     }
-    if let Ok(p) = std::env::var("VIRAGE_STORE_PLUGIN_PATH") {
+    if let Ok(p) = std::env::var(env_var) {
         return std::path::PathBuf::from(p);
     }
     let filename = format!(
@@ -454,7 +546,11 @@ mod dylib_store_options_tests {
 
     #[test]
     fn explicit_plugin_path_takes_priority_over_default() {
-        let resolved = resolve_dylib_plugin_path(Some("/custom/path.so"), "lancedb");
+        let resolved = resolve_dylib_plugin_path(
+            Some("/custom/path.so"),
+            "lancedb",
+            "VIRAGE_STORE_PLUGIN_PATH",
+        );
         assert_eq!(resolved, std::path::PathBuf::from("/custom/path.so"));
     }
 
@@ -467,7 +563,7 @@ mod dylib_store_options_tests {
             std::env::var("VIRAGE_STORE_PLUGIN_PATH").is_err(),
             "test assumes VIRAGE_STORE_PLUGIN_PATH is unset in the test environment"
         );
-        let resolved = resolve_dylib_plugin_path(None, "lancedb");
+        let resolved = resolve_dylib_plugin_path(None, "lancedb", "VIRAGE_STORE_PLUGIN_PATH");
         let expected_filename = format!(
             "{}virage_plugin_lancedb{}",
             std::env::consts::DLL_PREFIX,
@@ -530,7 +626,16 @@ mod dylib_store_options_tests {
 /// - `@vivantel/virage-store-lancedb`   / `lancedb`   → LanceDbStore
 /// - `@vivantel/virage-store-dylib`     / `dylib`     → DylibStore (loads a `StoreVTable` plugin
 ///   from `.virage/plugins/` — local-dev/CI-iteration alternative to `store-lancedb`)
-pub fn resolve_store(spec: &PluginRef, dims: usize) -> anyhow::Result<Arc<dyn VectorStore>> {
+// `dims` is genuinely unused when store-types is the only store-* feature compiled (every arm
+// that reads it is gated on a concrete backend feature) -- same class as resolve_source's `cwd`
+// above, but there's no natural error-message spot to fold it into here across every match arm,
+// so an explicit `allow` on the param itself (not a blanket function-level one) is the more
+// honest fix: it's a parameter that's structurally always declared but conditionally read, not a
+// real unused-value bug.
+pub fn resolve_store(
+    spec: &PluginRef,
+    #[allow(unused_variables)] dims: usize,
+) -> anyhow::Result<Arc<dyn VectorStore>> {
     match spec.package.as_str() {
         p if p.contains("store-qdrant") => {
             #[cfg(feature = "store-qdrant")]
@@ -588,7 +693,8 @@ pub fn resolve_store(spec: &PluginRef, dims: usize) -> anyhow::Result<Arc<dyn Ve
             #[cfg(all(not(feature = "store-lancedb"), feature = "store-dylib"))]
             {
                 let opts: LanceDbOptions = parse_options(spec)?;
-                let plugin_path = resolve_dylib_plugin_path(None, "lancedb");
+                let plugin_path =
+                    resolve_dylib_plugin_path(None, "lancedb", "VIRAGE_STORE_PLUGIN_PATH");
                 let mut config = serde_json::Map::new();
                 config.insert("uri".to_string(), serde_json::Value::from(opts.uri));
                 config.insert(
@@ -612,8 +718,11 @@ pub fn resolve_store(spec: &PluginRef, dims: usize) -> anyhow::Result<Arc<dyn Ve
             #[cfg(feature = "store-dylib")]
             {
                 let opts: DylibStoreOptions = parse_options(spec)?;
-                let plugin_path =
-                    resolve_dylib_plugin_path(opts.plugin_path.as_deref(), &opts.backend);
+                let plugin_path = resolve_dylib_plugin_path(
+                    opts.plugin_path.as_deref(),
+                    &opts.backend,
+                    "VIRAGE_STORE_PLUGIN_PATH",
+                );
                 let mut config = opts.config;
                 config.insert("dimensions".to_string(), serde_json::Value::from(dims));
                 let config_json = serde_json::to_string(&config)?;
@@ -861,7 +970,7 @@ fn resolve_default_source(cwd: &Path) -> anyhow::Result<Arc<dyn SourceProvider>>
         ));
     }
     #[allow(unreachable_code)]
-    Err(anyhow!("no source feature compiled in"))
+    Err(anyhow!("no source feature compiled in (cwd: {cwd:?})"))
 }
 
 // ─── Chunker resolution ────────────────────────────────────────────────────────

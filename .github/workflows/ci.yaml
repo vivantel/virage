@@ -270,17 +270,26 @@ jobs:
       - name: Benchmark cli-dylib (dynamic lancedb, local dev)
         run: cargo check -p virage-engine --features cli-dylib
 
+      - name: Benchmark cli-binary-full-dylib (dynamic lancedb + ort, IR-050 Phase 4 combo)
+        run: cargo check -p virage-engine --features cli-binary-full-dylib
+
       - name: Test virage-engine (unit + chunker integration)
-        run: cargo test -p virage-engine --features "chunker-all,pipeline,db-sqlite,wasm-host,config,store-dylib" --lib --test integration_chunkers
+        run: cargo test -p virage-engine --features "chunker-all,pipeline,db-sqlite,wasm-host,config,store-dylib,embedder-dylib" --lib --test integration_chunkers
 
       - name: Test virage-plugin-lancedb (wire-format unit tests)
         run: cargo test -p virage-plugin-lancedb --lib
+
+      - name: Test virage-plugin-ort (unit tests)
+        run: cargo test -p virage-plugin-ort --lib
 
       - name: Build CE native (linux-x64 validation)
         run: cargo build --release
 
       - name: Build virage-plugin-lancedb (release, cdylib)
         run: cargo build -p virage-plugin-lancedb --release
+
+      - name: Build virage-plugin-ort (release, cdylib)
+        run: cargo build -p virage-plugin-ort --release
 
       - name: Build virage-plugin-test-fixture-bad-abi (release, cdylib)
         run: cargo build -p virage-plugin-test-fixture-bad-abi --release
@@ -290,6 +299,11 @@ jobs:
           VIRAGE_TEST_LANCEDB_PLUGIN_PATH: ${{ github.workspace }}/target/release/libvirage_plugin_lancedb.so
           VIRAGE_TEST_BAD_ABI_PLUGIN_PATH: ${{ github.workspace }}/target/release/libvirage_plugin_test_fixture_bad_abi.so
         run: cargo test -p virage-engine --features "store-dylib,store-lancedb" --test dylib_store_regression
+
+      - name: Test dylib embedder regression checks (ABI-mismatch, missing-file)
+        env:
+          VIRAGE_TEST_BAD_ABI_PLUGIN_PATH: ${{ github.workspace }}/target/release/libvirage_plugin_test_fixture_bad_abi.so
+        run: cargo test -p virage-engine --features "embedder-dylib" --test dylib_embedder_regression
 
       - name: Save compiled artifacts (master only, IR-021)
         uses: actions/cache/save@v6

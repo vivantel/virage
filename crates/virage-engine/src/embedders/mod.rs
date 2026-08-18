@@ -14,5 +14,7 @@ pub trait Embedder: Send + Sync {
     fn embed_batch(&mut self, texts: &[&str]) -> Result<Vec<f32>, String>;
 }
 
+#[cfg(feature = "embedder-dylib")]
+pub mod dylib;
 #[cfg(any(feature = "embedder-onnx", feature = "download-binaries"))]
 pub mod onnx;
