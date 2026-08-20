@@ -2,7 +2,7 @@ use docx_rs::{
     read_docx, DocumentChild, InsertChild, ParagraphChild, RunChild, TableCellContent, TableChild,
     TableRowChild,
 };
-use virage_vidoc::{read_for_chunker, DocNode, DocNodeAttrs, DocNodeType};
+use virage_vidoc::{DocNode, DocNodeAttrs, DocNodeType};
 
 use super::{FileChunker, ParseResult};
 
@@ -17,15 +17,9 @@ impl FileChunker for DocxChunker {
         &["*.docx"]
     }
 
-    fn parse(&self, path: &str) -> Result<ParseResult, String> {
-        let info = read_for_chunker(path)?;
-        let tree = parse(&info.bytes).map_err(|e| e.to_string())?;
-        Ok(ParseResult {
-            tree,
-            hash: info.hash,
-            size: info.size,
-            modified_ms: info.modified_ms,
-        })
+    fn parse(&self, _path: &str, bytes: &[u8]) -> Result<ParseResult, String> {
+        let tree = parse(bytes).map_err(|e| e.to_string())?;
+        Ok(ParseResult { tree })
     }
 }
 

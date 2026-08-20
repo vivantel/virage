@@ -1,5 +1,5 @@
 use tree_sitter::{Language, Node, Parser};
-use virage_vidoc::{read_for_chunker, DocNode, DocNodeAttrs, DocNodeType};
+use virage_vidoc::{DocNode, DocNodeAttrs, DocNodeType};
 
 use super::{FileChunker, ParseResult};
 
@@ -18,21 +18,15 @@ impl FileChunker for LangChunker {
         ]
     }
 
-    fn parse(&self, path: &str) -> Result<ParseResult, String> {
+    fn parse(&self, path: &str, bytes: &[u8]) -> Result<ParseResult, String> {
         let ext = std::path::Path::new(path)
             .extension()
             .and_then(|e| e.to_str())
             .unwrap_or("");
         let lang =
             Lang::from_extension(ext).ok_or_else(|| format!("unsupported extension: .{ext}"))?;
-        let info = read_for_chunker(path)?;
-        let tree = parse_doc(&info.bytes, &lang)?;
-        Ok(ParseResult {
-            tree,
-            hash: info.hash,
-            size: info.size,
-            modified_ms: info.modified_ms,
-        })
+        let tree = parse_doc(bytes, &lang)?;
+        Ok(ParseResult { tree })
     }
 }
 
