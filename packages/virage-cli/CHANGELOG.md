@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.3.20](https://github.com/vivantel/virage/compare/virage-cli@v0.3.19...virage-cli@v0.3.20) (2026-08-20)
+
+
+### Bug Fixes
+
+* **deps:** Patch 36 open Dependabot npm alerts (tar, js-yaml, protobufjs, adm-zip, fast-uri, brace-expansion, ip-address, hono, @hono/node-server, react-router, sharp) ([cf26e7c](https://github.com/vivantel/virage/commit/cf26e7c969bf0e7ef54627fcc3b508d591d92f4e))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @vivantel/virage-core bumped from >=0.4.15 to >=0.4.16
+
 ## [0.3.19](https://github.com/vivantel/virage/compare/virage-cli@v0.3.18...virage-cli@v0.3.19) (2026-08-14)
 
 
