@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.16](https://github.com/vivantel/virage/compare/virage-core@v0.4.15...virage-core@v0.4.16) (2026-08-20)
+
+
+### Bug Fixes
+
+* **deps:** Patch 36 open Dependabot npm alerts (tar, js-yaml, protobufjs, adm-zip, fast-uri, brace-expansion, ip-address, hono, @hono/node-server, react-router, sharp) ([cf26e7c](https://github.com/vivantel/virage/commit/cf26e7c969bf0e7ef54627fcc3b508d591d92f4e))
+
 ## [0.4.15](https://github.com/vivantel/virage/compare/virage-core@v0.4.14...virage-core@v0.4.15) (2026-08-14)
 
 
