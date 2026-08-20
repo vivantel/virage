@@ -2,7 +2,7 @@ use comrak::{
     nodes::{AstNode, ListType, NodeValue},
     parse_document, Arena, Options,
 };
-use virage_vidoc::{read_for_chunker, DocNode, DocNodeAttrs, DocNodeType};
+use virage_vidoc::{DocNode, DocNodeAttrs, DocNodeType};
 
 use super::{FileChunker, ParseResult};
 
@@ -17,17 +17,11 @@ impl FileChunker for MdChunker {
         &["*.md", "*.mdx", "*.markdown"]
     }
 
-    fn parse(&self, path: &str) -> Result<ParseResult, String> {
-        let info = read_for_chunker(path)?;
-        let src = String::from_utf8(info.bytes)
+    fn parse(&self, path: &str, bytes: &[u8]) -> Result<ParseResult, String> {
+        let src = String::from_utf8(bytes.to_vec())
             .map_err(|e| format!("file {path} is not valid UTF-8: {e}"))?;
         let tree = parse(&src).map_err(|e| e.to_string())?;
-        Ok(ParseResult {
-            tree,
-            hash: info.hash,
-            size: info.size,
-            modified_ms: info.modified_ms,
-        })
+        Ok(ParseResult { tree })
     }
 }
 

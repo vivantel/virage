@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use bytes::Bytes;
+use sha2::{Digest, Sha256};
 use tokio::sync::mpsc;
 use virage_vidoc::{DocNode, DocNodeAttrs, DocNodeType};
 
@@ -256,13 +257,19 @@ async fn parse_and_chunk(
     let source = &group.source;
     let chunkers = &group.chunkers;
 
+    // Read content through the group's SourceProvider (git, local fs, S3, …) — never straight
+    // off local disk. This is the single content-acquisition point for both branches below, so a
+    // matched format-specific chunker gets the same non-local-source support as the raw-text
+    // fallback already had.
+    let content: Bytes = source.read_content(&item.path, None).await?;
+
     // Parse into a ViDoc tree: a matching format-specific chunker if one is configured
     // and its patterns() match this path, otherwise a flat raw-text fallback.
     let matched = find_chunker(chunkers, &item.path);
 
     let (root, source_format, file_hash, file_size_bytes);
     if let Some(chunker) = matched {
-        let parsed = match chunker.parse(&item.path) {
+        let parsed = match chunker.parse(&item.path, &content) {
             Ok(p) => p,
             Err(e) => {
                 // A format-specific parser matched but failed (e.g. corrupt file) —
@@ -279,10 +286,9 @@ async fn parse_and_chunk(
         };
         root = parsed.tree;
         source_format = chunker.name().to_string();
-        file_hash = Some(parsed.hash);
-        file_size_bytes = Some(parsed.size as u64);
+        file_hash = Some(format!("{:x}", Sha256::digest(&content)));
+        file_size_bytes = Some(content.len() as u64);
     } else {
-        let content: Bytes = source.read_content(&item.path, None).await?;
         root = raw_bytes_to_doc(&content, &item.path);
         source_format = extension_of(&item.path).to_string();
         file_hash = None;
@@ -427,12 +433,10 @@ mod tests {
         fn patterns(&self) -> &[&str] {
             &self.chunker_patterns
         }
-        fn parse(&self, path: &str) -> Result<crate::chunkers::ParseResult, String> {
+        fn parse(&self, path: &str, bytes: &[u8]) -> Result<crate::chunkers::ParseResult, String> {
+            let _ = bytes;
             Ok(crate::chunkers::ParseResult {
                 tree: raw_bytes_to_doc(path.as_bytes(), path),
-                hash: "mockhash".into(),
-                size: path.len() as f64,
-                modified_ms: 0.0,
             })
         }
     }
@@ -460,16 +464,90 @@ mod tests {
         assert!(none.is_none());
     }
 
+    /// A minimal real chunker: emits a Heading node, which `raw_bytes_to_doc` never does. Proves
+    /// `parse_and_chunk` routed through the matched chunker, not the raw-text fallback. It parses
+    /// the `bytes` argument only — matching every real `FileChunker` impl since the
+    /// `SourceProvider` fix, and unlike them never touches `path` for content (only chunkers.rs
+    /// doc comment says `path` is extension/error-message only).
+    struct MdOnlyChunker;
+    impl crate::chunkers::FileChunker for MdOnlyChunker {
+        fn name(&self) -> &str {
+            "md"
+        }
+        fn patterns(&self) -> &[&str] {
+            &["*.md"]
+        }
+        fn parse(&self, _path: &str, bytes: &[u8]) -> Result<crate::chunkers::ParseResult, String> {
+            let text = String::from_utf8_lossy(bytes);
+            let mut parts = text.splitn(2, '.');
+            let title = parts.next().unwrap_or_default().trim().to_string();
+            let body = parts.next().unwrap_or_default().trim().to_string();
+            let tree = DocNode {
+                node_type: DocNodeType::Document,
+                text: None,
+                children: Some(vec![
+                    DocNode {
+                        node_type: DocNodeType::Heading,
+                        text: Some(title),
+                        children: None,
+                        attrs: DocNodeAttrs {
+                            heading_level: Some(1),
+                            byte_start: 0,
+                            byte_end: 5,
+                            ..Default::default()
+                        },
+                    },
+                    DocNode {
+                        node_type: DocNodeType::Paragraph,
+                        text: Some(body),
+                        children: None,
+                        attrs: DocNodeAttrs {
+                            byte_start: 6,
+                            byte_end: bytes.len() as u64,
+                            ..Default::default()
+                        },
+                    },
+                ]),
+                attrs: DocNodeAttrs {
+                    byte_start: 0,
+                    byte_end: bytes.len() as u64,
+                    ..Default::default()
+                },
+            };
+            Ok(crate::chunkers::ParseResult { tree })
+        }
+    }
+
+    struct MockEmbedder;
+    impl Embedder for MockEmbedder {
+        fn dimensions(&self) -> usize {
+            2
+        }
+        fn embed_batch(&mut self, texts: &[&str]) -> Result<Vec<f32>, String> {
+            Ok(vec![0.1f32; texts.len() * 2])
+        }
+    }
+
+    /// Regression test for the bug fixed here: a matched format-specific chunker must read its
+    /// content through `SourceProvider::read_content`, not straight off local disk. `RemoteOnlySource`
+    /// serves content purely in-memory — `item.path` never exists on the local filesystem at all
+    /// (asserted below) — so if `parse_and_chunk` ever regresses to reading `item.path` directly
+    /// (e.g. via `std::fs::read`/`read_for_chunker`), this test fails the same way indexing a
+    /// matched-chunker file from S3 failed in production (vivantel/virage-ee, found via an e2e
+    /// gate against real S3/MinIO — CE never had a matched-chunker + non-local-source test until
+    /// now).
     #[tokio::test]
-    async fn process_item_uses_matched_chunker_over_raw_fallback() {
-        struct NoopSource;
+    async fn matched_chunker_reads_content_via_source_provider() {
+        struct RemoteOnlySource {
+            content: &'static str,
+        }
         #[async_trait::async_trait]
-        impl SourceProvider for NoopSource {
+        impl SourceProvider for RemoteOnlySource {
             fn name(&self) -> &str {
-                "noop"
+                "remote-only"
             }
             fn provider_type(&self) -> &str {
-                "noop"
+                "s3"
             }
             async fn current_revision(&self) -> anyhow::Result<String> {
                 Ok(String::new())
@@ -495,90 +573,30 @@ mod tests {
             }
             async fn read_content(
                 &self,
-                _path: &str,
+                path: &str,
                 _range: Option<crate::sources::ByteRange>,
             ) -> anyhow::Result<Bytes> {
-                unreachable!("matched-chunker path must not call read_content")
+                // The only place content can come from in this test — proves parse_and_chunk
+                // routes through SourceProvider rather than reading `path` off local disk.
+                assert!(
+                    !std::path::Path::new(path).exists(),
+                    "test path must not exist on local disk — a fs-bypassing regression \
+                     could pass by accident if it did"
+                );
+                Ok(Bytes::from_static(self.content.as_bytes()))
             }
         }
 
-        // A minimal real chunker: emits a Heading node, which raw_bytes_to_doc never
-        // does. Proves process_item routed through the matched chunker, not the fallback.
-        struct MdOnlyChunker;
-        impl crate::chunkers::FileChunker for MdOnlyChunker {
-            fn name(&self) -> &str {
-                "md"
-            }
-            fn patterns(&self) -> &[&str] {
-                &["*.md"]
-            }
-            fn parse(&self, path: &str) -> Result<crate::chunkers::ParseResult, String> {
-                let info = virage_vidoc::read_for_chunker(path)?;
-                let tree = DocNode {
-                    node_type: DocNodeType::Document,
-                    text: None,
-                    children: Some(vec![
-                        DocNode {
-                            node_type: DocNodeType::Heading,
-                            text: Some("Title".into()),
-                            children: None,
-                            attrs: DocNodeAttrs {
-                                heading_level: Some(1),
-                                byte_start: 0,
-                                byte_end: 5,
-                                ..Default::default()
-                            },
-                        },
-                        DocNode {
-                            node_type: DocNodeType::Paragraph,
-                            text: Some("Body text.".into()),
-                            children: None,
-                            attrs: DocNodeAttrs {
-                                byte_start: 6,
-                                byte_end: 16,
-                                ..Default::default()
-                            },
-                        },
-                    ]),
-                    attrs: DocNodeAttrs {
-                        byte_start: 0,
-                        byte_end: 16,
-                        ..Default::default()
-                    },
-                };
-                Ok(crate::chunkers::ParseResult {
-                    tree,
-                    hash: info.hash,
-                    size: info.size,
-                    modified_ms: info.modified_ms,
-                })
-            }
-        }
-
-        struct MockEmbedder;
-        impl Embedder for MockEmbedder {
-            fn dimensions(&self) -> usize {
-                2
-            }
-            fn embed_batch(&mut self, texts: &[&str]) -> Result<Vec<f32>, String> {
-                Ok(vec![0.1f32; texts.len() * 2])
-            }
-        }
-
-        let path = std::env::temp_dir().join(format!(
-            "virage-worker-test-{}-{:?}.md",
-            std::process::id(),
-            std::thread::current().id()
-        ));
-        std::fs::write(&path, "irrelevant on-disk content").unwrap();
-
+        // A path that looks like an S3 key, deliberately not present anywhere on local disk.
         let item = WorkItem {
-            path: path.to_string_lossy().to_string(),
+            path: "s3://bucket/docs/nonexistent-on-disk/report.md".into(),
             revision: "rev1".into(),
             tags: vec![],
             group_idx: 0,
         };
-        let source: Arc<dyn SourceProvider> = Arc::new(NoopSource);
+        let source: Arc<dyn SourceProvider> = Arc::new(RemoteOnlySource {
+            content: "Title.\n\nBody text.",
+        });
         let chunkers: Vec<Arc<dyn crate::chunkers::FileChunker>> = vec![Arc::new(MdOnlyChunker)];
         let groups = vec![GroupRuntime { source, chunkers }];
         let embedder: Arc<std::sync::Mutex<dyn Embedder + Send>> =
@@ -597,7 +615,6 @@ mod tests {
             .await
             .ok();
         drop(tx);
-        std::fs::remove_file(&path).ok();
 
         let mut chunks = Vec::new();
         while let Some(r) = rx.recv().await {
@@ -607,7 +624,7 @@ mod tests {
         assert!(!chunks.is_empty());
         assert!(
             chunks[0].artifact.dense_text.starts_with("Title."),
-            "expected breadcrumb from Heading node, got: {:?}",
+            "expected breadcrumb from Heading node parsed from RemoteOnlySource content, got: {:?}",
             chunks[0].artifact.dense_text
         );
     }
