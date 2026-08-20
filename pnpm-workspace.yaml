@@ -1,0 +1,9 @@
+# Note: this repo's package manager of record is npm (see package-lock.json / npm workspaces
+# in package.json). pnpm-lock.yaml is tracked only because GitHub Dependabot alerts reference
+# it; keep it patched so those alerts stay closed even though pnpm isn't used to build or run
+# anything here. `overrides` below force two transitive deps (adm-zip, sharp) past their
+# dependents' declared caret ranges to their CVE-patched versions, matching the root
+# package.json `overrides` used for the npm lockfile.
+overrides:
+  adm-zip: ^0.6.0
+  sharp: ^0.35.0
