@@ -533,9 +533,8 @@ mod tests {
     /// serves content purely in-memory — `item.path` never exists on the local filesystem at all
     /// (asserted below) — so if `parse_and_chunk` ever regresses to reading `item.path` directly
     /// (e.g. via `std::fs::read`/`read_for_chunker`), this test fails the same way indexing a
-    /// matched-chunker file from S3 failed in production (vivantel/virage-ee, found via an e2e
-    /// gate against real S3/MinIO — CE never had a matched-chunker + non-local-source test until
-    /// now).
+    /// matched-chunker file from S3 failed in production (found via an e2e gate against real
+    /// S3/MinIO — CE never had a matched-chunker + non-local-source test until now).
     #[tokio::test]
     async fn matched_chunker_reads_content_via_source_provider() {
         struct RemoteOnlySource {
