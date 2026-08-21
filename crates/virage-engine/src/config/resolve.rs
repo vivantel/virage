@@ -224,8 +224,8 @@ fn default_true() -> bool {
 // ── Cross-encoder reranker options ────────────────────────────────────────────
 
 // Only consumer is resolve_reranker below, gated identically — under a dylib-only feature
-// combination (e.g. virage-ee's cli-binary-full-dylib, IR-050) neither embedder-onnx nor
-// download-binaries is active, so this struct would otherwise be dead code under -D warnings.
+// combination, neither embedder-onnx nor download-binaries is active, so this struct would
+// otherwise be dead code under -D warnings.
 #[cfg(any(feature = "embedder-onnx", feature = "download-binaries"))]
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
