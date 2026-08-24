@@ -55,7 +55,7 @@
   "devDependencies": {
     "@types/node": "^26.1.0",
     "@types/pg": "^8.0.0",
-    "@vitest/coverage-v8": "^4.1.10",
+    "@vitest/coverage-v8": "^4.1.11",
     "@vivantel/virage-core": "0.4.16",
     "typescript": "^6.0.3",
     "vitest": "^4.1.10"
