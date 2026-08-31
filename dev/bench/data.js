@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1787543998477,
+  "lastUpdate": 1788168945305,
   "repoUrl": "https://github.com/vivantel/virage",
   "entries": {
     "Virage Quality Metrics": [
@@ -136,6 +136,143 @@ window.BENCHMARK_DATA = {
           {
             "name": "LexicalRecall@K",
             "value": 0.99,
+            "unit": "score"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "S. Strebulaev",
+            "username": "sergemso",
+            "email": "strebulaev@gmail.com"
+          },
+          "committer": {
+            "name": "GitHub",
+            "username": "web-flow",
+            "email": "noreply@github.com"
+          },
+          "id": "aa0954b17c31db42249327cacdc2444fb1a20cce",
+          "message": "fix(db): use as_chunks instead of chunks_exact for blob_to_f32_vec (#388)\n\nNew clippy lint (chunks_exact_to_as_chunks, stabilized around rustc\n1.98) started failing CI on master with 'using chunks_exact with a\nconstant chunk size' -- pre-existing code, not related to any specific\nfeature work, just a toolchain-version lint catching up to newly\nstable std API. Applies clippy's own suggested replacement.\n\nEE LEAKAGE CHECK: none",
+          "timestamp": "2026-08-21T21:22:41Z",
+          "url": "https://github.com/vivantel/virage/commit/aa0954b17c31db42249327cacdc2444fb1a20cce"
+        },
+        "date": 1788168942957,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "Overall Quality",
+            "value": 0.7387953112521626,
+            "unit": "score"
+          },
+          {
+            "name": "Chunking",
+            "value": 0.694473333823714,
+            "unit": "score"
+          },
+          {
+            "name": "Cohesion",
+            "value": 0.632843220645372,
+            "unit": "score"
+          },
+          {
+            "name": "Coherence",
+            "value": 0.74994045418451,
+            "unit": "score"
+          },
+          {
+            "name": "Coverage",
+            "value": 0.79,
+            "unit": "score"
+          },
+          {
+            "name": "Metadata Extraction",
+            "value": 0.5434830633284242,
+            "unit": "score"
+          },
+          {
+            "name": "Completeness",
+            "value": 0.4125,
+            "unit": "score"
+          },
+          {
+            "name": "BreadcrumbConsistency",
+            "value": 0.9896907216494846,
+            "unit": "score"
+          },
+          {
+            "name": "FQNCompleteness",
+            "value": 0,
+            "unit": "score"
+          },
+          {
+            "name": "SiblingIntegrity",
+            "value": 1,
+            "unit": "score"
+          },
+          {
+            "name": "Dense Input Prep",
+            "value": 0.960696776692292,
+            "unit": "score"
+          },
+          {
+            "name": "TextPurity",
+            "value": 0.9807311572998748,
+            "unit": "score"
+          },
+          {
+            "name": "EnrichmentQuality",
+            "value": 0.9406623960847094,
+            "unit": "score"
+          },
+          {
+            "name": "Dense Embedding",
+            "value": 0.7333322799146692,
+            "unit": "score"
+          },
+          {
+            "name": "SelfRecall@K",
+            "value": 1,
+            "unit": "score"
+          },
+          {
+            "name": "IntrinsicDimension",
+            "value": 0.19717261904761907,
+            "unit": "score"
+          },
+          {
+            "name": "Uniformity",
+            "value": 0.5442907366634583,
+            "unit": "score"
+          },
+          {
+            "name": "Isotropy",
+            "value": 0.11039292746854469,
+            "unit": "score"
+          },
+          {
+            "name": "OutlierFraction",
+            "value": 0.97,
+            "unit": "score"
+          },
+          {
+            "name": "Sparse Input Prep",
+            "value": 0.9538457987221501,
+            "unit": "score"
+          },
+          {
+            "name": "TermCoverage",
+            "value": 0.9538457987221501,
+            "unit": "score"
+          },
+          {
+            "name": "Lexical Retrieval",
+            "value": 1,
+            "unit": "score"
+          },
+          {
+            "name": "LexicalRecall@K",
+            "value": 1,
             "unit": "score"
           }
         ]
