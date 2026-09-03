@@ -12,6 +12,11 @@
  * Falls back to nothing fancy: if the daemon process dies or never starts (older
  * `virage` binary without `query-serve`, spawn failure, etc.), `search()` throws and
  * the caller in server.ts is expected to fall back to the one-shot subprocess path.
+ *
+ * `virageCmd`/`virageArgs` come from server.ts's resolution: a workspace-local
+ * `node_modules/.bin/virage` if present, otherwise `npx -y @vivantel/virage` —
+ * never a bare `"virage"` (this package deliberately doesn't depend on
+ * `@vivantel/virage` itself, and nothing guarantees it's on PATH globally).
  */
 
 import { spawn, type ChildProcessWithoutNullStreams } from "child_process";
@@ -35,8 +40,8 @@ class DaemonHandle {
   private queue: PendingRequest[] = [];
   private dead = false;
 
-  constructor(virageBin: string, cwd: string) {
-    this.proc = spawn(virageBin, ["query-serve"], {
+  constructor(virageCmd: string, virageArgs: string[], cwd: string) {
+    this.proc = spawn(virageCmd, [...virageArgs, "query-serve"], {
       cwd,
       stdio: ["pipe", "pipe", "pipe"],
     });
@@ -110,14 +115,15 @@ const daemons = new Map<string, DaemonHandle>();
  * catch and fall back to a one-shot `virage query` subprocess.
  */
 export async function daemonSearch(
-  virageBin: string,
+  virageCmd: string,
+  virageArgs: string[],
   cwd: string,
   req: QueryRequest,
   timeoutMs = 35_000,
 ): Promise<unknown[]> {
   let handle = daemons.get(cwd);
   if (!handle || handle.isDead) {
-    handle = new DaemonHandle(virageBin, cwd);
+    handle = new DaemonHandle(virageCmd, virageArgs, cwd);
     daemons.set(cwd, handle);
   }
   return handle.query(req, timeoutMs);

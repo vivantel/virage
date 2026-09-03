@@ -360,14 +360,21 @@ export function createAgentMcpServer(): McpServer {
     async ({ query, top_k, branch, offset, fields }) => {
       const cwd = process.cwd();
       const localBin = join(cwd, "node_modules", ".bin", "virage");
-      const virageBin = existsSync(localBin) ? localBin : "virage";
+      // This package deliberately doesn't depend on @vivantel/virage itself
+      // (see package.json) — a bare "virage" here relies on a global install
+      // that's never guaranteed. npx transparently fetches it on demand when
+      // there's no workspace-local install, same as this repo's own
+      // .mcp.json entry does for this package.
+      const [virageCmd, ...virageArgs] = existsSync(localBin)
+        ? [localBin]
+        : ["npx", "-y", "@vivantel/virage"];
 
       let raw: RawSearchResult[];
       try {
         // Warm path: a persistent query-serve process for this cwd, spawned on
         // first use, pays the embedder's ~30s cold start once per session instead
         // of once per search.
-        raw = (await daemonSearch(virageBin, cwd, {
+        raw = (await daemonSearch(virageCmd, virageArgs, cwd, {
           query,
           top_k,
           branch,
@@ -378,6 +385,7 @@ export function createAgentMcpServer(): McpServer {
         // a daemon spawn failure, or any other daemon-path error. Correctness must
         // not depend on the daemon; it's a latency optimization only.
         const args = [
+          ...virageArgs,
           "query",
           query,
           "--format",
@@ -389,7 +397,7 @@ export function createAgentMcpServer(): McpServer {
         ];
         if (branch) args.push("--branch", branch);
         try {
-          const { stdout } = await execFileAsync(virageBin, args, {
+          const { stdout } = await execFileAsync(virageCmd, args, {
             cwd,
             timeout: 30_000,
           });
