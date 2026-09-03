@@ -384,6 +384,11 @@ export function createAgentMcpServer(): McpServer {
         // Fall back to a one-shot subprocess — older `virage` without query-serve,
         // a daemon spawn failure, or any other daemon-path error. Correctness must
         // not depend on the daemon; it's a latency optimization only.
+        //
+        // --offset is only appended when non-default: this package's release cadence
+        // (release-please, frequent) is decoupled from @vivantel/virage's (manual
+        // workflow_dispatch, infrequent — see virage-publish.yaml) — a CLI published
+        // before --offset existed must not fail every default-offset search over it.
         const args = [
           ...virageArgs,
           "query",
@@ -392,10 +397,9 @@ export function createAgentMcpServer(): McpServer {
           "json",
           "--top-k",
           String(top_k),
-          "--offset",
-          String(offset),
         ];
         if (branch) args.push("--branch", branch);
+        if (offset !== 0) args.push("--offset", String(offset));
         try {
           const { stdout } = await execFileAsync(virageCmd, args, {
             cwd,
@@ -404,13 +408,13 @@ export function createAgentMcpServer(): McpServer {
           raw = JSON.parse(stdout.trim()) as RawSearchResult[];
         } catch (err) {
           const msg = err instanceof Error ? err.message : String(err);
+          const offsetUnsupported =
+            offset !== 0 && /unexpected argument '--offset'/.test(msg);
+          const hint = offsetUnsupported
+            ? "\n\nThe installed `virage` CLI predates pagination support (--offset). Retry with offset:0, or upgrade @vivantel/virage."
+            : "\n\nEnsure the project is indexed: run `virage index` first.";
           return {
-            content: [
-              {
-                type: "text",
-                text: `Search failed: ${msg}\n\nEnsure the project is indexed: run \`virage index\` first.`,
-              },
-            ],
+            content: [{ type: "text", text: `Search failed: ${msg}${hint}` }],
           };
         }
       }
