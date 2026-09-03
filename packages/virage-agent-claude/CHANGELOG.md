@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.34](https://github.com/vivantel/virage/compare/virage-agent-claude@v0.2.33...virage-agent-claude@v0.2.34) (2026-09-03)
+
+
+### Bug Fixes
+
+* **virage-agent-claude:** Stop assuming a global virage install on PATH ([87f81d0](https://github.com/vivantel/virage/commit/87f81d0fd90b718d76bd6974d0ce92ecf9300813))
+
 ## [0.2.33](https://github.com/vivantel/virage/compare/virage-agent-claude@v0.2.32...virage-agent-claude@v0.2.33) (2026-08-14)
 
 
