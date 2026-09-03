@@ -24,9 +24,13 @@ interface SearchResult {
   metadata: Record<string, unknown>;
 }
 
-function virageBin(cwd: string): string {
+// Same reasoning as server.ts's search tool: this package deliberately
+// doesn't depend on @vivantel/virage itself, so a bare "virage" here relies
+// on a global install that's never guaranteed. npx fetches it on demand
+// when there's no workspace-local install.
+function virageCommand(cwd: string): [string, ...string[]] {
   const local = join(cwd, "node_modules", ".bin", "virage");
-  return existsSync(local) ? local : "virage";
+  return existsSync(local) ? [local] : ["npx", "-y", "@vivantel/virage"];
 }
 
 function formatContext(results: SearchResult[]): string {
@@ -54,10 +58,11 @@ export async function runInjectContext(
   opts: InjectContextOptions = {},
 ): Promise<void> {
   const cwd = process.cwd();
-  const bin = virageBin(cwd);
+  const [bin, ...binPrefixArgs] = virageCommand(cwd);
   const config = opts.configPath ?? "./virage.config.json";
 
   const args = [
+    ...binPrefixArgs,
     "query",
     excerpt,
     "--format",
