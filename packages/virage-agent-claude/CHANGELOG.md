@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.35](https://github.com/vivantel/virage/compare/virage-agent-claude@v0.2.34...virage-agent-claude@v0.2.35) (2026-09-03)
+
+
+### Bug Fixes
+
+* **virage-agent-claude:** Tolerate a virage CLI older than --offset ([fbbbaf5](https://github.com/vivantel/virage/commit/fbbbaf53b64a7fb1055202c85a483826244e57df))
+
 ## [0.2.34](https://github.com/vivantel/virage/compare/virage-agent-claude@v0.2.33...virage-agent-claude@v0.2.34) (2026-09-03)
 
 
