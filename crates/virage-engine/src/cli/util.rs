@@ -12,6 +12,18 @@ pub(crate) fn resolve_config_path(arg: &str) -> anyhow::Result<String> {
     if !arg.is_empty() {
         return Ok(arg.to_string());
     }
+    // VIRAGE_CONFIG lets a personal/uncommitted config (e.g. a gitignored .virage/*.json
+    // pointing at a private store) take effect without editing the project's own committed
+    // config or passing --config on every invocation — notably including MCP server
+    // subprocesses, which never pass --config themselves (see packages/virage-agent-claude's
+    // server.ts). Checked before find_config()'s committed-file convention so a personal
+    // override always wins over whatever's checked in, but an explicit --config still wins
+    // over both.
+    if let Ok(path) = std::env::var("VIRAGE_CONFIG") {
+        if !path.is_empty() {
+            return Ok(path);
+        }
+    }
     find_config().ok_or_else(|| {
         anyhow::anyhow!(
             "No config found. Tried: {:?}. Run `virage init` to create one.",

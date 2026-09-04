@@ -282,6 +282,11 @@ struct QdrantOptions {
     url: String,
     #[serde(default = "default_qdrant_collection")]
     collection: String,
+    /// Name of an environment variable holding the cluster's database API key — never the key
+    /// itself, so an auth-requiring (e.g. Qdrant Cloud) config stays safe to commit or share.
+    /// Omit for an unauthenticated local instance.
+    #[serde(default)]
+    api_key_env: Option<String>,
 }
 
 #[cfg(feature = "store-qdrant")]
@@ -645,11 +650,18 @@ pub fn resolve_store(
             #[cfg(feature = "store-qdrant")]
             {
                 let opts: QdrantOptions = parse_options(spec)?;
-                Ok(Arc::new(crate::stores::qdrant::QdrantStore::new(
-                    &opts.url,
-                    &opts.collection,
-                    dims,
-                )))
+                let mut store =
+                    crate::stores::qdrant::QdrantStore::new(&opts.url, &opts.collection, dims);
+                if let Some(env_var) = &opts.api_key_env {
+                    let key = std::env::var(env_var).map_err(|_| {
+                        anyhow!(
+                            "vectorStore.options.apiKeyEnv names \"{env_var}\", but that \
+                             environment variable isn't set"
+                        )
+                    })?;
+                    store = store.with_api_key(key);
+                }
+                Ok(Arc::new(store))
             }
             #[cfg(not(feature = "store-qdrant"))]
             Err(anyhow!("store-qdrant feature not compiled in"))
