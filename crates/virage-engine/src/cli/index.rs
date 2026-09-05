@@ -128,11 +128,31 @@ pub async fn cmd_index(
     let t_stage = std::time::Instant::now();
     let stage = prog.stage("Opening state DB...");
     let db = open_or_init_db(&db_path)?;
+    let db_revisions = db
+        .get_file_revisions()
+        .map_err(|e| anyhow::anyhow!("DB read error: {e}"))?;
     let known_revisions: HashMap<String, String> = if force {
         HashMap::new()
+    } else if db_revisions.is_empty() {
+        // An empty state DB can't distinguish "genuinely first-ever index" from "ephemeral
+        // environment (fresh checkout, CI runner) that reset between runs while the remote
+        // store did not" -- an empty map here would silently disable deletion detection for
+        // the latter case forever (run_pipeline's `to_delete` is known_revisions.keys() minus
+        // what's on disk now; empty in means empty out), even though the store itself already
+        // knows exactly what it holds. Reconcile from the store directly: this is an O(corpus
+        // size) scan, acceptable as a one-time cold-start cost, but deliberately not the
+        // steady-state path (see the local-db fast path below) -- guaranteed consistency over
+        // eventual consistency for this specific decision, not a general policy of always
+        // trusting the store over the local buffer.
+        store.initialize().await?;
+        let reconciled = store.current_state().await?;
+        out.verbose(&format!(
+            "state DB is empty — reconciled {} known revision(s) from the vector store",
+            reconciled.len()
+        ));
+        reconciled
     } else {
-        db.get_file_revisions()
-            .map_err(|e| anyhow::anyhow!("DB read error: {e}"))?
+        db_revisions
     };
     finish_stage(stage);
     out.verbose(&format!("state DB: {}ms", t_stage.elapsed().as_millis()));
