@@ -118,7 +118,11 @@ impl QdrantStore {
 #[async_trait]
 impl VectorStore for QdrantStore {
     async fn initialize(&self) -> anyhow::Result<()> {
-        let mut builder = Qdrant::from_url(&self.url);
+        // qdrant-client's default per-request timeout is too short for a real cloud endpoint
+        // (observed: consistent "Timeout expired" on upsert batches against Qdrant Cloud,
+        // virage-ee's dogfood pipeline, 2026-09-05) -- a local/loopback instance never hits this,
+        // which is why it went unnoticed until a real network hop was involved.
+        let mut builder = Qdrant::from_url(&self.url).timeout(std::time::Duration::from_secs(60));
         if let Some(key) = &self.api_key {
             builder = builder.api_key(key.clone());
         }
