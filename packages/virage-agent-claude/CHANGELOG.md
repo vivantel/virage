@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.36](https://github.com/vivantel/virage/compare/virage-agent-claude@v0.2.35...virage-agent-claude@v0.2.36) (2026-09-05)
+
+
+### Bug Fixes
+
+* **virage-agent-claude:** Verify node_modules/.bin/virage is actually @vivantel/virage ([bc7abe3](https://github.com/vivantel/virage/commit/bc7abe3b5464a2642e8f04b22d2b957db6b185e8))
+
 ## [0.2.35](https://github.com/vivantel/virage/compare/virage-agent-claude@v0.2.34...virage-agent-claude@v0.2.35) (2026-09-03)
 
 
