@@ -360,14 +360,26 @@ export function createAgentMcpServer(): McpServer {
     async ({ query, top_k, branch, offset, fields }) => {
       const cwd = process.cwd();
       const localBin = join(cwd, "node_modules", ".bin", "virage");
-      // This package deliberately doesn't depend on @vivantel/virage itself
-      // (see package.json) — a bare "virage" here relies on a global install
-      // that's never guaranteed. npx transparently fetches it on demand when
-      // there's no workspace-local install, same as this repo's own
-      // .mcp.json entry does for this package.
-      const [virageCmd, ...virageArgs] = existsSync(localBin)
-        ? [localBin]
-        : ["npx", "-y", "@vivantel/virage"];
+      const localPkg = join(
+        cwd,
+        "node_modules",
+        "@vivantel",
+        "virage",
+        "package.json",
+      );
+      // node_modules/.bin/virage isn't necessarily @vivantel/virage — any workspace member
+      // (e.g. a differently-named package that happens to ship a `virage` bin, like
+      // @vivantel/virage-ee) gets linked there too, and whichever installed last wins.
+      // Confirm @vivantel/virage itself is actually present before trusting the ambient bin.
+      //
+      // This package deliberately doesn't depend on @vivantel/virage itself (see package.json)
+      // — a bare "virage" here relies on a global install that's never guaranteed. npx
+      // transparently fetches it on demand when there's no workspace-local install, same as
+      // this repo's own .mcp.json entry does for this package.
+      const [virageCmd, ...virageArgs] =
+        existsSync(localBin) && existsSync(localPkg)
+          ? [localBin]
+          : ["npx", "-y", "@vivantel/virage"];
 
       let raw: RawSearchResult[];
       try {
