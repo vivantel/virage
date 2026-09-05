@@ -1,0 +1,91 @@
+// Consolidated WIT for virage-engine-sdk guest code.
+// This file mirrors virage/wit/ but in a flat layout so wit-bindgen can load it.
+// The authoritative WIT lives in virage/wit/.
+
+package virage:engine@2.0.0;
+
+interface types {
+    record file-info {
+        path:        string,
+        hash:        string,
+        size:        u64,
+        modified-ms: u64,
+    }
+
+    record chunk {
+        dense-text:       string,
+        sparse-text:      string,
+        dense-text-hash:  string,
+        source-file:      string,
+        commit-hash:      string,
+        metadata-json:    string,
+    }
+
+    record source-item {
+        id:            string,
+        path:          string,
+        provider-name: string,
+        labels:        list<string>,
+    }
+
+    record source-filter {
+        include-globs: option<list<string>>,
+        ignore-globs:  option<list<string>>,
+    }
+
+    record search-candidate {
+        id:            string,
+        dense-text:    string,
+        score:         f32,
+        metadata-json: string,
+    }
+}
+
+world chunker {
+    use types.{file-info, chunk};
+
+    export init: func(config-json: string) -> result<_, string>;
+    export patterns: func() -> list<string>;
+    export parse: func(info: file-info, bytes: list<u8>) -> result<string, string>;
+    export chunk: func(
+        doc-json:    string,
+        info:        file-info,
+        commit-hash: string,
+    ) -> result<list<chunk>, string>;
+}
+
+world embedder {
+    export init: func(config-json: string) -> result<_, string>;
+    export dimensions: func() -> u32;
+    export embed-batch: func(texts: list<string>) -> result<list<f32>, string>;
+}
+
+world reranker {
+    use types.{search-candidate};
+
+    export init: func(config-json: string) -> result<_, string>;
+    export rerank: func(
+        query:      string,
+        candidates: list<search-candidate>,
+        top-k:      u32,
+    ) -> result<list<search-candidate>, string>;
+}
+
+world source {
+    use types.{source-item, source-filter};
+
+    export init: func(config-json: string) -> result<_, string>;
+    export list-all: func(
+        filter:    option<source-filter>,
+        cursor:    option<string>,
+        page-size: u32,
+    ) -> result<tuple<list<source-item>, option<string>>, string>;
+
+    export read-content: func(
+        path:  string,
+        start: option<u64>,
+        end:   option<u64>,
+    ) -> result<list<u8>, string>;
+
+    export get-revision: func(path: string) -> result<string, string>;
+}
