@@ -1,6 +1,6 @@
 {
   "name": "@vivantel/virage-cli",
-  "version": "0.3.22",
+  "version": "0.3.23",
   "type": "module",
   "description": "CLI for the Virage RAG pipeline — provides the virage command",
   "repository": {
@@ -64,7 +64,7 @@
     "ws": "^8.21.0"
   },
   "optionalDependencies": {
-    "@vivantel/virage-agent-claude": ">=0.2.35",
+    "@vivantel/virage-agent-claude": ">=0.2.36",
     "@vivantel/virage-agent-copilot": ">=0.1.12",
     "@vivantel/virage-agent-codex": ">=0.1.12",
     "@vivantel/virage-agent-antigravity": ">=0.1.12"
