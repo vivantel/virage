@@ -53,10 +53,10 @@
     "@vivantel/virage-core": "*"
   },
   "devDependencies": {
-    "@types/node": "^26.1.0",
+    "@types/node": "^26.4.0",
     "@vivantel/virage-core": "0.4.16",
     "typescript": "^6.0.3",
-    "vitest": "^4.1.10"
+    "vitest": "^4.1.11"
   },
   "engines": {
     "node": ">=18.0.0"
