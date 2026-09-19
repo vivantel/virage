@@ -40,7 +40,7 @@
     "directory": "packages/virage-reranker-cross-encoder"
   },
   "dependencies": {
-    "@huggingface/transformers": "^4.0.0",
+    "@huggingface/transformers": "^4.3.0",
     "zod": "^4.4.3"
   },
   "peerDependencies": {
