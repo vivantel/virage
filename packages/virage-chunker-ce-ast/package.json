@@ -19,7 +19,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "minimatch": "^10.0.0"
+    "minimatch": "^10.2.6"
   },
   "peerDependencies": {
     "@vivantel/virage-core": ">=0.2"

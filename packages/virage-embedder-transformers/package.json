@@ -46,8 +46,8 @@
     "directory": "packages/virage-embedder-transformers"
   },
   "dependencies": {
-    "@huggingface/transformers": "^4.2.0",
-    "zod": "^4.4.3"
+    "@huggingface/transformers": "^4.3.0",
+    "zod": "^4.6.5"
   },
   "peerDependencies": {
     "@vivantel/virage-core": "*"
@@ -55,7 +55,7 @@
   "devDependencies": {
     "@vivantel/virage-core": "0.4.16",
     "@types/node": "^26.1.0",
-    "typescript": "^6.0.3",
+    "typescript": "^7.0.2",
     "vitest": "^4.1.10"
   },
   "engines": {
