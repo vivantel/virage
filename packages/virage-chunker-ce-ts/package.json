@@ -23,8 +23,8 @@
     "@vivantel/virage-chunker-ce-ast": ">=0.1"
   },
   "dependencies": {
-    "minimatch": "^10.0.0",
-    "typescript": "^6.0.3"
+    "minimatch": "^10.2.6",
+    "typescript": "^7.0.2"
   },
   "rag-plugin": {
     "type": "chunker",
