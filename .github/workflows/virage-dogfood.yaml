@@ -46,7 +46,7 @@ jobs:
         run: npm install -g @vivantel/virage@latest
 
       - name: Run Virage quality check
-        run: virage quality --fail-fast --config virage.config.json
+        run: virage quality run --ci --config virage.config.json
 
       - name: Upload quality report
         if: always()
