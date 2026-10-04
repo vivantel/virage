@@ -203,31 +203,31 @@ fn extract_name_from_signature(sig: &str) -> String {
     // Remove leading keywords like "class ", "def ", "async def ", "struct ", etc.
     let trimmed = sig.trim_start();
     let without_keyword = if trimmed.starts_with("class ") {
-        &trimmed[6..]
+        trimmed.strip_prefix("class ").unwrap_or(trimmed)
     } else if trimmed.starts_with("async def ") {
-        &trimmed[10..]
+        trimmed.strip_prefix("async def ").unwrap_or(trimmed)
     } else if trimmed.starts_with("def ") {
-        &trimmed[4..]
+        trimmed.strip_prefix("def ").unwrap_or(trimmed)
     } else if trimmed.starts_with("struct ") {
-        &trimmed[7..]
+        trimmed.strip_prefix("struct ").unwrap_or(trimmed)
     } else if trimmed.starts_with("enum ") {
-        &trimmed[5..]
+        trimmed.strip_prefix("enum ").unwrap_or(trimmed)
     } else if trimmed.starts_with("trait ") {
-        &trimmed[6..]
+        trimmed.strip_prefix("trait ").unwrap_or(trimmed)
     } else if trimmed.starts_with("impl ") {
-        &trimmed[5..]
+        trimmed.strip_prefix("impl ").unwrap_or(trimmed)
     } else if trimmed.starts_with("mod ") {
-        &trimmed[4..]
+        trimmed.strip_prefix("mod ").unwrap_or(trimmed)
     } else if trimmed.starts_with("type ") {
-        &trimmed[5..]
+        trimmed.strip_prefix("type ").unwrap_or(trimmed)
     } else if trimmed.starts_with("const ") {
-        &trimmed[6..]
+        trimmed.strip_prefix("const ").unwrap_or(trimmed)
     } else if trimmed.starts_with("fn ") {
-        &trimmed[3..]
+        trimmed.strip_prefix("fn ").unwrap_or(trimmed)
     } else if trimmed.starts_with("function ") {
-        &trimmed[9..]
+        trimmed.strip_prefix("function ").unwrap_or(trimmed)
     } else if trimmed.starts_with("method ") {
-        &trimmed[7..]
+        trimmed.strip_prefix("method ").unwrap_or(trimmed)
     } else {
         trimmed
     };
@@ -416,9 +416,9 @@ fn extract_fqn(
     let (query_str, capture_name) = fqn_query_for_lang(lang)?;
     let query = Query::new(&lang.ts_language(), query_str).ok()?;
     let mut cursor = QueryCursor::new();
-    let mut matches = cursor.matches(&query, node, src);
+    let matches = cursor.matches(&query, node, src);
     let mut def_name = None;
-    while let Some(m) = matches.next() {
+    for m in matches {
         for capture in m.captures {
             if query.capture_names()[capture.index as usize] == capture_name {
                 def_name = Some(
