@@ -45,12 +45,8 @@ jobs:
       - name: Install Virage CLI
         run: npm install -g @vivantel/virage@latest
 
-      - name: Install Opencode
-        run: npm install -g @opencode/opencode@latest
-
-      - name: Run Virage QA agent via Opencode
-        run: |
-          opencode agent run virage-qa "Run full QA pipeline"
+      - name: Run Virage quality check
+        run: virage quality --fail-fast --config virage.config.json
 
       - name: Upload quality report
         if: always()
@@ -98,6 +94,7 @@ jobs:
 
       - name: Run Virage index
         run: virage -v index --config virage.config.json
+        working-directory: .
 
       - name: Save Virage cache
         if: always()
