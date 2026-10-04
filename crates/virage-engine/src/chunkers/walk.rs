@@ -251,6 +251,20 @@ struct Window {
 /// Walks the ViDoc AST and produces one `ArtifactSet` per logical window.
 /// Uses byte-length for token estimation (`bytes / 4`), matching the TS impl.
 
+/// Count total AST nodes in a DocNode subtree.
+
+fn count_ast_nodes(node: &DocNode) -> u64 {
+    let mut count = 1;
+
+    if let Some(children) = &node.children {
+        for child in children {
+            count += count_ast_nodes(child);
+        }
+    }
+
+    count
+}
+
 /// Count AST nodes fully contained within the given byte range [start, end).
 
 fn count_ast_nodes_in_bounds(node: &DocNode, start: u64, end: u64) -> u64 {
@@ -270,6 +284,35 @@ fn count_ast_nodes_in_bounds(node: &DocNode, start: u64, end: u64) -> u64 {
     }
 
     count
+}
+
+/// Extract FQN from section nodes within the given byte range.
+/// Returns the FQN of the most specific (deepest) section that contains the chunk.
+fn extract_fqn_for_chunk(node: &DocNode, start: u64, end: u64) -> Option<String> {
+    let mut result = None;
+
+    // Check if this node is a Section with a citation (FQN)
+    if node.node_type == DocNodeType::Section {
+        if let Some(citation) = &node.attrs.citation {
+            let node_start = node.attrs.byte_start;
+            let node_end = node.attrs.byte_end;
+            // Check if this section contains the chunk
+            if node_start <= start && node_end >= end {
+                result = Some(citation.clone());
+            }
+        }
+    }
+
+    // Recurse into children, deeper sections override shallower ones
+    if let Some(children) = &node.children {
+        for child in children {
+            if let Some(child_fqn) = extract_fqn_for_chunk(child, start, end) {
+                result = Some(child_fqn);
+            }
+        }
+    }
+
+    result
 }
 
 pub fn walk_to_chunks(root: &DocNode, opts: &WalkOptions) -> Vec<ArtifactSet> {
@@ -469,6 +512,19 @@ pub fn walk_to_chunks(root: &DocNode, opts: &WalkOptions) -> Vec<ArtifactSet> {
             if win.truncated {
                 meta.insert("truncated".into(), json!(true));
             }
+
+            // Extract imports from root document node (file-level)
+            if let Some(imports) = root.attrs.imports.as_ref() {
+                if !imports.is_empty() {
+                    meta.insert("imports".into(), json!(imports));
+                }
+            }
+
+            // Extract FQN from section nodes within this chunk's byte range
+            if let Some(fqn) = extract_fqn_for_chunk(root, win.byte_start, win.byte_end) {
+                meta.insert("fqn".into(), json!(fqn));
+            }
+
             // AST node counts for integrity metric
 
             let ast_node_count_in_bounds =

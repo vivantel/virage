@@ -136,6 +136,10 @@ pub struct DocNodeAttrs {
     /// Source format of the original document.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub source_format: Option<String>,
+
+    /// Import statements extracted from the source file (for code files).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub imports: Option<Vec<String>>,
 }
 
 /// A node in the ViDoc AST.

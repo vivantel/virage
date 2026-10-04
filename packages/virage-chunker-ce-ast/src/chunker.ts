@@ -30,6 +30,39 @@ function countAstNodesInBounds(node: DocNode, start: number, end: number): numbe
   return count;
 }
 
+/// Extract imports from the root document node (file-level)
+function extractImports(root: DocNode): string[] {
+  if (root.attrs?.imports && Array.isArray(root.attrs.imports)) {
+    return root.attrs.imports;
+  }
+  return [];
+}
+
+/// Extract FQN from section nodes within the given byte range.
+/// Returns the FQN of the most specific (deepest) section that contains the chunk.
+function extractFqnForChunk(node: DocNode, start: number, end: number): string | undefined {
+  let result: string | undefined;
+
+  // Check if this node is a Section with a citation (FQN)
+  if (node.type === "section" && node.attrs?.citation) {
+    const nodeStart = node.attrs?.byteStart ?? 0;
+    const nodeEnd = node.attrs?.byteEnd ?? 0;
+    if (nodeStart <= start && nodeEnd >= end) {
+      result = node.attrs.citation;
+    }
+  }
+
+  // Recurse into children, deeper sections override shallower ones
+  if (node.children) {
+    for (const child of node.children) {
+      const childFqn = extractFqnForChunk(child, start, end);
+      if (childFqn) result = childFqn;
+    }
+  }
+
+  return result;
+}
+
 export interface WalkOptions {
   sourceFile: string;
   sourceFormat: string;
@@ -289,6 +322,12 @@ export function walkToChunks(root: DocNode, opts: WalkOptions): ArtifactSet[] {
     const astNodeCountInBounds = countAstNodesInBounds(root, win.byteStart, win.byteEnd);
     const astNodeCountTotal = countAstNodes(root);
 
+    // Extract imports from root (file-level)
+    const imports = extractImports(root);
+
+    // Extract FQN from section nodes within this chunk's byte range
+    const fqn = extractFqnForChunk(root, win.byteStart, win.byteEnd);
+
     const fullMeta: ChunkMeta = {
       ...filterMeta,
       sectionTitle: win.breadcrumb.at(-1),
@@ -298,6 +337,8 @@ export function walkToChunks(root: DocNode, opts: WalkOptions): ArtifactSet[] {
       truncated: win.truncated || undefined,
       astNodeCount: astNodeCountTotal,
       astNodeCountInBounds,
+      imports: imports.length > 0 ? imports : undefined,
+      fqn,
     };
 
     const denseText = makeDenseText(win.breadcrumb, rawContent);

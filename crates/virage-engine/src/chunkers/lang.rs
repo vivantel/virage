@@ -1,4 +1,4 @@
-use tree_sitter::{Language, Node, Parser};
+use tree_sitter::{Language, Node, Parser, Query, QueryCursor};
 use virage_vidoc::{DocNode, DocNodeAttrs, DocNodeType};
 
 use super::{FileChunker, ParseResult};
@@ -32,6 +32,7 @@ impl FileChunker for LangChunker {
 
 // ─── Language registry ────────────────────────────────────────────────────────
 
+#[derive(Debug)]
 pub enum Lang {
     Python,
     JavaScript,
@@ -197,11 +198,286 @@ fn extract_signature(node: Node, src: &[u8]) -> String {
         .to_string()
 }
 
+/// Extract just the name from a signature (e.g., "class MyClass:" -> "MyClass", "def method(self):" -> "method")
+fn extract_name_from_signature(sig: &str) -> String {
+    // Remove leading keywords like "class ", "def ", "async def ", "struct ", etc.
+    let trimmed = sig.trim_start();
+    let without_keyword = if trimmed.starts_with("class ") {
+        &trimmed[6..]
+    } else if trimmed.starts_with("async def ") {
+        &trimmed[10..]
+    } else if trimmed.starts_with("def ") {
+        &trimmed[4..]
+    } else if trimmed.starts_with("struct ") {
+        &trimmed[7..]
+    } else if trimmed.starts_with("enum ") {
+        &trimmed[5..]
+    } else if trimmed.starts_with("trait ") {
+        &trimmed[6..]
+    } else if trimmed.starts_with("impl ") {
+        &trimmed[5..]
+    } else if trimmed.starts_with("mod ") {
+        &trimmed[4..]
+    } else if trimmed.starts_with("type ") {
+        &trimmed[5..]
+    } else if trimmed.starts_with("const ") {
+        &trimmed[6..]
+    } else if trimmed.starts_with("fn ") {
+        &trimmed[3..]
+    } else if trimmed.starts_with("function ") {
+        &trimmed[9..]
+    } else if trimmed.starts_with("method ") {
+        &trimmed[7..]
+    } else {
+        trimmed
+    };
+    // Extract the first identifier (stop at first space, (, :, {, etc.)
+    without_keyword
+        .chars()
+        .take_while(|c| c.is_alphanumeric() || *c == '_')
+        .collect()
+}
+
+/// Per-language tree-sitter queries for FQN extraction.
+/// Returns the capture name for the definition name node.
+fn fqn_query_for_lang(lang: &Lang) -> Option<(&'static str, &'static str)> {
+    Some(match lang {
+        Lang::Python => (
+            r#"
+            [
+              (function_definition name: (identifier) @def.name)
+              (class_definition name: (identifier) @def.name)
+            ]
+            "#,
+            "def.name",
+        ),
+        Lang::JavaScript | Lang::TypeScript | Lang::Tsx => (
+            r#"
+            [
+              (function_declaration name: (identifier) @def.name)
+              (generator_function_declaration name: (identifier) @def.name)
+              (class_declaration name: (type_identifier) @def.name)
+              (method_definition name: (property_identifier) @def.name)
+              (function name: (identifier) @def.name)
+              (arrow_function name: (identifier) @def.name)
+              (interface_declaration name: (type_identifier) @def.name)
+              (type_alias_declaration name: (type_identifier) @def.name)
+              (enum_declaration name: (identifier) @def.name)
+            ]
+            "#,
+            "def.name",
+        ),
+        Lang::Java => (
+            r#"
+            [
+              (class_declaration name: (identifier) @def.name)
+              (interface_declaration name: (identifier) @def.name)
+              (enum_declaration name: (identifier) @def.name)
+              (method_declaration name: (identifier) @def.name)
+              (constructor_declaration name: (identifier) @def.name)
+            ]
+            "#,
+            "def.name",
+        ),
+        Lang::Go => (
+            r#"
+            [
+              (function_declaration name: (identifier) @def.name)
+              (method_declaration name: (field_identifier) @def.name)
+              (type_declaration (type_spec name: (type_identifier) @def.name))
+            ]
+            "#,
+            "def.name",
+        ),
+        Lang::Rust => (
+            r#"
+            [
+              (function_item name: (identifier) @def.name)
+              (struct_item name: (type_identifier) @def.name)
+              (enum_item name: (type_identifier) @def.name)
+              (trait_item name: (type_identifier) @def.name)
+              (impl_item type: (_) @def.name)
+              (mod_item name: (identifier) @def.name)
+              (type_item name: (type_identifier) @def.name)
+              (const_item name: (identifier) @def.name)
+            ]
+            "#,
+            "def.name",
+        ),
+        Lang::C | Lang::Cpp => (
+            r#"
+            [
+              (function_definition declarator: (function_declarator declarator: (identifier) @def.name))
+              (struct_specifier name: (type_identifier) @def.name)
+              (class_specifier name: (type_identifier) @def.name)
+            ]
+            "#,
+            "def.name",
+        ),
+        Lang::CSharp => (
+            r#"
+            [
+              (class_declaration name: (identifier) @def.name)
+              (struct_declaration name: (identifier) @def.name)
+              (interface_declaration name: (identifier) @def.name)
+              (enum_declaration name: (identifier) @def.name)
+              (method_declaration name: (identifier) @def.name)
+            ]
+            "#,
+            "def.name",
+        ),
+        Lang::Ruby => (
+            r#"
+            [
+              (method name: (identifier) @def.name)
+              (class name: (constant) @def.name)
+              (module name: (constant) @def.name)
+              (singleton_method name: (identifier) @def.name)
+            ]
+            "#,
+            "def.name",
+        ),
+    })
+}
+
+/// Per-language tree-sitter queries for import extraction.
+fn import_query_for_lang(lang: &Lang) -> Option<(&'static str, &'static str)> {
+    Some(match lang {
+        Lang::Python => (
+            r#"
+            [
+              (import_statement name: (dotted_name) @import.path)
+              (import_from_statement module_name: (dotted_name) @import.path)
+            ]
+            "#,
+            "import.path",
+        ),
+        Lang::JavaScript | Lang::TypeScript | Lang::Tsx => (
+            r#"
+            [
+              (import_statement source: (string) @import.path)
+              (export_statement source: (string) @import.path)
+            ]
+            "#,
+            "import.path",
+        ),
+        Lang::Java => (
+            r#"
+            (import_declaration name: (identifier) @import.path)
+            "#,
+            "import.path",
+        ),
+        Lang::Go => (
+            r#"
+            (import_declaration (import_spec path: (interpreted_string_literal) @import.path))
+            "#,
+            "import.path",
+        ),
+        Lang::Rust => (
+            r#"
+            [
+              (use_declaration argument: (_) @import.path)
+            ]
+            "#,
+            "import.path",
+        ),
+        Lang::C | Lang::Cpp => (
+            r#"
+            (preproc_include path: (string_literal) @import.path)
+            "#,
+            "import.path",
+        ),
+        Lang::CSharp => (
+            r#"
+            (using_directive name: (qualified_name) @import.path)
+            "#,
+            "import.path",
+        ),
+        Lang::Ruby => (
+            r#"
+            [
+              (call method: (identifier) @import.method (#eq? @import.method "require"))
+              (call method: (identifier) @import.method (#eq? @import.method "require_relative"))
+            ]
+            "#,
+            "import.method",
+        ),
+    })
+}
+
+/// Extract the fully qualified name for a definition node using tree-sitter queries.
+/// Combines the breadcrumb (parent scopes) with the definition name.
+fn extract_fqn(
+    node: tree_sitter::Node,
+    src: &[u8],
+    lang: &Lang,
+    breadcrumb: &[String],
+) -> Option<String> {
+    let (query_str, capture_name) = fqn_query_for_lang(lang)?;
+    let query = Query::new(&lang.ts_language(), query_str).ok()?;
+    let mut cursor = QueryCursor::new();
+    let mut matches = cursor.matches(&query, node, src);
+    let mut def_name = None;
+    while let Some(m) = matches.next() {
+        for capture in m.captures {
+            if query.capture_names()[capture.index as usize] == capture_name {
+                def_name = Some(
+                    String::from_utf8_lossy(
+                        &src[capture.node.start_byte()..capture.node.end_byte()],
+                    )
+                    .to_string(),
+                );
+                break;
+            }
+        }
+        if def_name.is_some() {
+            break;
+        }
+    }
+    def_name.map(|name| {
+        if breadcrumb.is_empty() {
+            name
+        } else {
+            format!("{}::{}", breadcrumb.join("::"), name)
+        }
+    })
+}
+
+/// Extract import statements from a source file using tree-sitter queries.
+fn extract_imports(root: tree_sitter::Node, src: &[u8], lang: &Lang) -> Vec<String> {
+    let (query_str, capture_name) = match import_query_for_lang(lang) {
+        Some(q) => q,
+        None => return Vec::new(),
+    };
+    let query = match Query::new(&lang.ts_language(), query_str) {
+        Ok(q) => q,
+        Err(_) => return Vec::new(),
+    };
+    let mut cursor = QueryCursor::new();
+    let mut imports = Vec::new();
+    for m in cursor.matches(&query, root, src) {
+        for capture in m.captures {
+            if query.capture_names()[capture.index as usize] == capture_name {
+                let import_text = String::from_utf8_lossy(
+                    &src[capture.node.start_byte()..capture.node.end_byte()],
+                )
+                .to_string();
+                let cleaned = import_text.trim_matches(|c| c == '"' || c == '\'' || c == '`');
+                if !cleaned.is_empty() {
+                    imports.push(cleaned.to_string());
+                }
+            }
+        }
+    }
+    imports
+}
+
 // ─── CST → ViDoc walker ───────────────────────────────────────────────────────
 
 struct Walker<'a> {
     src: &'a [u8],
     lang_id: &'static str,
+    lang: &'a Lang,
 }
 
 impl<'a> Walker<'a> {
@@ -250,32 +526,49 @@ impl<'a> Walker<'a> {
             if is_definition(kind) {
                 let sig = extract_signature(child, self.src);
                 let mut new_breadcrumb = breadcrumb.to_vec();
-                if !sig.is_empty() {
-                    new_breadcrumb.push(sig.clone());
+                // Extract just the name from the signature for cleaner FQN
+                let name = extract_name_from_signature(&sig);
+                if !name.is_empty() {
+                    new_breadcrumb.push(name);
                 }
 
+                // Extract FQN for this definition using parent breadcrumb
+                let fqn = extract_fqn(child, self.src, self.lang, breadcrumb);
+
                 // Recurse into the definition body to find nested definitions
+                // Also recurse into block bodies for class/function definitions to find methods
                 let nested = self.walk_children(child, &new_breadcrumb);
+
+                // Also recurse into block bodies for class/function definitions
+                let nested_in_block = self.walk_block_bodies(child, &new_breadcrumb);
+
+                let all_nested = [nested, nested_in_block].concat();
+
+                let mut attrs = DocNodeAttrs {
+                    byte_start: child.start_byte() as u64,
+                    byte_end: child.end_byte() as u64,
+                    line_start: Some(child.start_position().row as u32 + 1),
+                    line_end: Some(child.end_position().row as u32 + 1),
+                    heading_level: Some(breadcrumb.len() as u8 + 1),
+                    breadcrumb: Some(breadcrumb.to_vec()),
+                    code_language: Some(self.lang_id.to_string()),
+                    source_format: Some("code".to_string()),
+                    ..Default::default()
+                };
+                // Store FQN in citation field for now (custom field would be better but requires vidoc changes)
+                if let Some(fqn) = fqn {
+                    attrs.citation = Some(fqn);
+                }
 
                 children.push(DocNode {
                     node_type: DocNodeType::Section,
-                    children: if nested.is_empty() {
+                    children: if all_nested.is_empty() {
                         None
                     } else {
-                        Some(nested)
+                        Some(all_nested)
                     },
                     text: if sig.is_empty() { None } else { Some(sig) },
-                    attrs: DocNodeAttrs {
-                        byte_start: child.start_byte() as u64,
-                        byte_end: child.end_byte() as u64,
-                        line_start: Some(child.start_position().row as u32 + 1),
-                        line_end: Some(child.end_position().row as u32 + 1),
-                        heading_level: Some(breadcrumb.len() as u8 + 1),
-                        breadcrumb: Some(breadcrumb.to_vec()),
-                        code_language: Some(self.lang_id.to_string()),
-                        source_format: Some("code".to_string()),
-                        ..Default::default()
-                    },
+                    attrs,
                 });
                 i += 1;
                 continue;
@@ -283,25 +576,70 @@ impl<'a> Walker<'a> {
 
             // Any top-level non-definition, non-comment node → emit as Code block
             // (import statements, top-level expressions, decorators, etc.)
-            let text = String::from_utf8_lossy(&self.src[child.start_byte()..child.end_byte()])
-                .into_owned();
-            if !text.trim().is_empty() {
-                children.push(DocNode {
-                    node_type: DocNodeType::Code,
-                    children: None,
-                    text: Some(text),
-                    attrs: DocNodeAttrs {
-                        byte_start: child.start_byte() as u64,
-                        byte_end: child.end_byte() as u64,
-                        line_start: Some(child.start_position().row as u32 + 1),
-                        line_end: Some(child.end_position().row as u32 + 1),
-                        breadcrumb: Some(breadcrumb.to_vec()),
-                        code_language: Some(self.lang_id.to_string()),
-                        ..Default::default()
-                    },
-                });
+            // Skip block-like nodes that are definition bodies (their content is processed separately)
+            let is_def_body = matches!(
+                kind,
+                "block"
+                    | "statement_block"
+                    | "declaration_list"
+                    | "class_body"
+                    | "enum_body"
+                    | "interface_body"
+                    | "field_declaration_list"
+                    | "body"
+                    | "impl_block"
+            );
+            if !is_def_body {
+                let text = String::from_utf8_lossy(&self.src[child.start_byte()..child.end_byte()])
+                    .into_owned();
+                if !text.trim().is_empty() {
+                    children.push(DocNode {
+                        node_type: DocNodeType::Code,
+                        children: None,
+                        text: Some(text),
+                        attrs: DocNodeAttrs {
+                            byte_start: child.start_byte() as u64,
+                            byte_end: child.end_byte() as u64,
+                            line_start: Some(child.start_position().row as u32 + 1),
+                            line_end: Some(child.end_position().row as u32 + 1),
+                            breadcrumb: Some(breadcrumb.to_vec()),
+                            code_language: Some(self.lang_id.to_string()),
+                            ..Default::default()
+                        },
+                    });
+                }
             }
             i += 1;
+        }
+
+        children
+    }
+
+    /// Recursively walk block bodies to find nested definitions (methods inside classes, etc.)
+    fn walk_block_bodies(&self, node: Node, breadcrumb: &[String]) -> Vec<DocNode> {
+        let mut children: Vec<DocNode> = Vec::new();
+
+        for i in 0..node.named_child_count() {
+            if let Some(child) = node.named_child(i) {
+                let kind = child.kind();
+
+                // Recurse into block/statement_block/declaration_list/class_body/etc.
+                if matches!(
+                    kind,
+                    "block"
+                        | "statement_block"
+                        | "declaration_list"
+                        | "class_body"
+                        | "enum_body"
+                        | "interface_body"
+                        | "field_declaration_list"
+                        | "body"
+                        | "impl_block"
+                ) {
+                    let block_children = self.walk_children(child, breadcrumb);
+                    children.extend(block_children);
+                }
+            }
         }
 
         children
@@ -321,9 +659,11 @@ pub fn parse_doc(src: &[u8], lang: &Lang) -> Result<DocNode, String> {
         .ok_or_else(|| "tree-sitter parse returned None".to_string())?;
 
     let root = tree.root_node();
+    let imports = extract_imports(root, src, lang);
     let walker = Walker {
         src,
         lang_id: lang.id(),
+        lang,
     };
     let children = walker.walk_children(root, &[]);
 
@@ -340,6 +680,7 @@ pub fn parse_doc(src: &[u8], lang: &Lang) -> Result<DocNode, String> {
             byte_end: src.len() as u64,
             source_format: Some("code".to_string()),
             code_language: Some(lang.id().to_string()),
+            imports: Some(imports),
             ..Default::default()
         },
     })
@@ -447,6 +788,137 @@ mod tests {
         let doc = parse_doc(src, &Lang::Ruby).unwrap();
         let section = first_section(&doc).expect("expected a Section node");
         assert!(section.text.as_deref().unwrap_or("").contains("greet"));
+    }
+
+    #[test]
+    fn python_imports_and_fqn_extraction() {
+        let src = b"import os\nimport sys.path\n\nclass MyClass:\n    def method(self):\n        pass\n\ndef my_function():\n    pass\n";
+        let doc = parse_doc(src, &Lang::Python).unwrap();
+
+        // Debug: print all sections
+        if let Some(children) = &doc.children {
+            for child in children {
+                if child.node_type == virage_vidoc::DocNodeType::Section {
+                    eprintln!(
+                        "Top-level Section: text={:?}, citation={:?}, children={:?}",
+                        child.text,
+                        child.attrs.citation,
+                        child.children.as_ref().map(|c| c.len())
+                    );
+                    if let Some(grandchildren) = &child.children {
+                        for gc in grandchildren {
+                            eprintln!(
+                                "  Nested: text={:?}, citation={:?}",
+                                gc.text, gc.attrs.citation
+                            );
+                        }
+                    }
+                }
+            }
+        }
+
+        // Check imports
+        let imports = doc
+            .attrs
+            .imports
+            .as_ref()
+            .expect("imports should be present");
+        assert!(
+            imports.contains(&"os".to_string()),
+            "should extract 'os' import"
+        );
+        assert!(
+            imports.contains(&"sys.path".to_string()),
+            "should extract 'sys.path' import"
+        );
+
+        // Check FQN for class
+        let class_section = doc
+            .children
+            .as_ref()
+            .unwrap()
+            .iter()
+            .find(|n| n.text.as_deref().unwrap_or("").contains("class MyClass"))
+            .expect("should find class section");
+        assert_eq!(class_section.attrs.citation, Some("MyClass".to_string()));
+
+        // Check FQN for method (nested)
+        let method_section = class_section
+            .children
+            .as_ref()
+            .unwrap()
+            .iter()
+            .find(|n| n.text.as_deref().unwrap_or("").contains("def method"))
+            .expect("should find method section");
+        assert_eq!(
+            method_section.attrs.citation,
+            Some("MyClass::method".to_string())
+        );
+
+        // Check FQN for function
+        let func_section = doc
+            .children
+            .as_ref()
+            .unwrap()
+            .iter()
+            .find(|n| n.text.as_deref().unwrap_or("").contains("def my_function"))
+            .expect("should find function section");
+        assert_eq!(func_section.attrs.citation, Some("my_function".to_string()));
+    }
+
+    #[test]
+    fn rust_imports_and_fqn_extraction() {
+        let src = b"use std::collections::HashMap;\nuse crate::my_module;\n\nstruct MyStruct;\n\nimpl MyStruct {\n    fn method(&self) {}\n}\n\nfn my_function() {}\n";
+        let doc = parse_doc(src, &Lang::Rust).unwrap();
+
+        // Check imports
+        let imports = doc
+            .attrs
+            .imports
+            .as_ref()
+            .expect("imports should be present");
+        assert!(imports.contains(&"std::collections::HashMap".to_string()));
+        assert!(imports.contains(&"crate::my_module".to_string()));
+
+        // Check FQN for struct
+        let struct_section = doc
+            .children
+            .as_ref()
+            .unwrap()
+            .iter()
+            .find(|n| n.text.as_deref().unwrap_or("").contains("struct MyStruct"))
+            .expect("should find struct section");
+        assert_eq!(struct_section.attrs.citation, Some("MyStruct".to_string()));
+
+        // Check FQN for impl method (nested)
+        let impl_section = doc
+            .children
+            .as_ref()
+            .unwrap()
+            .iter()
+            .find(|n| n.text.as_deref().unwrap_or("").contains("impl MyStruct"))
+            .expect("should find impl section");
+        let method_section = impl_section
+            .children
+            .as_ref()
+            .unwrap()
+            .iter()
+            .find(|n| n.text.as_deref().unwrap_or("").contains("fn method"))
+            .expect("should find method section");
+        assert_eq!(
+            method_section.attrs.citation,
+            Some("MyStruct::method".to_string())
+        );
+
+        // Check FQN for function
+        let func_section = doc
+            .children
+            .as_ref()
+            .unwrap()
+            .iter()
+            .find(|n| n.text.as_deref().unwrap_or("").contains("fn my_function"))
+            .expect("should find function section");
+        assert_eq!(func_section.attrs.citation, Some("my_function".to_string()));
     }
 
     #[test]
