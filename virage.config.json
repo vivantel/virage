@@ -1,0 +1,60 @@
+{
+  "providers": {
+    "embedder": {
+      "builtin": "onnx",
+      "options": {
+        "model": "Xenova/all-MiniLM-L6-v2",
+        "cacheDir": ".virage/model-cache",
+        "dimensions": 384
+      }
+    },
+    "vectorStore": {
+      "builtin": "lancedb",
+      "options": { "uri": ".virage/lancedb" }
+    },
+    "reranker": {
+      "builtin": "cross-encoder",
+      "options": {
+        "model": "Xenova/ms-marco-MiniLM-L-6-v2",
+        "cacheDir": ".virage/model-cache"
+      }
+    }
+  },
+  "fileSets": [
+    {
+      "name": "rust",
+      "include": ["crates/**/*.rs"],
+      "ignore": ["**/target/**", "**/*.rs.bk"],
+      "tags": ["lang:rust"],
+      "chunkers": [{ "builtin": "lang" }]
+    },
+    {
+      "name": "typescript",
+      "include": ["packages/*/src/**/*.ts", "packages/*/src/**/*.tsx"],
+      "ignore": ["**/*.test.ts", "**/*.spec.ts", "**/*.d.ts", "**/dist/**", "**/node_modules/**"],
+      "tags": ["lang:typescript"],
+      "chunkers": [{ "builtin": "lang" }]
+    },
+    {
+      "name": "markdown",
+      "include": ["docs/**/*.md", "**/*.md"],
+      "ignore": ["CHANGELOG.md", "**/CHANGELOG.md", "**/node_modules/**", "**/dist/**"],
+      "tags": ["format:markdown"],
+      "chunkers": [{ "builtin": "md" }]
+    },
+    {
+      "name": "config",
+      "include": ["**/*.json", "**/*.yaml", "**/*.yml", "**/*.toml"],
+      "ignore": ["**/node_modules/**", "**/dist/**", "**/target/**", "**/package-lock.json", "**/pnpm-lock.yaml", "**/Cargo.lock"],
+      "tags": ["format:config"],
+      "chunkers": [{ "builtin": "lang" }]
+    }
+  ],
+  "ignore": ["**/node_modules/**", "**/dist/**", "**/target/**", "**/.git/**"],
+  "search": { "hybrid": true, "hybridAlpha": 0.6 },
+  "pipeline": { "batchSize": 20, "concurrency": 8 },
+  "quality": {
+    "tokenRangeMin": 50,
+    "tokenRangeMax": 1024
+  }
+}
