@@ -250,6 +250,28 @@ struct Window {
 ///
 /// Walks the ViDoc AST and produces one `ArtifactSet` per logical window.
 /// Uses byte-length for token estimation (`bytes / 4`), matching the TS impl.
+
+/// Count AST nodes fully contained within the given byte range [start, end).
+
+fn count_ast_nodes_in_bounds(node: &DocNode, start: u64, end: u64) -> u64 {
+    let node_start = node.attrs.byte_start;
+
+    let node_end = node.attrs.byte_end;
+
+    let mut count = 0;
+
+    if node_start >= start && node_end <= end {
+        count += 1;
+    }
+    if let Some(children) = &node.children {
+        for child in children {
+            count += count_ast_nodes_in_bounds(child, start, end);
+        }
+    }
+
+    count
+}
+
 pub fn walk_to_chunks(root: &DocNode, opts: &WalkOptions) -> Vec<ArtifactSet> {
     let max_tokens = opts.max_tokens;
     let min_tokens = opts.resolved_min_tokens();
@@ -447,6 +469,19 @@ pub fn walk_to_chunks(root: &DocNode, opts: &WalkOptions) -> Vec<ArtifactSet> {
             if win.truncated {
                 meta.insert("truncated".into(), json!(true));
             }
+            // AST node counts for integrity metric
+
+            let ast_node_count_in_bounds =
+                count_ast_nodes_in_bounds(root, win.byte_start, win.byte_end);
+            let ast_node_count_total = count_ast_nodes(root);
+
+            meta.insert(
+                "astNodeCountInBounds".into(),
+                json!(ast_node_count_in_bounds),
+            );
+
+            meta.insert("astNodeCount".into(), json!(ast_node_count_total));
+
             if !opts.tags.is_empty() {
                 meta.insert("tags".into(), json!(opts.tags));
             }

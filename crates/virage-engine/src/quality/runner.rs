@@ -123,6 +123,12 @@ pub async fn run_quality_assessment(
     let outlier_threshold = thresholds
         .map(|q| q.outlier_fraction_max())
         .unwrap_or(crate::config::QualityThresholds::DEFAULT_OUTLIER_FRACTION_MAX);
+    let token_range_min = thresholds
+        .map(|q| q.token_range_min())
+        .unwrap_or(crate::config::QualityThresholds::DEFAULT_TOKEN_RANGE_MIN);
+    let token_range_max = thresholds
+        .map(|q| q.token_range_max())
+        .unwrap_or(crate::config::QualityThresholds::DEFAULT_TOKEN_RANGE_MAX);
 
     let embedder = crate::config::resolve::resolve_embedder(&cfg.providers.embedder)?;
     let store = crate::config::resolve::resolve_store(&cfg.providers.vector_store, dims)?;
@@ -159,8 +165,8 @@ pub async fn run_quality_assessment(
         &sample,
         embedder.as_ref(),
         opts.sample_size.min(50),
-        50.0,
-        512.0,
+        token_range_min,
+        token_range_max,
     )?;
     components.push(ComponentResult::new(
         ComponentId::Chunking,

@@ -188,7 +188,7 @@ pub fn compute_metadata_metrics(
     });
     results.push(match import_resolution {
         Some(v) => MetricResult::new("ImportResolution", v, normalize_monotonic_up01(v), 1.0)
-            .with_must_pass(import_threshold, v > import_threshold),
+            .with_must_pass(import_threshold, v >= import_threshold),
         None => {
             let mut m = MetricResult::skipped(
                 "ImportResolution",

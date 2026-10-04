@@ -4,6 +4,32 @@ import { walkDocNode } from "./ast-walker.js";
 import { extractOutline } from "./outline.js";
 import type { TextSegment } from "./ast-walker.js";
 
+function countAstNodes(node: DocNode): number {
+  let count = 1;
+  if (node.children) {
+    for (const child of node.children) {
+      count += countAstNodes(child);
+    }
+  }
+  return count;
+}
+
+function countAstNodesInBounds(node: DocNode, start: number, end: number): number {
+  const nodeStart = node.attrs?.byteStart ?? 0;
+  const nodeEnd = node.attrs?.byteEnd ?? 0;
+
+  let count = 0;
+  if (nodeStart >= start && nodeEnd <= end) {
+    count += 1;
+  }
+  if (node.children) {
+    for (const child of node.children) {
+      count += countAstNodesInBounds(child, start, end);
+    }
+  }
+  return count;
+}
+
 export interface WalkOptions {
   sourceFile: string;
   sourceFormat: string;
@@ -260,6 +286,9 @@ export function walkToChunks(root: DocNode, opts: WalkOptions): ArtifactSet[] {
         : {}),
     };
 
+    const astNodeCountInBounds = countAstNodesInBounds(root, win.byteStart, win.byteEnd);
+    const astNodeCountTotal = countAstNodes(root);
+
     const fullMeta: ChunkMeta = {
       ...filterMeta,
       sectionTitle: win.breadcrumb.at(-1),
@@ -267,6 +296,8 @@ export function walkToChunks(root: DocNode, opts: WalkOptions): ArtifactSet[] {
         win.breadcrumb.length > 0 ? win.breadcrumb.length : undefined,
       documentOutline,
       truncated: win.truncated || undefined,
+      astNodeCount: astNodeCountTotal,
+      astNodeCountInBounds,
     };
 
     const denseText = makeDenseText(win.breadcrumb, rawContent);

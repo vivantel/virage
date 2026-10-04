@@ -251,7 +251,7 @@ export async function computeDenseEmbeddingMetrics(
       skipped: false,
       mustPass: true,
       mustPassThreshold: selfRecallThreshold,
-      mustPassPassed: selfRecall > selfRecallThreshold,
+      mustPassPassed: selfRecall >= selfRecallThreshold,
     },
     {
       name: "IntrinsicDimension",

@@ -69,6 +69,8 @@ Every `ArtifactSet.metadata` MUST include these fields:
 | `totalChunks` | `number` | total chunks produced from this file |
 | `estimatedTokens` | `number` | `Math.ceil(sparseText.length / 4)` |
 | `labels` | `string[]` | optional — index-time labels from the label pipeline (extension auto-labels, CODEOWNERS, `.virage-labels.json`, path rules, namespace). Injected by `ChunkProcessor` after `chunk()` returns; chunkers may also pre-populate. |
+| `astNodeCount` | `number` | optional — total AST nodes in the source file (ViDoc AST walker) |
+| `astNodeCountInBounds` | `number` | optional — AST nodes fully contained within this chunk's byte range |
 
 Required fields are populated automatically by `walkToChunks` / `createNativeChunker`. `labels` is injected by the orchestrator label pipeline unless the chunker sets them first.
 

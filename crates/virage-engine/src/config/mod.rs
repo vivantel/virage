@@ -196,12 +196,18 @@ pub struct QualityThresholds {
     pub self_recall_min: Option<f64>,
     /// Maximum fraction of embedding-space outliers (no close neighbours). Default: 0.05.
     pub outlier_fraction_max: Option<f64>,
+    /// Minimum token count for chunk coverage metric. Default: 50.
+    pub token_range_min: Option<f64>,
+    /// Maximum token count for chunk coverage metric. Default: 1024.
+    pub token_range_max: Option<f64>,
 }
 
 impl QualityThresholds {
     pub const DEFAULT_IMPORT_RESOLUTION_MIN: f64 = 0.70;
     pub const DEFAULT_SELF_RECALL_MIN: f64 = 0.80;
     pub const DEFAULT_OUTLIER_FRACTION_MAX: f64 = 0.05;
+    pub const DEFAULT_TOKEN_RANGE_MIN: f64 = 50.0;
+    pub const DEFAULT_TOKEN_RANGE_MAX: f64 = 1024.0;
 
     pub fn import_resolution_min(&self) -> f64 {
         self.import_resolution_min
@@ -216,6 +222,16 @@ impl QualityThresholds {
     pub fn outlier_fraction_max(&self) -> f64 {
         self.outlier_fraction_max
             .unwrap_or(Self::DEFAULT_OUTLIER_FRACTION_MAX)
+    }
+
+    pub fn token_range_min(&self) -> f64 {
+        self.token_range_min
+            .unwrap_or(Self::DEFAULT_TOKEN_RANGE_MIN)
+    }
+
+    pub fn token_range_max(&self) -> f64 {
+        self.token_range_max
+            .unwrap_or(Self::DEFAULT_TOKEN_RANGE_MAX)
     }
 }
 

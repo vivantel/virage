@@ -64,6 +64,10 @@ export interface ChunkMeta {
   // Identifies the chunker package that produced this chunk (ADR-044)
   chunkerKey?: string;
 
+  // AST node counting (ViDoc walker)
+  astNodeCount?: number;
+  astNodeCountInBounds?: number;
+
   // Downstream enrichment (Phase 5+)
   keywords?: string[];
   summary?: string;

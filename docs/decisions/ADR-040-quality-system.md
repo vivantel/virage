@@ -38,9 +38,9 @@ virage quality history list/show  # historical run browser
 8. Reranker (Uplift, Calibration, ConfidenceGap) — optional
 
 **Must-pass thresholds**: three metrics are must-pass gates — if any fail, `overall = 0` and `status = FAIL` regardless of other scores:
-- `SelfRecall@K > 0.80` (chunks must be findable via their own text)
+- `SelfRecall@K ≥ 0.80` (chunks must be findable via their own text)
 - `OutlierFraction < 0.05` (at most 5% of embeddings are statistical outliers)
-- `ImportResolution > 0.70` (at least 70% of import statements resolve)
+- `ImportResolution ≥ 0.70` (at least 70% of import statements resolve)
 
 **Weighted scoring**: Each metric is normalized to [0, 1] (direction-adjusted) with a weight. Component scores are weighted averages of their metrics. Overall score is a weighted average of component scores. Pass threshold: `overall ≥ 0.70 AND all must-pass gates passed`.
 

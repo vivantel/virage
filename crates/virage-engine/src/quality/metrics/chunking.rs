@@ -121,8 +121,10 @@ fn compute_coherence(
     }
 }
 
+const CHARS_PER_TOKEN: usize = 4;
+
 fn estimate_tokens(text: &str) -> f64 {
-    text.split_whitespace().count() as f64
+    text.len().div_ceil(CHARS_PER_TOKEN) as f64
 }
 
 fn compute_coverage(chunks: &[QualityChunk], min_tokens: f64, max_tokens: f64) -> f64 {

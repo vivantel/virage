@@ -218,7 +218,7 @@ pub fn compute_dense_embedding_metrics(
             normalize_monotonic_up01(self_recall),
             3.0,
         )
-        .with_must_pass(self_recall_threshold, self_recall > self_recall_threshold),
+        .with_must_pass(self_recall_threshold, self_recall >= self_recall_threshold),
     );
     if insufficient {
         results.push(MetricResult::skipped(

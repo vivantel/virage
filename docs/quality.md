@@ -47,9 +47,9 @@ Metrics are organised into 8 pipeline components. Optional components (5–8) ar
 
 | Metric | Threshold | Direction |
 |--------|-----------|-----------|
-| Self-Recall@K | > 0.80 | ↑ |
+| Self-Recall@K | ≥ 0.80 | ↑ |
 | Outlier Fraction | < 0.05 | ↓ |
-| Import Resolution | > 0.70 | ↑ |
+| Import Resolution | ≥ 0.70 | ↑ |
 
 The overall score must also reach ≥ 0.70 for status `PASS`. Any must-pass violation forces `FAIL`.
 

@@ -81,6 +81,11 @@ export interface FilterMeta {
   fileSizeBytes?: number;
   /** Labels applied by the index-time label pipeline (path rules, CODEOWNERS, .virage-labels.json). */
   labels?: string[];
+
+  /** Total AST nodes in the source file (ViDoc walker). */
+  astNodeCount?: number;
+  /** AST nodes fully contained within this chunk's byte range. */
+  astNodeCountInBounds?: number;
 }
 
 /**
