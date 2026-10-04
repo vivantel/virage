@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.39](https://github.com/vivantel/virage/compare/virage-chunker-ce-ast@v0.1.38...virage-chunker-ce-ast@v0.1.39) (2026-10-04)
+
+
+### Bug Fixes
+
+* **types:** Add imports field to DocNodeAttrs for TypeScript parity ([ec24bef](https://github.com/vivantel/virage/commit/ec24bef562907c122be868850378c0846e2daca0))
+
 ## [0.1.38](https://github.com/vivantel/virage/compare/virage-chunker-ce-ast@v0.1.37...virage-chunker-ce-ast@v0.1.38) (2026-10-04)
 
 
