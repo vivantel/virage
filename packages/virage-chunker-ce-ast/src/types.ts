@@ -42,6 +42,8 @@ export interface DocNodeAttrs {
   listDepth?: number;
   ordered?: boolean;
   sourceFormat?: string;
+  /** Import statements extracted from the source file (for code files). */
+  imports?: string[];
 }
 
 export interface DocNode {
