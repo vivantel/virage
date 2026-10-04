@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.17](https://github.com/vivantel/virage/compare/virage-core@v0.4.16...virage-core@v0.4.17) (2026-10-04)
+
+
+### Bug Fixes
+
+* **quality:** Fix must-pass gate thresholds and add chunk integrity metrics ([815e326](https://github.com/vivantel/virage/commit/815e3263e68d6ec3bd3614e0ea92f71b3b180b34))
+
 ## [0.4.16](https://github.com/vivantel/virage/compare/virage-core@v0.4.15...virage-core@v0.4.16) (2026-08-20)
 
 

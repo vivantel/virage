@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.1.37](https://github.com/vivantel/virage/compare/virage-chunker-ce-ast@v0.1.36...virage-chunker-ce-ast@v0.1.37) (2026-10-04)
+
+
+### Bug Fixes
+
+* **quality:** Fix must-pass gate thresholds and add chunk integrity metrics ([815e326](https://github.com/vivantel/virage/commit/815e3263e68d6ec3bd3614e0ea92f71b3b180b34))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * devDependencies
+    * @vivantel/virage-core bumped from >=0.4.16 to >=0.4.17
+  * peerDependencies
+    * @vivantel/virage-core bumped from >=0.2 to >=0.4.17
+
 ## [0.1.36](https://github.com/vivantel/virage/compare/virage-chunker-ce-ast@v0.1.35...virage-chunker-ce-ast@v0.1.36) (2026-09-07)
 
 
