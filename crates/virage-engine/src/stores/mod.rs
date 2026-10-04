@@ -132,16 +132,22 @@ pub struct IndexMeta {
 #[async_trait]
 pub trait VectorStore: Send + Sync {
     /// Initialise schema, indexes, and connections.
+    #[must_use = "initialization result must be checked for errors"]
     async fn initialize(&self) -> anyhow::Result<()>;
     /// Insert or update documents (upsert by `id`).
+    #[must_use = "upsert result must be checked for errors"]
     async fn upsert(&self, docs: &[VectorDocument]) -> anyhow::Result<()>;
     /// Delete all documents whose `source_file` is in `files`.
+    #[must_use = "deletion result must be checked for errors"]
     async fn delete_by_source(&self, files: &[&str]) -> anyhow::Result<()>;
     /// Return the subset of `hashes` that are already stored (dedup gate).
+    #[must_use = "existing hashes must be used for deduplication"]
     async fn existing_hashes(&self, hashes: &[&str]) -> anyhow::Result<HashSet<String>>;
     /// Return `source_file → commit_hash` map for change detection.
+    #[must_use = "current state must be used for change detection"]
     async fn current_state(&self) -> anyhow::Result<HashMap<String, String>>;
     /// ANN search for `query` vector, returning up to `top_k` results.
+    #[must_use = "search results must be used for retrieval"]
     async fn search(
         &self,
         query: &[f32],
@@ -151,14 +157,17 @@ pub trait VectorStore: Send + Sync {
     /// Return every stored document, for tooling that needs a full scan (`virage quality
     /// run`, IR-038). `Ok(None)` means this store doesn't support a full scan — callers
     /// must treat that as "quality assessment unsupported on this backend", not an error.
+    #[must_use = "listed documents must be used for quality assessment or full scan"]
     async fn list_all(&self) -> anyhow::Result<Option<Vec<SearchResult>>> {
         Ok(None)
     }
     /// Read index metadata stored at last `virage index` run. Returns `None` if unavailable.
+    #[must_use = "index metadata must be used for incremental indexing"]
     async fn read_meta(&self) -> anyhow::Result<Option<IndexMeta>> {
         Ok(None)
     }
     /// Write index metadata after a successful index run.
+    #[must_use = "write result must be checked for errors"]
     async fn write_meta(&self, _meta: &IndexMeta) -> anyhow::Result<()> {
         Ok(())
     }

@@ -45,14 +45,19 @@ pub trait SourceProvider: Send + Sync {
     fn name(&self) -> &str;
     fn provider_type(&self) -> &str;
     /// Stable revision token for the current state (git HEAD SHA, manifest hash, etc.).
+    #[must_use = "revision token must be used to track source state"]
     async fn current_revision(&self) -> anyhow::Result<String>;
     /// Per-file stable content identifiers (git blob SHA or content hash).
+    #[must_use = "file revisions must be used for change detection"]
     async fn file_revisions(&self, paths: &[&str]) -> anyhow::Result<HashMap<String, String>>;
     /// Files changed between `rev` and now. Returns `None` when `rev` is unknown.
+    #[must_use = "changed files must be used to determine indexing scope"]
     async fn changed_since(&self, rev: &str) -> anyhow::Result<Option<ChangedFiles>>;
     /// Streaming enumeration of all items matching optional filter.
+    #[must_use = "source items must be consumed to enumerate source files"]
     fn list_all(&self, filter: Option<SourceFilter>) -> BoxStream<'_, anyhow::Result<SourceItem>>;
     /// Read raw bytes of a file, optionally clamped to `range`.
+    #[must_use = "file content must be used for chunking and indexing"]
     async fn read_content(&self, path: &str, range: Option<ByteRange>) -> anyhow::Result<Bytes>;
 }
 
