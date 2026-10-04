@@ -47,6 +47,7 @@ jobs:
 
       - name: Run Virage quality check
         run: virage quality run --ci --config virage.config.json
+        working-directory: .
 
       - name: Upload quality report
         if: always()
