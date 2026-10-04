@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.38](https://github.com/vivantel/virage/compare/virage-chunker-ce-ast@v0.1.37...virage-chunker-ce-ast@v0.1.38) (2026-10-04)
+
+
+### Features
+
+* **chunking:** Add FQN extraction and import resolution to lang chunker (A1, A2) ([df24cf9](https://github.com/vivantel/virage/commit/df24cf9d935779be15de74237a3f10d57b7aae92))
+
 ## [0.1.37](https://github.com/vivantel/virage/compare/virage-chunker-ce-ast@v0.1.36...virage-chunker-ce-ast@v0.1.37) (2026-10-04)
 
 
