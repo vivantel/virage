@@ -1,6 +1,6 @@
 {
   "name": "@vivantel/virage-chunker-ce-ast",
-  "version": "0.1.37",
+  "version": "0.1.38",
   "description": "Generalized ViDoc AST walker — shared chunking strategy for all structured document formats",
   "type": "module",
   "main": "./dist/index.js",
