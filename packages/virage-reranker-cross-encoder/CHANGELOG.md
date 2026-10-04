@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.2.17](https://github.com/vivantel/virage/compare/virage-reranker-cross-encoder@v0.2.16...virage-reranker-cross-encoder@v0.2.17) (2026-10-04)
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * devDependencies
+    * @vivantel/virage-core bumped from 0.4.16 to 0.4.17
+  * peerDependencies
+    * @vivantel/virage-core bumped from * to 0.4.17
+
 ## [0.2.16](https://github.com/vivantel/virage/compare/virage-reranker-cross-encoder@v0.2.15...virage-reranker-cross-encoder@v0.2.16) (2026-08-20)
 
 
