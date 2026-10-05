@@ -256,9 +256,7 @@ struct Window {
 ///
 /// Walks the ViDoc AST and produces one `ArtifactSet` per logical window.
 /// Uses byte-length for token estimation (`bytes / 4`), matching the TS impl.
-
 /// Count total AST nodes in a DocNode subtree.
-
 fn count_ast_nodes(node: &DocNode) -> u64 {
     let mut count = 1;
 
@@ -272,7 +270,6 @@ fn count_ast_nodes(node: &DocNode) -> u64 {
 }
 
 /// Count AST nodes fully contained within the given byte range [start, end).
-
 fn count_ast_nodes_in_bounds(node: &DocNode, start: u64, end: u64) -> u64 {
     let node_start = node.attrs.byte_start;
 

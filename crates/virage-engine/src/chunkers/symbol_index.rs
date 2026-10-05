@@ -55,8 +55,7 @@ impl SymbolIndex {
         }
 
         // For Rust, try crate-relative paths (e.g., "crate::foo::bar")
-        if import_path.starts_with("crate::") {
-            let relative = &import_path["crate::".len()..];
+        if let Some(relative) = import_path.strip_prefix("crate::") {
             return self.index.contains_key(relative);
         }
 
@@ -73,8 +72,8 @@ impl SymbolIndex {
         let from_dir = from_file.parent().unwrap_or(Path::new(""));
 
         // Handle ./ and ../ prefixes
-        let target_path = if import_path.starts_with("./") {
-            from_dir.join(&import_path[2..])
+        let target_path = if let Some(stripped) = import_path.strip_prefix("./") {
+            from_dir.join(stripped)
         } else if import_path.starts_with("../") {
             from_dir.join(import_path)
         } else {
