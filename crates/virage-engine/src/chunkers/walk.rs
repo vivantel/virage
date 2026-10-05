@@ -1,8 +1,11 @@
 use std::collections::HashMap;
+use std::path::Path;
 
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use virage_vidoc::{DocNode, DocNodeType};
+
+use crate::chunkers::symbol_index::SymbolIndex;
 
 // ─── TextSegment (from ast-walker.ts) ────────────────────────────────────────
 
@@ -42,6 +45,8 @@ pub struct WalkOptions<'a> {
     pub file_modified_at: Option<&'a str>,
     /// Tags applied by the index-time tag pipeline (e.g. CODEOWNERS-derived).
     pub tags: &'a [String],
+    /// Symbol index for import resolution.
+    pub symbol_index: Option<&'a SymbolIndex>,
 }
 
 impl<'a> Default for WalkOptions<'a> {
@@ -62,6 +67,7 @@ impl<'a> Default for WalkOptions<'a> {
             file_size_bytes: None,
             file_modified_at: None,
             tags: &[],
+            symbol_index: None,
         }
     }
 }
@@ -287,7 +293,7 @@ fn count_ast_nodes_in_bounds(node: &DocNode, start: u64, end: u64) -> u64 {
 }
 
 /// Extract FQN from section nodes within the given byte range.
-/// Returns the FQN of the most specific (deepest) section that contains the chunk.
+/// Returns the FQN of the most specific (deepest) section that overlaps the chunk.
 fn extract_fqn_for_chunk(node: &DocNode, start: u64, end: u64) -> Option<String> {
     let mut result = None;
 
@@ -296,8 +302,9 @@ fn extract_fqn_for_chunk(node: &DocNode, start: u64, end: u64) -> Option<String>
         if let Some(citation) = &node.attrs.citation {
             let node_start = node.attrs.byte_start;
             let node_end = node.attrs.byte_end;
-            // Check if this section contains the chunk
-            if node_start <= start && node_end >= end {
+            // Check if this section OVERLAPS with the chunk
+            // (not full containment - chunk may span multiple sections)
+            if node_start < end && node_end > start {
                 result = Some(citation.clone());
             }
         }
@@ -517,6 +524,19 @@ pub fn walk_to_chunks(root: &DocNode, opts: &WalkOptions) -> Vec<ArtifactSet> {
             if let Some(imports) = root.attrs.imports.as_ref() {
                 if !imports.is_empty() {
                     meta.insert("imports".into(), json!(imports));
+                    meta.insert("totalImports".into(), json!(imports.len() as u64));
+
+                    // Resolve imports using symbol index if available
+                    let resolved_count = if let Some(symbol_index) = opts.symbol_index {
+                        let from_file = Path::new(opts.source_file);
+                        imports
+                            .iter()
+                            .filter(|imp| symbol_index.resolve_import(imp, from_file))
+                            .count() as u64
+                    } else {
+                        0
+                    };
+                    meta.insert("resolvedImports".into(), json!(resolved_count));
                 }
             }
 

@@ -1,4 +1,5 @@
 use std::collections::{HashMap, HashSet};
+use std::path::PathBuf;
 use std::sync::Arc;
 
 use futures::StreamExt;
@@ -6,6 +7,7 @@ use tokio::sync::mpsc;
 
 use super::worker::GroupRuntime;
 use super::{revision_key, EmbeddedChunk, FileSetGroup, WorkItem, WorkResult};
+use crate::chunkers::symbol_index::{build_symbol_index, SymbolIndex};
 use crate::embedders::Embedder;
 use crate::stores::{VectorDocument, VectorStore};
 
@@ -31,7 +33,6 @@ pub async fn run_pipeline(
 ) -> anyhow::Result<PipelineStats> {
     store.initialize().await?;
 
-    let progress = config.progress.clone().unwrap_or_default();
     let qualify_keys = groups_need_qualified_keys(&groups);
 
     // ── Collect all source items across fileSet groups ─────────────────────────
@@ -45,6 +46,55 @@ pub async fn run_pipeline(
             all_items.push((group_idx, key, item));
         }
     }
+
+    // ── Build symbol index for import resolution ──────────────────────────────
+    // Only build if there are code files (lang chunker) and symbol_index is not already provided
+    let symbol_index = if config.symbol_index.is_none() {
+        let code_files: Vec<(PathBuf, String)> = all_items
+            .iter()
+            .filter_map(|(group_idx, _key, item)| {
+                let chunkers = &groups[*group_idx].chunkers;
+                // Check if any chunker can handle this file (indicates it's a code file)
+                let has_lang_chunker = chunkers.iter().any(|c| c.name() == "lang");
+                if has_lang_chunker {
+                    Some((PathBuf::from(&item.path), item.path.clone()))
+                } else {
+                    None
+                }
+            })
+            .map(|(path, _source_format)| {
+                // Extract source format from file extension
+                let fmt = path
+                    .extension()
+                    .and_then(|e| e.to_str())
+                    .unwrap_or("text")
+                    .to_string();
+                (path, fmt)
+            })
+            .collect();
+
+        if !code_files.is_empty() {
+            Some(Arc::new(build_symbol_index(&code_files)))
+        } else {
+            None
+        }
+    } else {
+        None
+    };
+
+    // If we built a symbol index, attach it to the config for workers to use
+    let config_with_symbol_index = if let Some(sym_idx) = symbol_index {
+        let mut cfg = config.clone();
+        cfg.symbol_index = Some(sym_idx);
+        cfg
+    } else {
+        config.clone()
+    };
+
+    let progress = config_with_symbol_index
+        .progress
+        .clone()
+        .unwrap_or_default();
     progress.set_total(all_items.len());
 
     // ── Change detection, batched per source to minimize file_revisions calls ──
@@ -89,7 +139,7 @@ pub async fn run_pipeline(
                         tags.push(t.clone());
                     }
                 }
-                for rule in &config.label_rules {
+                for rule in &config_with_symbol_index.label_rules {
                     if crate::sources::glob_match(&rule.pattern, &item.path) && !rule.add.is_empty()
                     {
                         for tag in &rule.add {
@@ -164,8 +214,8 @@ pub async fn run_pipeline(
     // Clamped *before* it's used for channel capacity below — `config.workers` can be 0
     // (`--workers 0` passes straight through as an explicit `FixedWorkers` override; nothing
     // upstream clamps it), and `mpsc::channel(0)` panics.
-    let workers = config.workers.max(1);
-    let strategy: Arc<dyn super::ConcurrencyStrategy> = config
+    let workers = config_with_symbol_index.workers.max(1);
+    let strategy: Arc<dyn super::ConcurrencyStrategy> = config_with_symbol_index
         .concurrency_strategy
         .clone()
         .unwrap_or_else(|| Arc::new(super::FixedWorkers::new(workers)));
@@ -189,7 +239,7 @@ pub async fn run_pipeline(
         let embedder2 = embedder.clone();
         let result_tx2 = result_tx.clone();
         let work_rx2 = work_rx.clone();
-        let config2 = config.clone();
+        let config2 = config_with_symbol_index.clone();
         let progress2 = progress.clone();
         let strategy2 = strategy.clone();
         let feeder_done2 = feeder_done.clone();
@@ -228,7 +278,7 @@ pub async fn run_pipeline(
     let mut chunks_upserted = 0usize;
     let mut tokens_processed = 0usize;
     let mut processed_revisions: HashMap<String, String> = HashMap::new();
-    let batch_size = config.upload_batch_size;
+    let batch_size = config_with_symbol_index.upload_batch_size;
     let mut batch: Vec<VectorDocument> = Vec::with_capacity(batch_size);
 
     let mut result_rx = result_rx;
@@ -252,7 +302,7 @@ pub async fn run_pipeline(
             batch.push(embedded_to_vecdoc(ec, &result.path));
             if batch.len() >= batch_size {
                 let deduped = dedup_by_id(std::mem::take(&mut batch));
-                if !config.skip_upload {
+                if !config_with_symbol_index.skip_upload {
                     store.upsert(&deduped).await?;
                 }
                 chunks_upserted += deduped.len();
@@ -263,7 +313,7 @@ pub async fn run_pipeline(
     }
     if !batch.is_empty() {
         let deduped = dedup_by_id(batch);
-        if !config.skip_upload {
+        if !config_with_symbol_index.skip_upload {
             store.upsert(&deduped).await?;
         }
         chunks_upserted += deduped.len();

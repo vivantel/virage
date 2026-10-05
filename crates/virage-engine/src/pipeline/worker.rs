@@ -312,6 +312,7 @@ async fn parse_and_chunk(
         file_size_bytes,
         file_modified_at: None,
         tags: &item.tags,
+        symbol_index: config.symbol_index.as_deref(),
     };
     Ok(walk_to_chunks(&root, &opts))
 }

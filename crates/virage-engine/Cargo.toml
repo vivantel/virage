@@ -119,7 +119,8 @@ cli-binary-full-dylib = [
 # Phase 6 — production binary builds: bundle ORT instead of loading dynamically.
 # Publish CI builds with --features cli-binary,download-binaries --no-default-features.
 # ort/load-dynamic is intentionally absent so the statically-linked ORT path is used.
-download-binaries = ["dep:ort", "dep:tokenizers", "dep:ureq", "ort/download-binaries", "ort/std", "ort/tls-rustls"]
+# ort/copy-dylibs copies the shared libraries to OUT_DIR so they can be found at runtime.
+download-binaries = ["dep:ort", "dep:tokenizers", "dep:ureq", "ort/download-binaries", "ort/copy-dylibs", "ort/std", "ort/tls-rustls"]
 # Phase 7 — WASM Component Model plugin host
 wasm-host = [
     "dep:wasmtime", "dep:wasmtime-wasi",

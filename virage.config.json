@@ -54,6 +54,9 @@
   "search": { "hybrid": true, "hybridAlpha": 0.6 },
   "pipeline": { "batchSize": 20, "concurrency": 8 },
   "quality": {
+    "importResolutionMin": 0.70,
+    "selfRecallMin": 0.80,
+    "outlierFractionMax": 0.05,
     "tokenRangeMin": 50,
     "tokenRangeMax": 1024
   }

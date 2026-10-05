@@ -158,6 +158,8 @@ pub struct PipelineConfig {
     /// Glob-matched tag rules (IR-037), applied to every item in addition to
     /// whatever the source provider yields (e.g. CODEOWNERS).
     pub label_rules: Vec<LabelRule>,
+    /// Symbol index for import resolution across files.
+    pub symbol_index: Option<Arc<crate::chunkers::symbol_index::SymbolIndex>>,
 }
 
 /// A single glob → tags rule (IR-037), independent of the `config` feature
@@ -187,6 +189,10 @@ impl std::fmt::Debug for PipelineConfig {
             .field("adaptive_size", &self.adaptive_size)
             .field("strategy", &self.strategy)
             .field("skip_upload", &self.skip_upload)
+            .field(
+                "symbol_index",
+                &self.symbol_index.as_ref().map(|_| "Some(..)"),
+            )
             .finish_non_exhaustive()
     }
 }
@@ -211,6 +217,7 @@ impl Default for PipelineConfig {
             progress: None,
             skip_upload: false,
             label_rules: Vec::new(),
+            symbol_index: None,
         }
     }
 }

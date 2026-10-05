@@ -30,3 +30,5 @@ pub mod md;
 pub mod pdf;
 #[cfg(feature = "chunker-walk")]
 pub mod walk;
+
+pub mod symbol_index;
