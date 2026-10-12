@@ -5,6 +5,9 @@
 
 use std::path::{Path, PathBuf};
 
+#[cfg(feature = "pipeline")]
+pub mod policy;
+
 /// The integer contract version this build meets.
 pub const CONTRACT_VERSION: u64 = 0;
 

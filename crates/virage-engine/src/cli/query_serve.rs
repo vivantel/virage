@@ -33,7 +33,7 @@ pub async fn cmd_query_serve(args: &QueryServeArgs) -> anyhow::Result<()> {
     let cfg = load_config(&config_path)?;
 
     eprintln!("[virage] query-serve ready, resolving engine...");
-    let engine = resolve_engine(&cfg).await?;
+    let engine = resolve_engine(&cfg, std::path::Path::new(&config_path)).await?;
     eprintln!("[virage] query-serve engine warm, awaiting requests.");
 
     let mut reader = BufReader::new(tokio::io::stdin());

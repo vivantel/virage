@@ -335,6 +335,19 @@ pub async fn tool_call_reranked(
             let top_k = args["top_k"].as_u64().unwrap_or(5) as usize;
             let full = args["full"].as_bool().unwrap_or(false);
             let format = parse_format(args)?;
+
+            // Retrieval contract v0: read the index policy for every search and apply it to the
+            // results.
+            let policy = {
+                let internal = |m: String| serde_json::json!({"code":-32603,"message":m});
+                let cwd = std::env::current_dir().map_err(|e| internal(e.to_string()))?;
+                let cfg_path = crate::config::find_config().unwrap_or_default();
+                let conformance =
+                    crate::retrieval::is_conformance_mode(&cwd, std::path::Path::new(&cfg_path));
+                crate::retrieval::policy::load(&cwd, conformance)
+                    .map_err(|e| internal(e.to_string()))?
+            };
+
             let vec = embedder
                 .lock()
                 .map_err(|_| serde_json::json!({"code":-32603,"message":"embedder lock poisoned"}))?
@@ -351,14 +364,29 @@ pub async fn tool_call_reranked(
                 hybrid_alpha: HYBRID_ALPHA,
                 query_text: hybrid.then(|| query.clone()),
             };
-            let fetch = match reranker {
+            // With a policy active some hits are dropped below, so fetch extra.
+            let base = match reranker {
                 Some((_, oversample)) => top_k.saturating_mul(oversample.max(1)),
                 None => top_k,
+            };
+            let fetch = if policy.is_some() {
+                base.saturating_mul(4)
+            } else {
+                base
             };
             let mut results = store
                 .search(&vec, fetch, opts)
                 .await
                 .map_err(|e| serde_json::json!({"code":-32603,"message":e.to_string()}))?;
+            if let Some(policy) = &policy {
+                let matcher = policy.matcher();
+                // A hit with no source path cannot be checked against the policy: drop it.
+                results.retain(|r| {
+                    r.source_file
+                        .as_deref()
+                        .is_some_and(|s| !matcher.is_ignored(s))
+                });
+            }
             if let Some((reranker, _)) = reranker {
                 let scores = {
                     let passages: Vec<&str> =
