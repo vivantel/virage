@@ -86,8 +86,7 @@ export async function writeDeclaration(
   toolVersion: string,
 ): Promise<boolean> {
   const path = declarationPath(projectDir);
-  const content =
-    JSON.stringify(buildDeclaration(toolVersion), null, 2) + "\n";
+  const content = JSON.stringify(buildDeclaration(toolVersion), null, 2) + "\n";
   try {
     if ((await readFile(path, "utf-8")) === content) return false;
   } catch {
