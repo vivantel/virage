@@ -432,7 +432,7 @@ mod tests {
     fn gitignore_conversion() {
         assert_eq!(gitignore_to_globs(".env"), vec!["**/.env", "**/.env/**"]);
         assert_eq!(gitignore_to_globs("**/.env"), vec!["**/.env", "**/.env/**"]);
-        assert_eq!(gitignore_to_globs("secrets/"), vec!["secrets/**"]);
+        assert_eq!(gitignore_to_globs("secrets/"), vec!["**/secrets/**"]);
         assert_eq!(
             gitignore_to_globs("secrets/**"),
             vec!["secrets/**", "secrets/**/**"]
