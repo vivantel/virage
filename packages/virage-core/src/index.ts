@@ -182,3 +182,7 @@ export {
   filterByPolicy,
 } from "./retrieval-policy.js";
 export type { EmbedderKind, RetrievalPolicy } from "./retrieval-policy.js";
+
+// Retrieval contract v0 — pre-index secret scan
+export { scanForSecrets, scanChunksForSecrets } from "./secret-scan.js";
+export type { SecretFinding } from "./secret-scan.js";
