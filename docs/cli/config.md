@@ -213,6 +213,8 @@ In conformance mode `virage init` / `virage update`:
 
 Entries written by older versions are left alone; `virage uninstall` removes them.
 
+[`virage query-http`](query-http.md) serves the warm local query endpoint for tools that cannot keep a process open.
+
 Without a policy file and without this field nothing changes for existing projects.
 
 ### Pre-index secret scan
