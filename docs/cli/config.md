@@ -215,6 +215,28 @@ Entries written by older versions are left alone; `virage uninstall` removes the
 
 Without a policy file and without this field nothing changes for existing projects.
 
+### Index policy
+
+`.go-getter/retrieval/policy.json` is owned by the host tool; virage only reads it, **before every index run and every query** (including a warm `query-serve` daemon and `virage serve`, which re-read it per query, and `index --watch`, which re-reads it before each re-index).
+
+```json
+{
+  "contractVersion": 0,
+  "ignore": ["**/.env", "secrets/**"],
+  "embedders": ["local"],
+  "dataClass": "internal"
+}
+```
+
+| Field | Effect |
+|-------|--------|
+| `ignore` | gitignore-syntax globs. A matching file is never indexed and never returned in results, in addition to the `ignore` / `include` of `fileSets`. Negations (`!x`) are ignored: they never un-ignore. |
+| `embedders` | Allowed embedder kinds. `local` runs on this machine; `hosted` sends chunk text off it. An embedder whose kind is not listed is refused. Only known local packages (`embedder-onnx`, `embedder-fastembed`, `embedder-transformers`, `embedder-dylib`) count as `local`; any other package counts as `hosted`. |
+| `dataClass` | `public`, `internal`, `confidential` or `restricted`. Validated, not interpreted: the host derives `embedders` from it. |
+| `contractVersion` | Must be `0`. |
+
+Virage **fails closed**: it refuses to index or query when the file exists but is unreadable, is missing a field, has an invalid field, or has an unknown `contractVersion`, and, in conformance mode, when the file is missing. The file is enforced whenever it exists, even if `retrieval.conformance` is `false`. Refusals name the path, field or embedder kind only, never file contents. Unknown fields are ignored.
+
 ---
 
 ## Minimal example

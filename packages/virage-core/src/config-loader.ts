@@ -21,6 +21,7 @@ import type { SourceRepository } from "./interfaces/source-repository.js";
 import type { Logger } from "./interfaces/logger.js";
 import { expandEnvVars } from "./core/env-expand.js";
 import { resolvePackageName } from "./builtins.js";
+import { checkEmbedder, loadRetrievalPolicy } from "./retrieval-policy.js";
 
 // ─── Plugin loading ───────────────────────────────────────────────────────────
 
@@ -159,6 +160,21 @@ async function loadJsonConfig(
       config.installScope === "global"
         ? join(homedir(), ".virage")
         : resolve(dirname(configPath), ".virage");
+  }
+
+  // Retrieval contract v0: read the host's index policy before any provider is
+  // created (so a refused embedder never loads). Refuses a disallowed embedder
+  // and adds the policy's ignore globs on top of fileSets include/ignore.
+  const policy = await loadRetrievalPolicy(process.cwd(), configPath);
+  if (policy) {
+    checkEmbedder(policy, resolvePackageName(config.providers.embedder));
+    if (config.providers.queryEmbedder) {
+      checkEmbedder(policy, resolvePackageName(config.providers.queryEmbedder));
+    }
+    config = {
+      ...config,
+      ignore: [...(config.ignore ?? []), ...policy.ignoreGlobs],
+    };
   }
 
   // Resolve providers

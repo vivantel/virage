@@ -54,3 +54,21 @@ in the same change that adds the scan.
   binary and the TypeScript CLI both run `init` and `update`.
 - Entries older versions already wrote are not removed by `init`/`update`; `virage uninstall`
   removes them.
+
+## Addendum: index policy (retrieval contract v0, part a)
+
+Before every index run and every query virage reads `.go-getter/retrieval/policy.json`
+(`virage_engine::retrieval::policy`, `@vivantel/virage-core` `retrieval-policy.ts`):
+
+- `ignore` is converted from gitignore syntax to glob patterns and appended to the config's global
+  `ignore`, so every fileSet inherits it. The same globs filter query results (over-fetching 4x so
+  a page can still fill). A hit with no source path cannot be checked and is dropped.
+- An embedder kind not listed in `embedders` is refused. Only known local packages are `local`;
+  everything else is `hosted`.
+- Fail closed: a present-but-bad file always refuses; a missing file refuses in conformance mode.
+  A present file is enforced even when `retrieval.conformance` is `false`: that flag controls host
+  registration, not whether the host's restrictions apply.
+- Gates: `virage index` (and each `--watch` re-index), `virage query`, `virage query-serve`
+  (per query), `virage serve` (startup + per search), and in the TypeScript CLI `loadConfig`
+  (before any provider is created) plus the `query` command's result filter.
+- Not gated: diagnostic commands that search to measure quality (`virage quality`, `store perf`).
