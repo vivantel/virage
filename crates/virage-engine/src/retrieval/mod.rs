@@ -22,7 +22,7 @@ pub const DECLARATION_DIR: &str = ".go-getter/retrieval";
 
 /// True only if every file is scanned for secrets before it is indexed and files with findings
 /// are skipped. Keep in step with the indexing pipeline.
-pub const PRE_INDEX_SECRET_SCAN: bool = false;
+pub const PRE_INDEX_SECRET_SCAN: bool = true;
 
 /// Version reported in the declaration: the version of this binary.
 pub fn tool_version() -> &'static str {

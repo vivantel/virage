@@ -95,6 +95,9 @@ pub async fn cmd_index(
 
     // Retrieval contract v0: read the host's index policy before anything is indexed. Refuses a
     // disallowed embedder and adds the policy's ignore globs on top of fileSets include/ignore.
+    // Pre-index secret scan (the declaration's `preIndexSecretScan`): on in conformance mode.
+    let secret_scan =
+        crate::retrieval::is_conformance_mode(&cwd, std::path::Path::new(&config_path));
     let base_ignore = cfg.ignore.clone();
     crate::retrieval::policy::enforce_for_index(
         &cwd,
@@ -203,6 +206,7 @@ pub async fn cmd_index(
                 max_tokens: 512,
                 progress: Some(progress.clone()),
                 skip_upload: args.no_upload,
+                secret_scan,
                 label_rules: cfg
                     .label_rules
                     .iter()
@@ -331,6 +335,7 @@ pub async fn cmd_index(
                         max_tokens: 512,
                         progress: Some(progress.clone()),
                         skip_upload: args.no_upload,
+                        secret_scan,
                         label_rules: cfg
                             .label_rules
                             .iter()
@@ -425,6 +430,7 @@ pub async fn cmd_index(
         max_tokens: 512,
         progress: Some(progress.clone()),
         skip_upload: args.no_upload,
+        secret_scan,
         label_rules: cfg
             .label_rules
             .iter()
@@ -511,6 +517,17 @@ pub async fn cmd_index(
         }
     }
     out.debug_msg(&format!("DB flush: {}ms", t_db.elapsed().as_millis()));
+
+    if !stats.secret_skipped.is_empty() {
+        // Paths only: the matched text is never read back out of the scanner.
+        out.warn(&format!(
+            "{} file(s) skipped by the pre-index secret scan and removed from the index:",
+            stats.secret_skipped.len()
+        ));
+        for path in &stats.secret_skipped {
+            out.warn(&format!("  {path}"));
+        }
+    }
 
     let elapsed_ms = t0.elapsed().as_millis();
     if format == OutputFormat::Json {

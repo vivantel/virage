@@ -42,8 +42,8 @@ In conformance mode:
 - later changes (policy gate, secret scan, query endpoint) build on this mode: see the follow-up
   ADR sections appended below as they land.
 
-`preIndexSecretScan` is reported as `false` until the pre-index scan exists, and flips to `true`
-in the same change that adds the scan.
+`preIndexSecretScan` is `true`: the pre-index scan runs in conformance mode (see the secret-scan
+addendum below).
 
 ## Consequences
 
@@ -72,3 +72,24 @@ Before every index run and every query virage reads `.go-getter/retrieval/policy
   (per query), `virage serve` (startup + per search), and in the TypeScript CLI `loadConfig`
   (before any provider is created) plus the `query` command's result filter.
 - Not gated: diagnostic commands that search to measure quality (`virage quality`, `store perf`).
+
+## Addendum: pre-index secret scan (`preIndexSecretScan`)
+
+In conformance mode every file is scanned before it is indexed; a file with a finding is skipped
+(`virage_engine::secret_scan`, `@vivantel/virage-core` `secret-scan.ts`) and the declaration says
+`preIndexSecretScan: true`.
+
+- The scan covers the raw file bytes and the chunk text about to be embedded (text extracted from
+  PDF/DOCX is not visible in the raw bytes). One finding skips the whole file.
+- Rules: private-key blocks, AWS access key ids, GitHub / Slack / Google / Stripe / `sk-` API
+  tokens, three-segment JWTs, and a high-entropy value (>= 3.5 bits/char, >= 16 chars) assigned to
+  a secret-looking name (`password`, `secret`, `token`, `api_key`, ...), with obvious placeholders
+  and env lookups excluded. It is a heuristic filter, not a guarantee.
+- A finding names its kind and the file path only. The matched text is never returned, logged or
+  stored.
+- A skipped file is recorded as having zero chunks (so it is not rescanned on every run), and any
+  chunks an earlier version of it left in the store are deleted.
+- The scan only runs on files being (re)indexed. Files indexed before the scan was enabled and
+  unchanged since are not rescanned: run `virage index --force` once after turning conformance
+  mode on.
+- Outside conformance mode nothing is scanned, so existing indexes are unchanged.
