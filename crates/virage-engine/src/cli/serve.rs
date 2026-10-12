@@ -33,6 +33,15 @@ pub async fn cmd_serve(args: &ServeArgs, config: &str) -> anyhow::Result<()> {
 
     let config_path = resolve_config_path(config)?;
     let cfg = load_config(&config_path)?;
+
+    // Retrieval contract v0: refuse to serve when the index policy rules out this embedder.
+    // (Per-query path filtering happens in `mcp::tool_call`.)
+    crate::retrieval::policy::enforce_for_query(
+        &std::env::current_dir()?,
+        std::path::Path::new(&config_path),
+        &cfg,
+    )?;
+
     let dims = embedder_dims(&cfg);
     let db_path = default_db_path();
 

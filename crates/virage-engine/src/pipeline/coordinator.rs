@@ -183,6 +183,7 @@ pub async fn run_pipeline(
             chunks_upserted: 0,
             tokens_processed: 0,
             processed_revisions: HashMap::new(),
+            secret_skipped: Vec::new(),
         });
     }
 
@@ -326,6 +327,22 @@ pub async fn run_pipeline(
         h.await??;
     }
 
+    // Files the pre-index secret scan skipped may still have chunks in the store from an earlier
+    // version of the file: remove them (same keys as `to_delete` above).
+    let secret_skipped: Vec<String> = config_with_symbol_index
+        .secret_skipped
+        .lock()
+        .map(|mut v| std::mem::take(&mut *v))
+        .unwrap_or_default();
+    if !secret_skipped.is_empty() && !config_with_symbol_index.skip_upload {
+        let keys: Vec<String> = secret_skipped
+            .iter()
+            .map(|p| to_process_keys.get(p).cloned().unwrap_or_else(|| p.clone()))
+            .collect();
+        let refs: Vec<&str> = keys.iter().map(String::as_str).collect();
+        store.delete_by_source(&refs).await?;
+    }
+
     Ok(PipelineStats {
         files_processed,
         files_skipped,
@@ -333,6 +350,7 @@ pub async fn run_pipeline(
         chunks_upserted,
         tokens_processed,
         processed_revisions,
+        secret_skipped,
     })
 }
 

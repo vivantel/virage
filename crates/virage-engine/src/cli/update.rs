@@ -120,8 +120,18 @@ pub fn cmd_update(verbose: u8, format: OutputFormat) -> anyhow::Result<()> {
 
     out.section("Virage Update");
 
-    // ── 1. Discover packages ──────────────────────────────────────────────────
     let config_path = find_config().unwrap_or_else(|| "virage.config.json".into());
+
+    // Retrieval contract v0: in conformance mode, refresh the declaration on every update (before
+    // any early return below).
+    if crate::retrieval::is_conformance_mode(&cwd, Path::new(&config_path)) {
+        match crate::retrieval::write_declaration(&cwd, crate::retrieval::tool_version()) {
+            Ok(_) => out.dim("Retrieval declaration is current."),
+            Err(e) => out.warn(&format!("Could not write retrieval declaration: {e}")),
+        }
+    }
+
+    // ── 1. Discover packages ──────────────────────────────────────────────────
     let packages = discover_virage_packages(&cwd, &config_path);
 
     if packages.is_empty() {

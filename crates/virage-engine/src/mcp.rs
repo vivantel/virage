@@ -261,6 +261,19 @@ pub async fn tool_call(
             let top_k = args["top_k"].as_u64().unwrap_or(5) as usize;
             let full = args["full"].as_bool().unwrap_or(false);
             let format = parse_format(args)?;
+
+            // Retrieval contract v0: read the index policy for every search and apply it to the
+            // results.
+            let policy = {
+                let internal = |m: String| serde_json::json!({"code":-32603,"message":m});
+                let cwd = std::env::current_dir().map_err(|e| internal(e.to_string()))?;
+                let cfg_path = crate::config::find_config().unwrap_or_default();
+                let conformance =
+                    crate::retrieval::is_conformance_mode(&cwd, std::path::Path::new(&cfg_path));
+                crate::retrieval::policy::load(&cwd, conformance)
+                    .map_err(|e| internal(e.to_string()))?
+            };
+
             let vec = embedder
                 .lock()
                 .map_err(|_| serde_json::json!({"code":-32603,"message":"embedder lock poisoned"}))?
@@ -273,10 +286,26 @@ pub async fn tool_call(
                 hybrid_alpha: 0.6,
                 query_text: None,
             };
-            let results = store
-                .search(&vec, top_k, opts)
+            // With a policy active some hits are dropped below, so fetch extra.
+            let fetch = if policy.is_some() {
+                top_k.saturating_mul(4)
+            } else {
+                top_k
+            };
+            let mut results = store
+                .search(&vec, fetch, opts)
                 .await
                 .map_err(|e| serde_json::json!({"code":-32603,"message":e.to_string()}))?;
+            if let Some(policy) = &policy {
+                let matcher = policy.matcher();
+                // A hit with no source path cannot be checked against the policy: drop it.
+                results.retain(|r| {
+                    r.source_file
+                        .as_deref()
+                        .is_some_and(|s| !matcher.is_ignored(s))
+                });
+                results.truncate(top_k);
+            }
 
             let max_chars = if full { usize::MAX } else { 500 };
             let rows: Vec<Vec<String>> = results

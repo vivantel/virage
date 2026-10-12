@@ -8,6 +8,7 @@ console.warn(
 import { Command } from "commander";
 import { config } from "dotenv";
 import {
+  isConformanceMode,
   loadConfig,
   Orchestrator,
   RagError,
@@ -158,6 +159,10 @@ async function runOnce(options: {
         force: options.force || cfg.options?.force,
         skipUpload: options.noUpload || cfg.options?.skipUpload,
         dryRun: options.dryRun || cfg.options?.dryRun,
+        // Retrieval contract v0: scan for secrets before embedding in conformance mode.
+        secretScan:
+          cfg.options?.secretScan ??
+          (await isConformanceMode(process.cwd(), options.config)),
         logger: pipelineLogger,
         onScanProgress: (done, total) => {
           renderer.startScanning(total);

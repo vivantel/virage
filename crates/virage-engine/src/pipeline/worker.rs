@@ -263,6 +263,13 @@ async fn parse_and_chunk(
     // fallback already had.
     let content: Bytes = source.read_content(&item.path, None).await?;
 
+    // Retrieval contract v0: scan before anything is chunked or embedded.
+    if config.secret_scan {
+        if let Some(finding) = crate::secret_scan::scan(&content) {
+            return skip_for_secret(item, config, finding.kind);
+        }
+    }
+
     // Parse into a ViDoc tree: a matching format-specific chunker if one is configured
     // and its patterns() match this path, otherwise a flat raw-text fallback.
     let matched = find_chunker(chunkers, &item.path);
@@ -314,7 +321,36 @@ async fn parse_and_chunk(
         tags: &item.tags,
         symbol_index: config.symbol_index.as_deref(),
     };
-    Ok(walk_to_chunks(&root, &opts))
+    let artifacts = walk_to_chunks(&root, &opts);
+
+    // Text extracted from PDF/DOCX never appears in the raw bytes, so scan what is about to be
+    // embedded too. One finding skips the whole file.
+    if config.secret_scan {
+        let finding = artifacts.iter().find_map(|a| {
+            crate::secret_scan::scan(a.dense_text.as_bytes())
+                .or_else(|| crate::secret_scan::scan(a.sparse_text.as_bytes()))
+        });
+        if let Some(finding) = finding {
+            return skip_for_secret(item, config, finding.kind);
+        }
+    }
+    Ok(artifacts)
+}
+
+/// Skip a file because the pre-index secret scan found something. Logs the path and the finding
+/// kind only, never the matched text. The file is reported as having zero chunks (so its revision
+/// is recorded and it is not rescanned every run) and is queued for removal from the store, in
+/// case an earlier version of it was indexed.
+fn skip_for_secret(
+    item: &WorkItem,
+    config: &PipelineConfig,
+    kind: &str,
+) -> anyhow::Result<Vec<ArtifactSet>> {
+    tracing::warn!(path = ?item.path, kind, "skipped file: pre-index secret scan finding");
+    if let Ok(mut skipped) = config.secret_skipped.lock() {
+        skipped.push(item.path.clone());
+    }
+    Ok(Vec::new())
 }
 
 /// Build a minimal ViDoc `Document` node from raw bytes.

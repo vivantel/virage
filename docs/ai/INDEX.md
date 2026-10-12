@@ -41,6 +41,8 @@ claude mcp add virage --scope project -- npx -y @vivantel/virage-agent-claude@la
 ```
 Falls back to direct `.mcp.json` editing when the `claude` CLI is unavailable. The plugin is self-contained: it copies `commands/plan.md` and other files from `plugin-config/` and registers the MCP server.
 
+**Conformance mode** (ADR-058) — when `retrieval.conformance` is `true` in `virage.config.json`, or is absent and `.go-getter/retrieval/policy.json` exists, `configure()` registers no MCP entry and no hook, skips plugin files that would (`hooks.json`, `.mcp.json`, `.claude-plugin/plugin.json`, MCP-dependent slash commands), and `init`/`update` write `.go-getter/retrieval/virage.json`. Helpers: `virage_engine::retrieval` (Rust), `@vivantel/virage-core` `retrieval-contract.ts`, `@vivantel/virage-agent-core` `base/conformance.ts`.
+
 **Claude Code slash commands** installed by the plugin (`plugin-config/commands/`):
 
 | Command | What it does |
@@ -93,6 +95,7 @@ npm run build:with-dashboard -w @vivantel/virage-cli  # CLI build including dash
 virage init                            # interactive wizard: config, agents, embedder, vector store, re-ranker, hybrid search; installs all plugins to ~/.virage/plugins or $PROJECT_DIR/.virage/plugins
 virage update (up) [-f] [-y]           # update virage plugins; --force reinstalls even at latest; --yes skips interactive selection
 virage query (q) "<text>"             # semantic search; prints search mode after banner (--json, --top-k, --branch, --hybrid, --rerank)
+virage query-http                      # warm loopback query endpoint (bearer token, /v0/query + /v0/health); retrieval contract v0, ADR-058
 virage install-hooks (hooks)           # install post-merge & post-checkout git hooks for auto-indexing
 virage uninstall (un) [--yes]          # full cleanup: hooks, plugin dirs, DB, config, global CLI
 virage dashboard (d) [--verbose]       # start local RAG monitoring dashboard
