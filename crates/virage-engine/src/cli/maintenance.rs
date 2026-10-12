@@ -122,6 +122,55 @@ pub fn cmd_uninstall(verbose: u8, format: OutputFormat) -> anyhow::Result<()> {
         }
     }
 
+    // Host registrations virage wrote: the `virage` entry in .mcp.json, the inject-context hook
+    // in .claude/settings.json (older versions wrote it) and the retrieval declaration. Only
+    // virage's own entries are touched.
+    let project_dir = std::env::current_dir()?;
+    let found = crate::retrieval::host_config::remove_host_registrations(&project_dir, true)?;
+    for file in &found.unreadable {
+        out.warn(&format!(
+            "{file}: could not be parsed, leaving it untouched"
+        ));
+    }
+    if !found.is_empty() {
+        let mut parts: Vec<&str> = Vec::new();
+        if !found.mcp_entries.is_empty() {
+            parts.push("MCP entry in .mcp.json");
+        }
+        if found.hooks > 0 {
+            parts.push("hook in .claude/settings.json");
+        }
+        if found.declaration {
+            parts.push(".go-getter/retrieval/virage.json");
+        }
+        if Confirm::new(&format!(
+            "Remove virage's {}? (other entries are kept)",
+            parts.join(", ")
+        ))
+        .with_default(false)
+        .with_render_config(super::util::virage_render_config())
+        .prompt()?
+        {
+            let removed =
+                crate::retrieval::host_config::remove_host_registrations(&project_dir, false)?;
+            if !removed.mcp_entries.is_empty() {
+                out.success(&format!(
+                    "Removed from .mcp.json: {}",
+                    removed.mcp_entries.join(", ")
+                ));
+            }
+            if removed.hooks > 0 {
+                out.success(&format!(
+                    "Removed {} virage hook(s) from .claude/settings.json",
+                    removed.hooks
+                ));
+            }
+            if removed.declaration {
+                out.success("Removed: .go-getter/retrieval/virage.json");
+            }
+        }
+    }
+
     let virage_dir = PathBuf::from(".virage");
     if virage_dir.exists()
         && Confirm::new("Remove .virage/ (index DB)?")

@@ -8,6 +8,7 @@ const execFileAsync = promisify(execFile);
 import {
   BaseAgentPlugin,
   CLAUDE_VENDOR_CONFIG,
+  isConformanceMode,
 } from "@vivantel/virage-agent-core";
 import type { AgentConfigResult } from "@vivantel/virage-agent-core";
 
@@ -42,6 +43,19 @@ interface ClaudeSettings {
 
 const VIRAGE_HOOK_MARKER = "[Virage]";
 
+/**
+ * Slash commands that call an `mcp__virage__*` tool. Without the MCP entry
+ * they cannot work, so conformance mode does not install them.
+ */
+const MCP_DEPENDENT_COMMANDS = new Set([
+  "commands/arch.md",
+  "commands/doc.md",
+  "commands/plan.md",
+  "commands/rag.md",
+  "commands/review.md",
+  "commands/usage.md",
+]);
+
 const VIRAGE_HOOKS: Record<string, HookMatcher[]> = {
   UserPromptSubmit: [
     {
@@ -70,9 +84,19 @@ export class ClaudeAgentPlugin extends BaseAgentPlugin {
     targetDir: string = process.cwd(),
   ): Promise<AgentConfigResult> {
     const base = await super.configure(targetDir);
+    // Conformance mode (retrieval contract v0): the host owns the hook and the
+    // MCP entry, so register neither. `mcpRegistered` stays undefined.
+    if (await isConformanceMode(targetDir)) return base;
     const mcpRegistered = await this.mergeMcpServer(targetDir);
     await this.mergeHooks(targetDir);
     return { ...base, mcpRegistered };
+  }
+
+  protected override isSkippedInConformance(relPath: string): boolean {
+    return (
+      super.isSkippedInConformance(relPath) ||
+      MCP_DEPENDENT_COMMANDS.has(relPath.replace(/\\/g, "/"))
+    );
   }
 
   private isMcpEntryCurrent(

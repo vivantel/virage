@@ -117,6 +117,9 @@ pub mod concurrency;
 pub mod coordinator;
 pub mod worker;
 
+#[cfg(test)]
+mod secret_tests;
+
 pub use concurrency::{ConcurrencyStrategy, FixedWorkers, RamSampling};
 
 // ─── PipelineConfig ───────────────────────────────────────────────────────────
@@ -160,6 +163,13 @@ pub struct PipelineConfig {
     pub label_rules: Vec<LabelRule>,
     /// Symbol index for import resolution across files.
     pub symbol_index: Option<Arc<crate::chunkers::symbol_index::SymbolIndex>>,
+    /// Scan every file for secrets before it is chunked and skip files with findings (retrieval
+    /// contract v0 `preIndexSecretScan`). Off by default; `virage index` turns it on in
+    /// conformance mode.
+    pub secret_scan: bool,
+    /// Paths skipped by the secret scan during this run (paths only, never matched text). Shared
+    /// by every clone of the config; the coordinator removes these files from the store.
+    pub secret_skipped: Arc<std::sync::Mutex<Vec<String>>>,
 }
 
 /// A single glob → tags rule (IR-037), independent of the `config` feature
@@ -218,6 +228,8 @@ impl Default for PipelineConfig {
             skip_upload: false,
             label_rules: Vec::new(),
             symbol_index: None,
+            secret_scan: false,
+            secret_skipped: Arc::new(std::sync::Mutex::new(Vec::new())),
         }
     }
 }
@@ -243,6 +255,8 @@ pub struct PipelineStats {
     /// and doesn't need rewriting) and deleted files (handled separately via `list_current_state`
     /// diffing, unrelated to this run's processing outcome).
     pub processed_revisions: HashMap<String, String>,
+    /// Paths skipped by the pre-index secret scan this run (paths only, never matched text).
+    pub secret_skipped: Vec<String>,
 }
 
 // ─── ProgressCounters ────────────────────────────────────────────────────────

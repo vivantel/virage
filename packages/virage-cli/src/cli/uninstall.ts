@@ -4,6 +4,7 @@ import { join } from "path";
 import { execFile } from "child_process";
 import { promisify } from "util";
 import { confirm } from "@inquirer/prompts";
+import { removeHostRegistrations } from "@vivantel/virage-core";
 import { createOut } from "../output.js";
 import { runInstallHooks } from "./install-hooks.js";
 import { getLocalPluginDir, getGlobalPluginDir } from "./pkg-manager.js";
@@ -53,6 +54,40 @@ export async function runUninstall(opts: UninstallOptions = {}): Promise<void> {
     const doHooks = await ask("Remove virage git hooks?", yes);
     if (doHooks) {
       await runInstallHooks({ uninstall: true, verbosity: opts.verbosity });
+    }
+  }
+
+  // ── 1b. Host registrations written by virage ──────────────────────────────────
+  // The `virage` entry in .mcp.json, the inject-context hook in
+  // .claude/settings.json (older versions wrote it) and the retrieval
+  // declaration. Only virage's own entries are touched.
+  const found = await removeHostRegistrations(cwd, { dryRun: true });
+  for (const file of found.unreadable) {
+    out.warn(`  ${file}: could not be parsed, leaving it untouched`);
+  }
+  if (found.mcpEntries.length > 0 || found.hooks > 0 || found.declaration) {
+    const parts = [
+      found.mcpEntries.length > 0 && `MCP entry in .mcp.json`,
+      found.hooks > 0 && `hook in .claude/settings.json`,
+      found.declaration && `.go-getter/retrieval/virage.json`,
+    ].filter(Boolean);
+    const doHost = await ask(
+      `Remove virage's ${parts.join(", ")}? (other entries are kept)`,
+      yes,
+    );
+    if (doHost) {
+      const removed = await removeHostRegistrations(cwd);
+      if (removed.mcpEntries.length > 0) {
+        out.success(`  .mcp.json: removed ${removed.mcpEntries.join(", ")}`);
+      }
+      if (removed.hooks > 0) {
+        out.success(
+          `  .claude/settings.json: removed ${removed.hooks} virage hook(s)`,
+        );
+      }
+      if (removed.declaration) {
+        out.success("  .go-getter/retrieval/virage.json: removed");
+      }
     }
   }
 

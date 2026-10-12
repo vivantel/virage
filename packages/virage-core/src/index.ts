@@ -156,3 +156,42 @@ export type {
 
 // Quality system — 26-metric pipeline self-assessment
 export * from "./quality/index.js";
+
+// Retrieval contract v0 — conformance mode + declaration file
+export {
+  RETRIEVAL_CONTRACT_VERSION,
+  RETRIEVAL_POLICY_PATH,
+  RETRIEVAL_TOOL_ID,
+  PRE_INDEX_SECRET_SCAN,
+  declarationPath,
+  policyPath,
+  isConformanceMode,
+  buildDeclaration,
+  writeDeclaration,
+} from "./retrieval-contract.js";
+export type { RetrievalDeclaration } from "./retrieval-contract.js";
+
+// Retrieval contract v0 — index policy (part a)
+export {
+  embedderKind,
+  gitignoreToGlobs,
+  parsePolicy,
+  checkEmbedder,
+  loadRetrievalPolicy,
+  policyMatcher,
+  filterByPolicy,
+} from "./retrieval-policy.js";
+export type { EmbedderKind, RetrievalPolicy } from "./retrieval-policy.js";
+
+// Retrieval contract v0 — pre-index secret scan
+export { scanForSecrets, scanChunksForSecrets } from "./secret-scan.js";
+export type { SecretFinding } from "./secret-scan.js";
+
+// Host registrations virage wrote (`virage uninstall`)
+export {
+  isVirageHook,
+  stripMcpEntries,
+  stripVirageHooks,
+  removeHostRegistrations,
+} from "./host-config-cleanup.js";
+export type { HostConfigRemoval } from "./host-config-cleanup.js";

@@ -15,6 +15,10 @@ Scans the configured `fileSets`, chunks changed files, embeds them via the confi
 
 On subsequent runs only changed files (tracked via git) are re-processed. Use `--force` to rebuild everything from scratch.
 
+If `.go-getter/retrieval/policy.json` exists (or [conformance mode](config.md#retrieval) is on), it is read before every run: its `ignore` globs apply on top of `fileSets` include/ignore, and an embedder the policy does not allow is refused. See [index policy](config.md#index-policy).
+
+In conformance mode each file is also scanned for secrets before it is indexed and skipped if a secret is found (the output lists the skipped paths, never the secret). See [pre-index secret scan](config.md#pre-index-secret-scan); run once with `--force` to apply it to files that are already indexed.
+
 ## Options
 
 | Flag | Alias | Type | Default | Description |
