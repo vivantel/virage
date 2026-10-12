@@ -12,6 +12,10 @@ use serde_json::Value;
 pub struct VirageConfigJson {
     pub version: Option<String>,
     pub install_scope: Option<String>,
+    /// Retrieval contract v0 settings. Absent means "auto": conformance mode follows the
+    /// presence of the host's policy file.
+    #[serde(default)]
+    pub retrieval: Option<RetrievalConfig>,
     /// Named source providers (v2). Filesets reference these by name via `SourceRef::Named`.
     /// Absent in v1 configs — falls back to `providers.source` or auto-detect.
     #[serde(default)]
@@ -38,6 +42,14 @@ pub struct VirageConfigJson {
     /// Must-pass gate threshold override for `virage bench index --ci` (IR-038 Step 6). Absent
     /// field falls back to `BenchThresholds::DEFAULT_MAX_REGRESSION_PCT`.
     pub bench: Option<BenchThresholds>,
+}
+
+/// `retrieval` block of `virage.config.json` (retrieval contract v0).
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RetrievalConfig {
+    /// Explicit conformance switch. `None` means auto: on if the host's policy file exists.
+    pub conformance: Option<bool>,
 }
 
 /// A single glob → tags rule (IR-037). `pattern` is matched against each item's

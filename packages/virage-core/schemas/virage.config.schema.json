@@ -20,6 +20,17 @@
       "enum": ["local", "global"],
       "description": "Where plugins and embedding/reranker model files are installed and loaded from. Set by 'virage init'."
     },
+    "retrieval": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Retrieval contract v0 settings.",
+      "properties": {
+        "conformance": {
+          "type": "boolean",
+          "description": "Conformance mode. When true, init/update register no MCP entry or hook and write .go-getter/retrieval/virage.json. When absent, the mode turns on if .go-getter/retrieval/policy.json exists."
+        }
+      }
+    },
     "providers": {
       "$ref": "#/$defs/providersConfig"
     },

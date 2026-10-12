@@ -41,6 +41,8 @@ claude mcp add virage --scope project -- npx -y @vivantel/virage-agent-claude@la
 ```
 Falls back to direct `.mcp.json` editing when the `claude` CLI is unavailable. The plugin is self-contained: it copies `commands/plan.md` and other files from `plugin-config/` and registers the MCP server.
 
+**Conformance mode** (ADR-058) — when `retrieval.conformance` is `true` in `virage.config.json`, or is absent and `.go-getter/retrieval/policy.json` exists, `configure()` registers no MCP entry and no hook, skips plugin files that would (`hooks.json`, `.mcp.json`, `.claude-plugin/plugin.json`, MCP-dependent slash commands), and `init`/`update` write `.go-getter/retrieval/virage.json`. Helpers: `virage_engine::retrieval` (Rust), `@vivantel/virage-core` `retrieval-contract.ts`, `@vivantel/virage-agent-core` `base/conformance.ts`.
+
 **Claude Code slash commands** installed by the plugin (`plugin-config/commands/`):
 
 | Command | What it does |

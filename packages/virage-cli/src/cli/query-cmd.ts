@@ -1,4 +1,8 @@
-import { loadConfig } from "@vivantel/virage-core";
+import {
+  filterByPolicy,
+  loadConfig,
+  loadRetrievalPolicy,
+} from "@vivantel/virage-core";
 import { ansi } from "../ansi.js";
 import { createOut } from "../output.js";
 import { withSpinner } from "../spinner.js";
@@ -93,6 +97,13 @@ export async function runQuery(
     );
     out.verbose(`Re-rank: ${Date.now() - t1}ms → top ${results.length}`);
   }
+
+  // Retrieval contract v0: the index policy applies to results too. Read it
+  // again here (loadConfig already refused a disallowed embedder).
+  results = filterByPolicy(
+    results,
+    await loadRetrievalPolicy(process.cwd(), opts.config),
+  ).slice(0, opts.topK);
 
   // Minimum-similarity threshold (CLI flag overrides config default)
   const minSim = opts.minSimilarity ?? cfg.search?.minSimilarity;
