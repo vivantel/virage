@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1791195336742,
+  "lastUpdate": 1791801260130,
   "repoUrl": "https://github.com/vivantel/virage",
   "entries": {
     "Virage Quality Metrics": [
@@ -126,6 +126,143 @@ window.BENCHMARK_DATA = {
           {
             "name": "TermCoverage",
             "value": 0.941866721237474,
+            "unit": "score"
+          },
+          {
+            "name": "Lexical Retrieval",
+            "value": 0.9700000000000001,
+            "unit": "score"
+          },
+          {
+            "name": "LexicalRecall@K",
+            "value": 0.97,
+            "unit": "score"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "S.Strebulaev",
+            "username": "sergemso",
+            "email": "strebulaev@gmail.com"
+          },
+          "committer": {
+            "name": "S.Strebulaev",
+            "username": "sergemso",
+            "email": "strebulaev@gmail.com"
+          },
+          "id": "d2daa60da7d1913caca1909d256a1cfec868fb06",
+          "message": "fix: resolve clippy errors in symbol_index and walk\n\n- Use strip_prefix() instead of manual slicing for crate:: and ./ prefixes\n- Remove empty lines after doc comments\n\nRefs: docs/ai/guardrails/virage-db.md\nRefs: docs/decisions/ADR-038-import-resolution.md",
+          "timestamp": "2026-10-05T21:43:14Z",
+          "url": "https://github.com/vivantel/virage/commit/d2daa60da7d1913caca1909d256a1cfec868fb06"
+        },
+        "date": 1791801258217,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "Overall Quality",
+            "value": 0.7230874861653135,
+            "unit": "score"
+          },
+          {
+            "name": "Chunking",
+            "value": 0.6797999826505493,
+            "unit": "score"
+          },
+          {
+            "name": "Cohesion",
+            "value": 0.6413658665239068,
+            "unit": "score"
+          },
+          {
+            "name": "Coherence",
+            "value": 0.6931364124582177,
+            "unit": "score"
+          },
+          {
+            "name": "Coverage",
+            "value": 0.75,
+            "unit": "score"
+          },
+          {
+            "name": "Metadata Extraction",
+            "value": 0.5386111111111112,
+            "unit": "score"
+          },
+          {
+            "name": "Completeness",
+            "value": 0.4025,
+            "unit": "score"
+          },
+          {
+            "name": "BreadcrumbConsistency",
+            "value": 0.9826388888888888,
+            "unit": "score"
+          },
+          {
+            "name": "FQNCompleteness",
+            "value": 0,
+            "unit": "score"
+          },
+          {
+            "name": "SiblingIntegrity",
+            "value": 1,
+            "unit": "score"
+          },
+          {
+            "name": "Dense Input Prep",
+            "value": 0.9618692561898078,
+            "unit": "score"
+          },
+          {
+            "name": "TextPurity",
+            "value": 0.9799681074609037,
+            "unit": "score"
+          },
+          {
+            "name": "EnrichmentQuality",
+            "value": 0.9437704049187119,
+            "unit": "score"
+          },
+          {
+            "name": "Dense Embedding",
+            "value": 0.7064834095193974,
+            "unit": "score"
+          },
+          {
+            "name": "SelfRecall@K",
+            "value": 0.97,
+            "unit": "score"
+          },
+          {
+            "name": "IntrinsicDimension",
+            "value": 0.19345238095238096,
+            "unit": "score"
+          },
+          {
+            "name": "Uniformity",
+            "value": 0.4342745188960199,
+            "unit": "score"
+          },
+          {
+            "name": "Isotropy",
+            "value": 0.10883052405536413,
+            "unit": "score"
+          },
+          {
+            "name": "OutlierFraction",
+            "value": 1,
+            "unit": "score"
+          },
+          {
+            "name": "Sparse Input Prep",
+            "value": 0.941900249147013,
+            "unit": "score"
+          },
+          {
+            "name": "TermCoverage",
+            "value": 0.941900249147013,
             "unit": "score"
           },
           {
