@@ -62,6 +62,9 @@ fn default_top_k() -> usize {
 pub struct ResolvedEngine {
     pub embedder: Arc<std::sync::Mutex<dyn Embedder + Send>>,
     pub store: Arc<dyn VectorStore>,
+    /// Config file this engine was resolved from; [`run_search`] re-reads the index policy for
+    /// every query and needs it to decide whether conformance mode is on.
+    pub config_path: std::path::PathBuf,
     #[cfg(any(feature = "embedder-onnx", feature = "download-binaries"))]
     pub reranker: Option<Arc<std::sync::Mutex<dyn crate::rerankers::Reranker + Send>>>,
 }
@@ -72,7 +75,13 @@ pub struct ResolvedEngine {
 /// other's output during construction) so their cold-start cost — dominated by
 /// ONNX Runtime session init + tokenizer load, ~30s for the embedder vs ~500ms
 /// for the reranker — is paid concurrently via `spawn_blocking`, not sequentially.
-pub async fn resolve_engine(cfg: &VirageConfigJson) -> anyhow::Result<ResolvedEngine> {
+pub async fn resolve_engine(
+    cfg: &VirageConfigJson,
+    config_path: &std::path::Path,
+) -> anyhow::Result<ResolvedEngine> {
+    // Retrieval contract v0: refuse before paying the embedder's cold start.
+    crate::retrieval::policy::enforce_for_query(&std::env::current_dir()?, config_path, cfg)?;
+
     let dims = embedder_dims(cfg);
     let embedder_spec = cfg.providers.embedder.clone();
     #[cfg(any(feature = "embedder-onnx", feature = "download-binaries"))]
@@ -99,6 +108,7 @@ pub async fn resolve_engine(cfg: &VirageConfigJson) -> anyhow::Result<ResolvedEn
     Ok(ResolvedEngine {
         embedder,
         store,
+        config_path: config_path.to_path_buf(),
         #[cfg(any(feature = "embedder-onnx", feature = "download-binaries"))]
         reranker,
     })
@@ -113,6 +123,14 @@ pub async fn run_search(
     cfg: &VirageConfigJson,
     engine: &ResolvedEngine,
 ) -> anyhow::Result<Vec<serde_json::Value>> {
+    // Retrieval contract v0: read the index policy for every query (it can change while a warm
+    // engine is running) and apply it to the results too.
+    let policy = crate::retrieval::policy::enforce_for_query(
+        &std::env::current_dir()?,
+        &engine.config_path,
+        cfg,
+    )?;
+
     let vec = engine
         .embedder
         .lock()
@@ -142,7 +160,21 @@ pub async fn run_search(
     // ANN backends don't make "skip S, take K" cheaper than "take S+K" internally, so
     // this isn't a compute-savings move, just how pagination composes with search().
     let search_size = args.offset.saturating_add(args.top_k);
-    let mut results = engine.store.search(&vec, search_size, opts).await?;
+    // With a policy active some hits are dropped below, so fetch extra (as the label filter does).
+    let fetch_size = if policy.is_some() {
+        search_size.saturating_mul(4)
+    } else {
+        search_size
+    };
+    let mut results = engine.store.search(&vec, fetch_size, opts).await?;
+    if let Some(matcher) = &policy {
+        // A hit with no source path cannot be checked against the policy: drop it.
+        results.retain(|r| {
+            r.source_file
+                .as_deref()
+                .is_some_and(|s| !matcher.is_ignored(s))
+        });
+    }
 
     #[cfg(any(feature = "embedder-onnx", feature = "download-binaries"))]
     if args.rerank || cfg.providers.reranker.is_some() {
@@ -205,7 +237,7 @@ pub async fn cmd_query(
     let cfg = load_config(&config_path)?;
 
     let pb = spinner("Loading embedder...");
-    let engine = resolve_engine(&cfg).await?;
+    let engine = resolve_engine(&cfg, std::path::Path::new(&config_path)).await?;
     pb.finish_and_clear();
 
     let json_rows = run_search(&args, &cfg, &engine).await?;

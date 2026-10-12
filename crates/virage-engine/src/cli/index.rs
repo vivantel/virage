@@ -89,9 +89,18 @@ pub async fn cmd_index(
     let t0 = std::time::Instant::now();
     let out = Out::new(verbose, format);
     let config_path = resolve_config_path(config)?;
-    let cfg = load_config(&config_path)?;
+    let mut cfg = load_config(&config_path)?;
     let db_path = resolve_db_path(&args.db);
     let cwd = std::env::current_dir()?;
+
+    // Retrieval contract v0: read the host's index policy before anything is indexed. Refuses a
+    // disallowed embedder and adds the policy's ignore globs on top of fileSets include/ignore.
+    let base_ignore = cfg.ignore.clone();
+    crate::retrieval::policy::enforce_for_index(
+        &cwd,
+        std::path::Path::new(&config_path),
+        &mut cfg,
+    )?;
     let dims = embedder_dims(&cfg);
 
     let force = args.force || cfg.pipeline.as_ref().and_then(|p| p.force).unwrap_or(false);
@@ -159,7 +168,7 @@ pub async fn cmd_index(
 
     let t_stage = std::time::Instant::now();
     let stage = prog.stage("Resolving fileSets...");
-    let groups = resolve_file_set_groups(&cfg, &cwd)?;
+    let mut groups = resolve_file_set_groups(&cfg, &cwd)?;
     finish_stage(stage);
     out.verbose(&format!(
         "fileSets: {}  ({}ms)",
@@ -274,6 +283,26 @@ pub async fn cmd_index(
                     eprintln!("[{now}] {} file(s) changed — re-indexing...", changed.len());
 
                     let t_watch = std::time::Instant::now();
+
+                    // The policy may change while watching: read it again before every
+                    // re-index and rebuild the file groups from the result.
+                    cfg.ignore = base_ignore.clone();
+                    if let Err(e) = crate::retrieval::policy::enforce_for_index(
+                        &cwd,
+                        std::path::Path::new(&config_path),
+                        &mut cfg,
+                    ) {
+                        eprintln!("  ⚠ Re-index refused — {e}");
+                        continue;
+                    }
+                    match resolve_file_set_groups(&cfg, &cwd) {
+                        Ok(g) => groups = g,
+                        Err(e) => {
+                            eprintln!("  ⚠ Re-index failed — {e}");
+                            continue;
+                        }
+                    }
+
                     let known = db.get_file_revisions().unwrap_or_default();
                     let progress = ProgressCounters::new();
                     // Pre-ADR-057, this call site's default was a flat `4`, not

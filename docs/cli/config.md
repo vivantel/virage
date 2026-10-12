@@ -8,6 +8,7 @@ Full reference for the `virage.config.json` configuration file. Generate a start
 |-------|------|----------|-------------|
 | `$schema` | string | No | URL to the JSON Schema for IDE autocomplete |
 | `version` | string | No | Config schema version (semver). Bump when making breaking changes. |
+| `retrieval` | object | No | Retrieval contract v0 settings — see [`retrieval`](#retrieval) |
 | `providers` | object | **Yes** | Embedder, vector store, re-ranker, and source provider |
 | `fileSets` | array | **Yes** | One or more named groups of files to index |
 | `ignore` | string[] | No | Global glob patterns excluded from all file sets |
@@ -187,6 +188,54 @@ An array of agent plugin refs. Each entry uses the `PluginRef` shape.
   { "package": "@vivantel/virage-agent-copilot" }
 ]
 ```
+
+---
+
+## `retrieval`
+
+Settings for projects where a host tool owns the agent hook and MCP entry (retrieval contract v0).
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `conformance` | boolean | auto | `true`: conformance mode on. `false`: off. Absent: on if `.go-getter/retrieval/policy.json` exists, off otherwise. |
+
+```json
+"retrieval": { "conformance": true }
+```
+
+In conformance mode `virage init` / `virage update`:
+
+- register **no** MCP entry in `.mcp.json` and **no** hook in `.claude/settings.json`, and do not
+  copy plugin files that register a hook or MCP server, or slash commands that need the MCP server
+  (`/arch`, `/doc`, `/plan`, `/rag`, `/review`, `/usage`);
+- write `.go-getter/retrieval/virage.json` (`contractVersion`, `tool`, `toolVersion`,
+  `preIndexSecretScan`, `registersHostConfig: false`), at init and at every update.
+
+Entries written by older versions are left alone; `virage uninstall` removes them.
+
+Without a policy file and without this field nothing changes for existing projects.
+
+### Index policy
+
+`.go-getter/retrieval/policy.json` is owned by the host tool; virage only reads it, **before every index run and every query** (including a warm `query-serve` daemon and `virage serve`, which re-read it per query, and `index --watch`, which re-reads it before each re-index).
+
+```json
+{
+  "contractVersion": 0,
+  "ignore": ["**/.env", "secrets/**"],
+  "embedders": ["local"],
+  "dataClass": "internal"
+}
+```
+
+| Field | Effect |
+|-------|--------|
+| `ignore` | gitignore-syntax globs. A matching file is never indexed and never returned in results, in addition to the `ignore` / `include` of `fileSets`. Negations (`!x`) are ignored: they never un-ignore. |
+| `embedders` | Allowed embedder kinds. `local` runs on this machine; `hosted` sends chunk text off it. An embedder whose kind is not listed is refused. Only known local packages (`embedder-onnx`, `embedder-fastembed`, `embedder-transformers`, `embedder-dylib`) count as `local`; any other package counts as `hosted`. |
+| `dataClass` | `public`, `internal`, `confidential` or `restricted`. Validated, not interpreted: the host derives `embedders` from it. |
+| `contractVersion` | Must be `0`. |
+
+Virage **fails closed**: it refuses to index or query when the file exists but is unreadable, is missing a field, has an invalid field, or has an unknown `contractVersion`, and, in conformance mode, when the file is missing. The file is enforced whenever it exists, even if `retrieval.conformance` is `false`. Refusals name the path, field or embedder kind only, never file contents. Unknown fields are ignored.
 
 ---
 
