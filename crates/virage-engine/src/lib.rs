@@ -51,6 +51,8 @@ pub mod progress;
 #[cfg(all(feature = "config", feature = "pipeline"))]
 pub mod quality;
 pub mod rerankers;
+#[cfg(feature = "config")]
+pub mod retrieval;
 #[cfg(any(
     feature = "source-git",
     feature = "source-localfs",
