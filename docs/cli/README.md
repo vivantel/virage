@@ -10,6 +10,7 @@ Command reference for `@vivantel/virage-cli`. For config file reference see [con
 | [`virage check`](check.md) | `c` | Validate that the embedder config matches the stored index |
 | [`virage validate`](validate.md) | `val` | Validate config file without running the pipeline |
 | [`virage query <text>`](query.md) | `q` | Semantic search over the indexed knowledge base |
+| [`virage query-http`](query-http.md) | — | Warm local query endpoint (loopback HTTP + bearer token) for hooks and tools |
 
 ## Setup & lifecycle
 

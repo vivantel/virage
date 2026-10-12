@@ -1,8 +1,8 @@
 use clap::{Parser, Subcommand};
 use virage_engine::cli::{
     self, BenchArgs, ChunksArgs, ChunksCommand, ConfigPathArg, DashboardArgs, DbPathArg, EvalArgs,
-    IndexArgs, PackArgs, PluginArgs, QualityArgs, QueryArgs, QueryServeArgs, ReadSkillSummaryArgs,
-    ServeArgs, StoreArgs, StoreCommand, TelemetryArgs,
+    IndexArgs, PackArgs, PluginArgs, QualityArgs, QueryArgs, QueryHttpArgs, QueryServeArgs,
+    ReadSkillSummaryArgs, ServeArgs, StoreArgs, StoreCommand, TelemetryArgs,
 };
 use virage_engine::config::{find_config, load_config};
 use virage_engine::output::OutputFormat;
@@ -75,6 +75,10 @@ enum Commands {
     /// re-invoking `query` per call.
     #[command(hide = true)]
     QueryServe(QueryServeArgs),
+    /// Start the warm query endpoint: loopback HTTP + bearer token (retrieval contract v0).
+    /// Writes `.go-getter/state/retrieval/virage.endpoint.json` when ready and removes it on
+    /// exit; ends after an idle timeout or on SIGTERM/SIGINT.
+    QueryHttp(QueryHttpArgs),
     /// Validate the config file and report issues.
     #[command(aliases = ["val", "v"])]
     Validate(ConfigPathArg),
@@ -251,6 +255,7 @@ async fn main() {
         Some(Commands::Index(args)) => cli::cmd_index(args, cli.verbose, format, config).await,
         Some(Commands::Query(args)) => cli::cmd_query(args, cli.verbose, format, config).await,
         Some(Commands::QueryServe(args)) => cli::cmd_query_serve(&args).await,
+        Some(Commands::QueryHttp(args)) => cli::cmd_query_http(&args).await,
         Some(Commands::Validate(args)) => {
             cli::cmd_validate(args, cli.verbose, format, config).await
         }

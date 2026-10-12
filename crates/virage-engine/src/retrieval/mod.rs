@@ -5,6 +5,9 @@
 
 use std::path::{Path, PathBuf};
 
+pub mod discovery;
+#[cfg(feature = "pipeline")]
+pub mod endpoint;
 #[cfg(feature = "pipeline")]
 pub mod policy;
 

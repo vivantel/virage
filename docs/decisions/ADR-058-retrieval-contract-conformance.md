@@ -93,3 +93,31 @@ In conformance mode every file is scanned before it is indexed; a file with a fi
   unchanged since are not rescanned: run `virage index --force` once after turning conformance
   mode on.
 - Outside conformance mode nothing is scanned, so existing indexes are unchanged.
+
+## Addendum: warm query endpoint (retrieval contract v0, part c)
+
+`virage query-http` serves `POST /v0/query` and `GET /v0/health` on a loopback port, with a
+per-start bearer token, and publishes `.go-getter/state/retrieval/virage.endpoint.json`
+(`virage_engine::retrieval::{endpoint, discovery}`, `cli::query_http`).
+
+- **Hand-rolled HTTP/1.1 on tokio.** The surface is two routes with small JSON bodies, so a
+  minimal parser (header/body size limits, read timeouts, one request per connection, no chunked
+  bodies) avoids adding an HTTP server dependency. The only new crate dependency is `getrandom`
+  (already in the lockfile) for the 256-bit token.
+- **Reuses the stdio daemon's engine.** `resolve_engine` and `run_search` are shared with
+  `query-serve`, which is unchanged; the index policy is applied inside `run_search`, so results
+  are filtered for every query.
+- **Readiness.** The port is bound first and answers `503` until the engine is warm; the
+  discovery file is written only once it is ready.
+- **Lifecycle.** Not owned by a parent. It ends after `--idle-timeout` (default 600 s, minimum
+  60 s) with no request in flight, or on SIGTERM/SIGINT, and a drop guard removes the discovery
+  file (only while it still holds this instance's token). A second `query-http` for the same
+  project detects a live endpoint through its health route and exits.
+- **Response shaping.** Chunks are ordered by similarity, capped (`maxChunks` <= 20,
+  `maxChars` <= 4000), truncated by characters, and the body is held to 64 KiB by dropping the
+  lowest-ranked chunks. `source` is normalised to a project-relative `/` path with an optional
+  `#L<start>[-L<end>]` fragment; a hit without a usable source is dropped.
+- **Hardening.** Loopback peers only; `Host` must be a loopback name; constant-time token
+  comparison; error bodies are fixed short messages and the server never logs request or chunk
+  text.
+- Only the Rust binary provides it; the TypeScript CLI has no `query-http`.
