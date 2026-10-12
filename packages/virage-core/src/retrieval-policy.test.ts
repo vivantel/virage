@@ -91,7 +91,7 @@ describe("embedder check", () => {
 describe("gitignoreToGlobs / matcher", () => {
   it("converts gitignore lines", () => {
     expect(gitignoreToGlobs(".env")).toEqual(["**/.env", "**/.env/**"]);
-    expect(gitignoreToGlobs("secrets/")).toEqual(["secrets/**"]);
+    expect(gitignoreToGlobs("secrets/")).toEqual(["**/secrets/**"]);
     expect(gitignoreToGlobs("/build")).toEqual(["build", "build/**"]);
     expect(gitignoreToGlobs("# c")).toEqual([]);
     expect(gitignoreToGlobs("!keep")).toEqual([]);
