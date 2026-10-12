@@ -121,3 +121,19 @@ per-start bearer token, and publishes `.go-getter/state/retrieval/virage.endpoin
   comparison; error bodies are fixed short messages and the server never logs request or chunk
   text.
 - Only the Rust binary provides it; the TypeScript CLI has no `query-http`.
+
+## Addendum: uninstall removes what virage registered
+
+`virage uninstall` removes virage's host registrations in one confirmed step
+(`virage_engine::retrieval::host_config`, `@vivantel/virage-core` `host-config-cleanup.ts`):
+the `virage` (and legacy `virage-agent`) entry in `.mcp.json`, the hooks virage wrote to
+`.claude/settings.json` (the `inject-context` UserPromptSubmit hook and anything carrying the
+`[Virage]` marker, the same marker `configure()` already uses to manage its own hooks), and
+`.go-getter/retrieval/virage.json`.
+
+- Only virage's own entries are touched. Containers emptied by the removal are pruned; no file is
+  deleted, and other tools' declarations and the host's `policy.json` are never touched.
+- The Rust binary edits those files through a small order-preserving JSON model
+  (`retrieval::ordered_json`), because `serde_json`'s default map sorts keys and would reorder the
+  user's file; the TypeScript side uses `JSON.parse`/`stringify`, which keep order.
+- Unparseable files are left untouched with a warning; the operation is idempotent.

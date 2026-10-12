@@ -8,6 +8,8 @@ use std::path::{Path, PathBuf};
 pub mod discovery;
 #[cfg(feature = "pipeline")]
 pub mod endpoint;
+pub mod host_config;
+pub mod ordered_json;
 #[cfg(feature = "pipeline")]
 pub mod policy;
 

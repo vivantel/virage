@@ -186,3 +186,12 @@ export type { EmbedderKind, RetrievalPolicy } from "./retrieval-policy.js";
 // Retrieval contract v0 — pre-index secret scan
 export { scanForSecrets, scanChunksForSecrets } from "./secret-scan.js";
 export type { SecretFinding } from "./secret-scan.js";
+
+// Host registrations virage wrote (`virage uninstall`)
+export {
+  isVirageHook,
+  stripMcpEntries,
+  stripVirageHooks,
+  removeHostRegistrations,
+} from "./host-config-cleanup.js";
+export type { HostConfigRemoval } from "./host-config-cleanup.js";
