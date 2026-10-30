@@ -196,7 +196,7 @@ notify-debouncer-mini = { version = "0.6", optional = true }
 tracing              = { version = "0.1", optional = true }
 tracing-subscriber   = { version = "0.3", features = ["fmt", "json", "env-filter"], optional = true }
 # WASM plugin host
-wasmtime     = { version = "46", default-features = false, features = ["cranelift", "component-model", "std", "runtime", "threads", "anyhow"], optional = true }
+wasmtime     = { version = "48", default-features = false, features = ["cranelift", "component-model", "std", "runtime", "threads", "anyhow"], optional = true }
 wasmtime-wasi = { version = "46", optional = true }
 
 [build-dependencies]
