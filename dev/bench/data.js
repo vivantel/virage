@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1793004313166,
+  "lastUpdate": 1793616646692,
   "repoUrl": "https://github.com/vivantel/virage",
   "entries": {
     "Virage Quality Metrics": [
@@ -547,6 +547,143 @@ window.BENCHMARK_DATA = {
           {
             "name": "LexicalRecall@K",
             "value": 0.98,
+            "unit": "score"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "S.Strebulaev",
+            "username": "sergemso",
+            "email": "strebulaev@gmail.com"
+          },
+          "committer": {
+            "name": "S.Strebulaev",
+            "username": "sergemso",
+            "email": "strebulaev@gmail.com"
+          },
+          "id": "d2daa60da7d1913caca1909d256a1cfec868fb06",
+          "message": "fix: resolve clippy errors in symbol_index and walk\n\n- Use strip_prefix() instead of manual slicing for crate:: and ./ prefixes\n- Remove empty lines after doc comments\n\nRefs: docs/ai/guardrails/virage-db.md\nRefs: docs/decisions/ADR-038-import-resolution.md",
+          "timestamp": "2026-10-05T21:43:14Z",
+          "url": "https://github.com/vivantel/virage/commit/d2daa60da7d1913caca1909d256a1cfec868fb06"
+        },
+        "date": 1793616644843,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "Overall Quality",
+            "value": 0.7254407238555601,
+            "unit": "score"
+          },
+          {
+            "name": "Chunking",
+            "value": 0.7066940530005954,
+            "unit": "score"
+          },
+          {
+            "name": "Cohesion",
+            "value": 0.6418269111119865,
+            "unit": "score"
+          },
+          {
+            "name": "Coherence",
+            "value": 0.7195507265562218,
+            "unit": "score"
+          },
+          {
+            "name": "Coverage",
+            "value": 0.83,
+            "unit": "score"
+          },
+          {
+            "name": "Metadata Extraction",
+            "value": 0.5388856161021109,
+            "unit": "score"
+          },
+          {
+            "name": "Completeness",
+            "value": 0.405,
+            "unit": "score"
+          },
+          {
+            "name": "BreadcrumbConsistency",
+            "value": 0.9810996563573884,
+            "unit": "score"
+          },
+          {
+            "name": "FQNCompleteness",
+            "value": 0,
+            "unit": "score"
+          },
+          {
+            "name": "SiblingIntegrity",
+            "value": 1,
+            "unit": "score"
+          },
+          {
+            "name": "Dense Input Prep",
+            "value": 0.956454593191774,
+            "unit": "score"
+          },
+          {
+            "name": "TextPurity",
+            "value": 0.9763278821788615,
+            "unit": "score"
+          },
+          {
+            "name": "EnrichmentQuality",
+            "value": 0.9365813042046864,
+            "unit": "score"
+          },
+          {
+            "name": "Dense Embedding",
+            "value": 0.6939617779780364,
+            "unit": "score"
+          },
+          {
+            "name": "SelfRecall@K",
+            "value": 0.96,
+            "unit": "score"
+          },
+          {
+            "name": "IntrinsicDimension",
+            "value": 0.19345238095238096,
+            "unit": "score"
+          },
+          {
+            "name": "Uniformity",
+            "value": 0.40540120710366095,
+            "unit": "score"
+          },
+          {
+            "name": "Isotropy",
+            "value": 0.10379593760238971,
+            "unit": "score"
+          },
+          {
+            "name": "OutlierFraction",
+            "value": 0.98,
+            "unit": "score"
+          },
+          {
+            "name": "Sparse Input Prep",
+            "value": 0.9476748371273248,
+            "unit": "score"
+          },
+          {
+            "name": "TermCoverage",
+            "value": 0.9476748371273248,
+            "unit": "score"
+          },
+          {
+            "name": "Lexical Retrieval",
+            "value": 0.96,
+            "unit": "score"
+          },
+          {
+            "name": "LexicalRecall@K",
+            "value": 0.96,
             "unit": "score"
           }
         ]
