@@ -241,9 +241,10 @@ fn open_state_db(path: &str) -> anyhow::Result<VirageDb> {
 
 /// Handle a `tools/call` request.
 ///
-/// `tag_filter` scopes the search to a caller-resolved set of tags (e.g. an
-/// HTTP transport's RBAC label filter, built from a signed JWT — never from
-/// request parameters). `None` means unfiltered, matching CE's stdio server.
+/// `tag_filter` scopes the search to a caller-resolved set of tags, supplied by
+/// the embedding transport and never taken from request parameters. `None`
+/// means unfiltered, matching CE's stdio server; `Some` with no tags matches
+/// nothing.
 pub async fn tool_call(
     name: &str,
     args: &serde_json::Value,

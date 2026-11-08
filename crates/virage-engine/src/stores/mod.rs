@@ -32,8 +32,17 @@ pub struct SearchOptions {
     pub query_text: Option<String>,
     /// Metadata key-value post-filter.
     pub filter: Option<HashMap<String, Value>>,
-    /// Tag allowlist (ADR-046). `None` = no tag filtering.
+    /// Tag allowlist (ADR-046). `None` = no tag filtering; `Some([])` matches
+    /// nothing (an empty allowlist must never widen into "everything").
     pub tag_filter: Option<Vec<String>>,
+}
+
+impl SearchOptions {
+    /// True when the caller supplied an empty tag allowlist, so no document
+    /// can match and the store must return zero results.
+    pub fn tag_filter_matches_nothing(&self) -> bool {
+        matches!(&self.tag_filter, Some(tags) if tags.is_empty())
+    }
 }
 
 impl Default for SearchOptions {
@@ -110,6 +119,16 @@ mod tag_tests {
         assert!(!is_valid_tag("a'); DROP TABLE chunks;--"));
         assert!(!is_valid_tag(&"a".repeat(65)));
         assert!(validate_tag_filter(&["ok".into(), "NOT OK".into()]).is_err());
+    }
+
+    #[test]
+    fn empty_tag_filter_matches_nothing() {
+        let mut opts = SearchOptions::default();
+        assert!(!opts.tag_filter_matches_nothing());
+        opts.tag_filter = Some(vec![]);
+        assert!(opts.tag_filter_matches_nothing());
+        opts.tag_filter = Some(vec!["a".into()]);
+        assert!(!opts.tag_filter_matches_nothing());
     }
 }
 
