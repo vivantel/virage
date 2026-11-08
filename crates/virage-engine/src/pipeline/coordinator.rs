@@ -7,7 +7,7 @@ use tokio::sync::mpsc;
 
 use super::worker::GroupRuntime;
 use super::{revision_key, EmbeddedChunk, FileSetGroup, WorkItem, WorkResult};
-use crate::chunkers::symbol_index::{build_symbol_index, SymbolIndex};
+use crate::chunkers::symbol_index::build_symbol_index;
 use crate::embedders::Embedder;
 use crate::stores::{VectorDocument, VectorStore};
 
