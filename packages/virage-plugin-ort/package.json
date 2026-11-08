@@ -1,13 +1,13 @@
 {
   "name": "@vivantel/virage-plugin-ort",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Virage dylib-plugin — Embedder backed by ONNX Runtime, loaded at runtime via the dylib-plugin EmbedderVTable ABI",
   "files": [],
   "optionalDependencies": {
-    "@vivantel/virage-plugin-ort-linux-x64-gnu": "0.1.0",
-    "@vivantel/virage-plugin-ort-linux-arm64-gnu": "0.1.0",
-    "@vivantel/virage-plugin-ort-darwin-arm64": "0.1.0",
-    "@vivantel/virage-plugin-ort-win32-x64-msvc": "0.1.0"
+    "@vivantel/virage-plugin-ort-linux-x64-gnu": "0.1.1",
+    "@vivantel/virage-plugin-ort-linux-arm64-gnu": "0.1.1",
+    "@vivantel/virage-plugin-ort-darwin-arm64": "0.1.1",
+    "@vivantel/virage-plugin-ort-win32-x64-msvc": "0.1.1"
   },
   "publishConfig": {
     "access": "public"
