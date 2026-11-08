@@ -32,6 +32,9 @@
 
 #![allow(clippy::missing_safety_doc)]
 
+#[cfg(all(target_os = "linux", target_env = "gnu"))]
+mod glibc_compat;
+
 use std::ffi::{c_char, c_void, CStr, CString};
 use std::panic::{catch_unwind, AssertUnwindSafe};
 
