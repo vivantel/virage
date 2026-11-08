@@ -326,6 +326,9 @@ impl VectorStore for ChromaDbStore {
         top_k: usize,
         opts: SearchOptions,
     ) -> anyhow::Result<Vec<SearchResult>> {
+        if opts.tag_filter_matches_nothing() {
+            return Ok(Vec::new());
+        }
         let col_id = self.get_collection_id().await?;
         let where_clause = match &opts.tag_filter {
             Some(tags) if !tags.is_empty() => {

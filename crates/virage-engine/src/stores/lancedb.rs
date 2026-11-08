@@ -36,10 +36,23 @@ fn pack_tags(tags: &[String]) -> String {
     format!("|{}|", tags.join("|"))
 }
 
+/// Escape LIKE metacharacters so a tag matches literally (`_` would otherwise
+/// match any single character, so `acme_corp` would also match `acme-corp`).
+fn escape_like(tag: &str) -> String {
+    let mut out = String::with_capacity(tag.len());
+    for c in tag.chars() {
+        if matches!(c, '\\' | '_' | '%') {
+            out.push('\\');
+        }
+        out.push(c);
+    }
+    out
+}
+
 fn tag_filter_expr(tags: &[String]) -> String {
     let clauses: Vec<String> = tags
         .iter()
-        .map(|t| format!("tags LIKE '%|{t}|%'"))
+        .map(|t| format!("tags LIKE '%|{}|%' ESCAPE '\\'", escape_like(t)))
         .collect();
     format!("({})", clauses.join(" OR "))
 }
@@ -362,6 +375,9 @@ impl VectorStore for LanceDbStore {
         top_k: usize,
         opts: SearchOptions,
     ) -> anyhow::Result<Vec<SearchResult>> {
+        if opts.tag_filter_matches_nothing() {
+            return Ok(Vec::new());
+        }
         let table = self.get_table().await?;
         let mut q = table
             .query()
@@ -444,12 +460,11 @@ mod tests {
     const DIMS: usize = 4;
 
     fn temp_uri() -> String {
+        // pid + counter: tests run in parallel and nanos alone can collide.
+        static NEXT: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+        let n = NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
         let mut p = std::env::temp_dir();
-        let id = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .subsec_nanos();
-        p.push(format!("virage-lancedb-test-{id}"));
+        p.push(format!("virage-lancedb-test-{}-{n}", std::process::id()));
         p.to_string_lossy().into_owned()
     }
 
@@ -464,7 +479,8 @@ mod tests {
                 metadata_generator_id: "meta_v1".into(),
                 metadata: HashMap::new(),
                 tags: vec![],
-                dense_vector: vec![i as f32 / count as f32; DIMS],
+                // Non-zero: a zero vector has undefined cosine distance and is dropped by search.
+                dense_vector: vec![(i + 1) as f32 / (count + 1) as f32; DIMS],
                 source_file: format!("src/file_{:03}.rs", i % 3),
                 commit_hash: "abc123".into(),
             })
@@ -559,6 +575,51 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(results[0].dense_text, "updated dense text");
+    }
+
+    #[test]
+    fn tag_filter_expr_escapes_like_wildcards() {
+        let expr = tag_filter_expr(&["acme_corp".to_string()]);
+        assert_eq!(expr, "(tags LIKE '%|acme\\_corp|%' ESCAPE '\\')");
+        assert_eq!(escape_like("a%b\\c"), "a\\%b\\\\c");
+    }
+
+    fn tagged_docs() -> Vec<VectorDocument> {
+        let mut docs = make_docs(3);
+        docs[0].tags = vec!["ns:acme_corp".into()];
+        docs[1].tags = vec!["ns:acme-corp".into()];
+        docs[2].tags = vec!["ns:acmexcorp".into()];
+        docs
+    }
+
+    async fn search_tags(store: &LanceDbStore, tags: Option<Vec<String>>) -> Vec<String> {
+        let opts = SearchOptions {
+            tag_filter: tags,
+            ..SearchOptions::default()
+        };
+        store
+            .search(&vec![0.5f32; DIMS], 10, opts)
+            .await
+            .unwrap()
+            .into_iter()
+            .map(|r| r.dense_text)
+            .collect()
+    }
+
+    #[tokio::test]
+    async fn underscore_in_tag_is_not_a_wildcard() {
+        let store = fresh_store().await;
+        store.upsert(&tagged_docs()).await.unwrap();
+        let hits = search_tags(&store, Some(vec!["ns:acme_corp".into()])).await;
+        assert_eq!(hits, vec!["dense text 0".to_string()]);
+    }
+
+    #[tokio::test]
+    async fn empty_tag_filter_returns_nothing() {
+        let store = fresh_store().await;
+        store.upsert(&tagged_docs()).await.unwrap();
+        assert!(search_tags(&store, Some(vec![])).await.is_empty());
+        assert_eq!(search_tags(&store, None).await.len(), 3);
     }
 
     #[tokio::test]

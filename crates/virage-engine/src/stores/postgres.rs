@@ -212,6 +212,9 @@ impl VectorStore for PostgresStore {
         top_k: usize,
         opts: SearchOptions,
     ) -> anyhow::Result<Vec<SearchResult>> {
+        if opts.tag_filter_matches_nothing() {
+            return Ok(Vec::new());
+        }
         let pool = self.get_pool().await?;
         let table = &self.table;
         let vec_sql = Self::vec_to_sql(query);

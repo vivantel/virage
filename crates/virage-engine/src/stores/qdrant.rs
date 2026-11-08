@@ -252,6 +252,12 @@ impl VectorStore for QdrantStore {
         top_k: usize,
         opts: SearchOptions,
     ) -> anyhow::Result<Vec<SearchResult>> {
+        if let Some(tags) = &opts.tag_filter {
+            validate_tag_filter(tags)?;
+        }
+        if opts.tag_filter_matches_nothing() {
+            return Ok(Vec::new());
+        }
         let client = self.get_client().await?;
         let mut builder = SearchPointsBuilder::new(&self.collection, query.to_vec(), top_k as u64)
             .with_payload(true);

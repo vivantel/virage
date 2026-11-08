@@ -276,6 +276,9 @@ jobs:
       - name: Test virage-engine (unit + chunker integration)
         run: cargo test -p virage-engine --features "chunker-all,pipeline,db-sqlite,wasm-host,config,store-dylib,embedder-dylib" --lib --test integration_chunkers
 
+      - name: Test LanceDB store (tag filter semantics)
+        run: cargo test -p virage-engine --features "store-lancedb" --lib stores::lancedb
+
       - name: Test virage-plugin-lancedb (wire-format unit tests)
         run: cargo test -p virage-plugin-lancedb --lib
 
