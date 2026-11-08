@@ -127,6 +127,13 @@ jobs:
               chown -R \$HOST_GID /workspace/target /workspace/libvirage_plugin_ort-linux-x64-gnu.so
             "
 
+      - name: Guard - no unresolved C23 libc symbols (plugin must load on glibc 2.28+)
+        if: matrix.platform-name == 'linux-x64-gnu' && (inputs.platform == '' || inputs.platform == matrix.platform-name)
+        run: |
+          bad=$(nm -D --undefined-only libvirage_plugin_ort-linux-x64-gnu.so | grep -E '__isoc23_|GLIBC_2\.(29|[3-9][0-9])' || true)
+          if [ -n "$bad" ]; then echo "plugin needs a newer glibc than the 2.28 baseline:"; echo "$bad"; exit 1; fi
+          nm -D --defined-only libvirage_plugin_ort-linux-x64-gnu.so | grep -E '__isoc23_' || { echo "shim symbols missing"; exit 1; }
+
       # ── linux-arm64-gnu: cross-compile ─────────────────────────────────────
 
       - name: Install cross-compilation toolchain (ARM64 Linux)

@@ -68,6 +68,14 @@ Monorepo for the **Virage** ecosystem — a Git-aware RAG pipeline that turns yo
 | ------- | ------- | ----------- |
 | [`@vivantel/virage-git-isomorphic`](packages/virage-git-isomorphic) | [![npm](https://img.shields.io/npm/v/@vivantel/virage-git-isomorphic.svg)](https://www.npmjs.com/package/@vivantel/virage-git-isomorphic) | Pure-JS git source using isomorphic-git (no subprocess spawning) |
 
+## System requirements
+
+- **Node.js 20+** for the installer and `npm` launcher.
+- **Linux (glibc)**, macOS (Apple Silicon) or Windows x64. Alpine/musl is not supported: the bundled ONNX Runtime is glibc-only.
+- **Linux glibc version** (`ldd --version`): the `virage` binary supports glibc 2.17+. The `virage-plugin-ort` embedder plugin needs **glibc 2.28+ from version 0.1.1**; version 0.1.0 needs 2.38+ and fails to load on Ubuntu 22.04 with `undefined symbol: __isoc23_strtoull`. The `virage-plugin-lancedb` store plugin needs glibc 2.28+.
+- **Disk:** a few hundred MB for the binary and plugins, plus about 24 MB for the default embedder model.
+- **Network:** the first `virage index` downloads the default embedding model (`Xenova/all-MiniLM-L6-v2`) from huggingface.co and caches it under `.virage/model-cache/`; later runs work offline.
+
 ## Quick start
 
 Install the CLI globally (requires Node.js 20+).
