@@ -1,7 +1,11 @@
 use std::sync::Arc;
 
 use crate::config::load_config;
-#[cfg(any(feature = "embedder-onnx", feature = "download-binaries"))]
+#[cfg(any(
+    feature = "embedder-onnx",
+    feature = "download-binaries",
+    feature = "embedder-dylib"
+))]
 use crate::config::resolve::resolve_reranker;
 use crate::config::resolve::{resolve_embedder, resolve_store};
 use crate::config::VirageConfigJson;
@@ -62,7 +66,11 @@ fn default_top_k() -> usize {
 pub struct ResolvedEngine {
     pub embedder: Arc<std::sync::Mutex<dyn Embedder + Send>>,
     pub store: Arc<dyn VectorStore>,
-    #[cfg(any(feature = "embedder-onnx", feature = "download-binaries"))]
+    #[cfg(any(
+        feature = "embedder-onnx",
+        feature = "download-binaries",
+        feature = "embedder-dylib"
+    ))]
     pub reranker: Option<Arc<std::sync::Mutex<dyn crate::rerankers::Reranker + Send>>>,
 }
 
@@ -75,22 +83,42 @@ pub struct ResolvedEngine {
 pub async fn resolve_engine(cfg: &VirageConfigJson) -> anyhow::Result<ResolvedEngine> {
     let dims = embedder_dims(cfg);
     let embedder_spec = cfg.providers.embedder.clone();
-    #[cfg(any(feature = "embedder-onnx", feature = "download-binaries"))]
+    #[cfg(any(
+        feature = "embedder-onnx",
+        feature = "download-binaries",
+        feature = "embedder-dylib"
+    ))]
     let reranker_spec = cfg.providers.reranker.clone();
 
     let embedder_task = tokio::task::spawn_blocking(move || resolve_embedder(&embedder_spec));
-    #[cfg(any(feature = "embedder-onnx", feature = "download-binaries"))]
+    #[cfg(any(
+        feature = "embedder-onnx",
+        feature = "download-binaries",
+        feature = "embedder-dylib"
+    ))]
     let reranker_task = tokio::task::spawn_blocking(move || {
         reranker_spec.as_ref().map(resolve_reranker).transpose()
     });
 
-    #[cfg(any(feature = "embedder-onnx", feature = "download-binaries"))]
+    #[cfg(any(
+        feature = "embedder-onnx",
+        feature = "download-binaries",
+        feature = "embedder-dylib"
+    ))]
     let (embedder_res, reranker_res) = tokio::join!(embedder_task, reranker_task);
-    #[cfg(not(any(feature = "embedder-onnx", feature = "download-binaries")))]
+    #[cfg(not(any(
+        feature = "embedder-onnx",
+        feature = "download-binaries",
+        feature = "embedder-dylib"
+    )))]
     let embedder_res = embedder_task.await;
 
     let embedder = embedder_res.map_err(|e| anyhow::anyhow!("embedder task panicked: {e}"))??;
-    #[cfg(any(feature = "embedder-onnx", feature = "download-binaries"))]
+    #[cfg(any(
+        feature = "embedder-onnx",
+        feature = "download-binaries",
+        feature = "embedder-dylib"
+    ))]
     let reranker = reranker_res.map_err(|e| anyhow::anyhow!("reranker task panicked: {e}"))??;
 
     let store = resolve_store(&cfg.providers.vector_store, dims)?;
@@ -99,7 +127,11 @@ pub async fn resolve_engine(cfg: &VirageConfigJson) -> anyhow::Result<ResolvedEn
     Ok(ResolvedEngine {
         embedder,
         store,
-        #[cfg(any(feature = "embedder-onnx", feature = "download-binaries"))]
+        #[cfg(any(
+            feature = "embedder-onnx",
+            feature = "download-binaries",
+            feature = "embedder-dylib"
+        ))]
         reranker,
     })
 }
@@ -144,7 +176,11 @@ pub async fn run_search(
     let search_size = args.offset.saturating_add(args.top_k);
     let mut results = engine.store.search(&vec, search_size, opts).await?;
 
-    #[cfg(any(feature = "embedder-onnx", feature = "download-binaries"))]
+    #[cfg(any(
+        feature = "embedder-onnx",
+        feature = "download-binaries",
+        feature = "embedder-dylib"
+    ))]
     if args.rerank || cfg.providers.reranker.is_some() {
         if let Some(reranker) = &engine.reranker {
             let passages: Vec<&str> = results.iter().map(|r| r.dense_text.as_str()).collect();
@@ -166,7 +202,11 @@ pub async fn run_search(
                 .collect();
         }
     }
-    #[cfg(not(any(feature = "embedder-onnx", feature = "download-binaries")))]
+    #[cfg(not(any(
+        feature = "embedder-onnx",
+        feature = "download-binaries",
+        feature = "embedder-dylib"
+    )))]
     let _ = cfg;
 
     if let Some(min_sim) = args.min_similarity {

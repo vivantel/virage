@@ -5,3 +5,6 @@ pub trait Reranker: Send + Sync {
 
 #[cfg(any(feature = "embedder-onnx", feature = "download-binaries"))]
 pub mod cross_encoder;
+
+#[cfg(feature = "embedder-dylib")]
+pub mod dylib;

@@ -229,19 +229,43 @@ fn default_true() -> bool {
 #[cfg(any(feature = "embedder-onnx", feature = "download-binaries"))]
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
-struct CrossEncoderOptions {
+pub struct CrossEncoderOptions {
     #[serde(flatten)]
-    source: OnnxModelSource,
-    max_length: Option<usize>,
+    pub source: OnnxModelSource,
+    pub max_length: Option<usize>,
     /// Score activation: "none" (default), "sigmoid", or "softmax".
-    activation: Option<String>,
+    pub activation: Option<String>,
     /// Index into the logits vector to use as the relevance score (default: 0).
     #[serde(default)]
-    score_index: usize,
+    pub score_index: usize,
     /// Number of results to return after reranking. Accepted for schema
     /// compatibility; not yet consumed by the reranker itself.
     #[allow(dead_code)]
-    top_k: Option<usize>,
+    pub top_k: Option<usize>,
+}
+
+#[cfg(any(feature = "embedder-onnx", feature = "download-binaries"))]
+impl CrossEncoderOptions {
+    /// `pub`: reused by `virage-plugin-ort` so the dylib reranker parses exactly the config shape the
+    /// statically-linked path does.
+    pub fn build(&self) -> anyhow::Result<crate::rerankers::cross_encoder::CrossEncoderReranker> {
+        use crate::onnx::{OnnxInferenceSession, ScoreActivation};
+
+        let (model_path, tokenizer_path) = self.source.resolve_paths()?;
+        let session = OnnxInferenceSession::from_paths(&model_path, &tokenizer_path)
+            .map_err(|e| anyhow!("CrossEncoderReranker session init error: {e}"))?;
+        let activation = match self.activation.as_deref() {
+            Some("sigmoid") => ScoreActivation::Sigmoid,
+            Some("softmax") => ScoreActivation::Softmax,
+            _ => ScoreActivation::None,
+        };
+        Ok(crate::rerankers::cross_encoder::CrossEncoderReranker::new(
+            session,
+            self.max_length.unwrap_or(512),
+            activation,
+            self.score_index,
+        ))
+    }
 }
 
 // ── Vector store options ──────────────────────────────────────────────────────
@@ -463,31 +487,38 @@ fn default_dylib_embedder_backend() -> String {
 /// Instantiate a built-in `Reranker` from a `PluginRef`.
 ///
 /// Supported packages (or `builtin:` shorthands):
-/// - `@vivantel/virage-reranker-cross-encoder` / `cross-encoder` → CrossEncoderReranker
-#[cfg(any(feature = "embedder-onnx", feature = "download-binaries"))]
+/// - `@vivantel/virage-reranker-cross-encoder` / `cross-encoder` → CrossEncoderReranker; in a binary
+///   built with `embedder-dylib` instead of a static ort link, the same config is served by the
+///   `virage_reranker_*` exports of the ort plugin (`VIRAGE_EMBEDDER_PLUGIN_PATH`).
+#[cfg(any(
+    feature = "embedder-onnx",
+    feature = "download-binaries",
+    feature = "embedder-dylib"
+))]
 pub fn resolve_reranker(
     spec: &PluginRef,
 ) -> anyhow::Result<Arc<std::sync::Mutex<dyn crate::rerankers::Reranker + Send>>> {
-    use crate::onnx::{OnnxInferenceSession, ScoreActivation};
-
     match spec.package.as_str() {
         p if p.contains("reranker-cross-encoder") => {
-            let opts: CrossEncoderOptions = parse_options(spec)?;
-            let (model_path, tokenizer_path) = opts.source.resolve_paths()?;
-            let session = OnnxInferenceSession::from_paths(&model_path, &tokenizer_path)
-                .map_err(|e| anyhow!("CrossEncoderReranker session init error: {e}"))?;
-            let activation = match opts.activation.as_deref() {
-                Some("sigmoid") => ScoreActivation::Sigmoid,
-                Some("softmax") => ScoreActivation::Softmax,
-                _ => ScoreActivation::None,
-            };
-            let reranker = crate::rerankers::cross_encoder::CrossEncoderReranker::new(
-                session,
-                opts.max_length.unwrap_or(512),
-                activation,
-                opts.score_index,
-            );
-            Ok(Arc::new(std::sync::Mutex::new(reranker)))
+            #[cfg(any(feature = "embedder-onnx", feature = "download-binaries"))]
+            {
+                let opts: CrossEncoderOptions = parse_options(spec)?;
+                Ok(Arc::new(std::sync::Mutex::new(opts.build()?)))
+            }
+            #[cfg(all(
+                not(any(feature = "embedder-onnx", feature = "download-binaries")),
+                feature = "embedder-dylib"
+            ))]
+            {
+                let config_json = serde_json::to_string(&serde_json::Value::Object(
+                    spec.options.clone().into_iter().collect(),
+                ))?;
+                let plugin_path =
+                    resolve_dylib_plugin_path(None, "ort", "VIRAGE_EMBEDDER_PLUGIN_PATH");
+                Ok(Arc::new(std::sync::Mutex::new(
+                    crate::rerankers::dylib::RerankerDylib::open(&plugin_path, &config_json)?,
+                )))
+            }
         }
         other => Err(anyhow!("unknown reranker package {:?}", other)),
     }
