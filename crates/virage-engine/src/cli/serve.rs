@@ -38,6 +38,28 @@ pub async fn cmd_serve(args: &ServeArgs, config: &str) -> anyhow::Result<()> {
 
     let embedder = resolve_embedder(&cfg.providers.embedder)?;
     let store = resolve_store(&cfg.providers.vector_store, dims)?;
+    #[cfg(any(
+        feature = "embedder-onnx",
+        feature = "download-binaries",
+        feature = "embedder-dylib"
+    ))]
+    let reranker = cfg
+        .providers
+        .reranker
+        .as_ref()
+        .map(crate::config::resolve::resolve_reranker)
+        .transpose()?;
+    #[cfg(not(any(
+        feature = "embedder-onnx",
+        feature = "download-binaries",
+        feature = "embedder-dylib"
+    )))]
+    let reranker: Option<crate::mcp::SharedReranker> = None;
+    let oversample = cfg
+        .search
+        .as_ref()
+        .and_then(|s| s.rerank_oversample)
+        .unwrap_or(crate::mcp::DEFAULT_RERANK_OVERSAMPLE);
     store.initialize().await?;
 
     let mut reader = BufReader::new(tokio::io::stdin());
@@ -85,7 +107,16 @@ pub async fn cmd_serve(args: &ServeArgs, config: &str) -> anyhow::Result<()> {
                     .pointer("/params/arguments")
                     .cloned()
                     .unwrap_or_default();
-                crate::mcp::tool_call(&name, &call_args, &embedder, &store, &db_path, None).await
+                crate::mcp::tool_call_reranked(
+                    &name,
+                    &call_args,
+                    &embedder,
+                    &store,
+                    &db_path,
+                    None,
+                    reranker.as_ref().map(|r| (r, oversample)),
+                )
+                .await
             }
             _ => Err(serde_json::json!({"code": -32601, "message": "Method not found"})),
         };

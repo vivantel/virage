@@ -24,6 +24,12 @@
 //! Bumping one without the other is caught at load time by the host's
 //! version check, not at compile time here.
 //!
+//! The `virage_reranker_*` exports (cross-encoder reranking) are an additive extension that reuses
+//! `PLUGIN_ABI_VERSION` and `virage_embedder_free_str`: a host that never looks them up is
+//! unaffected, and a host that needs them fails with a missing-symbol error on an older plugin.
+//! Config JSON for `virage_reranker_create` is `config::resolve::CrossEncoderOptions` (same shape as
+//! the statically-linked path).
+//!
 //! Config JSON accepted by `virage_embedder_create` is the identical shape
 //! `virage_engine::config::resolve::OnnxEmbedderOptions` parses for the
 //! statically-linked path (HuggingFace/URL/local model source, dimensions,
@@ -38,10 +44,12 @@ mod glibc_compat;
 use std::ffi::{c_char, c_void, CStr, CString};
 use std::panic::{catch_unwind, AssertUnwindSafe};
 
-use virage_engine::config::resolve::OnnxEmbedderOptions;
+use virage_engine::config::resolve::{CrossEncoderOptions, OnnxEmbedderOptions};
 use virage_engine::embedders::onnx::OnnxEmbedder;
 use virage_engine::embedders::Embedder;
 use virage_engine::onnx::{OnnxInferenceSession, Pooling};
+use virage_engine::rerankers::cross_encoder::CrossEncoderReranker;
+use virage_engine::rerankers::Reranker;
 
 /// Must match the dylib-plugin host's `PLUGIN_ABI_VERSION` constant.
 const PLUGIN_ABI_VERSION: u32 = 2;
@@ -219,6 +227,107 @@ pub unsafe extern "C" fn virage_embedder_free_str(ptr: *mut c_char) {
         return;
     }
     drop(CString::from_raw(ptr));
+}
+
+// ─── Reranker (cross-encoder) ───────────────────────────────────────────────
+
+struct RerankerHandle {
+    reranker: CrossEncoderReranker,
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn virage_reranker_create(
+    config_json: *const c_char,
+    err_out: *mut *mut c_char,
+) -> *mut c_void {
+    clear_err(err_out);
+    let result = catch_unwind(AssertUnwindSafe(|| -> anyhow::Result<*mut c_void> {
+        let json = read_cstr(config_json).map_err(|e| anyhow::anyhow!(e))?;
+        let opts: CrossEncoderOptions = serde_json::from_str(json)
+            .map_err(|e| anyhow::anyhow!("invalid reranker config JSON: {e}"))?;
+        let reranker = opts.build()?;
+        Ok(Box::into_raw(Box::new(RerankerHandle { reranker })) as *mut c_void)
+    }));
+    match result {
+        Ok(Ok(ptr)) => ptr,
+        Ok(Err(e)) => {
+            set_err(err_out, e);
+            std::ptr::null_mut()
+        }
+        Err(panic) => {
+            set_err(
+                err_out,
+                format!("plugin panicked: {}", panic_message(panic)),
+            );
+            std::ptr::null_mut()
+        }
+    }
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn virage_reranker_destroy(handle: *mut c_void) {
+    if handle.is_null() {
+        return;
+    }
+    drop(Box::from_raw(handle as *mut RerankerHandle));
+}
+
+/// `passages_json` is a JSON array of strings; `scores_out`/`len_out` receive one `f32` score per
+/// passage (higher = more relevant), freed via `virage_reranker_free_scores`.
+#[no_mangle]
+pub unsafe extern "C" fn virage_reranker_rerank(
+    handle: *mut c_void,
+    query: *const c_char,
+    passages_json: *const c_char,
+    scores_out: *mut *mut f32,
+    len_out: *mut usize,
+    err_out: *mut *mut c_char,
+) -> i32 {
+    clear_err(err_out);
+    if handle.is_null() {
+        set_err(err_out, "null reranker handle");
+        return 1;
+    }
+    let result = catch_unwind(AssertUnwindSafe(|| -> anyhow::Result<Vec<f32>> {
+        let query = read_cstr(query).map_err(|e| anyhow::anyhow!(e))?;
+        let json = read_cstr(passages_json).map_err(|e| anyhow::anyhow!(e))?;
+        let passages: Vec<String> = serde_json::from_str(json)
+            .map_err(|e| anyhow::anyhow!("invalid passages JSON: {e}"))?;
+        let passages_ref: Vec<&str> = passages.iter().map(|s| s.as_str()).collect();
+        let handle = &mut *(handle as *mut RerankerHandle);
+        handle
+            .reranker
+            .rerank(query, &passages_ref)
+            .map_err(|e| anyhow::anyhow!(e))
+    }));
+    match result {
+        Ok(Ok(scores)) => {
+            // Shrink so capacity == len, which `virage_reranker_free_scores` relies on.
+            let mut scores = std::mem::ManuallyDrop::new(scores.into_boxed_slice().into_vec());
+            *scores_out = scores.as_mut_ptr();
+            *len_out = scores.len();
+            0
+        }
+        Ok(Err(e)) => {
+            set_err(err_out, e);
+            1
+        }
+        Err(panic) => {
+            set_err(
+                err_out,
+                format!("plugin panicked: {}", panic_message(panic)),
+            );
+            1
+        }
+    }
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn virage_reranker_free_scores(ptr: *mut f32, len: usize) {
+    if ptr.is_null() {
+        return;
+    }
+    drop(Vec::from_raw_parts(ptr, len, len));
 }
 
 #[cfg(test)]

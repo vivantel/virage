@@ -253,6 +253,28 @@ pub async fn tool_call(
     db_path: &str,
     tag_filter: Option<Vec<String>>,
 ) -> Result<serde_json::Value, serde_json::Value> {
+    tool_call_reranked(name, args, embedder, store, db_path, tag_filter, None).await
+}
+
+/// A reranker shared across calls (scoring takes `&mut self`, hence the mutex).
+pub type SharedReranker = Arc<std::sync::Mutex<dyn crate::rerankers::Reranker + Send>>;
+
+/// Candidates fetched per requested result when a reranker is configured and `search.rerankOversample` is unset.
+pub const DEFAULT_RERANK_OVERSAMPLE: usize = 4;
+
+/// [`tool_call`] plus an optional cross-encoder: `search_chunks` fetches `top_k * oversample`
+/// candidates through the (tag-filtered) store, reorders them by reranker score, and returns the
+/// best `top_k`. The reranker only sees rows the store already returned for `tag_filter`, so it
+/// cannot widen a caller's visibility. `oversample` is clamped to at least 1.
+pub async fn tool_call_reranked(
+    name: &str,
+    args: &serde_json::Value,
+    embedder: &Arc<std::sync::Mutex<dyn Embedder + Send>>,
+    store: &Arc<dyn VectorStore>,
+    db_path: &str,
+    tag_filter: Option<Vec<String>>,
+    reranker: Option<(&SharedReranker, usize)>,
+) -> Result<serde_json::Value, serde_json::Value> {
     match name {
         "search_chunks" => {
             let query = args["query"].as_str().unwrap_or_default().to_string();
@@ -274,10 +296,38 @@ pub async fn tool_call(
                 hybrid_alpha: 0.6,
                 query_text: None,
             };
-            let results = store
-                .search(&vec, top_k, opts)
+            let fetch = match reranker {
+                Some((_, oversample)) => top_k.saturating_mul(oversample.max(1)),
+                None => top_k,
+            };
+            let mut results = store
+                .search(&vec, fetch, opts)
                 .await
                 .map_err(|e| serde_json::json!({"code":-32603,"message":e.to_string()}))?;
+            if let Some((reranker, _)) = reranker {
+                let scores = {
+                    let passages: Vec<&str> =
+                        results.iter().map(|r| r.dense_text.as_str()).collect();
+                    reranker
+                        .lock()
+                        .map_err(|_| {
+                            serde_json::json!({"code":-32603,"message":"reranker lock poisoned"})
+                        })?
+                        .rerank(&query, &passages)
+                        .map_err(|e| {
+                            serde_json::json!({"code":-32603,"message":format!("reranker error: {e}")})
+                        })?
+                };
+                if scores.len() != results.len() {
+                    return Err(
+                        serde_json::json!({"code":-32603,"message":"reranker returned a wrong score count"}),
+                    );
+                }
+                let mut scored: Vec<_> = results.into_iter().zip(scores).collect();
+                scored.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
+                results = scored.into_iter().map(|(r, _)| r).collect();
+            }
+            results.truncate(top_k);
 
             let max_chars = if full { usize::MAX } else { 500 };
             let rows: Vec<Vec<String>> = results
