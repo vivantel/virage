@@ -1,13 +1,13 @@
 {
   "name": "@vivantel/virage-plugin-lancedb",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Virage dylib-plugin — VectorStore backed by LanceDB, loaded at runtime via the dylib-plugin StoreVTable ABI",
   "files": [],
   "optionalDependencies": {
-    "@vivantel/virage-plugin-lancedb-linux-x64-gnu": "0.1.1",
-    "@vivantel/virage-plugin-lancedb-linux-arm64-gnu": "0.1.1",
-    "@vivantel/virage-plugin-lancedb-darwin-arm64": "0.1.1",
-    "@vivantel/virage-plugin-lancedb-win32-x64-msvc": "0.1.1"
+    "@vivantel/virage-plugin-lancedb-linux-x64-gnu": "0.1.2",
+    "@vivantel/virage-plugin-lancedb-linux-arm64-gnu": "0.1.2",
+    "@vivantel/virage-plugin-lancedb-darwin-arm64": "0.1.2",
+    "@vivantel/virage-plugin-lancedb-win32-x64-msvc": "0.1.2"
   },
   "publishConfig": {
     "access": "public"

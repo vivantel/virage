@@ -1,6 +1,6 @@
 {
   "name": "@vivantel/virage-plugin-lancedb-linux-arm64-gnu",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "virage-plugin-lancedb dylib for linux-arm64-gnu",
   "os": [
     "linux"
