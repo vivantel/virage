@@ -14,7 +14,7 @@ impl FileChunker for LangChunker {
         &[
             "*.py", "*.pyi", "*.js", "*.mjs", "*.cjs", "*.ts", "*.mts", "*.cts", "*.tsx", "*.java",
             "*.go", "*.rs", "*.c", "*.h", "*.cpp", "*.cxx", "*.cc", "*.hh", "*.hpp", "*.cs",
-            "*.rb",
+            "*.rb", "*.svelte",
         ]
     }
 
@@ -23,6 +23,11 @@ impl FileChunker for LangChunker {
             .extension()
             .and_then(|e| e.to_str())
             .unwrap_or("");
+        if ext.eq_ignore_ascii_case("svelte") {
+            return Ok(ParseResult {
+                tree: parse_svelte(bytes)?,
+            });
+        }
         let lang =
             Lang::from_extension(ext).ok_or_else(|| format!("unsupported extension: .{ext}"))?;
         let tree = parse_doc(bytes, &lang)?;
@@ -686,6 +691,141 @@ pub fn parse_doc(src: &[u8], lang: &Lang) -> Result<DocNode, String> {
     })
 }
 
+// ─── Svelte ──────────────────────────────────────────────────────────────────
+
+/// Byte ranges of the bodies of `<script …>…</script>` (`scripts`) and `<style …>…</style>`
+/// (`styles`) blocks, found case-insensitively without a Svelte grammar.
+type ByteRanges = Vec<(usize, usize)>;
+
+fn svelte_blocks(src: &[u8]) -> (ByteRanges, ByteRanges) {
+    let lower = src.to_ascii_lowercase();
+    let find = |needle: &[u8], from: usize| {
+        lower[from..]
+            .windows(needle.len())
+            .position(|w| w == needle)
+            .map(|i| i + from)
+    };
+    let (mut scripts, mut styles) = (Vec::new(), Vec::new());
+    let mut at = 0;
+    while at < lower.len() {
+        let next = [(&b"<script"[..], true), (&b"<style"[..], false)]
+            .into_iter()
+            .filter_map(|(tag, is_script)| find(tag, at).map(|i| (i, tag, is_script)))
+            .min_by_key(|(i, _, _)| *i);
+        let Some((open, tag, is_script)) = next else {
+            break;
+        };
+        // `<scripts>` or `<styled>` are not blocks: the tag name must end at whitespace, `>` or `/`.
+        let after = open + tag.len();
+        if !matches!(
+            lower.get(after),
+            Some(b' ' | b'\t' | b'\r' | b'\n' | b'>' | b'/')
+        ) {
+            at = after;
+            continue;
+        }
+        let Some(gt) = find(b">", after) else { break };
+        let close_tag: &[u8] = if is_script { b"</script" } else { b"</style" };
+        let body_start = gt + 1;
+        // `<script … />` has no body.
+        if lower[gt.saturating_sub(1)] == b'/' {
+            at = body_start;
+            continue;
+        }
+        let body_end = find(close_tag, body_start).unwrap_or(lower.len());
+        if is_script {
+            scripts.push((body_start, body_end));
+        } else {
+            styles.push((body_start, body_end));
+        }
+        at = find(b">", body_end).map_or(lower.len(), |i| i + 1);
+    }
+    (scripts, styles)
+}
+
+/// Replace every byte outside `keep` with a space (newlines survive, so line numbers and byte
+/// offsets in the masked copy match the original file).
+fn mask_outside(src: &[u8], keep: &[(usize, usize)]) -> Vec<u8> {
+    let mut out: Vec<u8> = src
+        .iter()
+        .map(|&b| if b == b'\n' { b } else { b' ' })
+        .collect();
+    for &(a, b) in keep {
+        out[a..b].copy_from_slice(&src[a..b]);
+    }
+    out
+}
+
+/// Visible markup text of a component: everything outside script and style blocks, with tags
+/// dropped and whitespace collapsed. Keeps attribute-free text, `{expressions}` and `{#if}` blocks,
+/// which carry the UI strings people search for.
+fn svelte_markup_text(src: &[u8], blocks: &[(usize, usize)]) -> String {
+    let mut text = String::new();
+    let mut pos = 0;
+    let mut sorted = blocks.to_vec();
+    sorted.sort_unstable();
+    for (a, b) in sorted {
+        // Include the surrounding `<script …>` / `</script>` tags in the region to drop.
+        let open = src[..a].iter().rposition(|&c| c == b'<').unwrap_or(a);
+        let close = src[b..]
+            .iter()
+            .position(|&c| c == b'>')
+            .map_or(src.len(), |i| b + i + 1);
+        if open >= pos {
+            text.push_str(&String::from_utf8_lossy(&src[pos..open]));
+            text.push(' ');
+            pos = close;
+        }
+    }
+    if pos < src.len() {
+        text.push_str(&String::from_utf8_lossy(&src[pos..]));
+    }
+    let mut out = String::new();
+    let mut in_tag = false;
+    for c in text.chars() {
+        match c {
+            '<' => {
+                in_tag = true;
+                out.push(' ');
+            }
+            '>' if in_tag => in_tag = false,
+            _ if in_tag => {}
+            _ => out.push(c),
+        }
+    }
+    out.split_whitespace().collect::<Vec<_>>().join(" ")
+}
+
+/// Svelte component: each `<script>` body is parsed as TypeScript at its original byte offsets
+/// (TypeScript is a superset of the plain-JS case), and the markup text becomes one extra
+/// paragraph so UI strings and `{#if}`/`{#each}` logic are searchable.
+pub fn parse_svelte(src: &[u8]) -> Result<DocNode, String> {
+    let (scripts, styles) = svelte_blocks(src);
+    let mut doc = parse_doc(&mask_outside(src, &scripts), &Lang::TypeScript)?;
+    doc.attrs.byte_end = src.len() as u64;
+    doc.attrs.code_language = Some("svelte".to_string());
+
+    let all: Vec<(usize, usize)> = scripts.iter().chain(styles.iter()).copied().collect();
+    let markup = svelte_markup_text(src, &all);
+    if !markup.is_empty() {
+        let line_count = src.iter().filter(|&&b| b == b'\n').count() as u32 + 1;
+        doc.children.get_or_insert_with(Vec::new).push(DocNode {
+            node_type: DocNodeType::Paragraph,
+            children: None,
+            text: Some(markup),
+            attrs: DocNodeAttrs {
+                byte_start: 0,
+                byte_end: src.len() as u64,
+                line_start: Some(1),
+                line_end: Some(line_count),
+                breadcrumb: Some(vec!["template".to_string()]),
+                ..Default::default()
+            },
+        });
+    }
+    Ok(doc)
+}
+
 // ─── Tests ────────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
@@ -934,5 +1074,34 @@ mod tests {
         let doc = parse_doc(b"", &Lang::Python).unwrap();
         assert_eq!(doc.node_type, DocNodeType::Document);
         assert!(doc.children.is_none());
+    }
+
+    #[test]
+    fn svelte_script_functions_are_sections_at_original_offsets() {
+        let src = b"<script lang=\"ts\">\n  export function greet(n: string) { return n; }\n</script>\n\n<h1>Nothing changed yet</h1>\n<style>h1 { color: red }</style>\n";
+        let doc = parse_svelte(src).unwrap();
+        let kids = doc.children.as_ref().unwrap();
+        let section = kids
+            .iter()
+            .find(|n| n.node_type == DocNodeType::Section)
+            .expect("script function becomes a section");
+        let at = section.attrs.byte_start as usize;
+        assert!(String::from_utf8_lossy(&src[at..]).starts_with("export function greet"));
+        let markup = kids.last().unwrap();
+        assert_eq!(markup.text.as_deref(), Some("Nothing changed yet"));
+    }
+
+    #[test]
+    fn svelte_without_script_still_yields_markup() {
+        let doc = parse_svelte(b"<p>Hello {name}</p>").unwrap();
+        let kids = doc.children.unwrap();
+        assert_eq!(kids.len(), 1);
+        assert_eq!(kids[0].text.as_deref(), Some("Hello {name}"));
+    }
+
+    #[test]
+    fn svelte_blocks_ignore_lookalike_tags() {
+        let (scripts, _) = svelte_blocks(b"<scripts>x</scripts><script>y</script>");
+        assert_eq!(scripts.len(), 1);
     }
 }

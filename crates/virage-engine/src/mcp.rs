@@ -166,8 +166,9 @@ pub fn tools_list() -> serde_json::Value {
         "tools": [
             {
                 "name": "search_chunks",
-                "description": "Semantic search over indexed source files and documents. \
-                    Returns TOON-encoded results (path, score, snippet) by default, or JSON \
+                "description": "Hybrid (semantic + keyword) search over indexed source files \
+                    and documents; exact identifiers such as DR13 or a UI string match by \
+                    keyword. Returns TOON-encoded results (path, score, snippet) by default, or JSON \
                     with format:\"json\"; snippets over 500 chars are truncated with a hint \
                     — pass full:true for complete text.",
                 "inputSchema": {
@@ -185,6 +186,16 @@ pub fn tools_list() -> serde_json::Value {
                             "type": "boolean",
                             "description": "Return full chunk text instead of a 500-char \
                                 truncated snippet (default false)."
+                        },
+                        "hybrid": {
+                            "type": "boolean",
+                            "description": "Blend keyword (BM25) matches into the semantic \
+                                ranking (default true); false for pure semantic search."
+                        },
+                        "max_per_file": {
+                            "type": "integer",
+                            "description": "Most chunks returned from one file before other \
+                                files fill the remaining slots (default 2; 0 = no cap)."
                         },
                         "format": {
                             "type": "string",
@@ -256,6 +267,46 @@ pub async fn tool_call(
     tool_call_reranked(name, args, embedder, store, db_path, tag_filter, None).await
 }
 
+/// Dense/sparse weight for `search_chunks`: equal, so a top keyword hit (an exact identifier or UI
+/// string) is not outranked by near-miss semantic neighbours the way it is at the CLI's 0.6.
+pub const HYBRID_ALPHA: f32 = 0.5;
+
+/// Most chunks of one file `search_chunks` returns before other files get the remaining slots.
+pub const DEFAULT_MAX_PER_FILE: usize = 2;
+
+/// Keep the best `top_k` of `ranked` (already best-first) with at most `max_per_file` chunks per
+/// source file. Chunks over the cap are only used to backfill when fewer than `top_k` distinct
+/// slots exist, so a small index never returns fewer results than it would without the cap.
+/// `max_per_file == 0` disables the cap.
+fn cap_per_file(
+    ranked: Vec<crate::stores::SearchResult>,
+    top_k: usize,
+    max_per_file: usize,
+) -> Vec<crate::stores::SearchResult> {
+    if max_per_file == 0 {
+        let mut ranked = ranked;
+        ranked.truncate(top_k);
+        return ranked;
+    }
+    let mut counts: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
+    let (mut kept, mut overflow) = (Vec::new(), Vec::new());
+    for r in ranked {
+        let n = counts
+            .entry(r.source_file.clone().unwrap_or_default())
+            .or_default();
+        if *n < max_per_file {
+            *n += 1;
+            kept.push(r);
+        } else {
+            overflow.push(r);
+        }
+    }
+    kept.truncate(top_k);
+    let missing = top_k.saturating_sub(kept.len());
+    kept.extend(overflow.into_iter().take(missing));
+    kept
+}
+
 /// A reranker shared across calls (scoring takes `&mut self`, hence the mutex).
 pub type SharedReranker = Arc<std::sync::Mutex<dyn crate::rerankers::Reranker + Send>>;
 
@@ -289,12 +340,16 @@ pub async fn tool_call_reranked(
                 .map_err(|_| serde_json::json!({"code":-32603,"message":"embedder lock poisoned"}))?
                 .embed_batch(&[query.as_str()])
                 .map_err(|e| serde_json::json!({"code":-32603,"message":e.to_string()}))?;
+            let hybrid = args["hybrid"].as_bool().unwrap_or(true);
+            let max_per_file = args["max_per_file"]
+                .as_u64()
+                .map_or(DEFAULT_MAX_PER_FILE, |n| n as usize);
             let opts = SearchOptions {
                 filter: None,
                 tag_filter,
-                hybrid: false,
-                hybrid_alpha: 0.6,
-                query_text: None,
+                hybrid,
+                hybrid_alpha: HYBRID_ALPHA,
+                query_text: hybrid.then(|| query.clone()),
             };
             let fetch = match reranker {
                 Some((_, oversample)) => top_k.saturating_mul(oversample.max(1)),
@@ -327,7 +382,7 @@ pub async fn tool_call_reranked(
                 scored.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
                 results = scored.into_iter().map(|(r, _)| r).collect();
             }
-            results.truncate(top_k);
+            results = cap_per_file(results, top_k, max_per_file);
 
             let max_chars = if full { usize::MAX } else { 500 };
             let rows: Vec<Vec<String>> = results
@@ -425,6 +480,47 @@ pub async fn tool_call_reranked(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn hit(id: &str, file: &str) -> crate::stores::SearchResult {
+        crate::stores::SearchResult {
+            id: id.into(),
+            dense_text: String::new(),
+            sparse_text: String::new(),
+            metadata: Default::default(),
+            similarity: 0.0,
+            source_file: Some(file.into()),
+            sparse_text_generator_id: None,
+            metadata_generator_id: None,
+        }
+    }
+
+    fn ids(v: &[crate::stores::SearchResult]) -> Vec<&str> {
+        v.iter().map(|r| r.id.as_str()).collect()
+    }
+
+    #[test]
+    fn cap_per_file_lets_other_files_in() {
+        let ranked = vec![
+            hit("a1", "a.md"),
+            hit("a2", "a.md"),
+            hit("a3", "a.md"),
+            hit("b1", "b.md"),
+            hit("c1", "c.md"),
+        ];
+        assert_eq!(ids(&cap_per_file(ranked, 4, 2)), ["a1", "a2", "b1", "c1"]);
+    }
+
+    #[test]
+    fn cap_per_file_backfills_when_too_few_files() {
+        let ranked = vec![hit("a1", "a.md"), hit("a2", "a.md"), hit("a3", "a.md")];
+        assert_eq!(ids(&cap_per_file(ranked, 3, 1)), ["a1", "a2", "a3"]);
+    }
+
+    #[test]
+    fn cap_per_file_zero_disables_the_cap() {
+        let ranked = vec![hit("a1", "a.md"), hit("a2", "a.md"), hit("b1", "b.md")];
+        assert_eq!(ids(&cap_per_file(ranked, 2, 0)), ["a1", "a2"]);
+    }
 
     #[test]
     fn toon_encode_empty_is_explicit() {

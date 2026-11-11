@@ -440,6 +440,50 @@ pub fn walk_to_chunks(root: &DocNode, opts: &WalkOptions) -> Vec<ArtifactSet> {
         }
     }
 
+    // ── Merge a short section intro forward into its first child section ──────
+    // A section boundary always flushes, so a heading with a one-line intro would otherwise become
+    // a chunk of its own (and the list under it a separate, intro-less chunk). Skipped with overlap
+    // on, where windows deliberately share segments.
+    if overlap == 0.0 && windows.len() > 1 {
+        let mut merged: Vec<Window> = Vec::with_capacity(windows.len());
+        let mut pending: Option<Window> = None;
+        for win in windows {
+            let Some(mut intro) = pending.take() else {
+                if estimate_tokens(&win.texts.join("\n\n")) < min_tokens {
+                    pending = Some(win);
+                } else {
+                    merged.push(win);
+                }
+                continue;
+            };
+            let is_child = win.breadcrumb.len() > intro.breadcrumb.len()
+                && win.breadcrumb.starts_with(&intro.breadcrumb);
+            let combined = estimate_tokens(&intro.texts.join("\n\n"))
+                + estimate_tokens(&win.texts.join("\n\n"));
+            if is_child && combined <= max_tokens {
+                intro.texts.extend(win.texts);
+                intro.byte_end = win.byte_end;
+                intro.line_end = win.line_end;
+                intro.page_end = win.page_end;
+                intro.truncated = win.truncated;
+                if estimate_tokens(&intro.texts.join("\n\n")) < min_tokens {
+                    pending = Some(intro);
+                } else {
+                    merged.push(intro);
+                }
+            } else {
+                merged.push(intro);
+                if estimate_tokens(&win.texts.join("\n\n")) < min_tokens {
+                    pending = Some(win);
+                } else {
+                    merged.push(win);
+                }
+            }
+        }
+        merged.extend(pending);
+        windows = merged;
+    }
+
     // ── Merge short trailing window into predecessor (same section) ────────────
     if windows.len() > 1 {
         let last_tokens = estimate_tokens(&windows.last().unwrap().texts.join("\n\n"));
@@ -798,6 +842,31 @@ mod tests {
             "expected merge; got {} chunks",
             result.len()
         );
+    }
+
+    #[test]
+    fn short_section_intro_merges_forward_into_first_child() {
+        let root = doc(vec![
+            heading(1, "Decisions"),
+            para("None of these is accepted."),
+            heading(2, "One"),
+            para(&"abcd".repeat(20)),
+            heading(1, "Unrelated"),
+            para(&"efgh".repeat(20)),
+        ]);
+        let mut o = opts();
+        o.max_tokens = 100;
+        o.min_tokens = Some(15);
+
+        let result = walk_to_chunks(&root, &o);
+        assert_eq!(
+            result.len(),
+            2,
+            "intro should join its child, not stand alone"
+        );
+        assert!(result[0].dense_text.contains("None of these is accepted."));
+        assert!(result[0].dense_text.contains("abcdabcd"));
+        assert!(!result[0].dense_text.contains("efgh"));
     }
 
     #[test]
