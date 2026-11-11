@@ -61,11 +61,25 @@ impl OnnxInferenceSession {
     /// `Arc<Mutex<..>>` — there is never more than one in-flight call per session — so ORT's own
     /// intra/inter-op thread parallelism buys nothing and only holds extra per-thread buffers.
     pub fn from_paths(model_path: &str, tokenizer_path: &str) -> Result<Self, String> {
+        Self::from_paths_with_threads(model_path, tokenizer_path, 1)
+    }
+
+    /// Same as [`from_paths`](Self::from_paths) with an explicit intra-op thread count.
+    ///
+    /// The ADR-057 reasoning for `1` holds for the embedder, which runs inside the indexing
+    /// pipeline next to other workers. A reranker session is different: one per process, called
+    /// on the query path with a single batch (~20 passages), where `1` leaves every other core
+    /// idle and makes latency linear in the candidate count.
+    pub fn from_paths_with_threads(
+        model_path: &str,
+        tokenizer_path: &str,
+        intra_threads: usize,
+    ) -> Result<Self, String> {
         let session = Session::builder()
             .map_err(|e| format!("ORT session builder error: {e}"))?
             // Calls are already serialized by the caller's Mutex — no benefit to ORT spawning
             // its own intra/inter-op thread pool (which otherwise defaults to core count).
-            .with_intra_threads(1)
+            .with_intra_threads(intra_threads.max(1))
             .map_err(|e| format!("ORT intra_threads config error: {e}"))?
             .with_inter_threads(1)
             .map_err(|e| format!("ORT inter_threads config error: {e}"))?
