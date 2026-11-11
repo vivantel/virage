@@ -809,9 +809,17 @@ mod tests {
         let hybrid = store.search(&query, 3, opts).await.unwrap();
         assert_eq!(hybrid.len(), 3);
         assert!(hybrid.iter().any(|r| r.dense_text == "phone layout rule"));
+        // The keyword row never came from the dense pass; its similarity is looked up afterwards
+        // and must be the real cosine against the query (e0 vs. a uniform vector = 1/sqrt(DIMS)).
+        let kw = hybrid
+            .iter()
+            .find(|r| r.dense_text == "phone layout rule")
+            .unwrap();
+        let expected = 1.0 / (DIMS as f32).sqrt();
         assert!(
-            hybrid.iter().all(|r| r.similarity < 1.0),
-            "sparse-only rows must be scored"
+            (kw.similarity - expected).abs() < 0.01,
+            "sparse-only row similarity {} != cosine {expected}",
+            kw.similarity
         );
     }
 
