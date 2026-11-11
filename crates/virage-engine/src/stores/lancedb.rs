@@ -802,6 +802,7 @@ mod tests {
 
         let opts = SearchOptions {
             hybrid: true,
+            hybrid_alpha: 0.5,
             query_text: Some("DR13".into()),
             ..SearchOptions::default()
         };
@@ -835,5 +836,38 @@ mod tests {
         let ids: Vec<&str> = fused.iter().map(|(r, _)| r.id.as_str()).collect();
         assert_eq!(ids[0], "c");
         assert_eq!(fused.len(), 3);
+    }
+
+    #[tokio::test]
+    async fn sparse_query_alone_finds_the_keyword_row() {
+        let store = fresh_store().await;
+        let mut docs = make_docs(30);
+        docs[0].sparse_text = "DR13 phone layout rule".into();
+        docs[0].dense_text = "phone layout rule".into();
+        store.upsert(&docs).await.unwrap();
+        let table = store.get_table().await.unwrap();
+        let rows = LanceDbStore::sparse_query(&table, "DR13", 5, None)
+            .await
+            .expect("full-text query must not error after upsert");
+        assert_eq!(
+            rows.first().map(|r| r.dense_text.as_str()),
+            Some("phone layout rule")
+        );
+    }
+
+    #[tokio::test]
+    async fn rows_added_by_a_later_upsert_are_keyword_searchable() {
+        let store = fresh_store().await;
+        store.upsert(&make_docs(30)).await.unwrap();
+        let mut later = make_docs(31).split_off(30);
+        later[0].id = "later-row".into();
+        later[0].sparse_text = "ZQX42 added incrementally".into();
+        later[0].dense_text = "added incrementally".into();
+        store.upsert(&later).await.unwrap();
+        let table = store.get_table().await.unwrap();
+        let rows = LanceDbStore::sparse_query(&table, "ZQX42", 5, None)
+            .await
+            .expect("full-text query must not error");
+        assert_eq!(rows.first().map(|r| r.id.as_str()), Some("later-row"));
     }
 }

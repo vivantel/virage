@@ -267,6 +267,10 @@ pub async fn tool_call(
     tool_call_reranked(name, args, embedder, store, db_path, tag_filter, None).await
 }
 
+/// Dense/sparse weight for `search_chunks`: equal, so a top keyword hit (an exact identifier or UI
+/// string) is not outranked by near-miss semantic neighbours the way it is at the CLI's 0.6.
+pub const HYBRID_ALPHA: f32 = 0.5;
+
 /// Most chunks of one file `search_chunks` returns before other files get the remaining slots.
 pub const DEFAULT_MAX_PER_FILE: usize = 2;
 
@@ -344,7 +348,7 @@ pub async fn tool_call_reranked(
                 filter: None,
                 tag_filter,
                 hybrid,
-                hybrid_alpha: 0.6,
+                hybrid_alpha: HYBRID_ALPHA,
                 query_text: hybrid.then(|| query.clone()),
             };
             let fetch = match reranker {
