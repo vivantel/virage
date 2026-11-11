@@ -9,7 +9,7 @@ use arrow_array::{
 use arrow_schema::{DataType, Field, Schema, SchemaRef};
 use async_trait::async_trait;
 use futures::TryStreamExt;
-use lancedb::index::scalar::FtsIndexBuilder;
+use lancedb::index::scalar::{FtsIndexBuilder, FullTextSearchQuery};
 use lancedb::index::Index;
 use lancedb::query::{ExecutableQuery, QueryBase, Select};
 use lancedb::{Connection, Table};
@@ -55,6 +55,48 @@ fn tag_filter_expr(tags: &[String]) -> String {
         .map(|t| format!("tags LIKE '%|{}|%' ESCAPE '\\'", escape_like(t)))
         .collect();
     format!("({})", clauses.join(" OR "))
+}
+
+/// Reciprocal-rank-fusion constant; 60 is the value from the original RRF paper.
+const RRF_K: f32 = 60.0;
+
+fn combine_filters(a: Option<&str>, b: Option<&str>) -> Option<String> {
+    match (a, b) {
+        (Some(a), Some(b)) => Some(format!("({a}) AND ({b})")),
+        (Some(x), None) | (None, Some(x)) => Some(x.to_string()),
+        (None, None) => None,
+    }
+}
+
+/// Fuse dense and sparse rankings by weighted reciprocal rank: `alpha` weighs the dense list and
+/// `1 - alpha` the sparse one. Rows are keyed by chunk id; the flag marks rows that came from the
+/// dense list (and so already carry a cosine similarity).
+fn fuse_rrf(
+    dense: Vec<SearchResult>,
+    sparse: Vec<SearchResult>,
+    alpha: f32,
+    top_k: usize,
+) -> Vec<(SearchResult, bool)> {
+    let alpha = alpha.clamp(0.0, 1.0);
+    let mut scores: HashMap<String, f32> = HashMap::new();
+    let mut rows: Vec<(SearchResult, bool)> = Vec::new();
+    for (rank, r) in dense.into_iter().enumerate() {
+        *scores.entry(r.id.clone()).or_default() += alpha / (RRF_K + rank as f32 + 1.0);
+        rows.push((r, true));
+    }
+    for (rank, r) in sparse.into_iter().enumerate() {
+        *scores.entry(r.id.clone()).or_default() += (1.0 - alpha) / (RRF_K + rank as f32 + 1.0);
+        if !rows.iter().any(|(d, _)| d.id == r.id) {
+            rows.push((r, false));
+        }
+    }
+    rows.sort_by(|a, b| {
+        scores[&b.0.id]
+            .partial_cmp(&scores[&a.0.id])
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
+    rows.truncate(top_k);
+    rows
 }
 
 // ─── LanceDbStore ─────────────────────────────────────────────────────────────
@@ -196,6 +238,59 @@ impl LanceDbStore {
             ],
         )?;
         Ok(batch)
+    }
+
+    const RESULT_COLUMNS: [&'static str; 7] = [
+        "id",
+        "dense_text",
+        "sparse_text",
+        "sparse_text_generator_id",
+        "metadata_generator_id",
+        "metadata_json",
+        "source_file",
+    ];
+
+    async fn dense_query(
+        table: &Table,
+        query: &[f32],
+        limit: usize,
+        tag_expr: Option<&str>,
+        extra: Option<&str>,
+    ) -> anyhow::Result<Vec<SearchResult>> {
+        let mut q = table
+            .query()
+            .nearest_to(query)?
+            .column("dense_vector")
+            .distance_type(lancedb::DistanceType::Cosine)
+            .limit(limit)
+            .select(Select::Columns(
+                Self::RESULT_COLUMNS.iter().map(|c| c.to_string()).collect(),
+            ));
+        if let Some(filter) = combine_filters(tag_expr, extra) {
+            q = q.only_if(filter);
+        }
+        let batches: Vec<RecordBatch> = q.execute().await?.try_collect().await?;
+        Ok(Self::batches_to_results(batches))
+    }
+
+    async fn sparse_query(
+        table: &Table,
+        text: &str,
+        limit: usize,
+        tag_expr: Option<&str>,
+    ) -> anyhow::Result<Vec<SearchResult>> {
+        let mut q = table
+            .query()
+            .full_text_search(FullTextSearchQuery::new(text.to_string()))
+            .limit(limit)
+            .select(Select::Columns(
+                Self::RESULT_COLUMNS.iter().map(|c| c.to_string()).collect(),
+            ));
+        if let Some(filter) = tag_expr {
+            q = q.only_if(filter.to_string());
+        }
+        let batches: Vec<RecordBatch> = q.execute().await?.try_collect().await?;
+        Ok(Self::batches_to_results(batches))
     }
 
     fn batches_to_results(batches: Vec<RecordBatch>) -> Vec<SearchResult> {
@@ -379,30 +474,67 @@ impl VectorStore for LanceDbStore {
             return Ok(Vec::new());
         }
         let table = self.get_table().await?;
-        let mut q = table
-            .query()
-            .nearest_to(query)?
-            .column("dense_vector")
-            .distance_type(lancedb::DistanceType::Cosine)
-            .limit(top_k)
-            .select(Select::Columns(vec![
-                "id".to_string(),
-                "dense_text".to_string(),
-                "sparse_text".to_string(),
-                "sparse_text_generator_id".to_string(),
-                "metadata_generator_id".to_string(),
-                "metadata_json".to_string(),
-                "source_file".to_string(),
-            ]));
-        if let Some(tag_filter) = &opts.tag_filter {
-            validate_tag_filter(tag_filter)?;
-            if !tag_filter.is_empty() {
-                q = q.only_if(tag_filter_expr(tag_filter));
+        let tag_expr = match &opts.tag_filter {
+            Some(tag_filter) => {
+                validate_tag_filter(tag_filter)?;
+                Some(tag_filter_expr(tag_filter)).filter(|_| !tag_filter.is_empty())
+            }
+            None => None,
+        };
+        let hybrid_text = opts
+            .query_text
+            .as_deref()
+            .map(str::trim)
+            .filter(|t| opts.hybrid && !t.is_empty());
+
+        // Hybrid pulls a wider dense pool so fusion has candidates the sparse side can promote.
+        let dense_limit = if hybrid_text.is_some() {
+            top_k.saturating_mul(2)
+        } else {
+            top_k
+        };
+        let dense =
+            Self::dense_query(&table, query, dense_limit, tag_expr.as_deref(), None).await?;
+        let Some(text) = hybrid_text else {
+            return Ok(dense);
+        };
+
+        // A failing sparse side (FTS index not built yet, odd query syntax) degrades to dense.
+        let sparse =
+            match Self::sparse_query(&table, text, top_k.saturating_mul(2), tag_expr.as_deref())
+                .await
+            {
+                Ok(rows) => rows,
+                Err(_) => return Ok(dense.into_iter().take(top_k).collect()),
+            };
+        let mut fused = fuse_rrf(dense, sparse, opts.hybrid_alpha, top_k);
+
+        // Sparse-only rows carry no vector distance; score them against the query vector.
+        let unscored: Vec<String> = fused
+            .iter()
+            .filter(|(_, from_dense)| !from_dense)
+            .map(|(r, _)| r.id.clone())
+            .collect();
+        if !unscored.is_empty() {
+            let ids: Vec<&str> = unscored.iter().map(String::as_str).collect();
+            let expr = format!("id IN ({})", sql_in_list(&ids));
+            let scored = Self::dense_query(
+                &table,
+                query,
+                unscored.len(),
+                tag_expr.as_deref(),
+                Some(&expr),
+            )
+            .await?;
+            let sims: HashMap<String, f32> =
+                scored.into_iter().map(|r| (r.id, r.similarity)).collect();
+            for (r, from_dense) in &mut fused {
+                if !*from_dense {
+                    r.similarity = sims.get(&r.id).copied().unwrap_or(0.0);
+                }
             }
         }
-        let stream = q.execute().await?;
-        let batches: Vec<RecordBatch> = stream.try_collect().await?;
-        Ok(Self::batches_to_results(batches))
+        Ok(fused.into_iter().map(|(r, _)| r).collect())
     }
 
     async fn list_all(&self) -> anyhow::Result<Option<Vec<SearchResult>>> {
@@ -648,5 +780,60 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(results.len(), 3, "should return exactly top_k=3 results");
+    }
+
+    #[tokio::test]
+    async fn hybrid_surfaces_exact_keyword_the_dense_side_misses() {
+        let store = fresh_store().await;
+        let mut docs = make_docs(30);
+        // The keyword doc's vector is the farthest from the query, so dense top-3 never has it.
+        docs[0].sparse_text = "DR13 phone layout rule".into();
+        docs[0].dense_text = "phone layout rule".into();
+        docs[0].dense_vector = (0..DIMS).map(|i| if i == 0 { 1.0 } else { 0.0 }).collect();
+        store.upsert(&docs).await.unwrap();
+        // Re-upsert is what triggers lazy FTS creation on a table that was empty at initialize.
+        let query = vec![0.5f32; DIMS];
+
+        let dense = store
+            .search(&query, 3, SearchOptions::default())
+            .await
+            .unwrap();
+        assert!(!dense.iter().any(|r| r.dense_text == "phone layout rule"));
+
+        let opts = SearchOptions {
+            hybrid: true,
+            query_text: Some("DR13".into()),
+            ..SearchOptions::default()
+        };
+        let hybrid = store.search(&query, 3, opts).await.unwrap();
+        assert_eq!(hybrid.len(), 3);
+        assert!(hybrid.iter().any(|r| r.dense_text == "phone layout rule"));
+        assert!(
+            hybrid.iter().all(|r| r.similarity < 1.0),
+            "sparse-only rows must be scored"
+        );
+    }
+
+    #[test]
+    fn fuse_rrf_prefers_rows_ranked_by_both_sides() {
+        let row = |id: &str| SearchResult {
+            id: id.into(),
+            dense_text: String::new(),
+            sparse_text: String::new(),
+            metadata: HashMap::new(),
+            similarity: 0.5,
+            source_file: None,
+            sparse_text_generator_id: None,
+            metadata_generator_id: None,
+        };
+        let fused = fuse_rrf(
+            vec![row("a"), row("b"), row("c")],
+            vec![row("c"), row("d")],
+            0.5,
+            3,
+        );
+        let ids: Vec<&str> = fused.iter().map(|(r, _)| r.id.as_str()).collect();
+        assert_eq!(ids[0], "c");
+        assert_eq!(fused.len(), 3);
     }
 }
