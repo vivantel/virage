@@ -238,10 +238,36 @@ pub struct CrossEncoderOptions {
     /// Index into the logits vector to use as the relevance score (default: 0).
     #[serde(default)]
     pub score_index: usize,
+    /// ORT intra-op threads for the reranker session. Default: `VIRAGE_RERANK_THREADS`, else
+    /// the host's core count capped at 8 (a ~23MB model gains little past that).
+    pub threads: Option<usize>,
     /// Number of results to return after reranking. Accepted for schema
     /// compatibility; not yet consumed by the reranker itself.
     #[allow(dead_code)]
     pub top_k: Option<usize>,
+}
+
+/// Query + passage token cap. Kept at 512 (the model's trained length) so results do not change;
+/// `maxLength: 256` halves CPU per query but moved ~10% of the top-5 on a 3.9k-chunk repo (dogfood
+/// benchmark, no relevance labels), so it stays opt-in until measured against labelled queries.
+#[cfg(any(feature = "embedder-onnx", feature = "download-binaries"))]
+const DEFAULT_RERANK_MAX_LENGTH: usize = 512;
+
+/// Explicit option, then `VIRAGE_RERANK_THREADS`, then cores capped at 8.
+#[cfg(any(feature = "embedder-onnx", feature = "download-binaries"))]
+fn rerank_threads(opt: Option<usize>) -> usize {
+    opt.or_else(|| {
+        std::env::var("VIRAGE_RERANK_THREADS")
+            .ok()
+            .and_then(|v| v.parse().ok())
+    })
+    .unwrap_or_else(|| {
+        std::thread::available_parallelism()
+            .map(|n| n.get())
+            .unwrap_or(1)
+            .min(8)
+    })
+    .max(1)
 }
 
 #[cfg(any(feature = "embedder-onnx", feature = "download-binaries"))]
@@ -252,8 +278,12 @@ impl CrossEncoderOptions {
         use crate::onnx::{OnnxInferenceSession, ScoreActivation};
 
         let (model_path, tokenizer_path) = self.source.resolve_paths()?;
-        let session = OnnxInferenceSession::from_paths(&model_path, &tokenizer_path)
-            .map_err(|e| anyhow!("CrossEncoderReranker session init error: {e}"))?;
+        let session = OnnxInferenceSession::from_paths_with_threads(
+            &model_path,
+            &tokenizer_path,
+            rerank_threads(self.threads),
+        )
+        .map_err(|e| anyhow!("CrossEncoderReranker session init error: {e}"))?;
         let activation = match self.activation.as_deref() {
             Some("sigmoid") => ScoreActivation::Sigmoid,
             Some("softmax") => ScoreActivation::Softmax,
@@ -261,7 +291,7 @@ impl CrossEncoderOptions {
         };
         Ok(crate::rerankers::cross_encoder::CrossEncoderReranker::new(
             session,
-            self.max_length.unwrap_or(512),
+            self.max_length.unwrap_or(DEFAULT_RERANK_MAX_LENGTH),
             activation,
             self.score_index,
         ))
@@ -1192,5 +1222,23 @@ mod chunker_resolution_tests {
             1,
             "same package referenced twice should dedupe to 1"
         );
+    }
+}
+
+#[cfg(all(test, any(feature = "embedder-onnx", feature = "download-binaries")))]
+mod rerank_threads_tests {
+    use super::rerank_threads;
+
+    #[test]
+    fn explicit_option_wins_and_is_at_least_one() {
+        assert_eq!(rerank_threads(Some(3)), 3);
+        assert_eq!(rerank_threads(Some(0)), 1);
+    }
+
+    #[test]
+    fn default_is_bounded_by_core_count_cap() {
+        // VIRAGE_RERANK_THREADS is not set by the test environment; the default is 1..=8.
+        let n = rerank_threads(None);
+        assert!((1..=8).contains(&n), "got {n}");
     }
 }
