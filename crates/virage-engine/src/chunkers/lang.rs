@@ -695,7 +695,9 @@ pub fn parse_doc(src: &[u8], lang: &Lang) -> Result<DocNode, String> {
 
 /// Byte ranges of the bodies of `<script …>…</script>` (`scripts`) and `<style …>…</style>`
 /// (`styles`) blocks, found case-insensitively without a Svelte grammar.
-fn svelte_blocks(src: &[u8]) -> (Vec<(usize, usize)>, Vec<(usize, usize)>) {
+type ByteRanges = Vec<(usize, usize)>;
+
+fn svelte_blocks(src: &[u8]) -> (ByteRanges, ByteRanges) {
     let lower = src.to_ascii_lowercase();
     let find = |needle: &[u8], from: usize| {
         lower[from..]

@@ -287,7 +287,7 @@ impl LanceDbStore {
                 Self::RESULT_COLUMNS.iter().map(|c| c.to_string()).collect(),
             ));
         if let Some(filter) = tag_expr {
-            q = q.only_if(filter.to_string());
+            q = q.only_if(filter);
         }
         let batches: Vec<RecordBatch> = q.execute().await?.try_collect().await?;
         Ok(Self::batches_to_results(batches))
@@ -477,7 +477,7 @@ impl VectorStore for LanceDbStore {
         let tag_expr = match &opts.tag_filter {
             Some(tag_filter) => {
                 validate_tag_filter(tag_filter)?;
-                Some(tag_filter_expr(tag_filter)).filter(|_| !tag_filter.is_empty())
+                (!tag_filter.is_empty()).then_some(tag_filter_expr(tag_filter))
             }
             None => None,
         };
