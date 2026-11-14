@@ -128,9 +128,29 @@ pub async fn cmd_index(
     let t_stage = std::time::Instant::now();
     let stage = prog.stage("Opening state DB...");
     let db = open_or_init_db(&db_path)?;
-    let db_revisions = db
+    let mut db_revisions = db
         .get_file_revisions()
         .map_err(|e| anyhow::anyhow!("DB read error: {e}"))?;
+    // An index written before row ids were scoped to path and chunk position keeps rows under
+    // the old ids; purge them once and re-index everything (see `migrate_chunk_id_scheme`).
+    if crate::pipeline::coordinator::chunk_id_scheme_is_stale(&db) {
+        let existing_keys: Vec<String> = if db_revisions.is_empty() {
+            // Reset state DB over a populated remote store: ask the store what it holds.
+            store.initialize().await?;
+            store.current_state().await?.into_keys().collect()
+        } else {
+            db_revisions.keys().cloned().collect()
+        };
+        if crate::pipeline::coordinator::migrate_chunk_id_scheme(&db, &*store, &existing_keys)
+            .await?
+        {
+            out.verbose(&format!(
+                "row id scheme changed — purged {} file(s); re-indexing everything",
+                existing_keys.len()
+            ));
+        }
+        db_revisions.clear();
+    }
     let known_revisions: HashMap<String, String> = if force {
         HashMap::new()
     } else if db_revisions.is_empty() {

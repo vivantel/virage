@@ -186,6 +186,25 @@ pub async fn run_pipeline(
         });
     }
 
+    // ── Purge the old rows of every file about to be (re)processed ────────────
+    // Rows are keyed per source file and chunk position (`chunk_row_id`), so an edited file's
+    // previous chunks would otherwise stay searchable beside the new ones. Runs for every file
+    // in this run, not only those with a known revision: `--force` and a reset state DB pass
+    // an empty `known_revisions`, and deleting a path with no rows is a no-op. A file whose
+    // run fails after this point has no recorded revision (`processed_revisions`), so the next
+    // run redoes it.
+    if !config_with_symbol_index.skip_upload {
+        let mut seen: HashSet<&str> = HashSet::new();
+        let purge: Vec<&str> = to_process
+            .iter()
+            .map(|w| w.path.as_str())
+            .filter(|p| seen.insert(*p))
+            .collect();
+        for chunk in purge.chunks(PURGE_BATCH) {
+            store.delete_by_source(chunk).await?;
+        }
+    }
+
     // ── Runtime group table for workers (source + chunkers; filters already applied) ──
     let group_runtime: Arc<Vec<GroupRuntime>> = Arc::new(
         groups
@@ -338,6 +357,10 @@ pub async fn run_pipeline(
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
+/// Paths per `delete_by_source` call when purging files about to be re-processed, so a first
+/// index of a large tree does not build one huge delete filter.
+const PURGE_BATCH: usize = 200;
+
 /// Port of TS `deduplicateByHash` (uploader.ts). LanceDB's merge_insert rejects
 /// batches where multiple source rows share the same id; deduplicate first-occurrence wins.
 fn dedup_by_id(batch: Vec<VectorDocument>) -> Vec<VectorDocument> {
@@ -360,6 +383,68 @@ fn sum_estimated_tokens(docs: &[VectorDocument]) -> usize {
 
 // ─── Conversion ──────────────────────────────────────────────────────────────
 
+/// `meta` key recording which row-id scheme the store's rows were written with.
+const CHUNK_ID_SCHEME_KEY: &str = "chunk_id_scheme";
+/// Current scheme: ids from `chunk_row_id` (path + chunk position + text hash). Rows written
+/// before it carry the bare text hash as id and cannot be told apart from new rows by id alone.
+const CHUNK_ID_SCHEME: &str = "2";
+
+/// `true` when the state DB has not yet recorded the current row-id scheme.
+pub fn chunk_id_scheme_is_stale(db: &crate::db::VirageDb) -> bool {
+    db.get_meta_value(CHUNK_ID_SCHEME_KEY)
+        .ok()
+        .flatten()
+        .as_deref()
+        != Some(CHUNK_ID_SCHEME)
+}
+
+/// Move an index written under an older row-id scheme to the current one: delete every file's
+/// rows from the store, forget their recorded revisions so the next run re-indexes them all,
+/// then record the scheme. `existing_keys` are the source files the index currently holds.
+/// The scheme is recorded last, so a crash part-way repeats this (deleting is idempotent).
+/// Returns `true` when existing rows were purged.
+pub async fn migrate_chunk_id_scheme(
+    db: &crate::db::VirageDb,
+    store: &dyn VectorStore,
+    existing_keys: &[String],
+) -> anyhow::Result<bool> {
+    if !chunk_id_scheme_is_stale(db) {
+        return Ok(false);
+    }
+    for chunk in existing_keys.chunks(PURGE_BATCH) {
+        let refs: Vec<&str> = chunk.iter().map(String::as_str).collect();
+        store.delete_by_source(&refs).await?;
+    }
+    for key in existing_keys {
+        db.delete_file(key)
+            .map_err(|e| anyhow::anyhow!("DB write error: {e}"))?;
+    }
+    db.set_meta_value(CHUNK_ID_SCHEME_KEY, CHUNK_ID_SCHEME)
+        .map_err(|e| anyhow::anyhow!("DB write error: {e}"))?;
+    Ok(!existing_keys.is_empty())
+}
+
+/// Identity of one chunk occurrence in the store: the first 16 hex chars of
+/// `sha256(source_file NUL chunk_index NUL dense_text_hash)`.
+///
+/// Scoping by path and position keeps identical chunk text in two files (or twice in one file)
+/// as separate rows, each with its own `source_file` and tags, and lets `delete_by_source`
+/// remove one file's rows without touching another's. 16 hex chars is the id shape every store
+/// backend already accepts (Qdrant parses it as a `u64`). `dense_text_hash` itself stays
+/// text-only so an embedding cache can still key on it.
+pub fn chunk_row_id(source_file: &str, chunk_index: usize, dense_text_hash: &str) -> String {
+    use sha2::{Digest, Sha256};
+    let mut h = Sha256::new();
+    h.update(source_file.as_bytes());
+    h.update([0u8]);
+    h.update(chunk_index.to_string().as_bytes());
+    h.update([0u8]);
+    h.update(dense_text_hash.as_bytes());
+    let digest = h.finalize();
+    let hex: String = digest.iter().map(|b| format!("{b:02x}")).collect();
+    hex[..16].to_string()
+}
+
 fn embedded_to_vecdoc(ec: EmbeddedChunk, _path: &str) -> VectorDocument {
     let tags: Vec<String> = ec
         .artifact
@@ -373,8 +458,18 @@ fn embedded_to_vecdoc(ec: EmbeddedChunk, _path: &str) -> VectorDocument {
                 .collect()
         })
         .unwrap_or_default();
+    let chunk_index = ec
+        .artifact
+        .metadata
+        .get("chunkIndex")
+        .and_then(|v| v.as_u64())
+        .unwrap_or(0) as usize;
     VectorDocument {
-        id: ec.artifact.dense_text_hash.clone(),
+        id: chunk_row_id(
+            &ec.artifact.source_file,
+            chunk_index,
+            &ec.artifact.dense_text_hash,
+        ),
         dense_text: ec.artifact.dense_text,
         sparse_text: ec.artifact.sparse_text,
         dense_text_hash: ec.artifact.dense_text_hash,

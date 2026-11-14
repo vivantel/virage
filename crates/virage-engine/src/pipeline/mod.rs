@@ -364,15 +364,21 @@ mod tests {
 
     struct MockStore {
         upserted: std::sync::Mutex<Vec<VectorDocument>>,
+        /// Ordered `delete:<path>` / `upsert` log, to assert a purge precedes the upsert.
+        events: std::sync::Mutex<Vec<String>>,
     }
     impl MockStore {
         fn new() -> Arc<Self> {
             Arc::new(Self {
                 upserted: std::sync::Mutex::new(Vec::new()),
+                events: std::sync::Mutex::new(Vec::new()),
             })
         }
         fn upsert_count(&self) -> usize {
             self.upserted.lock().unwrap().len()
+        }
+        fn events(&self) -> Vec<String> {
+            self.events.lock().unwrap().clone()
         }
     }
 
@@ -382,6 +388,7 @@ mod tests {
             Ok(())
         }
         async fn upsert(&self, docs: &[VectorDocument]) -> anyhow::Result<()> {
+            self.events.lock().unwrap().push("upsert".into());
             self.upserted
                 .lock()
                 .unwrap()
@@ -400,7 +407,9 @@ mod tests {
                 }));
             Ok(())
         }
-        async fn delete_by_source(&self, _files: &[&str]) -> anyhow::Result<()> {
+        async fn delete_by_source(&self, files: &[&str]) -> anyhow::Result<()> {
+            let mut ev = self.events.lock().unwrap();
+            ev.extend(files.iter().map(|f| format!("delete:{f}")));
             Ok(())
         }
         async fn existing_hashes(
@@ -420,6 +429,94 @@ mod tests {
         ) -> anyhow::Result<Vec<SearchResult>> {
             Ok(Vec::new())
         }
+    }
+
+    /// Every path reads back the same `body`, so two files share identical chunk text.
+    struct FixedBodySource {
+        paths: Vec<String>,
+        body: String,
+    }
+
+    #[async_trait::async_trait]
+    impl SourceProvider for FixedBodySource {
+        fn name(&self) -> &str {
+            "fixed-body-mock"
+        }
+        fn provider_type(&self) -> &str {
+            "mock"
+        }
+        async fn current_revision(&self) -> anyhow::Result<String> {
+            Ok("rev1".into())
+        }
+        async fn file_revisions(&self, paths: &[&str]) -> anyhow::Result<HashMap<String, String>> {
+            Ok(paths
+                .iter()
+                .map(|p| (p.to_string(), "rev2".into()))
+                .collect())
+        }
+        async fn changed_since(&self, _rev: &str) -> anyhow::Result<Option<ChangedFiles>> {
+            Ok(None)
+        }
+        fn list_all(
+            &self,
+            _filter: Option<SourceFilter>,
+        ) -> futures::stream::BoxStream<'_, anyhow::Result<SourceItem>> {
+            let items: Vec<anyhow::Result<SourceItem>> = self
+                .paths
+                .iter()
+                .map(|p| {
+                    Ok(SourceItem {
+                        id: p.clone(),
+                        path: p.clone(),
+                        provider_name: "mock".into(),
+                        tags: vec![],
+                        meta: HashMap::new(),
+                    })
+                })
+                .collect();
+            Box::pin(futures::stream::iter(items))
+        }
+        async fn read_content(
+            &self,
+            _path: &str,
+            _range: Option<ByteRange>,
+        ) -> anyhow::Result<bytes::Bytes> {
+            Ok(bytes::Bytes::from(self.body.clone()))
+        }
+    }
+
+    async fn run_fixed_body(
+        paths: &[&str],
+        body: &str,
+        known: HashMap<String, String>,
+        store: Arc<MockStore>,
+        max_tokens: usize,
+    ) -> PipelineStats {
+        let source = Arc::new(FixedBodySource {
+            paths: paths.iter().map(|p| p.to_string()).collect(),
+            body: body.to_string(),
+        });
+        let embedder: Arc<std::sync::Mutex<dyn Embedder + Send>> =
+            Arc::new(std::sync::Mutex::new(MockEmbedder { dims: 4 }));
+        let config = PipelineConfig {
+            workers: 1,
+            upload_batch_size: 16,
+            max_tokens,
+            min_tokens: Some(0),
+            strategy: "window".into(),
+            sparse_text_generator_id: "gen_v1".into(),
+            metadata_generator_id: "meta_v1".into(),
+            ..Default::default()
+        };
+        let groups = vec![FileSetGroup {
+            source,
+            filter: None,
+            chunkers: vec![],
+            tags: vec![],
+        }];
+        coordinator::run_pipeline(&config, groups, embedder, store, known)
+            .await
+            .unwrap()
     }
 
     // ── Tests ────────────────────────────────────────────────────────────────
@@ -696,5 +793,167 @@ mod tests {
             .find(|d| d.source_file == "packages/other/README.md")
             .expect("expected a chunk from the unmatched file");
         assert!(!other_doc.tags.contains(&"ns:acme-corp".to_string()));
+    }
+
+    /// Chunk row identity: two files with identical chunk text must each keep their own row
+    /// (a content-hash id collapsed them into one row carrying a single file's path and tags).
+    #[tokio::test]
+    async fn identical_chunk_text_in_two_files_keeps_one_row_per_file() {
+        let store = MockStore::new();
+        let stats = run_fixed_body(
+            &["docs/a.md", "packages/b.md"],
+            "Same paragraph in both files.",
+            HashMap::new(),
+            store.clone(),
+            512,
+        )
+        .await;
+        assert_eq!(stats.files_processed, 2);
+        let docs = store.upserted.lock().unwrap();
+        assert_eq!(docs.len(), 2, "one row per file, not one shared row");
+        let mut files: Vec<_> = docs.iter().map(|d| d.source_file.clone()).collect();
+        files.sort();
+        assert_eq!(files, vec!["docs/a.md", "packages/b.md"]);
+        assert_ne!(docs[0].id, docs[1].id);
+        assert_eq!(
+            docs[0].dense_text_hash, docs[1].dense_text_hash,
+            "dense_text_hash stays text-only so an embedding cache can key on it"
+        );
+    }
+
+    /// Identical chunks inside one file are separate occurrences and must both survive.
+    #[tokio::test]
+    async fn identical_chunks_within_one_file_are_both_kept() {
+        let store = MockStore::new();
+        run_fixed_body(
+            &["dup.md"],
+            "Repeated paragraph.\n\nRepeated paragraph.",
+            HashMap::new(),
+            store.clone(),
+            // Small enough that each paragraph is its own window (one chunk per paragraph).
+            4,
+        )
+        .await;
+        assert_eq!(store.upsert_count(), 2);
+    }
+
+    /// Row ids are deterministic, 16 lowercase hex chars (Qdrant parses the id as a u64),
+    /// and depend on path and chunk position as well as text.
+    #[test]
+    fn chunk_row_id_is_stable_hex_and_path_scoped() {
+        let a = coordinator::chunk_row_id("docs/a.md", 0, "0123456789abcdef");
+        assert_eq!(
+            a,
+            coordinator::chunk_row_id("docs/a.md", 0, "0123456789abcdef")
+        );
+        assert_eq!(a.len(), 16);
+        assert!(a.chars().all(|c| matches!(c, '0'..='9' | 'a'..='f')));
+        assert_ne!(
+            a,
+            coordinator::chunk_row_id("packages/b.md", 0, "0123456789abcdef")
+        );
+        assert_ne!(
+            a,
+            coordinator::chunk_row_id("docs/a.md", 1, "0123456789abcdef")
+        );
+        assert_ne!(
+            a,
+            coordinator::chunk_row_id("docs/a.md", 0, "fedcba9876543210")
+        );
+        // Separators prevent ("ab", 1) colliding with ("a", "b1")-style concatenations.
+        assert_ne!(
+            coordinator::chunk_row_id("ab", 1, "x"),
+            coordinator::chunk_row_id("a", 1, "bx")
+        );
+    }
+
+    /// A file being (re)processed has its old rows purged before the new rows are upserted,
+    /// otherwise an edit leaves the previous text searchable beside the new text. The purge
+    /// must also happen when no known revision exists (`--force` passes an empty map).
+    #[tokio::test]
+    async fn processed_files_are_purged_before_upsert() {
+        for known in [
+            HashMap::new(),
+            HashMap::from([("edit.md".to_string(), "rev1".to_string())]),
+        ] {
+            let store = MockStore::new();
+            run_fixed_body(&["edit.md"], "New text.", known, store.clone(), 512).await;
+            let ev = store.events();
+            let del = ev.iter().position(|e| e == "delete:edit.md");
+            let ups = ev.iter().position(|e| e == "upsert");
+            assert!(del.is_some(), "expected a purge of edit.md, got {ev:?}");
+            assert!(del < ups, "purge must precede the upsert, got {ev:?}");
+        }
+    }
+
+    /// `skip_upload` (dry runs) must not purge either.
+    #[tokio::test]
+    async fn skip_upload_does_not_purge() {
+        let source = Arc::new(FixedBodySource {
+            paths: vec!["edit.md".into()],
+            body: "Text.".into(),
+        });
+        let store = MockStore::new();
+        let embedder: Arc<std::sync::Mutex<dyn Embedder + Send>> =
+            Arc::new(std::sync::Mutex::new(MockEmbedder { dims: 4 }));
+        let config = PipelineConfig {
+            workers: 1,
+            skip_upload: true,
+            max_tokens: 512,
+            strategy: "window".into(),
+            sparse_text_generator_id: "gen_v1".into(),
+            metadata_generator_id: "meta_v1".into(),
+            ..Default::default()
+        };
+        let groups = vec![FileSetGroup {
+            source,
+            filter: None,
+            chunkers: vec![],
+            tags: vec![],
+        }];
+        coordinator::run_pipeline(&config, groups, embedder, store.clone(), HashMap::new())
+            .await
+            .unwrap();
+        assert!(store.events().is_empty(), "got {:?}", store.events());
+    }
+
+    /// An index recorded under no (or an older) row-id scheme is purged once, its revisions
+    /// are forgotten so everything re-indexes, and the scheme is then recorded.
+    #[tokio::test]
+    async fn id_scheme_migration_purges_existing_files_once() {
+        let db = crate::db::VirageDb::open_in_memory().unwrap();
+        db.set_file_revision("a.md", "r1").unwrap();
+        db.set_file_revision("b.md", "r1").unwrap();
+        let store = MockStore::new();
+        let keys = vec!["a.md".to_string(), "b.md".to_string()];
+
+        assert!(coordinator::chunk_id_scheme_is_stale(&db));
+        let purged = coordinator::migrate_chunk_id_scheme(&db, &*store, &keys)
+            .await
+            .unwrap();
+        assert!(purged);
+        assert_eq!(store.events(), vec!["delete:a.md", "delete:b.md"]);
+        assert!(db.get_file_revisions().unwrap().is_empty());
+        assert!(!coordinator::chunk_id_scheme_is_stale(&db));
+
+        // Already current: nothing more to do.
+        let again = coordinator::migrate_chunk_id_scheme(&db, &*store, &keys)
+            .await
+            .unwrap();
+        assert!(!again);
+        assert_eq!(store.events().len(), 2);
+    }
+
+    /// A brand-new index has nothing to purge but still records the scheme.
+    #[tokio::test]
+    async fn id_scheme_migration_on_empty_index_only_records_scheme() {
+        let db = crate::db::VirageDb::open_in_memory().unwrap();
+        let store = MockStore::new();
+        let purged = coordinator::migrate_chunk_id_scheme(&db, &*store, &[])
+            .await
+            .unwrap();
+        assert!(!purged);
+        assert!(store.events().is_empty());
+        assert!(!coordinator::chunk_id_scheme_is_stale(&db));
     }
 }
