@@ -80,6 +80,17 @@ pub struct IndexArgs {
     pub no_upload: bool,
 }
 
+/// Whether a watch event reflects a change made since `since` (the start of the last pass).
+/// The debouncer also reports reads (open, access, close without write), which every pass
+/// itself generates; a read leaves the modification time alone, so it is dropped here. A path
+/// that no longer exists counts as changed. One second of slack covers coarse mtime clocks.
+fn changed_since(path: &std::path::Path, since: std::time::SystemTime) -> bool {
+    match std::fs::metadata(path).and_then(|m| m.modified()) {
+        Ok(modified) => modified + std::time::Duration::from_secs(1) >= since,
+        Err(_) => true,
+    }
+}
+
 pub async fn cmd_index(
     args: IndexArgs,
     verbose: u8,
@@ -191,6 +202,7 @@ pub async fn cmd_index(
         use notify_debouncer_mini::{new_debouncer, notify::RecursiveMode};
         use std::sync::mpsc::TryRecvError;
 
+        let mut pass_started = std::time::SystemTime::now();
         // Run initial full index before entering watch loop.
         {
             let progress = ProgressCounters::new();
@@ -274,6 +286,7 @@ pub async fn cmd_index(
                     let changed: Vec<_> = events
                         .iter()
                         .filter(|e| !e.path.to_string_lossy().contains(".virage"))
+                        .filter(|e| changed_since(&e.path, pass_started))
                         .collect();
                     if changed.is_empty() {
                         continue;
@@ -294,6 +307,7 @@ pub async fn cmd_index(
                     eprintln!("[{now}] {} file(s) changed — re-indexing...", changed.len());
 
                     let t_watch = std::time::Instant::now();
+                    pass_started = std::time::SystemTime::now();
                     let known = db.get_file_revisions().unwrap_or_default();
                     let progress = ProgressCounters::new();
                     // Pre-ADR-057, this call site's default was a flat `4`, not
@@ -604,5 +618,29 @@ mod tests {
     fn args_workers_takes_priority_over_cfg_workers() {
         let (ceiling, _) = resolve_concurrency(Some(2), Some(6), None, 8, true);
         assert_eq!(ceiling, 2);
+    }
+    #[test]
+    fn watch_events_for_untouched_files_are_not_changes() {
+        use std::time::{Duration, SystemTime};
+        let dir = std::env::temp_dir().join(format!("virage-watch-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let file = dir.join("a.md");
+        std::fs::write(&file, "x").unwrap();
+        let old = SystemTime::now() - Duration::from_secs(60);
+        std::fs::File::options()
+            .write(true)
+            .open(&file)
+            .unwrap()
+            .set_modified(old)
+            .unwrap();
+
+        // A read-only event for a file last written a minute before the pass started.
+        assert!(!changed_since(&file, SystemTime::now()));
+        // Written after the pass started: a real edit.
+        assert!(changed_since(&file, old - Duration::from_secs(30)));
+        // Removed: a change.
+        std::fs::remove_file(&file).unwrap();
+        assert!(changed_since(&file, SystemTime::now()));
+        let _ = std::fs::remove_dir(&dir);
     }
 }
