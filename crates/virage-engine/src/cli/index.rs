@@ -80,6 +80,13 @@ pub struct IndexArgs {
     pub no_upload: bool,
 }
 
+/// Paths the watcher never indexes: the index's own state and a repository's git internals.
+/// Git rewrites `FETCH_HEAD`, lock files and refs on every fetch or maintenance run (a repo
+/// with several worktrees does this constantly), none of which is a source file.
+fn is_internal_path(path: &std::path::Path) -> bool {
+    path.to_string_lossy().contains(".virage") || path.components().any(|c| c.as_os_str() == ".git")
+}
+
 /// Whether a watch event reflects a change made since `since` (the start of the last pass).
 /// The debouncer also reports reads (open, access, close without write), which every pass
 /// itself generates; a read leaves the modification time alone, so it is dropped here. A path
@@ -285,7 +292,7 @@ pub async fn cmd_index(
                 Ok(Ok(events)) => {
                     let changed: Vec<_> = events
                         .iter()
-                        .filter(|e| !e.path.to_string_lossy().contains(".virage"))
+                        .filter(|e| !is_internal_path(&e.path))
                         .filter(|e| changed_since(&e.path, pass_started))
                         .collect();
                     if changed.is_empty() {
@@ -619,6 +626,19 @@ mod tests {
         let (ceiling, _) = resolve_concurrency(Some(2), Some(6), None, 8, true);
         assert_eq!(ceiling, 2);
     }
+    #[test]
+    fn watch_ignores_index_state_and_git_internals() {
+        use std::path::Path;
+        assert!(is_internal_path(Path::new("/r/.virage/lancedb/data.lance")));
+        assert!(is_internal_path(Path::new(
+            "/r/.git/worktrees/pool-07/FETCH_HEAD"
+        )));
+        assert!(is_internal_path(Path::new("/r/.git/index.lock")));
+        assert!(!is_internal_path(Path::new("/r/docs/BOOTSTRAP.md")));
+        assert!(!is_internal_path(Path::new("/r/.github/workflows/ci.yaml")));
+        assert!(!is_internal_path(Path::new("/r/.gitignore")));
+    }
+
     #[test]
     fn watch_events_for_untouched_files_are_not_changes() {
         use std::time::{Duration, SystemTime};
