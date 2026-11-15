@@ -411,6 +411,9 @@ pub async fn migrate_chunk_id_scheme(
     if !chunk_id_scheme_is_stale(db) {
         return Ok(false);
     }
+    if !existing_keys.is_empty() {
+        store.initialize().await?;
+    }
     for chunk in existing_keys.chunks(PURGE_BATCH) {
         let refs: Vec<&str> = chunk.iter().map(String::as_str).collect();
         store.delete_by_source(&refs).await?;
