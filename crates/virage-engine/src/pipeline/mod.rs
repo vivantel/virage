@@ -366,12 +366,25 @@ mod tests {
         upserted: std::sync::Mutex<Vec<VectorDocument>>,
         /// Ordered `delete:<path>` / `upsert` log, to assert a purge precedes the upsert.
         events: std::sync::Mutex<Vec<String>>,
+        /// When set, `delete_by_source` fails until `initialize` ran, like a real on-disk store.
+        requires_init: bool,
+        initialized: std::sync::atomic::AtomicBool,
     }
     impl MockStore {
         fn new() -> Arc<Self> {
             Arc::new(Self {
                 upserted: std::sync::Mutex::new(Vec::new()),
                 events: std::sync::Mutex::new(Vec::new()),
+                requires_init: false,
+                initialized: std::sync::atomic::AtomicBool::new(false),
+            })
+        }
+        fn requiring_init() -> Arc<Self> {
+            Arc::new(Self {
+                upserted: std::sync::Mutex::new(Vec::new()),
+                events: std::sync::Mutex::new(Vec::new()),
+                requires_init: true,
+                initialized: std::sync::atomic::AtomicBool::new(false),
             })
         }
         fn upsert_count(&self) -> usize {
@@ -385,6 +398,8 @@ mod tests {
     #[async_trait::async_trait]
     impl VectorStore for MockStore {
         async fn initialize(&self) -> anyhow::Result<()> {
+            self.initialized
+                .store(true, std::sync::atomic::Ordering::Relaxed);
             Ok(())
         }
         async fn upsert(&self, docs: &[VectorDocument]) -> anyhow::Result<()> {
@@ -408,6 +423,9 @@ mod tests {
             Ok(())
         }
         async fn delete_by_source(&self, files: &[&str]) -> anyhow::Result<()> {
+            if self.requires_init && !self.initialized.load(std::sync::atomic::Ordering::Relaxed) {
+                anyhow::bail!("store: call initialize() first");
+            }
             let mut ev = self.events.lock().unwrap();
             ev.extend(files.iter().map(|f| format!("delete:{f}")));
             Ok(())
@@ -942,6 +960,22 @@ mod tests {
             .unwrap();
         assert!(!again);
         assert_eq!(store.events().len(), 2);
+    }
+
+    /// An on-disk store refuses writes before `initialize`; the migration must open it itself
+    /// because the state DB (not an empty one) is what routes a real upgrade here.
+    #[tokio::test]
+    async fn id_scheme_migration_initializes_the_store_before_purging() {
+        let db = crate::db::VirageDb::open_in_memory().unwrap();
+        db.set_file_revision("a.md", "r1").unwrap();
+        let store = MockStore::requiring_init();
+        let keys = vec!["a.md".to_string()];
+
+        let purged = coordinator::migrate_chunk_id_scheme(&db, &*store, &keys)
+            .await
+            .unwrap();
+        assert!(purged);
+        assert_eq!(store.events(), vec!["delete:a.md"]);
     }
 
     /// A brand-new index has nothing to purge but still records the scheme.
