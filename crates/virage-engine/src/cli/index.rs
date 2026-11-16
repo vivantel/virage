@@ -75,10 +75,16 @@ pub struct IndexArgs {
     /// Re-run pipeline on file changes (stub — not yet implemented).
     #[arg(long)]
     pub watch: bool,
+    /// Quiet time in milliseconds before a burst of file changes triggers a pass (with --watch).
+    #[arg(long, default_value_t = DEFAULT_WATCH_DEBOUNCE_MS, value_parser = clap::value_parser!(u64).range(50..=60_000))]
+    pub watch_debounce_ms: u64,
     /// Index locally without uploading to the vector store.
     #[arg(long)]
     pub no_upload: bool,
 }
+
+/// Quiet time the watcher waits for before it reacts to a burst of changes.
+const DEFAULT_WATCH_DEBOUNCE_MS: u64 = 300;
 
 /// Paths the watcher never indexes: the index's own state and a repository's git internals.
 /// Git rewrites `FETCH_HEAD`, lock files and refs on every fetch or maintenance run (a repo
@@ -275,8 +281,9 @@ pub async fn cmd_index(
         }
 
         let (tx, rx) = std::sync::mpsc::channel();
-        let mut debouncer = new_debouncer(std::time::Duration::from_millis(300), tx)
-            .map_err(|e| anyhow::anyhow!("watcher error: {e}"))?;
+        let mut debouncer =
+            new_debouncer(std::time::Duration::from_millis(args.watch_debounce_ms), tx)
+                .map_err(|e| anyhow::anyhow!("watcher error: {e}"))?;
         debouncer
             .watcher()
             .watch(&cwd, RecursiveMode::Recursive)
@@ -560,6 +567,22 @@ mod tests {
         // RamSampling, None ⇒ FixedWorkers via coordinator.rs's fallback" — Option::is_some()
         // is the intended, documented way callers read the decision.
         strategy.is_some()
+    }
+
+    #[test]
+    fn watch_debounce_defaults_to_300ms_and_rejects_out_of_range() {
+        use clap::Parser;
+        #[derive(Parser)]
+        struct Cli {
+            #[command(flatten)]
+            index: IndexArgs,
+        }
+        let default = Cli::try_parse_from(["virage"]).unwrap();
+        assert_eq!(default.index.watch_debounce_ms, 300);
+        let set = Cli::try_parse_from(["virage", "--watch-debounce-ms", "1500"]).unwrap();
+        assert_eq!(set.index.watch_debounce_ms, 1500);
+        assert!(Cli::try_parse_from(["virage", "--watch-debounce-ms", "0"]).is_err());
+        assert!(Cli::try_parse_from(["virage", "--watch-debounce-ms", "60001"]).is_err());
     }
 
     #[test]

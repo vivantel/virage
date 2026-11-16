@@ -24,6 +24,7 @@ On subsequent runs only changed files (tracked via git) are re-processed. Use `-
 | `--no-upload` | — | boolean | `false` | Embed but skip uploading to the vector store |
 | `--dry-run` | — | boolean | `false` | Show what would change without writing anything |
 | `--watch` | — | boolean | `false` | Re-run the pipeline on file changes |
+| `--watch-debounce-ms` | — | integer | `300` | With `--watch`: quiet time (50–60000 ms) before a burst of changes triggers a pass |
 
 ## Output
 
