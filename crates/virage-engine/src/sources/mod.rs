@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::sync::{Arc, OnceLock, PoisonError, RwLock};
 
 use async_trait::async_trait;
 use bytes::Bytes;
@@ -63,13 +64,36 @@ pub trait SourceProvider: Send + Sync {
 
 // ─── Shared glob helpers ──────────────────────────────────────────────────────
 
+/// Compiled matcher for `pattern`, built once per distinct pattern string (an invalid pattern is
+/// remembered as `None`). Building a matcher compiles a regex, which costs far more than
+/// matching a path, and a walk matches every file against every fileSet and CODEOWNERS pattern.
+/// The cache is bounded by the number of distinct patterns, which come from configuration.
+fn cached_matcher(pattern: &str) -> Option<Arc<globset::GlobMatcher>> {
+    type Matchers = RwLock<HashMap<String, Option<Arc<globset::GlobMatcher>>>>;
+    static CACHE: OnceLock<Matchers> = OnceLock::new();
+    let cache = CACHE.get_or_init(Default::default);
+    if let Some(hit) = cache
+        .read()
+        .unwrap_or_else(PoisonError::into_inner)
+        .get(pattern)
+    {
+        return hit.clone();
+    }
+    let compiled = globset::Glob::new(pattern)
+        .ok()
+        .map(|g| Arc::new(g.compile_matcher()));
+    cache
+        .write()
+        .unwrap_or_else(PoisonError::into_inner)
+        .entry(pattern.to_string())
+        .or_insert(compiled)
+        .clone()
+}
+
 /// Match `path` against a glob `pattern` (no dot-special treatment).
 #[allow(dead_code)]
 pub(crate) fn glob_match(pattern: &str, path: &str) -> bool {
-    globset::Glob::new(pattern)
-        .ok()
-        .map(|g| g.compile_matcher().is_match(path))
-        .unwrap_or(false)
+    cached_matcher(pattern).is_some_and(|m| m.is_match(path))
 }
 
 /// Match `path` against `pattern` or `pattern/**` (replicates TS minimatch directory rule).
@@ -99,3 +123,39 @@ pub(crate) fn apply_range(data: Vec<u8>, range: Option<ByteRange>) -> Bytes {
 pub mod git;
 #[cfg(feature = "source-localfs")]
 pub mod local_fs;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn glob_match_is_stable_across_repeated_calls() {
+        let cases = [
+            ("**/*.md", "docs/guide/intro.md", true),
+            ("**/*.md", "docs/guide/intro.txt", false),
+            ("packages/*/src/**/*.ts", "packages/a/src/x/y.ts", true),
+            ("packages/*/src/**/*.ts", "packages/a/lib/y.ts", false),
+            ("scripts/check-*.mjs", "scripts/check-ids.mjs", true),
+        ];
+        for _ in 0..3 {
+            for (pattern, path, expected) in cases {
+                assert_eq!(glob_match(pattern, path), expected, "{pattern} vs {path}");
+            }
+        }
+    }
+
+    #[test]
+    fn invalid_pattern_never_matches_and_stays_that_way() {
+        for _ in 0..3 {
+            assert!(!glob_match("[", "["));
+            assert!(!glob_match("[", "a"));
+        }
+    }
+
+    #[test]
+    fn glob_match_dir_matches_the_directory_and_its_contents() {
+        assert!(glob_match_dir("docs", "docs"));
+        assert!(glob_match_dir("docs", "docs/a/b.md"));
+        assert!(!glob_match_dir("docs", "other/docs.md"));
+    }
+}
