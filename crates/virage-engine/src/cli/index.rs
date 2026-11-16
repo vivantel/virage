@@ -508,21 +508,19 @@ pub async fn cmd_index(
     // partway through (streaming can leave some of its chunks already stored) would still get
     // marked "known" and never be retried, despite having incomplete content in the store.
     // Skipped files need no write (their existing DB entry is already correct); deleted files
-    // are still detected via `list_current_state`, unrelated to processing outcome.
+    // are still detected against `stats.current_keys` (the pipeline's own listing, so the sources are
+    // walked once per run), unrelated to processing outcome.
     let t_db = std::time::Instant::now();
     {
         for (key, rev) in &stats.processed_revisions {
             db.set_file_revision(key, rev)
                 .map_err(|e| anyhow::anyhow!("DB write error: {e}"))?;
         }
-        let current = list_current_state(&groups).await?;
-        let current_keys: std::collections::HashSet<&str> =
-            current.iter().map(|(k, _, _)| k.as_str()).collect();
         for file in db
             .get_file_revisions()
             .unwrap_or_default()
             .keys()
-            .filter(|k| !current_keys.contains(k.as_str()))
+            .filter(|k| !stats.current_keys.contains(k.as_str()))
             .cloned()
             .collect::<Vec<_>>()
         {
