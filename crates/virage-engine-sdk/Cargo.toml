@@ -1,0 +1,23 @@
+[package]
+name        = "virage-engine-sdk"
+version     = "0.1.0"
+edition     = "2021"
+description = "Virage v2 SDK — WIT guest types and macros for WASM plugin authors (ADR-052)"
+license     = "MIT OR Apache-2.0"
+publish     = false
+
+[lib]
+crate-type = ["rlib"]
+
+# These examples are WASM plugins compiled with `--target wasm32-wasip2`.
+# They serve as test fixtures for the host integration tests.
+[[example]]
+name = "plain-text-chunker"
+crate-type = ["cdylib"]
+
+[[example]]
+name = "sandbox-probe"
+crate-type = ["cdylib"]
+
+[dependencies]
+wit-bindgen = { version = "0.39", default-features = false, features = ["macros", "realloc"] }
