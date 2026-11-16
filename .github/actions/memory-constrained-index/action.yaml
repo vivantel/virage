@@ -40,7 +40,7 @@ runs:
 
     - name: Install build and verification system packages
       shell: bash
-      run: sudo apt-get update -y && sudo apt-get install -y protobuf-compiler stress-ng time gdb
+      run: sudo apt-get update -y && sudo apt-get install -y protobuf-compiler stress-ng time
 
     - name: Build release virage binary
       shell: bash
@@ -57,32 +57,7 @@ runs:
 
     - name: Warm model cache (unconstrained)
       shell: bash
-      run: |
-        # Bounded and self-diagnosing: if the warm-up is still running after 120 s,
-        # dump where it is (threads, sockets, cache) once, then wait out the 15 min cap.
-        ./target/release/virage -vvv index --config ${{ inputs.config }} > warm.log 2>&1 &
-        pid=$!
-        for i in $(seq 1 900); do
-          kill -0 "$pid" 2>/dev/null || break
-          if [ "$i" -eq 120 ]; then
-            echo "::group::warm-up still running at 120s"
-            ls -l /proc/$pid/task | wc -l
-            for t in /proc/$pid/task/*; do echo "$(basename $t) $(cat $t/comm) wchan=$(cat $t/wchan 2>/dev/null)"; done | sort -k2 | head -60
-            ss -tnp 2>/dev/null | grep "pid=$pid," || echo "no sockets"
-            du -sh .virage/model-cache .virage 2>/dev/null || true
-            find .virage -newer warm.log -type f 2>/dev/null | head -20
-            tail -n 40 warm.log
-            command -v gdb >/dev/null && sudo gdb -p "$pid" -batch -ex "thread apply all bt 12" 2>&1 | head -150
-            echo "::endgroup::"
-          fi
-          sleep 1
-        done
-        if kill -0 "$pid" 2>/dev/null; then
-          kill "$pid"; echo "warm-up killed at 900 s"; tail -n 80 warm.log; exit 124
-        fi
-        wait "$pid"; rc=$?
-        tail -n 40 warm.log
-        exit "$rc"
+      run: timeout 15m ./target/release/virage -vvv index --config ${{ inputs.config }}
 
     - name: Reset index state, keep model cache
       shell: bash
