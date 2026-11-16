@@ -57,8 +57,7 @@ runs:
 
     - name: Warm model cache (unconstrained)
       shell: bash
-      timeout-minutes: 15
-      run: ./target/release/virage -vvv index --config ${{ inputs.config }}
+      run: timeout 15m ./target/release/virage -vvv index --config ${{ inputs.config }}
 
     - name: Reset index state, keep model cache
       shell: bash
@@ -66,7 +65,6 @@ runs:
 
     - name: Run index under simulated memory pressure
       shell: bash
-      timeout-minutes: 20
       run: |
         mkdir -p results
         total_kb=$(awk '/MemTotal/{print $2}' /proc/meminfo)
@@ -88,7 +86,7 @@ runs:
         set +e
         start=$(date +%s)
         /usr/bin/time -v -o time_stats.log \
-          ./target/release/virage -vvv index --config ${{ inputs.config }} --force > run.log 2>&1
+          timeout 20m ./target/release/virage -vvv index --config ${{ inputs.config }} --force > run.log 2>&1
         rc=$?
         end=$(date +%s)
         set -e
