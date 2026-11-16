@@ -183,6 +183,7 @@ pub async fn run_pipeline(
             chunks_upserted: 0,
             tokens_processed: 0,
             processed_revisions: HashMap::new(),
+            current_keys,
         });
     }
 
@@ -352,6 +353,7 @@ pub async fn run_pipeline(
         chunks_upserted,
         tokens_processed,
         processed_revisions,
+        current_keys,
     })
 }
 

@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 
@@ -243,6 +243,10 @@ pub struct PipelineStats {
     /// and doesn't need rewriting) and deleted files (handled separately via `list_current_state`
     /// diffing, unrelated to this run's processing outcome).
     pub processed_revisions: HashMap<String, String>,
+    /// `revision_key` of every file the fileSets listed this run, whether it was processed or
+    /// skipped. Callers diff their state DB against this to find files that disappeared, so
+    /// they need not list the sources a second time.
+    pub current_keys: HashSet<String>,
 }
 
 // ─── ProgressCounters ────────────────────────────────────────────────────────
@@ -901,6 +905,23 @@ mod tests {
             let ups = ev.iter().position(|e| e == "upsert");
             assert!(del.is_some(), "expected a purge of edit.md, got {ev:?}");
             assert!(del < ups, "purge must precede the upsert, got {ev:?}");
+        }
+    }
+
+    /// The stats carry every listed key, processed or skipped, so a caller can find vanished
+    /// files without listing the sources again (both the early all-skipped return and the
+    /// full path must report them).
+    #[tokio::test]
+    async fn stats_report_every_listed_key() {
+        let expected: HashSet<String> = ["a.md".to_string(), "b.md".to_string()].into();
+        let skipped_all = HashMap::from([
+            ("a.md".to_string(), "rev2".to_string()),
+            ("b.md".to_string(), "rev2".to_string()),
+        ]);
+        for known in [HashMap::new(), skipped_all] {
+            let stats =
+                run_fixed_body(&["a.md", "b.md"], "Text.", known, MockStore::new(), 512).await;
+            assert_eq!(stats.current_keys, expected);
         }
     }
 
