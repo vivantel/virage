@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1794222873092,
+  "lastUpdate": 1794826489423,
   "repoUrl": "https://github.com/vivantel/virage",
   "entries": {
     "Virage Quality Metrics": [
@@ -821,6 +821,143 @@ window.BENCHMARK_DATA = {
           {
             "name": "LexicalRecall@K",
             "value": 0.99,
+            "unit": "score"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "S. Strebulaev",
+            "username": "sergemso",
+            "email": "strebulaev@gmail.com"
+          },
+          "committer": {
+            "name": "GitHub",
+            "username": "web-flow",
+            "email": "noreply@github.com"
+          },
+          "id": "36e1ad01371b9eb31faa83ea662fe828c8b32f8c",
+          "message": "fix(watch): never treat git internals as source changes (#478)\n\nWhy: on a repository with many worktrees and background fetches, git rewrites FETCH_HEAD, lock files and refs every few seconds, and the watcher only excluded its own state directory, so each of those writes started a full pass (about 20 s each on a 1600-file repo) even though no source file had changed. Measured on a live repo: one pass every ~21 s for minutes, matching git fetch activity in a sibling worktree, with only .git paths changing.\n\nEvents whose path has a .git component are now ignored alongside the index state directory.\nQ-LEVEL: Q2 — CI: ci.yaml workflow_dispatch run 43766317347 and PR run 43767154756 (Rust lint, Coverage virage-engine, Pipeline Quality Gate, Dogfooding QA, codecov/patch green). Behaviour on the live repo is re-checked on a CI-built binary after the next sync.\nCOUNCIL: none",
+          "timestamp": "2026-11-15T22:12:01Z",
+          "url": "https://github.com/vivantel/virage/commit/36e1ad01371b9eb31faa83ea662fe828c8b32f8c"
+        },
+        "date": 1794826488217,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "Overall Quality",
+            "value": 0.7358574338522275,
+            "unit": "score"
+          },
+          {
+            "name": "Chunking",
+            "value": 0.7054754154198666,
+            "unit": "score"
+          },
+          {
+            "name": "Cohesion",
+            "value": 0.6230389330179771,
+            "unit": "score"
+          },
+          {
+            "name": "Coherence",
+            "value": 0.7461721758671576,
+            "unit": "score"
+          },
+          {
+            "name": "Coverage",
+            "value": 0.85,
+            "unit": "score"
+          },
+          {
+            "name": "Metadata Extraction",
+            "value": 0.541340206185567,
+            "unit": "score"
+          },
+          {
+            "name": "Completeness",
+            "value": 0.405,
+            "unit": "score"
+          },
+          {
+            "name": "BreadcrumbConsistency",
+            "value": 0.9896907216494846,
+            "unit": "score"
+          },
+          {
+            "name": "FQNCompleteness",
+            "value": 0,
+            "unit": "score"
+          },
+          {
+            "name": "SiblingIntegrity",
+            "value": 1,
+            "unit": "score"
+          },
+          {
+            "name": "Dense Input Prep",
+            "value": 0.9621792838341956,
+            "unit": "score"
+          },
+          {
+            "name": "TextPurity",
+            "value": 0.9807827827211839,
+            "unit": "score"
+          },
+          {
+            "name": "EnrichmentQuality",
+            "value": 0.9435757849472072,
+            "unit": "score"
+          },
+          {
+            "name": "Dense Embedding",
+            "value": 0.7221699050512371,
+            "unit": "score"
+          },
+          {
+            "name": "SelfRecall@K",
+            "value": 0.98,
+            "unit": "score"
+          },
+          {
+            "name": "IntrinsicDimension",
+            "value": 0.19345238095238096,
+            "unit": "score"
+          },
+          {
+            "name": "Uniformity",
+            "value": 0.5137535601663886,
+            "unit": "score"
+          },
+          {
+            "name": "Isotropy",
+            "value": 0.0937968834285438,
+            "unit": "score"
+          },
+          {
+            "name": "OutlierFraction",
+            "value": 1,
+            "unit": "score"
+          },
+          {
+            "name": "Sparse Input Prep",
+            "value": 0.944217443118093,
+            "unit": "score"
+          },
+          {
+            "name": "TermCoverage",
+            "value": 0.944217443118093,
+            "unit": "score"
+          },
+          {
+            "name": "Lexical Retrieval",
+            "value": 0.98,
+            "unit": "score"
+          },
+          {
+            "name": "LexicalRecall@K",
+            "value": 0.98,
             "unit": "score"
           }
         ]
