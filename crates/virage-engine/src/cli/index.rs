@@ -12,6 +12,31 @@ use crate::progress::{finish_stage, Progress};
 
 use super::util::{embedder_dims, open_or_init_db, resolve_config_path, resolve_db_path};
 
+/// Persist what a pipeline run finished to the state DB: a revision for each file that fully
+/// completed, and removal of files that are no longer listed. Every pass that calls
+/// `run_pipeline` must do this, the watch passes included; without it the next pass reads the
+/// same stale revisions and embeds every file that changed since the last one-shot run again.
+fn record_revisions(
+    db: &crate::db::VirageDb,
+    stats: &crate::pipeline::PipelineStats,
+) -> anyhow::Result<()> {
+    for (key, rev) in &stats.processed_revisions {
+        db.set_file_revision(key, rev)
+            .map_err(|e| anyhow::anyhow!("DB write error: {e}"))?;
+    }
+    for file in db
+        .get_file_revisions()
+        .unwrap_or_default()
+        .keys()
+        .filter(|k| !stats.current_keys.contains(k.as_str()))
+        .cloned()
+        .collect::<Vec<_>>()
+    {
+        let _ = db.delete_file(&file);
+    }
+    Ok(())
+}
+
 /// Resolve the worker ceiling and concurrency strategy for a `run_pipeline` call (ADR-057).
 ///
 /// `--workers N` (or `pipeline.concurrency` in config) sets the *ceiling* — the max worker count
@@ -267,14 +292,22 @@ pub async fn cmd_index(
                     }
                 })
             };
-            let _ = run_pipeline(
+            match run_pipeline(
                 &pipeline_cfg,
                 groups.clone(),
                 embedder.clone(),
                 store.clone(),
                 known_revisions.clone(),
             )
-            .await;
+            .await
+            {
+                Ok(stats) => {
+                    if let Err(e) = record_revisions(&db, &stats) {
+                        eprintln!("  ⚠ Could not record the initial pass in the state DB — {e}");
+                    }
+                }
+                Err(e) => eprintln!("  ⚠ Initial index failed — {e}"),
+            }
             pt.abort();
             file_bar.finish_and_clear();
             chunk_bar.finish_and_clear();
@@ -370,6 +403,9 @@ pub async fn cmd_index(
                     .await
                     {
                         Ok(stats) => {
+                            if let Err(e) = record_revisions(&db, &stats) {
+                                eprintln!("  ⚠ Could not record this pass in the state DB — {e}");
+                            }
                             let ms = t_watch.elapsed().as_millis();
                             let count = db.get_file_revisions().map(|m| m.len()).unwrap_or(0);
                             eprintln!(
@@ -511,22 +547,7 @@ pub async fn cmd_index(
     // are still detected against `stats.current_keys` (the pipeline's own listing, so the sources are
     // walked once per run), unrelated to processing outcome.
     let t_db = std::time::Instant::now();
-    {
-        for (key, rev) in &stats.processed_revisions {
-            db.set_file_revision(key, rev)
-                .map_err(|e| anyhow::anyhow!("DB write error: {e}"))?;
-        }
-        for file in db
-            .get_file_revisions()
-            .unwrap_or_default()
-            .keys()
-            .filter(|k| !stats.current_keys.contains(k.as_str()))
-            .cloned()
-            .collect::<Vec<_>>()
-        {
-            let _ = db.delete_file(&file);
-        }
-    }
+    record_revisions(&db, &stats)?;
     out.debug_msg(&format!("DB flush: {}ms", t_db.elapsed().as_millis()));
 
     let elapsed_ms = t0.elapsed().as_millis();
@@ -565,6 +586,26 @@ mod tests {
         // RamSampling, None ⇒ FixedWorkers via coordinator.rs's fallback" — Option::is_some()
         // is the intended, documented way callers read the decision.
         strategy.is_some()
+    }
+
+    #[test]
+    fn record_revisions_persists_completed_files_and_drops_missing_ones() {
+        let db = crate::db::VirageDb::open_in_memory().unwrap();
+        db.set_file_revision("kept.md", "old").unwrap();
+        db.set_file_revision("gone.md", "x").unwrap();
+        let stats = crate::pipeline::PipelineStats {
+            processed_revisions: HashMap::from([("new.md".to_string(), "r1".to_string())]),
+            current_keys: ["kept.md", "new.md"]
+                .iter()
+                .map(|k| k.to_string())
+                .collect(),
+            ..Default::default()
+        };
+        record_revisions(&db, &stats).unwrap();
+        let revs = db.get_file_revisions().unwrap();
+        assert_eq!(revs.get("new.md").map(String::as_str), Some("r1"));
+        assert_eq!(revs.get("kept.md").map(String::as_str), Some("old"));
+        assert!(!revs.contains_key("gone.md"));
     }
 
     #[test]
