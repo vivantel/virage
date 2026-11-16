@@ -11,7 +11,10 @@
  * redirections that would cause infinite recursion on glibc 2.38+.
  */
 
-#include <stdlib.h> /* for abort() */
+/* Deliberately no <stdlib.h>: on glibc 2.38+ it declares strtol with an asm label to
+ * __isoc23_strtol, and the redeclarations below would inherit it, making each shim call
+ * itself (an endless loop at -O2). abort() is the only libc symbol needed besides strto*. */
+extern void abort(void) __attribute__((noreturn));
 
 extern long strtol(const char *, char **, int);
 extern long long strtoll(const char *, char **, int);
