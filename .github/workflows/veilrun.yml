@@ -1,0 +1,24 @@
+name: veilrun
+run-name: "veilrun · ${{ github.event.client_payload.event }} · ${{ github.event.client_payload.sha }}"
+
+on:
+  repository_dispatch:
+    types: [veilrun]
+
+permissions: {}
+
+concurrency:
+  group: veilrun-${{ github.event.client_payload.pr || github.event.client_payload.sha }}
+  cancel-in-progress: ${{ github.event.client_payload.event == 'pull_request' }}
+
+jobs:
+  run:
+    uses: sergemso/veilrunner/.github/workflows/run.yml@65811db0852097f5919a6a748e3b31447561c6db
+    permissions:
+      id-token: write
+      contents: read
+    with:
+      nonce: ${{ github.event.client_payload.nonce }}
+      command: echo ok
+    secrets:
+      service: ${{ secrets.VEILRUN_URL }}
