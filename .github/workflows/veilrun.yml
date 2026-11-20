@@ -13,7 +13,7 @@ concurrency:
 
 jobs:
   run:
-    uses: sergemso/veilrunner/.github/workflows/run.yml@65811db0852097f5919a6a748e3b31447561c6db
+    uses: sergemso/veilrunner/.github/workflows/run.yml@f64db4e2630e191ba9e107101422aa07598351f6
     permissions:
       id-token: write
       contents: read
