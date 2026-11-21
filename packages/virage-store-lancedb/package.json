@@ -57,7 +57,7 @@
   "dependencies": {
     "@lancedb/lancedb": "^0.31.0",
     "apache-arrow": "^21.1.0",
-    "zod": "^4.4.3"
+    "zod": "^4.6.7"
   },
   "peerDependencies": {
     "@vivantel/virage-core": "*"
