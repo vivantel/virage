@@ -86,7 +86,7 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
 
       - name: Install dependencies
-        run: npm ci
+        run: npm ci --onnxruntime-node-install-cuda=skip
 
       - name: Build all packages
         run: npm run build:all
