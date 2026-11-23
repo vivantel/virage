@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1794826489423,
+  "lastUpdate": 1795435594357,
   "repoUrl": "https://github.com/vivantel/virage",
   "entries": {
     "Virage Quality Metrics": [
@@ -958,6 +958,143 @@ window.BENCHMARK_DATA = {
           {
             "name": "LexicalRecall@K",
             "value": 0.98,
+            "unit": "score"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "S. Strebulaev",
+            "username": "sergemso",
+            "email": "strebulaev@gmail.com"
+          },
+          "committer": {
+            "name": "GitHub",
+            "username": "web-flow",
+            "email": "noreply@github.com"
+          },
+          "id": "6aaae263ebcd02104b141be2ff5a569dd19d0592",
+          "message": "Merge pull request #489 from vivantel/ci/repin-workflows\n\nci: repin the reusable workflow",
+          "timestamp": "2026-11-22T14:25:07Z",
+          "url": "https://github.com/vivantel/virage/commit/6aaae263ebcd02104b141be2ff5a569dd19d0592"
+        },
+        "date": 1795435592694,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "Overall Quality",
+            "value": 0.7271685813242837,
+            "unit": "score"
+          },
+          {
+            "name": "Chunking",
+            "value": 0.6865462049000117,
+            "unit": "score"
+          },
+          {
+            "name": "Cohesion",
+            "value": 0.6314296541667296,
+            "unit": "score"
+          },
+          {
+            "name": "Coherence",
+            "value": 0.7601048176331634,
+            "unit": "score"
+          },
+          {
+            "name": "Coverage",
+            "value": 0.76,
+            "unit": "score"
+          },
+          {
+            "name": "Metadata Extraction",
+            "value": 0.5349594731509625,
+            "unit": "score"
+          },
+          {
+            "name": "Completeness",
+            "value": 0.4025,
+            "unit": "score"
+          },
+          {
+            "name": "BreadcrumbConsistency",
+            "value": 0.9698581560283689,
+            "unit": "score"
+          },
+          {
+            "name": "FQNCompleteness",
+            "value": 0,
+            "unit": "score"
+          },
+          {
+            "name": "SiblingIntegrity",
+            "value": 1,
+            "unit": "score"
+          },
+          {
+            "name": "Dense Input Prep",
+            "value": 0.9540878185132288,
+            "unit": "score"
+          },
+          {
+            "name": "TextPurity",
+            "value": 0.9702544836582635,
+            "unit": "score"
+          },
+          {
+            "name": "EnrichmentQuality",
+            "value": 0.937921153368194,
+            "unit": "score"
+          },
+          {
+            "name": "Dense Embedding",
+            "value": 0.7188990455335146,
+            "unit": "score"
+          },
+          {
+            "name": "SelfRecall@K",
+            "value": 0.96,
+            "unit": "score"
+          },
+          {
+            "name": "IntrinsicDimension",
+            "value": 0.19717261904761907,
+            "unit": "score"
+          },
+          {
+            "name": "Uniformity",
+            "value": 0.5481895322104169,
+            "unit": "score"
+          },
+          {
+            "name": "Isotropy",
+            "value": 0.11496328941961836,
+            "unit": "score"
+          },
+          {
+            "name": "OutlierFraction",
+            "value": 0.99,
+            "unit": "score"
+          },
+          {
+            "name": "Sparse Input Prep",
+            "value": 0.9531888728989358,
+            "unit": "score"
+          },
+          {
+            "name": "TermCoverage",
+            "value": 0.9531888728989358,
+            "unit": "score"
+          },
+          {
+            "name": "Lexical Retrieval",
+            "value": 0.96,
+            "unit": "score"
+          },
+          {
+            "name": "LexicalRecall@K",
+            "value": 0.96,
             "unit": "score"
           }
         ]
