@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.1.64](https://github.com/vivantel/virage/compare/virage-git-isomorphic@v0.1.63...virage-git-isomorphic@v0.1.64) (2026-11-25)
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * devDependencies
+    * @vivantel/virage-core bumped from 0.4.20 to 0.4.21
+  * peerDependencies
+    * @vivantel/virage-core bumped from * to 0.4.21
+
 ## [0.1.63](https://github.com/vivantel/virage/compare/virage-git-isomorphic@v0.1.62...virage-git-isomorphic@v0.1.63) (2026-11-25)
 
 
