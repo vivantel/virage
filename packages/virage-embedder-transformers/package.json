@@ -46,7 +46,7 @@
     "directory": "packages/virage-embedder-transformers"
   },
   "dependencies": {
-    "@huggingface/transformers": "^4.2.0",
+    "@huggingface/transformers": "^4.3.0",
     "zod": "^4.4.3"
   },
   "peerDependencies": {
