@@ -37,7 +37,7 @@ jobs:
         run: npm install -g @vivantel/virage@latest
 
       - name: Restore Virage cache
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v6
         with:
           path: |
             .virage/lancedb
@@ -52,7 +52,7 @@ jobs:
 
       - name: Save Virage cache
         if: always()
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v6
         with:
           path: |
             .virage/lancedb
@@ -95,7 +95,7 @@ jobs:
         run: npm install -g @vivantel/virage@latest
 
       - name: Restore Virage cache
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v6
         with:
           path: |
             .virage/lancedb
