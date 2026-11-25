@@ -71,6 +71,15 @@ describe("embedder check", () => {
     expect(embedderKind("@vivantel/virage-embedder-onnx")).toBe("local");
     expect(embedderKind("@vivantel/virage-embedder-openai")).toBe("hosted");
     expect(embedderKind("some-vendor-embedder")).toBe("hosted");
+    expect(embedderKind("embedder-onnx")).toBe("local");
+    for (const hosted of [
+      "embedder-onnx-proxy",
+      "@acme/embedder-onnx-cloud",
+      "my-embedder-onnx",
+      "@embedder-onnx/openai",
+    ]) {
+      expect(embedderKind(hosted)).toBe("hosted");
+    }
   });
 
   it("refuses a hosted embedder unless the policy lists hosted", () => {

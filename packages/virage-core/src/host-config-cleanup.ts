@@ -1,7 +1,23 @@
 import { existsSync } from "fs";
-import { readFile, rm, writeFile } from "fs/promises";
-import { join } from "path";
+import { readFile, rename, rm, stat, chmod, writeFile } from "fs/promises";
+import { dirname, basename, join } from "path";
 import { declarationPath } from "./retrieval-contract.js";
+
+/**
+ * Write a sibling temp file and rename it over the original, so a crash never
+ * leaves a truncated user file. The original's permissions are kept.
+ */
+async function writeJsonAtomic(path: string, value: unknown): Promise<void> {
+  const tmp = join(dirname(path), `.${basename(path)}.virage-tmp`);
+  await writeFile(tmp, JSON.stringify(value, null, 2) + "\n");
+  try {
+    await chmod(tmp, (await stat(path)).mode & 0o777);
+    await rename(tmp, path);
+  } catch (err) {
+    await rm(tmp, { force: true });
+    throw err;
+  }
+}
 
 /**
  * Remove the host registrations virage wrote, for `virage uninstall`:
@@ -144,7 +160,7 @@ export async function removeHostRegistrations(
   } else if (mcp) {
     result.mcpEntries = stripMcpEntries(mcp);
     if (result.mcpEntries.length > 0 && !opts.dryRun) {
-      await writeFile(mcpPath, JSON.stringify(mcp, null, 2) + "\n");
+      await writeJsonAtomic(mcpPath, mcp);
     }
   }
 
@@ -155,7 +171,7 @@ export async function removeHostRegistrations(
   } else if (settings) {
     result.hooks = stripVirageHooks(settings);
     if (result.hooks > 0 && !opts.dryRun) {
-      await writeFile(settingsPath, JSON.stringify(settings, null, 2) + "\n");
+      await writeJsonAtomic(settingsPath, settings);
     }
   }
 
