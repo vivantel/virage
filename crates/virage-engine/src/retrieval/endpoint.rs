@@ -233,7 +233,10 @@ fn find_head_end(buf: &[u8]) -> Option<usize> {
     buf.windows(4).position(|w| w == b"\r\n\r\n")
 }
 
-fn parse_head(head: &[u8]) -> Result<(String, String, Vec<(String, String)>), ReadError> {
+/// Request method, path and lower-cased header pairs.
+type ParsedHead = (String, String, Vec<(String, String)>);
+
+fn parse_head(head: &[u8]) -> Result<ParsedHead, ReadError> {
     let text = std::str::from_utf8(head).map_err(|_| ReadError::Malformed("malformed request"))?;
     let mut lines = text.split("\r\n");
     let request_line = lines
