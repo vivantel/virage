@@ -326,7 +326,7 @@ pub async fn run_pipeline(
                 if !config_with_symbol_index.skip_upload {
                     let started = std::time::Instant::now();
                     store.upsert(&deduped).await?;
-                    ProgressCounters::add_nanos(&progress.store_nanos, started.elapsed());
+                    super::ProgressCounters::add_nanos(&progress.store_nanos, started.elapsed());
                 }
                 chunks_upserted += deduped.len();
                 tokens_processed += sum_estimated_tokens(&deduped);
@@ -339,7 +339,7 @@ pub async fn run_pipeline(
         if !config_with_symbol_index.skip_upload {
             let started = std::time::Instant::now();
             store.upsert(&deduped).await?;
-            ProgressCounters::add_nanos(&progress.store_nanos, started.elapsed());
+            super::ProgressCounters::add_nanos(&progress.store_nanos, started.elapsed());
         }
         chunks_upserted += deduped.len();
         tokens_processed += sum_estimated_tokens(&deduped);
