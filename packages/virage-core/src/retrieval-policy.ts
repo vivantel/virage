@@ -30,7 +30,11 @@ const DATA_CLASSES = ["public", "internal", "confidential", "restricted"];
 
 /** Only packages known to run on this machine are local; anything else is hosted (fail closed). */
 export function embedderKind(pkg: string): EmbedderKind {
-  return LOCAL_EMBEDDERS.some((k) => pkg.includes(k)) ? "local" : "hosted";
+  // Match the package basename exactly, not a substring: a hosted package whose name merely
+  // contains a local name must stay hosted.
+  const last = pkg.split("/").pop() ?? pkg;
+  const base = last.startsWith("virage-") ? last.slice("virage-".length) : last;
+  return LOCAL_EMBEDDERS.includes(base) ? "local" : "hosted";
 }
 
 export interface RetrievalPolicy {

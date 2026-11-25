@@ -1,6 +1,6 @@
 {
   "name": "@vivantel/virage-store-postgres",
-  "version": "0.3.21",
+  "version": "0.3.22",
   "description": "PostgreSQL + pgvector store for @vivantel/rag-core",
   "type": "module",
   "main": "dist/index.js",
@@ -47,7 +47,7 @@
   "dependencies": {
     "pg": "^8.22.0",
     "pgvector": "^0.3.0",
-    "zod": "^4.4.3"
+    "zod": "^4.6.7"
   },
   "peerDependencies": {
     "@vivantel/virage-core": "*"
@@ -56,7 +56,7 @@
     "@types/node": "^26.1.0",
     "@types/pg": "^8.0.0",
     "@vitest/coverage-v8": "^4.1.10",
-    "@vivantel/virage-core": "0.4.21",
+    "@vivantel/virage-core": "0.4.22",
     "typescript": "^6.0.3",
     "vitest": "^4.1.10"
   },

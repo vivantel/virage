@@ -1,6 +1,6 @@
 {
   "name": "@vivantel/virage-reranker-llm",
-  "version": "0.2.21",
+  "version": "0.2.22",
   "description": "LLM-based re-ranker for Virage using the Anthropic API",
   "type": "module",
   "main": "dist/index.js",
@@ -41,13 +41,13 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.110.0",
-    "zod": "^4.4.3"
+    "zod": "^4.6.7"
   },
   "peerDependencies": {
     "@vivantel/virage-core": "*"
   },
   "devDependencies": {
-    "@vivantel/virage-core": "0.4.21",
+    "@vivantel/virage-core": "0.4.22",
     "@types/node": "^26.1.0",
     "typescript": "^6.0.3",
     "vitest": "^4.1.10"

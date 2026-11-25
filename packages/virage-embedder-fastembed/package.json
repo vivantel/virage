@@ -1,6 +1,6 @@
 {
   "name": "@vivantel/virage-embedder-fastembed",
-  "version": "0.3.21",
+  "version": "0.3.22",
   "description": "FastEmbed ONNX-based local embedding provider for @vivantel/rag-core",
   "type": "module",
   "main": "dist/index.js",
@@ -47,14 +47,14 @@
   },
   "dependencies": {
     "fastembed": "^2.1.0",
-    "zod": "^4.4.3"
+    "zod": "^4.6.7"
   },
   "peerDependencies": {
     "@vivantel/virage-core": "*"
   },
   "devDependencies": {
     "@types/node": "^26.1.0",
-    "@vivantel/virage-core": "0.4.21",
+    "@vivantel/virage-core": "0.4.22",
     "typescript": "^6.0.3",
     "vitest": "^4.1.10"
   },

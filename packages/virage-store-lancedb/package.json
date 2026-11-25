@@ -1,6 +1,6 @@
 {
   "name": "@vivantel/virage-store-lancedb",
-  "version": "0.3.22",
+  "version": "0.3.23",
   "description": "LanceDB vector store for @vivantel/rag-core (embedded, file-based)",
   "type": "module",
   "main": "dist/index.js",
@@ -57,14 +57,14 @@
   "dependencies": {
     "@lancedb/lancedb": "^0.31.0",
     "apache-arrow": "^21.1.0",
-    "zod": "^4.4.3"
+    "zod": "^4.6.7"
   },
   "peerDependencies": {
     "@vivantel/virage-core": "*"
   },
   "devDependencies": {
     "@types/node": "^26.1.0",
-    "@vivantel/virage-core": "0.4.21",
+    "@vivantel/virage-core": "0.4.22",
     "typescript": "^6.0.3",
     "vitest": "^4.1.10"
   },
