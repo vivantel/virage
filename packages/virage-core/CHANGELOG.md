@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.21](https://github.com/vivantel/virage/compare/virage-core@v0.4.20...virage-core@v0.4.21) (2026-11-25)
+
+
+### Features
+
+* **cli:** Remove virage's MCP entry, hooks and declaration on uninstall ([#439](https://github.com/vivantel/virage/issues/439)) ([#499](https://github.com/vivantel/virage/issues/499)) ([b52d756](https://github.com/vivantel/virage/commit/b52d756edf37969d3746295100ad525f332d73f9))
+
 ## [0.4.20](https://github.com/vivantel/virage/compare/virage-core@v0.4.19...virage-core@v0.4.20) (2026-11-25)
 
 

@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.3.28](https://github.com/vivantel/virage/compare/virage-cli@v0.3.27...virage-cli@v0.3.28) (2026-11-25)
+
+
+### Features
+
+* **cli:** Remove virage's MCP entry, hooks and declaration on uninstall ([#439](https://github.com/vivantel/virage/issues/439)) ([#499](https://github.com/vivantel/virage/issues/499)) ([b52d756](https://github.com/vivantel/virage/commit/b52d756edf37969d3746295100ad525f332d73f9))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @vivantel/virage-core bumped from >=0.4.20 to >=0.4.21
+
 ## [0.3.27](https://github.com/vivantel/virage/compare/virage-cli@v0.3.26...virage-cli@v0.3.27) (2026-11-25)
 
 
