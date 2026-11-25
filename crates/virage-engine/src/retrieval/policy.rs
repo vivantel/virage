@@ -46,7 +46,11 @@ pub fn embedder_kind(package: &str) -> EmbedderKind {
         "embedder-transformers",
         "embedder-dylib",
     ];
-    if LOCAL.iter().any(|k| package.contains(k)) {
+    // Match the package basename exactly (`@scope/virage-embedder-onnx` or `embedder-onnx`), not a
+    // substring: a hosted package whose name merely contains a local name must stay hosted.
+    let base = package.rsplit('/').next().unwrap_or(package);
+    let base = base.strip_prefix("virage-").unwrap_or(base);
+    if LOCAL.contains(&base) {
         EmbedderKind::Local
     } else {
         EmbedderKind::Hosted
@@ -416,6 +420,24 @@ mod tests {
             embedder_kind("@vivantel/virage-embedder-onnx"),
             EmbedderKind::Local
         );
+    }
+
+    #[test]
+    fn embedder_kind_matches_the_basename_not_a_substring() {
+        assert_eq!(embedder_kind("embedder-onnx"), EmbedderKind::Local);
+        assert_eq!(
+            embedder_kind("@acme/virage-embedder-fastembed"),
+            EmbedderKind::Local
+        );
+        for hosted in [
+            "embedder-onnx-proxy",
+            "@acme/embedder-onnx-cloud",
+            "my-embedder-onnx",
+            "@embedder-onnx/openai",
+            "embedder-onnx/remote",
+        ] {
+            assert_eq!(embedder_kind(hosted), EmbedderKind::Hosted, "{hosted}");
+        }
     }
 
     #[test]

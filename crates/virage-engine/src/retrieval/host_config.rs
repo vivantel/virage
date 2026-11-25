@@ -153,7 +153,20 @@ fn load(path: &Path) -> Loaded {
 fn save(path: &Path, doc: &OJson) -> std::io::Result<()> {
     let mut text = to_pretty(doc);
     text.push('\n');
-    std::fs::write(path, text)
+    // Write a sibling temp file and rename it over the original, so a crash never leaves a
+    // truncated user file. The original's permissions are kept.
+    let name = path
+        .file_name()
+        .map(|n| n.to_string_lossy().into_owned())
+        .unwrap_or_default();
+    let tmp = path.with_file_name(format!(".{name}.virage-tmp"));
+    std::fs::write(&tmp, text)?;
+    if let Ok(meta) = std::fs::metadata(path) {
+        let _ = std::fs::set_permissions(&tmp, meta.permissions());
+    }
+    std::fs::rename(&tmp, path).inspect_err(|_| {
+        let _ = std::fs::remove_file(&tmp);
+    })
 }
 
 /// Remove virage's host registrations from a project. With `dry_run` nothing is written; the
@@ -286,6 +299,27 @@ mod tests {
         assert_eq!(to_pretty(&d), before);
         assert_eq!(strip_virage_hooks(&mut doc("{}")), 0);
         assert_eq!(strip_virage_hooks(&mut doc("[]")), 0);
+    }
+
+    #[test]
+    fn save_leaves_no_temp_file_and_keeps_permissions() {
+        let dir = tmp("atomic");
+        let path = dir.join(".mcp.json");
+        std::fs::write(&path, "{}").unwrap();
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o640)).unwrap();
+        }
+        save(&path, &doc(r#"{"a":1}"#)).unwrap();
+        assert!(std::fs::read_to_string(&path).unwrap().contains("\"a\": 1"));
+        assert!(!dir.join("..mcp.json.virage-tmp").exists());
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let mode = std::fs::metadata(&path).unwrap().permissions().mode() & 0o777;
+            assert_eq!(mode, 0o640);
+        }
     }
 
     #[test]
