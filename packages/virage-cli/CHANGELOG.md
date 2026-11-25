@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.3.27](https://github.com/vivantel/virage/compare/virage-cli@v0.3.26...virage-cli@v0.3.27) (2026-11-25)
+
+
+### Features
+
+* **retrieval:** Scan files for secrets before indexing and skip findings ([#437](https://github.com/vivantel/virage/issues/437)) ([#495](https://github.com/vivantel/virage/issues/495)) ([d5842b3](https://github.com/vivantel/virage/commit/d5842b3d53e56f6abf0882ed922b47f062e65381))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @vivantel/virage-core bumped from >=0.4.19 to >=0.4.20
+
 ## [0.3.26](https://github.com/vivantel/virage/compare/virage-cli@v0.3.25...virage-cli@v0.3.26) (2026-11-25)
 
 
