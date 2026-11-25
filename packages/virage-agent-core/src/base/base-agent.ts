@@ -5,6 +5,7 @@ import { join, dirname, relative } from "path";
 import type { NormalizedEventName } from "../types/events.js";
 import type { AgentConfigResult } from "../types/result.js";
 import type { VendorConfig, VendorName } from "../types/vendor.js";
+import { isConformanceMode, isHostConfigFile } from "./conformance.js";
 
 export abstract class BaseAgentPlugin {
   abstract readonly name: string;
@@ -59,15 +60,31 @@ export abstract class BaseAgentPlugin {
     }
 
     const destDir = join(targetDir, this.vendorConfig.projectConfigDir);
-    const written = await copyDirAll(pluginConfigDir, destDir);
+    const skip = (await isConformanceMode(targetDir))
+      ? (relPath: string) => this.isSkippedInConformance(relPath)
+      : undefined;
+    const written = await copyDirAll(pluginConfigDir, destDir, skip);
 
     return { hooksWritten: written.length > 0, configFilesWritten: written };
   }
+
+  /**
+   * In conformance mode, plugin-config files for which this returns true are not
+   * copied. The default covers files that register a hook or MCP server; vendors
+   * extend it for files that only work with an MCP server.
+   */
+  protected isSkippedInConformance(relPath: string): boolean {
+    return isHostConfigFile(relPath);
+  }
 }
 
-async function copyDirAll(src: string, dest: string): Promise<string[]> {
+async function copyDirAll(
+  src: string,
+  dest: string,
+  skip?: (relPath: string) => boolean,
+): Promise<string[]> {
   const written: string[] = [];
-  await copyDirRecursive(src, dest, src, written);
+  await copyDirRecursive(src, dest, src, written, skip);
   return written;
 }
 
@@ -76,6 +93,7 @@ async function copyDirRecursive(
   dest: string,
   root: string,
   written: string[],
+  skip?: (relPath: string) => boolean,
 ): Promise<void> {
   await mkdir(dest, { recursive: true });
   const entries = await readdir(src, { withFileTypes: true });
@@ -85,8 +103,9 @@ async function copyDirRecursive(
     const destPath = join(dest, entry.name);
 
     if (entry.isDirectory()) {
-      await copyDirRecursive(srcPath, destPath, root, written);
+      await copyDirRecursive(srcPath, destPath, root, written, skip);
     } else if (entry.isFile()) {
+      if (skip?.(relative(root, srcPath))) continue;
       const srcContent = await readFile(srcPath);
       let destContent: Buffer | null = null;
       try {

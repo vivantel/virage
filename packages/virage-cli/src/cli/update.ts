@@ -5,6 +5,7 @@ import { join } from "path";
 import { execFile } from "child_process";
 import { promisify } from "util";
 import { createOut } from "../output.js";
+import { syncRetrievalDeclaration } from "./retrieval-declaration.js";
 import { discoverAgentPlugins, runAgentPlugin } from "./agent-plugin.js";
 import { resolveSkillsPackagePath, syncSkills } from "./skills.js";
 import {
@@ -272,6 +273,10 @@ export async function runUpdate(
     out.dim("Run `virage init` first to configure your project.");
     return;
   }
+
+  // Retrieval contract v0: refresh the declaration on every update, before any
+  // early return below. No-op outside conformance mode.
+  await syncRetrievalDeclaration(cwd, out, configPath);
 
   const isGlobal = !hasPackageJson;
   if (isGlobal) {

@@ -31,6 +31,11 @@ export type {
 export type { AgentConfigResult } from "./types/result.js";
 
 export { BaseAgentPlugin } from "./base/base-agent.js";
+export {
+  isConformanceMode,
+  isHostConfigFile,
+  RETRIEVAL_POLICY_PATH,
+} from "./base/conformance.js";
 
 export {
   CLAUDE_VENDOR_CONFIG,
