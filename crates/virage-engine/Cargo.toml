@@ -134,6 +134,8 @@ dylib-plugins = ["dep:libloading", "dep:anyhow"]
 [dependencies]
 virage-vidoc = { workspace = true }
 indexmap     = { workspace = true }
+# Per-start bearer token for the warm query endpoint (retrieval contract v0).
+getrandom    = "0.3"
 serde_json   = { workspace = true }
 
 # Chunker deps — optional, enabled via feature flags
@@ -164,7 +166,7 @@ ureq       = { version = "2",   features = ["tls"], optional = true }
 # Source provider deps — optional, enabled via feature flags
 git2        = { version = "0.21", features = ["vendored-libgit2"], optional = true }
 walkdir     = { version = "2",    optional = true }
-tokio       = { version = "1",    features = ["fs", "rt", "rt-multi-thread", "macros", "sync", "time"], optional = true }
+tokio       = { version = "1",    features = ["fs", "rt", "rt-multi-thread", "macros", "sync", "time", "net", "io-util", "signal"], optional = true }
 async-trait = { version = "0.1",  optional = true }
 futures     = { version = "0.3",  optional = true }
 bytes       = { version = "1",    optional = true }

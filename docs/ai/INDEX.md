@@ -95,6 +95,7 @@ npm run build:with-dashboard -w @vivantel/virage-cli  # CLI build including dash
 virage init                            # interactive wizard: config, agents, embedder, vector store, re-ranker, hybrid search; installs all plugins to ~/.virage/plugins or $PROJECT_DIR/.virage/plugins
 virage update (up) [-f] [-y]           # update virage plugins; --force reinstalls even at latest; --yes skips interactive selection
 virage query (q) "<text>"             # semantic search; prints search mode after banner (--json, --top-k, --branch, --hybrid, --rerank)
+virage query-http                      # warm loopback query endpoint (bearer token, /v0/query + /v0/health); retrieval contract v0, ADR-058
 virage install-hooks (hooks)           # install post-merge & post-checkout git hooks for auto-indexing
 virage uninstall (un) [--yes]          # full cleanup: hooks, plugin dirs, DB, config, global CLI
 virage dashboard (d) [--verbose]       # start local RAG monitoring dashboard
