@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.18](https://github.com/vivantel/virage/compare/virage-core@v0.4.17...virage-core@v0.4.18) (2026-11-25)
+
+
+### Features
+
+* **retrieval:** Conformance mode for retrieval contract v0 ([#435](https://github.com/vivantel/virage/issues/435)) ([#492](https://github.com/vivantel/virage/issues/492)) ([4a956ab](https://github.com/vivantel/virage/commit/4a956ab0d0fb5db99065b6f6158a12449a6d0b58))
+
 ## [0.4.17](https://github.com/vivantel/virage/compare/virage-core@v0.4.16...virage-core@v0.4.17) (2026-10-04)
 
 
