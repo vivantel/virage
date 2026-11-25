@@ -5,6 +5,11 @@ on:
     branches:
       - master
 
+# onnxruntime-node downloads a CUDA binary from a GitHub release on install; the
+# v1.21.0 release is gone (404), which fails every plain `npm ci`. CI never uses CUDA.
+env:
+  ONNXRUNTIME_NODE_INSTALL_CUDA: skip
+
 jobs:
   release-please:
     runs-on: ubuntu-latest
