@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.3.25](https://github.com/vivantel/virage/compare/virage-cli@v0.3.24...virage-cli@v0.3.25) (2026-11-25)
+
+
+### Features
+
+* **retrieval:** Conformance mode for retrieval contract v0 ([#435](https://github.com/vivantel/virage/issues/435)) ([#492](https://github.com/vivantel/virage/issues/492)) ([4a956ab](https://github.com/vivantel/virage/commit/4a956ab0d0fb5db99065b6f6158a12449a6d0b58))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @vivantel/virage-core bumped from >=0.4.17 to >=0.4.18
+  * optionalDependencies
+    * @vivantel/virage-agent-claude bumped from >=0.2.36 to >=0.2.37
+    * @vivantel/virage-agent-copilot bumped from >=0.1.12 to >=0.1.13
+    * @vivantel/virage-agent-codex bumped from >=0.1.12 to >=0.1.13
+    * @vivantel/virage-agent-antigravity bumped from >=0.1.12 to >=0.1.13
+
 ## [0.3.24](https://github.com/vivantel/virage/compare/virage-cli@v0.3.23...virage-cli@v0.3.24) (2026-10-04)
 
 

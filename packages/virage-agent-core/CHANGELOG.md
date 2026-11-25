@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.9](https://github.com/vivantel/virage/compare/virage-agent-core@v0.1.8...virage-agent-core@v0.1.9) (2026-11-25)
+
+
+### Features
+
+* **retrieval:** Conformance mode for retrieval contract v0 ([#435](https://github.com/vivantel/virage/issues/435)) ([#492](https://github.com/vivantel/virage/issues/492)) ([4a956ab](https://github.com/vivantel/virage/commit/4a956ab0d0fb5db99065b6f6158a12449a6d0b58))
+
 ## [0.1.8](https://github.com/vivantel/virage/compare/virage-agent-core@v0.1.7...virage-agent-core@v0.1.8) (2026-06-30)
 
 

@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.2.37](https://github.com/vivantel/virage/compare/virage-agent-claude@v0.2.36...virage-agent-claude@v0.2.37) (2026-11-25)
+
+
+### Features
+
+* **retrieval:** Conformance mode for retrieval contract v0 ([#435](https://github.com/vivantel/virage/issues/435)) ([#492](https://github.com/vivantel/virage/issues/492)) ([4a956ab](https://github.com/vivantel/virage/commit/4a956ab0d0fb5db99065b6f6158a12449a6d0b58))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @vivantel/virage-agent-core bumped from 0.1.8 to 0.1.9
+
 ## [0.2.36](https://github.com/vivantel/virage/compare/virage-agent-claude@v0.2.35...virage-agent-claude@v0.2.36) (2026-09-05)
 
 
