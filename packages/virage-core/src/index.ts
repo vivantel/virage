@@ -170,3 +170,15 @@ export {
   writeDeclaration,
 } from "./retrieval-contract.js";
 export type { RetrievalDeclaration } from "./retrieval-contract.js";
+
+// Retrieval contract v0 — index policy (part a)
+export {
+  embedderKind,
+  gitignoreToGlobs,
+  parsePolicy,
+  checkEmbedder,
+  loadRetrievalPolicy,
+  policyMatcher,
+  filterByPolicy,
+} from "./retrieval-policy.js";
+export type { EmbedderKind, RetrievalPolicy } from "./retrieval-policy.js";

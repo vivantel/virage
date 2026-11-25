@@ -15,6 +15,8 @@ Searches the vector store for chunks semantically similar to `<text>`. Supports 
 
 Requires `virage index` to have been run first.
 
+If `.go-getter/retrieval/policy.json` exists (or [conformance mode](config.md#retrieval) is on), it is read before every query: results whose source matches the policy's `ignore` globs are dropped, and an embedder the policy does not allow is refused. See [index policy](config.md#index-policy).
+
 ## Options
 
 | Flag | Alias | Type | Default | Description |

@@ -15,6 +15,8 @@ Scans the configured `fileSets`, chunks changed files, embeds them via the confi
 
 On subsequent runs only changed files (tracked via git) are re-processed. Use `--force` to rebuild everything from scratch.
 
+If `.go-getter/retrieval/policy.json` exists (or [conformance mode](config.md#retrieval) is on), it is read before every run: its `ignore` globs apply on top of `fileSets` include/ignore, and an embedder the policy does not allow is refused. See [index policy](config.md#index-policy).
+
 ## Options
 
 | Flag | Alias | Type | Default | Description |
