@@ -45,7 +45,7 @@ importers:
         version: 10.0.1(eslint@10.6.0(supports-color@7.2.0))
       '@napi-rs/cli':
         specifier: ^3.8.2
-        version: 3.8.2(@emnapi/runtime@1.9.2)(@types/node@26.1.0)(node-addon-api@8.9.0)(supports-color@7.2.0)
+        version: 3.8.2(@types/node@26.1.0)(node-addon-api@8.9.0)(supports-color@7.2.0)
       '@types/node':
         specifier: ^26.1.0
         version: 26.1.0
@@ -1491,8 +1491,8 @@ packages:
   ee-first@1.1.1:
     resolution: {integrity: sha512-WMwm9LhRUo+WUaRN+vRuETqG89IgZphVSNkdFgeb6sS/E4OrDIN7t48CAewSHXc6C8lefD8KKfr5vY61brQlow==}
 
-  effect@3.21.4:
-    resolution: {integrity: sha512-B89v/xSgPbl1J2Ai2u18jxq3odpFauU1rC6/eSs4FeNHi72kwKdJp12VGigvRV2lK+kRnx+OOz41XV8guZd4gQ==}
+  effect@3.22.5:
+    resolution: {integrity: sha512-AdIU4llI19BzhJ4xUBZix7kS8oiYSlCsJ61j3UM3UyJw9ecDrsrrweDFm/Ku1nHbJWMLoynK+1Me4it3Zkmjpw==}
 
   emnapi@2.0.0-alpha.3:
     resolution: {integrity: sha512-K9bc9Xx4OwSfhJpdSOpcfIKzn7/6emuubaIorf6I5e7WBAM79665rf6iHr9y50NL4qYMUP/AheTpD1Z4yU1EBw==}
@@ -3001,7 +3001,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@napi-rs/cli@3.8.2(@emnapi/runtime@1.9.2)(@types/node@26.1.0)(node-addon-api@8.9.0)(supports-color@7.2.0)':
+  '@napi-rs/cli@3.8.2(@types/node@26.1.0)(node-addon-api@8.9.0)(supports-color@7.2.0)':
     dependencies:
       '@inquirer/prompts': 8.5.2(@types/node@26.1.0)
       '@napi-rs/cross-toolchain': 1.0.3(supports-color@7.2.0)
@@ -3016,8 +3016,6 @@ snapshots:
       semver: 7.8.5
       typanion: 3.14.0
       typescript: 6.0.3
-    optionalDependencies:
-      '@emnapi/runtime': 1.9.2
     transitivePeerDependencies:
       - '@napi-rs/cross-toolchain-arm64-target-aarch64'
       - '@napi-rs/cross-toolchain-arm64-target-armv7'
@@ -3782,7 +3780,7 @@ snapshots:
 
   code-chunk@0.1.14(typescript@6.0.3):
     dependencies:
-      effect: 3.21.4
+      effect: 3.22.5
       tree-sitter-go: 0.25.0
       tree-sitter-java: 0.23.5
       tree-sitter-javascript: 0.25.0
@@ -3880,7 +3878,7 @@ snapshots:
 
   ee-first@1.1.1: {}
 
-  effect@3.21.4:
+  effect@3.22.5:
     dependencies:
       '@standard-schema/spec': 1.1.0
       fast-check: 3.23.2
