@@ -1,5 +1,5 @@
-import { readFile, writeFile } from "fs/promises";
-import { existsSync } from "fs";
+import { readFile, writeFile, mkdir } from "fs/promises";
+import { existsSync, readFileSync } from "fs";
 import { join } from "path";
 import { execFile } from "child_process";
 import { promisify } from "util";
@@ -66,13 +66,56 @@ export class ClaudeAgentPlugin extends BaseAgentPlugin {
   readonly label = "Claude Code";
   readonly vendorConfig = CLAUDE_VENDOR_CONFIG;
 
+  /**
+   * Conformance mode (go-getter retrieval contract v0, decision 0146): go-getter owns the
+   * MCP entry and the hooks, so none is written, and the declaration
+   * `.go-getter/retrieval/virage.json` is written at init and at every update. The mode is
+   * on when go-getter's `.go-getter/retrieval/policy.json` exists in the project, or when
+   * `options.conformance` is true; `options.conformance === false` forces it off.
+   */
   async configure(
     targetDir: string = process.cwd(),
+    options: { conformance?: boolean } = {},
   ): Promise<AgentConfigResult> {
     const base = await super.configure(targetDir);
+    const conformance =
+      options.conformance ??
+      existsSync(join(targetDir, ".go-getter", "retrieval", "policy.json"));
+    if (conformance) {
+      await this.writeDeclaration(targetDir);
+      return { ...base, mcpRegistered: false };
+    }
     const mcpRegistered = await this.mergeMcpServer(targetDir);
     await this.mergeHooks(targetDir);
     return { ...base, mcpRegistered };
+  }
+
+  private async writeDeclaration(targetDir: string): Promise<void> {
+    const declaration = {
+      contractVersion: 0,
+      tool: "virage",
+      toolVersion: this.toolVersion(),
+      // Becomes true with the pre-index secret scan (vivantel/virage#437).
+      preIndexSecretScan: false,
+      registersHostConfig: false,
+    };
+    const dir = join(targetDir, ".go-getter", "retrieval");
+    await mkdir(dir, { recursive: true });
+    const path = join(dir, "virage.json");
+    const text = JSON.stringify(declaration, null, 2) + "\n";
+    if (existsSync(path) && (await readFile(path, "utf-8")) === text) return;
+    await writeFile(path, text);
+  }
+
+  private toolVersion(): string {
+    try {
+      const pkg = JSON.parse(
+        readFileSync(new URL("../package.json", import.meta.url), "utf-8"),
+      ) as { version?: string };
+      return pkg.version ?? "unknown";
+    } catch {
+      return "unknown";
+    }
   }
 
   private isMcpEntryCurrent(

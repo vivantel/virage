@@ -252,3 +252,64 @@ describe("ClaudeAgentPlugin — mergeHooks() idempotency", () => {
     expect(raw).toContain("[Virage]");
   });
 });
+
+describe("ClaudeAgentPlugin — conformance mode (go-getter retrieval contract v0)", () => {
+  const policy = JSON.stringify({
+    contractVersion: 0,
+    ignore: [],
+    embedders: ["local"],
+    dataClass: "internal",
+  });
+
+  async function conformantDir(): Promise<string> {
+    const dir = await makeTempDir();
+    await mkdir(join(dir, ".go-getter", "retrieval"), { recursive: true });
+    await writeFile(
+      join(dir, ".go-getter", "retrieval", "policy.json"),
+      policy,
+    );
+    return dir;
+  }
+
+  it("writes no MCP entry and no hook when go-getter's policy file is present", async () => {
+    const dir = await conformantDir();
+    const result = await new ClaudeAgentPlugin().configure(dir);
+    expect(result.mcpRegistered).toBe(false);
+    await expect(stat(join(dir, ".mcp.json"))).rejects.toThrow();
+    await expect(stat(join(dir, ".claude", "settings.json"))).rejects.toThrow();
+  });
+
+  it("writes the declaration with registersHostConfig false, and again on update", async () => {
+    const dir = await conformantDir();
+    const plugin = new ClaudeAgentPlugin();
+    await plugin.configure(dir);
+    const path = join(dir, ".go-getter", "retrieval", "virage.json");
+    const decl = JSON.parse(await readFile(path, "utf-8"));
+    expect(decl).toMatchObject({
+      contractVersion: 0,
+      tool: "virage",
+      registersHostConfig: false,
+    });
+    expect(decl.toolVersion).toMatch(/^\d+\.\d+\.\d+/);
+    expect(typeof decl.preIndexSecretScan).toBe("boolean");
+    await writeFile(path, "{}");
+    await plugin.configure(dir);
+    expect(JSON.parse(await readFile(path, "utf-8")).tool).toBe("virage");
+  });
+
+  it("an explicit conformance option works without a policy file", async () => {
+    const dir = await makeTempDir();
+    await new ClaudeAgentPlugin().configure(dir, { conformance: true });
+    await expect(stat(join(dir, ".mcp.json"))).rejects.toThrow();
+    await stat(join(dir, ".go-getter", "retrieval", "virage.json"));
+  });
+
+  it("without a policy file nothing changes: MCP entry and hook are written, no declaration", async () => {
+    const dir = await makeTempDir();
+    await new ClaudeAgentPlugin().configure(dir);
+    await stat(join(dir, ".mcp.json"));
+    await expect(
+      stat(join(dir, ".go-getter", "retrieval", "virage.json")),
+    ).rejects.toThrow();
+  });
+});
