@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.3.26](https://github.com/vivantel/virage/compare/virage-cli@v0.3.25...virage-cli@v0.3.26) (2026-11-25)
+
+
+### Features
+
+* **retrieval:** Enforce the host index policy before indexing and querying ([#436](https://github.com/vivantel/virage/issues/436)) ([#494](https://github.com/vivantel/virage/issues/494)) ([b7300c8](https://github.com/vivantel/virage/commit/b7300c88bf0acfec143c90bfc0f67ee64d3eca67))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @vivantel/virage-core bumped from >=0.4.18 to >=0.4.19
+
 ## [0.3.25](https://github.com/vivantel/virage/compare/virage-cli@v0.3.24...virage-cli@v0.3.25) (2026-11-25)
 
 

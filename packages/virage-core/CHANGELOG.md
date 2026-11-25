@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.19](https://github.com/vivantel/virage/compare/virage-core@v0.4.18...virage-core@v0.4.19) (2026-11-25)
+
+
+### Features
+
+* **retrieval:** Enforce the host index policy before indexing and querying ([#436](https://github.com/vivantel/virage/issues/436)) ([#494](https://github.com/vivantel/virage/issues/494)) ([b7300c8](https://github.com/vivantel/virage/commit/b7300c88bf0acfec143c90bfc0f67ee64d3eca67))
+
 ## [0.4.18](https://github.com/vivantel/virage/compare/virage-core@v0.4.17...virage-core@v0.4.18) (2026-11-25)
 
 
