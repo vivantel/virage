@@ -33,6 +33,15 @@ pub struct EncodedBatch {
 type InputTensors = (Tensor<i64>, Tensor<i64>, Tensor<i64>);
 
 impl EncodedBatch {
+    /// Tokens that carry text (attention mask 1).
+    pub fn real_tokens(&self) -> u64 {
+        self.attention_mask.iter().filter(|&&m| m != 0).count() as u64
+    }
+    /// Tokens the model computes on, padding included.
+    pub fn total_tokens(&self) -> u64 {
+        (self.batch_size * self.seq_len) as u64
+    }
+
     pub fn to_tensors(&self) -> Result<InputTensors, String> {
         let shape = [self.batch_size, self.seq_len];
         let ids_t = Tensor::from_array((shape, self.input_ids.clone().into_boxed_slice()))

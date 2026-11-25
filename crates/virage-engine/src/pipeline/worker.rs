@@ -107,7 +107,7 @@ struct SendFailed;
 /// is independent of `PipelineConfig::upload_batch_size`, which bounds how many chunks
 /// accumulate before the coordinator calls `store.upsert()` (a full Lance manifest commit, so
 /// it still needs its own, larger floor to avoid a commit storm).
-const EMBED_MICRO_BATCH_SIZE: usize = 16;
+pub(crate) const EMBED_MICRO_BATCH_SIZE: usize = 16;
 
 /// Micro-batch size used when `ConcurrencyStrategy` has throttled down to its floor (1 active
 /// worker) — the clearest signal available that memory is genuinely tight. Smaller than
@@ -216,6 +216,12 @@ fn embed_micro_batch(
         let mut emb = embedder
             .lock()
             .map_err(|e| anyhow::anyhow!("embedder lock poisoned: {e}"))?;
+        let relaxed = std::sync::atomic::Ordering::Relaxed;
+        progress.embed_calls.fetch_add(1, relaxed);
+        progress.embed_texts.fetch_add(texts.len() as u64, relaxed);
+        progress
+            .embed_bytes
+            .fetch_add(texts.iter().map(|t| t.len() as u64).sum(), relaxed);
         let started = std::time::Instant::now();
         let flat = emb
             .embed_batch(&texts)

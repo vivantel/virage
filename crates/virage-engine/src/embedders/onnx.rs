@@ -11,6 +11,8 @@ pub struct OnnxEmbedder {
     max_length: usize,
     pooling: Pooling,
     normalize: bool,
+    real_tokens: std::sync::atomic::AtomicU64,
+    padded_tokens: std::sync::atomic::AtomicU64,
 }
 
 impl OnnxEmbedder {
@@ -42,11 +44,21 @@ impl OnnxEmbedder {
             max_length,
             pooling,
             normalize,
+            real_tokens: Default::default(),
+            padded_tokens: Default::default(),
         }
     }
 }
 
 impl Embedder for OnnxEmbedder {
+    fn token_stats(&self) -> Option<super::TokenStats> {
+        use std::sync::atomic::Ordering::Relaxed;
+        Some(super::TokenStats {
+            real: self.real_tokens.load(Relaxed),
+            padded_total: self.padded_tokens.load(Relaxed),
+        })
+    }
+
     fn dimensions(&self) -> usize {
         self.dimensions
     }
@@ -96,6 +108,10 @@ impl OnnxEmbedder {
             .lock()
             .map_err(|_| "ORT session lock poisoned".to_string())?;
         let batch = session.encode_single(texts, self.max_length)?;
+        self.real_tokens
+            .fetch_add(batch.real_tokens(), std::sync::atomic::Ordering::Relaxed);
+        self.padded_tokens
+            .fetch_add(batch.total_tokens(), std::sync::atomic::Ordering::Relaxed);
         let (ids_t, mask_t, types_t) = batch.to_tensors()?;
 
         let outputs = session

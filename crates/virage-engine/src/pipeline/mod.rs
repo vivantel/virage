@@ -119,6 +119,8 @@ pub mod worker;
 
 #[cfg(test)]
 mod secret_tests;
+#[cfg(test)]
+mod synthetic_tests;
 
 pub use concurrency::{ConcurrencyStrategy, FixedWorkers, RamSampling};
 
@@ -261,6 +263,57 @@ pub struct PipelineStats {
     pub current_keys: HashSet<String>,
     /// Paths skipped by the pre-index secret scan this run (paths only, never matched text).
     pub secret_skipped: Vec<String>,
+    /// Work and stage times of this run; also logged once as `index summary`.
+    pub summary: IndexSummary,
+}
+
+/// One structured record of what an index run did: counts of work first (they do not depend on
+/// the machine), stage seconds second (summed over workers, so stages overlap and can exceed
+/// wall time), and the host so two runs can be compared.
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct IndexSummary {
+    pub files_processed: usize,
+    pub files_skipped: usize,
+    pub chunks_upserted: usize,
+    /// `embed_batch` calls and the texts and UTF-8 bytes passed to them.
+    pub embed_calls: u64,
+    pub texts_embedded: u64,
+    pub bytes_embedded: u64,
+    /// Tokens embedded and the share of computed tokens that were padding. Both `None` when the
+    /// embedder does not report tokens (the fakes and dylib embedders).
+    pub tokens_embedded: Option<u64>,
+    pub padded_share: Option<f64>,
+    pub walk_secs: f64,
+    pub chunk_secs: f64,
+    pub embed_secs: f64,
+    pub store_secs: f64,
+    pub wall_secs: f64,
+    pub host: HostInfo,
+}
+
+/// Logical cores and CPU model, so a summary says which machine produced its seconds.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct HostInfo {
+    pub cores: usize,
+    pub cpu_model: String,
+}
+
+impl HostInfo {
+    pub fn detect() -> Self {
+        let cores = std::thread::available_parallelism()
+            .map(|n| n.get())
+            .unwrap_or(1);
+        let cpu_model = std::fs::read_to_string("/proc/cpuinfo")
+            .ok()
+            .and_then(|t| {
+                t.lines()
+                    .find(|l| l.starts_with("model name"))
+                    .and_then(|l| l.split_once(':'))
+                    .map(|(_, v)| v.trim().to_string())
+            })
+            .unwrap_or_else(|| "unknown".to_string());
+        Self { cores, cpu_model }
+    }
 }
 
 // ─── ProgressCounters ────────────────────────────────────────────────────────
@@ -278,6 +331,12 @@ pub struct ProgressCounters {
     pub chunk_nanos: std::sync::atomic::AtomicU64,
     pub embed_nanos: std::sync::atomic::AtomicU64,
     pub store_nanos: std::sync::atomic::AtomicU64,
+    /// Listing the sources and building the symbol index, before any worker starts.
+    pub walk_nanos: std::sync::atomic::AtomicU64,
+    /// Work counters: `embed_batch` calls, texts and UTF-8 bytes passed to them.
+    pub embed_calls: std::sync::atomic::AtomicU64,
+    pub embed_texts: std::sync::atomic::AtomicU64,
+    pub embed_bytes: std::sync::atomic::AtomicU64,
 }
 
 impl ProgressCounters {
@@ -307,6 +366,50 @@ impl ProgressCounters {
             self.done.load(Ordering::Relaxed),
             self.chunks.load(Ordering::Relaxed),
         )
+    }
+}
+
+/// Builds the run summary from the counters. `tokens_before` and `tokens_after` are the embedder's
+/// cumulative token stats around the run, so only this run's tokens count.
+pub(crate) fn summarize(
+    progress: &ProgressCounters,
+    files_processed: usize,
+    files_skipped: usize,
+    chunks_upserted: usize,
+    tokens_before: Option<crate::embedders::TokenStats>,
+    tokens_after: Option<crate::embedders::TokenStats>,
+    wall: std::time::Duration,
+) -> IndexSummary {
+    let load = |c: &std::sync::atomic::AtomicU64| c.load(Ordering::Relaxed);
+    let secs = |c: &std::sync::atomic::AtomicU64| load(c) as f64 / 1e9;
+    let (tokens_embedded, padded_share) = match (tokens_before, tokens_after) {
+        (Some(b), Some(a)) => {
+            let real = a.real.saturating_sub(b.real);
+            let total = a.padded_total.saturating_sub(b.padded_total);
+            let share = if total == 0 {
+                0.0
+            } else {
+                (total - real.min(total)) as f64 / total as f64
+            };
+            (Some(real), Some(share))
+        }
+        _ => (None, None),
+    };
+    IndexSummary {
+        files_processed,
+        files_skipped,
+        chunks_upserted,
+        embed_calls: load(&progress.embed_calls),
+        texts_embedded: load(&progress.embed_texts),
+        bytes_embedded: load(&progress.embed_bytes),
+        tokens_embedded,
+        padded_share,
+        walk_secs: secs(&progress.walk_nanos),
+        chunk_secs: secs(&progress.chunk_nanos),
+        embed_secs: secs(&progress.embed_nanos),
+        store_secs: secs(&progress.store_nanos),
+        wall_secs: wall.as_secs_f64(),
+        host: HostInfo::detect(),
     }
 }
 

@@ -32,6 +32,8 @@ pub async fn run_pipeline(
     known_revisions: HashMap<String, String>,
 ) -> anyhow::Result<PipelineStats> {
     store.initialize().await?;
+    let run_started = std::time::Instant::now();
+    let tokens_before = embedder.lock().ok().and_then(|e| e.token_stats());
 
     let qualify_keys = groups_need_qualified_keys(&groups);
 
@@ -96,6 +98,7 @@ pub async fn run_pipeline(
         .clone()
         .unwrap_or_default();
     progress.set_total(all_items.len());
+    super::ProgressCounters::add_nanos(&progress.walk_nanos, run_started.elapsed());
 
     // ── Change detection, batched per source to minimize file_revisions calls ──
     let mut current_revisions: HashMap<String, String> = HashMap::new();
@@ -185,6 +188,7 @@ pub async fn run_pipeline(
             processed_revisions: HashMap::new(),
             current_keys,
             secret_skipped: Vec::new(),
+            summary: Default::default(),
         });
     }
 
@@ -350,15 +354,33 @@ pub async fn run_pipeline(
     for h in handles {
         h.await??;
     }
-    let secs = |c: &std::sync::atomic::AtomicU64| {
-        c.load(std::sync::atomic::Ordering::Relaxed) as f64 / 1e9
-    };
+    let tokens_after = embedder.lock().ok().and_then(|e| e.token_stats());
+    let summary = super::summarize(
+        &progress,
+        files_processed,
+        files_skipped,
+        chunks_upserted,
+        tokens_before,
+        tokens_after,
+        run_started.elapsed(),
+    );
     tracing::info!(
-        chunks = chunks_upserted,
-        chunk_secs = secs(&progress.chunk_nanos),
-        embed_secs = secs(&progress.embed_nanos),
-        store_secs = secs(&progress.store_nanos),
-        "index stage times (summed over workers; stages overlap)"
+        files = summary.files_processed,
+        skipped = summary.files_skipped,
+        chunks = summary.chunks_upserted,
+        embed_calls = summary.embed_calls,
+        texts_embedded = summary.texts_embedded,
+        bytes_embedded = summary.bytes_embedded,
+        tokens_embedded = ?summary.tokens_embedded,
+        padded_share = ?summary.padded_share,
+        walk_secs = summary.walk_secs,
+        chunk_secs = summary.chunk_secs,
+        embed_secs = summary.embed_secs,
+        store_secs = summary.store_secs,
+        wall_secs = summary.wall_secs,
+        cores = summary.host.cores,
+        cpu_model = %summary.host.cpu_model,
+        "index summary (stage secs are summed over workers; stages overlap)"
     );
 
     // Files the pre-index secret scan skipped were already purged with every other file in
@@ -379,6 +401,7 @@ pub async fn run_pipeline(
         processed_revisions,
         current_keys,
         secret_skipped,
+        summary,
     })
 }
 
