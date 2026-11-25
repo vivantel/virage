@@ -66,7 +66,10 @@ impl OnnxInferenceSession {
 
     /// Same as [`from_paths`](Self::from_paths) with an explicit intra-op thread count.
     ///
-    /// The ADR-057 reasoning for `1` holds for the embedder, which runs inside the indexing
+    /// The ADR-057 reasoning for `1` held while embedding was assumed memory-bound; the embedder
+    /// now sizes this from `embed_parallelism` (config `threads`, `VIRAGE_EMBED_THREADS`, else cores
+    /// capped at 8) because every embed call is serialized behind one lock and `1` left cores idle.
+    /// Original note: the ADR-057 reasoning for `1` held for the embedder, which runs inside the indexing
     /// pipeline next to other workers. A reranker session is different: one per process, called
     /// on the query path with a single batch (~20 passages), where `1` leaves every other core
     /// idle and makes latency linear in the candidate count.
