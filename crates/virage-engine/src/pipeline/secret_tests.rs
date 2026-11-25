@@ -179,8 +179,13 @@ async fn file_with_a_finding_is_skipped_and_purged() {
         .iter()
         .all(|t| !t.contains(&token)));
 
-    // Earlier chunks of the skipped file are removed.
-    assert_eq!(*store.deleted.lock().unwrap(), vec!["leaky.md".to_string()]);
+    // Earlier chunks of the skipped file are removed (the run purges every file it processes
+    // before the workers start, and the skipped file adds no new chunks).
+    assert!(store
+        .deleted
+        .lock()
+        .unwrap()
+        .contains(&"leaky.md".to_string()));
 }
 
 #[tokio::test]
@@ -191,5 +196,4 @@ async fn scan_is_off_by_default() {
     let sources = store.upserted_sources.lock().unwrap().join(" ");
     assert!(sources.contains("clean.md"));
     assert!(sources.contains("leaky.md"));
-    assert!(store.deleted.lock().unwrap().is_empty());
 }
