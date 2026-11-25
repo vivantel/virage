@@ -324,7 +324,9 @@ pub async fn run_pipeline(
             if batch.len() >= batch_size {
                 let deduped = dedup_by_id(std::mem::take(&mut batch));
                 if !config_with_symbol_index.skip_upload {
+                    let started = std::time::Instant::now();
                     store.upsert(&deduped).await?;
+                    ProgressCounters::add_nanos(&progress.store_nanos, started.elapsed());
                 }
                 chunks_upserted += deduped.len();
                 tokens_processed += sum_estimated_tokens(&deduped);
@@ -335,7 +337,9 @@ pub async fn run_pipeline(
     if !batch.is_empty() {
         let deduped = dedup_by_id(batch);
         if !config_with_symbol_index.skip_upload {
+            let started = std::time::Instant::now();
             store.upsert(&deduped).await?;
+            ProgressCounters::add_nanos(&progress.store_nanos, started.elapsed());
         }
         chunks_upserted += deduped.len();
         tokens_processed += sum_estimated_tokens(&deduped);
@@ -346,6 +350,16 @@ pub async fn run_pipeline(
     for h in handles {
         h.await??;
     }
+    let secs = |c: &std::sync::atomic::AtomicU64| {
+        c.load(std::sync::atomic::Ordering::Relaxed) as f64 / 1e9
+    };
+    tracing::info!(
+        chunks = chunks_upserted,
+        chunk_secs = secs(&progress.chunk_nanos),
+        embed_secs = secs(&progress.embed_nanos),
+        store_secs = secs(&progress.store_nanos),
+        "index stage times (summed over workers; stages overlap)"
+    );
 
     // Files the pre-index secret scan skipped were already purged with every other file in
     // `to_process` (see "Purge the old rows" above) and produced no chunks, so nothing of an

@@ -99,6 +99,15 @@ impl OnnxInferenceSession {
         Ok(Self { session, tokenizer })
     }
 
+    /// Drop the tokenizer's fixed-length padding so each batch pads to its longest text. Benchmark
+    /// only (`tests/embed_throughput.rs`): it measured no speedup and shifts vectors (min cosine
+    /// 0.983) through the quantized model's batch-dependent scales, so the pipeline keeps the default.
+    #[doc(hidden)]
+    pub fn without_fixed_padding(mut self) -> Self {
+        self.tokenizer.with_padding(None);
+        self
+    }
+
     /// Encode a batch of single texts.
     pub fn encode_single(&self, texts: &[&str], max_length: usize) -> Result<EncodedBatch, String> {
         let encoded = self

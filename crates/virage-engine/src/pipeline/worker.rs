@@ -69,7 +69,10 @@ pub async fn worker_task(
             None => break, // channel closed — no more work
         };
 
-        let artifacts = match parse_and_chunk(&item, &groups, config).await {
+        let chunk_started = std::time::Instant::now();
+        let parsed = parse_and_chunk(&item, &groups, config).await;
+        ProgressCounters::add_nanos(&progress.chunk_nanos, chunk_started.elapsed());
+        let artifacts = match parsed {
             Ok(a) => a,
             Err(e) => {
                 // Log but don't abort — skip this file. No `WorkResult` is sent for it, so the
@@ -167,7 +170,7 @@ async fn stream_embed_and_send(
             break;
         }
 
-        let embedded = match embed_micro_batch(micro_batch, embedder, dims) {
+        let embedded = match embed_micro_batch(micro_batch, embedder, dims, progress) {
             Ok(chunks) => chunks,
             Err(e) => {
                 // Stop processing the rest of this file — matches the pre-streaming behavior of
@@ -206,14 +209,19 @@ fn embed_micro_batch(
     artifacts: Vec<ArtifactSet>,
     embedder: &Arc<std::sync::Mutex<dyn Embedder + Send>>,
     dims: usize,
+    progress: &ProgressCounters,
 ) -> anyhow::Result<Vec<EmbeddedChunk>> {
     let texts: Vec<&str> = artifacts.iter().map(|a| a.dense_text.as_str()).collect();
     let flat: Vec<f32> = {
         let mut emb = embedder
             .lock()
             .map_err(|e| anyhow::anyhow!("embedder lock poisoned: {e}"))?;
-        emb.embed_batch(&texts)
-            .map_err(|e| anyhow::anyhow!("embed_batch failed: {e}"))?
+        let started = std::time::Instant::now();
+        let flat = emb
+            .embed_batch(&texts)
+            .map_err(|e| anyhow::anyhow!("embed_batch failed: {e}"))?;
+        ProgressCounters::add_nanos(&progress.embed_nanos, started.elapsed());
+        flat
     };
 
     Ok(artifacts

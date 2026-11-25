@@ -272,6 +272,12 @@ pub struct ProgressCounters {
     pub queued: AtomicUsize,
     pub done: AtomicUsize,
     pub chunks: AtomicUsize,
+    /// Summed wall time (ns) spent per stage across all workers: read+parse+chunk, `embed_batch`
+    /// (compute only, not waiting for the embedder lock), and store upserts. Logged at the end of a
+    /// run so a slow index shows which stage to attack; workers overlap, so these can exceed wall time.
+    pub chunk_nanos: std::sync::atomic::AtomicU64,
+    pub embed_nanos: std::sync::atomic::AtomicU64,
+    pub store_nanos: std::sync::atomic::AtomicU64,
 }
 
 impl ProgressCounters {
@@ -287,6 +293,9 @@ impl ProgressCounters {
     }
     pub fn inc_done(&self) {
         self.done.fetch_add(1, Ordering::Relaxed);
+    }
+    pub fn add_nanos(counter: &std::sync::atomic::AtomicU64, d: std::time::Duration) {
+        counter.fetch_add(d.as_nanos() as u64, Ordering::Relaxed);
     }
     pub fn add_chunks(&self, n: usize) {
         self.chunks.fetch_add(n, Ordering::Relaxed);
