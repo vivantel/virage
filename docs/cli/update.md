@@ -15,6 +15,8 @@ Discovers all virage packages used by the current project (embedder, vector stor
 
 After installing, `virage update` always re-runs agent plugin `configure()` to sync config files (hooks, MCP registration, slash commands) to the latest plugin version.
 
+In [conformance mode](config.md#retrieval) the sync registers no MCP entry or hook, and `virage update` rewrites `.go-getter/retrieval/virage.json`.
+
 Self-updates the globally installed `@vivantel/virage-cli` if it is outdated.
 
 ## Options

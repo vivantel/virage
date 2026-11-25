@@ -485,6 +485,18 @@ pub fn cmd_init(
     println!();
     out.success(&format!("Config written to {config_path}"));
 
+    // Retrieval contract v0: in conformance mode, publish the declaration file.
+    let project_dir = std::env::current_dir()?;
+    if crate::retrieval::is_conformance_mode(&project_dir, std::path::Path::new(&config_path)) {
+        match crate::retrieval::write_declaration(&project_dir, crate::retrieval::tool_version()) {
+            Ok(_) => out.success(&format!(
+                "Retrieval declaration written to {}",
+                crate::retrieval::declaration_path(&project_dir).display()
+            )),
+            Err(e) => out.warn(&format!("Could not write retrieval declaration: {e}")),
+        }
+    }
+
     // H13: Next steps
     println!();
     out.info("Next steps:");

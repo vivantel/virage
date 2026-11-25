@@ -19,6 +19,8 @@ Launches an interactive wizard that:
 6. Writes `virage.config.json`
 7. Runs `configure()` on each agent plugin to copy config files (hooks, MCP registration, slash commands)
 
+In [conformance mode](config.md#retrieval) step 7 registers no MCP entry or hook, and `virage init` also writes `.go-getter/retrieval/virage.json`.
+
 After `virage init`, run `virage index` to build the index.
 
 ## Options

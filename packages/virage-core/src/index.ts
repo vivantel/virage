@@ -156,3 +156,17 @@ export type {
 
 // Quality system — 26-metric pipeline self-assessment
 export * from "./quality/index.js";
+
+// Retrieval contract v0 — conformance mode + declaration file
+export {
+  RETRIEVAL_CONTRACT_VERSION,
+  RETRIEVAL_POLICY_PATH,
+  RETRIEVAL_TOOL_ID,
+  PRE_INDEX_SECRET_SCAN,
+  declarationPath,
+  policyPath,
+  isConformanceMode,
+  buildDeclaration,
+  writeDeclaration,
+} from "./retrieval-contract.js";
+export type { RetrievalDeclaration } from "./retrieval-contract.js";

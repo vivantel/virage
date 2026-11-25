@@ -8,6 +8,7 @@ Full reference for the `virage.config.json` configuration file. Generate a start
 |-------|------|----------|-------------|
 | `$schema` | string | No | URL to the JSON Schema for IDE autocomplete |
 | `version` | string | No | Config schema version (semver). Bump when making breaking changes. |
+| `retrieval` | object | No | Retrieval contract v0 settings — see [`retrieval`](#retrieval) |
 | `providers` | object | **Yes** | Embedder, vector store, re-ranker, and source provider |
 | `fileSets` | array | **Yes** | One or more named groups of files to index |
 | `ignore` | string[] | No | Global glob patterns excluded from all file sets |
@@ -187,6 +188,32 @@ An array of agent plugin refs. Each entry uses the `PluginRef` shape.
   { "package": "@vivantel/virage-agent-copilot" }
 ]
 ```
+
+---
+
+## `retrieval`
+
+Settings for projects where a host tool owns the agent hook and MCP entry (retrieval contract v0).
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `conformance` | boolean | auto | `true`: conformance mode on. `false`: off. Absent: on if `.go-getter/retrieval/policy.json` exists, off otherwise. |
+
+```json
+"retrieval": { "conformance": true }
+```
+
+In conformance mode `virage init` / `virage update`:
+
+- register **no** MCP entry in `.mcp.json` and **no** hook in `.claude/settings.json`, and do not
+  copy plugin files that register a hook or MCP server, or slash commands that need the MCP server
+  (`/arch`, `/doc`, `/plan`, `/rag`, `/review`, `/usage`);
+- write `.go-getter/retrieval/virage.json` (`contractVersion`, `tool`, `toolVersion`,
+  `preIndexSecretScan`, `registersHostConfig: false`), at init and at every update.
+
+Entries written by older versions are left alone; `virage uninstall` removes them.
+
+Without a policy file and without this field nothing changes for existing projects.
 
 ---
 

@@ -24,6 +24,7 @@ import {
 } from "./file-detect.js";
 import { discoverAgentPlugins, runAgentPlugin } from "./agent-plugin.js";
 import { createOut } from "../output.js";
+import { syncRetrievalDeclaration } from "./retrieval-declaration.js";
 import {
   getLocalPluginDir,
   getGlobalPluginDir,
@@ -811,6 +812,9 @@ export async function runInit(verbosity = 0): Promise<void> {
   const configContent = generateJsonConfig(finalState, registry);
   await writeFile(finalState.outputPath, configContent, "utf-8");
   out.success(`Created ${finalState.outputPath}`);
+
+  // Retrieval contract v0: in conformance mode, publish the declaration file.
+  await syncRetrievalDeclaration(cwd, out, finalState.outputPath);
 
   // ── Secrets step ──
   const embedderEntry = registry.embedders.find(

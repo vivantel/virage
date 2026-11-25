@@ -186,6 +186,16 @@ export const ZodVirageConfig = z.object({
       "Where plugins and embedding/reranker model files are installed and loaded from. Set by 'virage init'.",
     )
     .optional(),
+  retrieval: z
+    .object({
+      conformance: z
+        .boolean()
+        .describe(
+          "Retrieval contract v0 conformance mode. When true, init/update register no MCP entry or hook and write the declaration file. When absent, the mode turns on if .go-getter/retrieval/policy.json exists.",
+        )
+        .optional(),
+    })
+    .optional(),
   providers: ZodProvidersConfig,
   fileSets: z
     .array(ZodFileSetConfig)
