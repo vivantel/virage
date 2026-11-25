@@ -184,6 +184,7 @@ pub async fn run_pipeline(
             tokens_processed: 0,
             processed_revisions: HashMap::new(),
             current_keys,
+            secret_skipped: Vec::new(),
         });
     }
 
@@ -346,6 +347,15 @@ pub async fn run_pipeline(
         h.await??;
     }
 
+    // Files the pre-index secret scan skipped were already purged with every other file in
+    // `to_process` (see "Purge the old rows" above) and produced no chunks, so nothing of an
+    // earlier version remains.
+    let secret_skipped: Vec<String> = config_with_symbol_index
+        .secret_skipped
+        .lock()
+        .map(|mut v| std::mem::take(&mut *v))
+        .unwrap_or_default();
+
     Ok(PipelineStats {
         files_processed,
         files_skipped,
@@ -354,6 +364,7 @@ pub async fn run_pipeline(
         tokens_processed,
         processed_revisions,
         current_keys,
+        secret_skipped,
     })
 }
 

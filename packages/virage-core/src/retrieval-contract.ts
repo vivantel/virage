@@ -22,7 +22,7 @@ export const RETRIEVAL_TOOL_ID = "virage";
  * True only if every file is scanned for secrets before it is indexed and files
  * with findings are skipped. Keep in step with the indexing pipeline.
  */
-export const PRE_INDEX_SECRET_SCAN = false;
+export const PRE_INDEX_SECRET_SCAN = true;
 
 export interface RetrievalDeclaration {
   contractVersion: number;

@@ -23,6 +23,7 @@ import { defaultVirageDb } from "./virage-defaults.js";
 import type { TelemetryConfig } from "../telemetry/types.js";
 import type { Reranker } from "../interfaces/reranker.js";
 import type { QualityConfig } from "../interfaces/quality.js";
+import { scanChunksForSecrets } from "../secret-scan.js";
 
 export interface RAGPipelineConfig {
   /** Flat list: one entry per (fileSet × chunker) pair (ADR-043). */
@@ -63,6 +64,11 @@ export interface RAGPipelineConfig {
     minUploadingBatchSize?: number;
     /** Max files whose chunks may be queued for embedding before chunk workers pause. Default: minEmbeddingBatchSize × 3. */
     maxPendingFiles?: number;
+    /**
+     * Scan each file's chunks for secrets before embedding and skip files with
+     * findings (retrieval contract v0 `preIndexSecretScan`). Default: off.
+     */
+    secretScan?: boolean;
     noBanner?: boolean;
     telemetry?: boolean;
     notifications?: { webhookUrl?: string };
@@ -415,6 +421,7 @@ export class Orchestrator {
       let embedChain = Promise.resolve();
       let firstEmbedError: Error | undefined;
 
+      const secretSkipped: string[] = [];
       const chunkTasks = toProcess.map((file) => async () => {
         const info = currentState.get(file);
         let newChunks: Chunk[] = [];
@@ -428,6 +435,18 @@ export class Orchestrator {
             );
             chunkActiveMs += Date.now() - chunkT0;
             void currentBranch; // branch tracking removed from ChunkMeta
+            if (opts.secretScan) {
+              const finding = scanChunksForSecrets(newChunks);
+              if (finding) {
+                // Path and kind only: the matched text is never logged. An empty
+                // chunk list also clears the file's earlier chunks from the store.
+                logger.warn(
+                  `⚠ Skipped ${file}: pre-index secret scan finding (${finding.kind})`,
+                );
+                newChunks = [];
+                secretSkipped.push(file);
+              }
+            }
           } catch (err) {
             logger.error(
               `❌ Chunking failed for ${file}: ${
@@ -524,6 +543,12 @@ export class Orchestrator {
 
       if (firstEmbedError) {
         throw firstEmbedError;
+      }
+
+      if (secretSkipped.length > 0) {
+        logger.warn(
+          `⚠ ${secretSkipped.length} file(s) skipped by the pre-index secret scan and removed from the index`,
+        );
       }
 
       opts.onChunkingComplete?.(

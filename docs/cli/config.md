@@ -215,6 +215,18 @@ Entries written by older versions are left alone; `virage uninstall` removes the
 
 Without a policy file and without this field nothing changes for existing projects.
 
+### Pre-index secret scan
+
+In conformance mode every file is scanned for secrets **before** it is chunked and embedded, and a file with a finding is skipped. The declaration reports `preIndexSecretScan: true`.
+
+- Covers the raw file and the chunk text (so text extracted from PDF/DOCX is checked too). One finding skips the whole file.
+- Detects private-key blocks, AWS access key ids, GitHub / Slack / Google / Stripe / `sk-` API tokens, JWTs, and high-entropy values assigned to names like `password`, `secret`, `token` or `api_key` (placeholders and environment lookups are ignored). It is a heuristic filter, not a guarantee.
+- The output names the **file path and the kind of finding only**; the matched text is never logged or stored.
+- A skipped file is removed from the index if an earlier version of it was indexed.
+- Only files being (re)indexed are scanned. After turning conformance mode on for an existing index, run `virage index --force` once so unchanged files are scanned too.
+
+Outside conformance mode nothing is scanned.
+
 ### Index policy
 
 `.go-getter/retrieval/policy.json` is owned by the host tool; virage only reads it, **before every index run and every query** (including a warm `query-serve` daemon and `virage serve`, which re-read it per query, and `index --watch`, which re-reads it before each re-index).
