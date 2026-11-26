@@ -175,6 +175,12 @@ pub struct PipelineConfig {
     /// Paths skipped by the secret scan during this run (paths only, never matched text). Shared
     /// by every clone of the config; the coordinator removes these files from the store.
     pub secret_skipped: Arc<std::sync::Mutex<Vec<String>>>,
+    /// Fill each `embed_batch` call from several files instead of one: after chunking a file that
+    /// leaves a micro-batch short, a worker takes more queued files (never waiting for them) until
+    /// the batch is full, embeds once, and routes each vector back to its file. Off by default: the
+    /// quantized model's output depends on what shares a batch, so regrouping chunks shifts vectors
+    /// slightly and turning it on is a decision for the index owner, not a silent speed-up.
+    pub embed_across_files: bool,
 }
 
 /// A single glob → tags rule (IR-037), independent of the `config` feature
@@ -204,6 +210,7 @@ impl std::fmt::Debug for PipelineConfig {
             .field("adaptive_size", &self.adaptive_size)
             .field("strategy", &self.strategy)
             .field("skip_upload", &self.skip_upload)
+            .field("embed_across_files", &self.embed_across_files)
             .field(
                 "symbol_index",
                 &self.symbol_index.as_ref().map(|_| "Some(..)"),
@@ -235,6 +242,7 @@ impl Default for PipelineConfig {
             symbol_index: None,
             secret_scan: false,
             secret_skipped: Arc::new(std::sync::Mutex::new(Vec::new())),
+            embed_across_files: false,
         }
     }
 }

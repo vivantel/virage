@@ -139,12 +139,19 @@ pub(super) fn fake_tokens(text: &str) -> u64 {
 struct FakeEmbedder {
     stats: TokenStats,
     cost_per_token: Duration,
+    /// Fail every call after this many have succeeded.
+    fail_after_calls: Option<usize>,
+    calls: usize,
 }
 impl Embedder for FakeEmbedder {
     fn dimensions(&self) -> usize {
         4
     }
     fn embed_batch(&mut self, texts: &[&str]) -> Result<Vec<f32>, String> {
+        if self.fail_after_calls.is_some_and(|n| self.calls >= n) {
+            return Err("injected embed failure".into());
+        }
+        self.calls += 1;
         let lens: Vec<u64> = texts.iter().map(|t| fake_tokens(t)).collect();
         let longest = lens.iter().copied().max().unwrap_or(0);
         let padded = longest * texts.len() as u64;
@@ -212,10 +219,22 @@ async fn run(
     known: HashMap<String, String>,
     cost_per_token: Duration,
 ) -> (PipelineStats, Arc<RecordingStore>) {
+    run_with(files, known, cost_per_token, false, None).await
+}
+
+async fn run_with(
+    files: Vec<(String, String)>,
+    known: HashMap<String, String>,
+    cost_per_token: Duration,
+    embed_across_files: bool,
+    fail_after_calls: Option<usize>,
+) -> (PipelineStats, Arc<RecordingStore>) {
     let store = Arc::new(RecordingStore::default());
     let embedder: Arc<Mutex<dyn Embedder + Send>> = Arc::new(Mutex::new(FakeEmbedder {
         stats: TokenStats::default(),
         cost_per_token,
+        fail_after_calls,
+        calls: 0,
     }));
     let config = PipelineConfig {
         workers: 2,
@@ -225,6 +244,7 @@ async fn run(
         strategy: "window".into(),
         sparse_text_generator_id: "gen_v1".into(),
         metadata_generator_id: "meta_v1".into(),
+        embed_across_files,
         ..Default::default()
     };
     let groups = vec![FileSetGroup {
@@ -433,4 +453,78 @@ async fn report_synthetic_summaries() {
         again.summary.texts_embedded,
         again.files_skipped
     );
+}
+
+fn stored(store: &RecordingStore) -> Vec<(String, String)> {
+    let mut v: Vec<(String, String)> = store
+        .docs
+        .lock()
+        .unwrap()
+        .iter()
+        .map(|d| (d.source_file.clone(), d.dense_text.clone()))
+        .collect();
+    v.sort();
+    v
+}
+
+/// The work reduction this switch exists for: the same chunks are embedded, in fewer calls that
+/// carry more texts each.
+#[tokio::test]
+async fn embedding_across_files_makes_fewer_fuller_calls_for_the_same_chunks() {
+    let files = corpus(21, 40);
+    let (per_file, store_a) =
+        run_with(files.clone(), HashMap::new(), Duration::ZERO, false, None).await;
+    let (across, store_b) = run_with(files, HashMap::new(), Duration::ZERO, true, None).await;
+    let (a, b) = (&per_file.summary, &across.summary);
+    assert_eq!(a.texts_embedded, b.texts_embedded);
+    assert_eq!(a.tokens_embedded.map(|_| ()), b.tokens_embedded.map(|_| ()));
+    assert!(
+        b.embed_calls < a.embed_calls,
+        "per file {} calls, across files {}",
+        a.embed_calls,
+        b.embed_calls
+    );
+    assert_eq!(stored(&store_a), stored(&store_b), "same chunks stored");
+    assert_eq!(across.files_processed, 40);
+    assert_eq!(across.processed_revisions.len(), 40);
+    let micro = crate::pipeline::worker::EMBED_MICRO_BATCH_SIZE as u64;
+    assert!(
+        b.embed_calls >= b.texts_embedded.div_ceil(micro),
+        "never fewer calls than full batches would need"
+    );
+}
+
+/// A failing embed call must leave no file counted as processed unless all its chunks reached the
+/// store, bundled or not.
+#[tokio::test]
+async fn a_failed_embed_never_marks_a_half_stored_file_as_processed() {
+    let files = corpus(22, 30);
+    let (clean, clean_store) =
+        run_with(files.clone(), HashMap::new(), Duration::ZERO, true, None).await;
+    let mut expected: HashMap<String, usize> = HashMap::new();
+    for (f, _) in stored(&clean_store) {
+        *expected.entry(f).or_default() += 1;
+    }
+    assert_eq!(clean.files_processed, 30);
+    assert!(
+        clean.summary.embed_calls > 2,
+        "the failure must land mid-run"
+    );
+
+    let (hurt, store) = run_with(files, HashMap::new(), Duration::ZERO, true, Some(2)).await;
+    assert!(
+        hurt.files_processed < 30,
+        "the injected failure must lose files"
+    );
+    let mut got: HashMap<String, usize> = HashMap::new();
+    for (f, _) in stored(&store) {
+        *got.entry(f).or_default() += 1;
+    }
+    for path in hurt.processed_revisions.keys() {
+        assert_eq!(
+            got.get(path),
+            expected.get(path),
+            "{path} counted done but not fully stored"
+        );
+    }
 }

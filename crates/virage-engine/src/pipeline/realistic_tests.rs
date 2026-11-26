@@ -60,7 +60,11 @@ impl Embedder for BusyEmbedder {
     }
 }
 
-async fn run_on_disk(dir: &std::path::Path, store_dir: &std::path::Path) -> PipelineStats {
+async fn run_on_disk(
+    dir: &std::path::Path,
+    store_dir: &std::path::Path,
+    embed_across_files: bool,
+) -> PipelineStats {
     let store = Arc::new(LanceDbStore::new(
         store_dir.to_string_lossy().to_string(),
         "chunks",
@@ -77,6 +81,7 @@ async fn run_on_disk(dir: &std::path::Path, store_dir: &std::path::Path) -> Pipe
         strategy: "window".into(),
         sparse_text_generator_id: "gen_v1".into(),
         metadata_generator_id: "meta_v1".into(),
+        embed_across_files,
         ..Default::default()
     };
     let groups = vec![FileSetGroup {
@@ -101,10 +106,15 @@ async fn real_source_store_and_a_computing_embedder_give_non_trivial_resource_fi
         std::fs::write(docs.join(name), body).unwrap();
     }
 
-    let stats = run_on_disk(&docs, &store_dir).await;
-    let s = &stats.summary;
-    eprintln!("{s:#?}");
+    let per_file = run_on_disk(&docs, &base.join("store-a"), false).await;
+    let across = run_on_disk(&docs, &base.join("store-b"), true).await;
+    eprintln!("PER FILE {:#?}", per_file.summary);
+    eprintln!("ACROSS FILES {:#?}", across.summary);
     std::fs::remove_dir_all(&base).ok();
+    let _ = &store_dir;
+    let s = &per_file.summary;
+    assert!(across.summary.embed_calls < s.embed_calls);
+    assert_eq!(across.summary.texts_embedded, s.texts_embedded);
 
     assert_eq!(s.files_processed, 300);
     assert_eq!(s.texts_embedded as usize, s.chunks_upserted);

@@ -69,29 +69,46 @@ pub async fn worker_task(
             None => break, // channel closed — no more work
         };
 
-        let chunk_started = std::time::Instant::now();
-        let parsed = parse_and_chunk(&item, &groups, config, Some(&progress)).await;
-        ProgressCounters::add_nanos(&progress.chunk_nanos, chunk_started.elapsed());
-        let artifacts = match parsed {
-            Ok(a) => a,
-            Err(e) => {
-                // Log but don't abort — skip this file. No `WorkResult` is sent for it, so the
-                // coordinator never counts it — this is its only `inc_done()`.
-                tracing::warn!(path = ?item.path, error = %e, "worker skipped file");
-                progress.inc_done();
-                continue;
+        // Chunk this file, then (when `embed_across_files` is set) keep taking queued files while
+        // the batch is short of full. `try_recv` never waits: a worker only bundles work that is
+        // already queued, so cross-file batching adds no latency, and a bundle never exceeds one
+        // micro-batch of texts before it is embedded.
+        let micro_batch_size = micro_batch_size_for(&strategy);
+        let mut bundle: Vec<(WorkItem, Vec<ArtifactSet>)> = Vec::new();
+        let mut pending_texts = 0usize;
+        let mut next = Some(item);
+        while let Some(item) = next.take() {
+            let chunk_started = std::time::Instant::now();
+            let parsed = parse_and_chunk(&item, &groups, config, Some(&progress)).await;
+            ProgressCounters::add_nanos(&progress.chunk_nanos, chunk_started.elapsed());
+            match parsed {
+                Ok(artifacts) => {
+                    pending_texts += artifacts.len();
+                    bundle.push((item, artifacts));
+                }
+                Err(e) => {
+                    // Log but don't abort — skip this file. No `WorkResult` is sent for it, so
+                    // the coordinator never counts it — this is its only `inc_done()`.
+                    tracing::warn!(path = ?item.path, error = %e, "worker skipped file");
+                    progress.inc_done();
+                }
             }
-        };
+            if config.embed_across_files
+                && pending_texts < micro_batch_size
+                && idx < strategy.current_workers()
+            {
+                next = work_rx.lock().await.try_recv().ok();
+            }
+        }
+        if bundle.is_empty() {
+            continue;
+        }
 
         // ADR-057: embed and send in micro-batches as each is ready, rather than embedding the
         // whole file's artifacts in one call and returning one fully-materialized WorkResult.
-        // `stream_embed_and_send` handles the empty-artifacts case and `is_final` bookkeeping —
+        // `stream_embed_files` handles the empty-artifacts case and `is_final` bookkeeping —
         // see its doc comment.
-        match stream_embed_and_send(
-            &item, artifacts, &embedder, &result_tx, &progress, &strategy,
-        )
-        .await
-        {
+        match stream_embed_files(bundle, &embedder, &result_tx, &progress, &strategy).await {
             Ok(()) => {}
             Err(SendFailed) => break, // coordinator dropped result channel
         }
@@ -135,69 +152,128 @@ async fn stream_embed_and_send(
     progress: &ProgressCounters,
     strategy: &Arc<dyn ConcurrencyStrategy>,
 ) -> Result<(), SendFailed> {
-    if artifacts.is_empty() {
-        let result = WorkResult {
-            path: item.path.clone(),
-            chunks: Vec::new(),
-            is_final: true,
-        };
-        return result_tx.send(result).await.map_err(|_| SendFailed);
-    }
+    stream_embed_files(
+        vec![(item.clone(), artifacts)],
+        embedder,
+        result_tx,
+        progress,
+        strategy,
+    )
+    .await
+}
 
-    let micro_batch_size = if strategy.current_workers() <= 1 {
+fn micro_batch_size_for(strategy: &Arc<dyn ConcurrencyStrategy>) -> usize {
+    if strategy.current_workers() <= 1 {
         LOW_MEMORY_MICRO_BATCH_SIZE
     } else {
         EMBED_MICRO_BATCH_SIZE
-    };
+    }
+}
 
+/// `stream_embed_and_send` for several files at once: their artifacts form one queue cut into
+/// micro-batches that may span file boundaries (one file's tail and the next file's head share an
+/// `embed_batch` call). Each micro-batch's vectors go back to their files as one `WorkResult` per
+/// file touched; a file's `is_final` marker follows right after its last chunk is sent, and a file
+/// with no artifacts is final at once. A failed micro-batch stops the queue: files already final
+/// stay counted, the files it touched and every later one get no marker (and one `inc_done` each),
+/// exactly as a failed file did before.
+async fn stream_embed_files(
+    files: Vec<(WorkItem, Vec<ArtifactSet>)>,
+    embedder: &Arc<std::sync::Mutex<dyn Embedder + Send>>,
+    result_tx: &mpsc::Sender<WorkResult>,
+    progress: &ProgressCounters,
+    strategy: &Arc<dyn ConcurrencyStrategy>,
+) -> Result<(), SendFailed> {
+    let micro_batch_size = micro_batch_size_for(strategy);
     let dims = match embedder
         .lock()
         .map_err(|e| anyhow::anyhow!("embedder lock poisoned: {e}"))
     {
         Ok(guard) => guard.dimensions(),
         Err(e) => {
-            tracing::warn!(path = ?item.path, error = %e, "embedder lock poisoned — skipping file");
-            progress.inc_done();
+            tracing::warn!(error = %e, "embedder lock poisoned — skipping files");
+            for _ in &files {
+                progress.inc_done();
+            }
             return Ok(());
         }
     };
 
-    let mut artifacts_iter = artifacts.into_iter();
+    // Flat queue of (file index, artifact) and how many artifacts each file still has queued.
+    let mut remaining: Vec<usize> = files.iter().map(|(_, a)| a.len()).collect();
+    let mut paths: Vec<String> = Vec::with_capacity(files.len());
+    let mut queue: Vec<(usize, ArtifactSet)> = Vec::new();
+    for (i, (item, artifacts)) in files.into_iter().enumerate() {
+        paths.push(item.path);
+        queue.extend(artifacts.into_iter().map(|a| (i, a)));
+    }
+    let mut finished = vec![false; paths.len()];
+    for (i, path) in paths.iter().enumerate() {
+        if remaining[i] == 0 {
+            finished[i] = true;
+            let result = WorkResult {
+                path: path.clone(),
+                chunks: Vec::new(),
+                is_final: true,
+            };
+            result_tx.send(result).await.map_err(|_| SendFailed)?;
+        }
+    }
+
+    let mut iter = queue.into_iter();
     loop {
-        let micro_batch: Vec<ArtifactSet> =
-            artifacts_iter.by_ref().take(micro_batch_size).collect();
+        let micro_batch: Vec<(usize, ArtifactSet)> = iter.by_ref().take(micro_batch_size).collect();
         if micro_batch.is_empty() {
             break;
         }
+        let owners: Vec<usize> = micro_batch.iter().map(|(i, _)| *i).collect();
+        let artifacts: Vec<ArtifactSet> = micro_batch.into_iter().map(|(_, a)| a).collect();
 
-        let embedded = match embed_micro_batch(micro_batch, embedder, dims, progress) {
+        let embedded = match embed_micro_batch(artifacts, embedder, dims, progress) {
             Ok(chunks) => chunks,
             Err(e) => {
-                // Stop processing the rest of this file — matches the pre-streaming behavior of
-                // a whole-file embed_batch() failure. Chunks from already-sent micro-batches for
-                // this file have already reached the coordinator and are not retracted, but no
-                // `is_final` marker follows, so the coordinator never counts this file as
-                // successfully processed.
-                tracing::warn!(path = ?item.path, error = %e, "embed_batch failed — skipping rest of file");
-                progress.inc_done();
+                // Stop the queue — matches the pre-streaming behavior of a whole-file
+                // embed_batch() failure. Chunks of already-sent micro-batches have reached the
+                // coordinator and are not retracted, but no `is_final` marker follows for any
+                // file not yet final, so the coordinator never counts those as processed.
+                tracing::warn!(error = %e, "embed_batch failed — skipping the rest of the queued files");
+                for fin in &finished {
+                    if !fin {
+                        progress.inc_done();
+                    }
+                }
                 return Ok(());
             }
         };
 
-        let result = WorkResult {
-            path: item.path.clone(),
-            chunks: embedded,
-            is_final: false,
-        };
-        result_tx.send(result).await.map_err(|_| SendFailed)?;
+        // Group consecutive chunks by owning file, keeping order.
+        let mut by_file: Vec<(usize, Vec<EmbeddedChunk>)> = Vec::new();
+        for (owner, chunk) in owners.into_iter().zip(embedded) {
+            match by_file.last_mut() {
+                Some((o, v)) if *o == owner => v.push(chunk),
+                _ => by_file.push((owner, vec![chunk])),
+            }
+        }
+        for (owner, chunks) in by_file {
+            remaining[owner] -= chunks.len();
+            let result = WorkResult {
+                path: paths[owner].clone(),
+                chunks,
+                is_final: false,
+            };
+            result_tx.send(result).await.map_err(|_| SendFailed)?;
+            if remaining[owner] == 0 {
+                finished[owner] = true;
+                let done = WorkResult {
+                    path: paths[owner].clone(),
+                    chunks: Vec::new(),
+                    is_final: true,
+                };
+                result_tx.send(done).await.map_err(|_| SendFailed)?;
+            }
+        }
     }
-
-    let done = WorkResult {
-        path: item.path.clone(),
-        chunks: Vec::new(),
-        is_final: true,
-    };
-    result_tx.send(done).await.map_err(|_| SendFailed)
+    Ok(())
 }
 
 /// Embed one micro-batch of already-chunked artifacts. `dims` is resolved once by the caller
