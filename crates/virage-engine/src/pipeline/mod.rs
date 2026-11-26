@@ -115,6 +115,7 @@ impl std::fmt::Debug for EmbeddedChunk {
 
 pub mod concurrency;
 pub mod coordinator;
+pub mod resources;
 pub mod worker;
 
 #[cfg(test)]
@@ -289,6 +290,7 @@ pub struct IndexSummary {
     pub store_secs: f64,
     pub wall_secs: f64,
     pub host: HostInfo,
+    pub resources: resources::ResourceUsage,
 }
 
 /// Logical cores and CPU model, so a summary says which machine produced its seconds.
@@ -337,6 +339,11 @@ pub struct ProgressCounters {
     pub embed_calls: std::sync::atomic::AtomicU64,
     pub embed_texts: std::sync::atomic::AtomicU64,
     pub embed_bytes: std::sync::atomic::AtomicU64,
+    /// Bytes returned by the sources, bytes handed to the store, and time workers waited for the
+    /// embedder lock.
+    pub source_bytes: std::sync::atomic::AtomicU64,
+    pub store_bytes: std::sync::atomic::AtomicU64,
+    pub embed_lock_wait_nanos: std::sync::atomic::AtomicU64,
 }
 
 impl ProgressCounters {
@@ -355,6 +362,14 @@ impl ProgressCounters {
     }
     pub fn add_nanos(counter: &std::sync::atomic::AtomicU64, d: std::time::Duration) {
         counter.fetch_add(d.as_nanos() as u64, Ordering::Relaxed);
+    }
+    /// Text and vector bytes handed to the store for one upsert batch.
+    pub fn add_store_bytes(&self, docs: &[crate::stores::VectorDocument]) {
+        let n: usize = docs
+            .iter()
+            .map(|d| d.dense_text.len() + d.sparse_text.len() + d.dense_vector.len() * 4)
+            .sum();
+        self.store_bytes.fetch_add(n as u64, Ordering::Relaxed);
     }
     pub fn add_chunks(&self, n: usize) {
         self.chunks.fetch_add(n, Ordering::Relaxed);
@@ -379,6 +394,8 @@ pub(crate) fn summarize(
     tokens_before: Option<crate::embedders::TokenStats>,
     tokens_after: Option<crate::embedders::TokenStats>,
     wall: std::time::Duration,
+    proc_before: Option<resources::ProcSnapshot>,
+    proc_after: Option<resources::ProcSnapshot>,
 ) -> IndexSummary {
     let load = |c: &std::sync::atomic::AtomicU64| c.load(Ordering::Relaxed);
     let secs = |c: &std::sync::atomic::AtomicU64| load(c) as f64 / 1e9;
@@ -395,6 +412,16 @@ pub(crate) fn summarize(
         }
         _ => (None, None),
     };
+    let host = HostInfo::detect();
+    let resources = resources::usage(
+        proc_before,
+        proc_after,
+        wall.as_secs_f64(),
+        host.cores,
+        load(&progress.source_bytes),
+        load(&progress.store_bytes),
+        secs(&progress.embed_lock_wait_nanos),
+    );
     IndexSummary {
         files_processed,
         files_skipped,
@@ -409,7 +436,8 @@ pub(crate) fn summarize(
         embed_secs: secs(&progress.embed_nanos),
         store_secs: secs(&progress.store_nanos),
         wall_secs: wall.as_secs_f64(),
-        host: HostInfo::detect(),
+        host,
+        resources,
     }
 }
 

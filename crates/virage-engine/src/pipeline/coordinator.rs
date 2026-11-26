@@ -33,6 +33,7 @@ pub async fn run_pipeline(
 ) -> anyhow::Result<PipelineStats> {
     store.initialize().await?;
     let run_started = std::time::Instant::now();
+    let proc_before = super::resources::ProcSnapshot::read();
     let tokens_before = embedder.lock().ok().and_then(|e| e.token_stats());
 
     let qualify_keys = groups_need_qualified_keys(&groups);
@@ -331,6 +332,7 @@ pub async fn run_pipeline(
                     let started = std::time::Instant::now();
                     store.upsert(&deduped).await?;
                     super::ProgressCounters::add_nanos(&progress.store_nanos, started.elapsed());
+                    progress.add_store_bytes(&deduped);
                 }
                 chunks_upserted += deduped.len();
                 tokens_processed += sum_estimated_tokens(&deduped);
@@ -344,6 +346,7 @@ pub async fn run_pipeline(
             let started = std::time::Instant::now();
             store.upsert(&deduped).await?;
             super::ProgressCounters::add_nanos(&progress.store_nanos, started.elapsed());
+            progress.add_store_bytes(&deduped);
         }
         chunks_upserted += deduped.len();
         tokens_processed += sum_estimated_tokens(&deduped);
@@ -363,6 +366,8 @@ pub async fn run_pipeline(
         tokens_before,
         tokens_after,
         run_started.elapsed(),
+        proc_before,
+        super::resources::ProcSnapshot::read(),
     );
     tracing::info!(
         files = summary.files_processed,
@@ -378,6 +383,17 @@ pub async fn run_pipeline(
         embed_secs = summary.embed_secs,
         store_secs = summary.store_secs,
         wall_secs = summary.wall_secs,
+        cpu_user_secs = ?summary.resources.cpu_user_secs,
+        cpu_sys_secs = ?summary.resources.cpu_sys_secs,
+        cpu_utilization = ?summary.resources.cpu_utilization,
+        rss_start_kb = ?summary.resources.rss_start_kb,
+        rss_end_kb = ?summary.resources.rss_end_kb,
+        peak_rss_kb = ?summary.resources.peak_rss_kb,
+        disk_read_bytes = ?summary.resources.disk_read_bytes,
+        disk_write_bytes = ?summary.resources.disk_write_bytes,
+        source_bytes_read = summary.resources.source_bytes_read,
+        store_bytes_written = summary.resources.store_bytes_written,
+        embed_lock_wait_secs = summary.resources.embed_lock_wait_secs,
         cores = summary.host.cores,
         cpu_model = %summary.host.cpu_model,
         "index summary (stage secs are summed over workers; stages overlap)"

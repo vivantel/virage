@@ -273,6 +273,15 @@ async fn every_chunk_is_embedded_once_in_micro_batches() {
 
     let expected_tokens: u64 = docs.iter().map(|d| fake_tokens(&d.dense_text)).sum();
     assert_eq!(s.tokens_embedded, Some(expected_tokens));
+    let r = &s.resources;
+    let corpus_bytes: u64 = corpus(1, 12).iter().map(|(_, b)| b.len() as u64).sum();
+    assert_eq!(r.source_bytes_read, corpus_bytes, "every file is read once");
+    assert!(
+        r.store_bytes_written >= s.bytes_embedded,
+        "stored text plus vectors"
+    );
+    #[cfg(target_os = "linux")]
+    assert!(r.peak_rss_kb.unwrap() > 0 && r.cpu_utilization.is_some());
     let expected_bytes: u64 = docs.iter().map(|d| d.dense_text.len() as u64).sum();
     assert_eq!(s.bytes_embedded, expected_bytes);
 }
@@ -301,11 +310,21 @@ fn padded_share_is_the_padding_fraction_of_computed_tokens() {
         real: 160,
         padded_total: 200,
     });
-    let s = summarize(&progress, 0, 0, 0, before, after, Duration::ZERO);
+    let s = summarize(
+        &progress,
+        0,
+        0,
+        0,
+        before,
+        after,
+        Duration::ZERO,
+        None,
+        None,
+    );
     assert_eq!(s.tokens_embedded, Some(60));
     // 80 tokens computed this run, 60 of them real.
     assert_eq!(s.padded_share, Some(0.25));
-    let none = summarize(&progress, 0, 0, 0, None, None, Duration::ZERO);
+    let none = summarize(&progress, 0, 0, 0, None, None, Duration::ZERO, None, None);
     assert_eq!((none.tokens_embedded, none.padded_share), (None, None));
 }
 
@@ -314,6 +333,16 @@ async fn the_same_seed_does_the_same_work() {
     let (a, _) = run(corpus(3, 10), HashMap::new(), Duration::ZERO).await;
     let (b, _) = run(corpus(3, 10), HashMap::new(), Duration::ZERO).await;
     assert_eq!(work(&a.summary), work(&b.summary));
+}
+
+#[tokio::test]
+async fn unchanged_files_are_not_read_and_nothing_is_stored() {
+    let files = corpus(4, 6);
+    let (first, _) = run(files.clone(), HashMap::new(), Duration::ZERO).await;
+    let (second, _) = run(files, first.processed_revisions.clone(), Duration::ZERO).await;
+    assert!(first.summary.resources.source_bytes_read > 0);
+    assert_eq!(second.summary.resources.source_bytes_read, 0);
+    assert_eq!(second.summary.resources.store_bytes_written, 0);
 }
 
 #[tokio::test]

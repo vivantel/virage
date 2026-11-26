@@ -70,7 +70,7 @@ pub async fn worker_task(
         };
 
         let chunk_started = std::time::Instant::now();
-        let parsed = parse_and_chunk(&item, &groups, config).await;
+        let parsed = parse_and_chunk(&item, &groups, config, Some(&progress)).await;
         ProgressCounters::add_nanos(&progress.chunk_nanos, chunk_started.elapsed());
         let artifacts = match parsed {
             Ok(a) => a,
@@ -213,9 +213,11 @@ fn embed_micro_batch(
 ) -> anyhow::Result<Vec<EmbeddedChunk>> {
     let texts: Vec<&str> = artifacts.iter().map(|a| a.dense_text.as_str()).collect();
     let flat: Vec<f32> = {
+        let waiting = std::time::Instant::now();
         let mut emb = embedder
             .lock()
             .map_err(|e| anyhow::anyhow!("embedder lock poisoned: {e}"))?;
+        ProgressCounters::add_nanos(&progress.embed_lock_wait_nanos, waiting.elapsed());
         let relaxed = std::sync::atomic::Ordering::Relaxed;
         progress.embed_calls.fetch_add(1, relaxed);
         progress.embed_texts.fetch_add(texts.len() as u64, relaxed);
@@ -266,6 +268,7 @@ async fn parse_and_chunk(
     item: &WorkItem,
     groups: &[GroupRuntime],
     config: &PipelineConfig,
+    progress: Option<&ProgressCounters>,
 ) -> anyhow::Result<Vec<ArtifactSet>> {
     let group = &groups[item.group_idx];
     let source = &group.source;
@@ -276,6 +279,10 @@ async fn parse_and_chunk(
     // matched format-specific chunker gets the same non-local-source support as the raw-text
     // fallback already had.
     let content: Bytes = source.read_content(&item.path, None).await?;
+    if let Some(p) = progress {
+        p.source_bytes
+            .fetch_add(content.len() as u64, std::sync::atomic::Ordering::Relaxed);
+    }
 
     // Retrieval contract v0: scan before anything is chunked or embedded.
     if config.secret_scan {
@@ -657,7 +664,9 @@ mod tests {
             ..Default::default()
         };
 
-        let artifacts = parse_and_chunk(&item, &groups, &config).await.unwrap();
+        let artifacts = parse_and_chunk(&item, &groups, &config, None)
+            .await
+            .unwrap();
         let progress = ProgressCounters::new();
         let strategy: Arc<dyn ConcurrencyStrategy> = Arc::new(FixedWorkers::new(4));
         let (tx, mut rx) = mpsc::channel(8);
