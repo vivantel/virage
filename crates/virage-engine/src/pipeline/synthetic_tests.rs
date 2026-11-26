@@ -378,3 +378,30 @@ async fn embed_time_scales_with_the_tokens_computed() {
         "time ratio {time_ratio:.2} vs work ratio {work_ratio:.2}"
     );
 }
+
+/// Prints the run summary for each corpus size, for reading by a person:
+/// `cargo test -p virage-engine --lib --features pipeline report_synthetic -- --ignored --nocapture`.
+#[tokio::test]
+#[ignore = "prints numbers, asserts nothing"]
+async fn report_synthetic_summaries() {
+    for (seed, files) in [(1u64, 12usize), (9, 8), (9, 24), (9, 96)] {
+        let (stats, _) = run(
+            corpus(seed, files),
+            HashMap::new(),
+            Duration::from_micros(60),
+        )
+        .await;
+        eprintln!("seed={seed} files={files}: {:#?}", stats.summary);
+    }
+    let files = corpus(4, 24);
+    let (first, _) = run(files.clone(), HashMap::new(), Duration::ZERO).await;
+    let (again, _) = run(files, first.processed_revisions.clone(), Duration::ZERO).await;
+    eprintln!(
+        "reindex unchanged: first embed_calls={} texts={}; second embed_calls={} texts={} skipped={}",
+        first.summary.embed_calls,
+        first.summary.texts_embedded,
+        again.summary.embed_calls,
+        again.summary.texts_embedded,
+        again.files_skipped
+    );
+}
