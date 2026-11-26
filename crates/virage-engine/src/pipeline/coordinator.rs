@@ -32,6 +32,9 @@ pub async fn run_pipeline(
     known_revisions: HashMap<String, String>,
 ) -> anyhow::Result<PipelineStats> {
     store.initialize().await?;
+    let run_started = std::time::Instant::now();
+    let proc_before = super::resources::ProcSnapshot::read();
+    let tokens_before = embedder.lock().ok().and_then(|e| e.token_stats());
 
     let qualify_keys = groups_need_qualified_keys(&groups);
 
@@ -96,6 +99,7 @@ pub async fn run_pipeline(
         .clone()
         .unwrap_or_default();
     progress.set_total(all_items.len());
+    super::ProgressCounters::add_nanos(&progress.walk_nanos, run_started.elapsed());
 
     // ── Change detection, batched per source to minimize file_revisions calls ──
     let mut current_revisions: HashMap<String, String> = HashMap::new();
@@ -185,6 +189,7 @@ pub async fn run_pipeline(
             processed_revisions: HashMap::new(),
             current_keys,
             secret_skipped: Vec::new(),
+            summary: Default::default(),
         });
     }
 
@@ -324,7 +329,10 @@ pub async fn run_pipeline(
             if batch.len() >= batch_size {
                 let deduped = dedup_by_id(std::mem::take(&mut batch));
                 if !config_with_symbol_index.skip_upload {
+                    let started = std::time::Instant::now();
                     store.upsert(&deduped).await?;
+                    super::ProgressCounters::add_nanos(&progress.store_nanos, started.elapsed());
+                    progress.add_store_bytes(&deduped);
                 }
                 chunks_upserted += deduped.len();
                 tokens_processed += sum_estimated_tokens(&deduped);
@@ -335,7 +343,10 @@ pub async fn run_pipeline(
     if !batch.is_empty() {
         let deduped = dedup_by_id(batch);
         if !config_with_symbol_index.skip_upload {
+            let started = std::time::Instant::now();
             store.upsert(&deduped).await?;
+            super::ProgressCounters::add_nanos(&progress.store_nanos, started.elapsed());
+            progress.add_store_bytes(&deduped);
         }
         chunks_upserted += deduped.len();
         tokens_processed += sum_estimated_tokens(&deduped);
@@ -346,6 +357,49 @@ pub async fn run_pipeline(
     for h in handles {
         h.await??;
     }
+    let tokens_after = embedder.lock().ok().and_then(|e| e.token_stats());
+    let summary = super::summarize(
+        &progress,
+        files_processed,
+        files_skipped,
+        chunks_upserted,
+        tokens_before,
+        tokens_after,
+        run_started.elapsed(),
+        proc_before,
+        super::resources::ProcSnapshot::read(),
+    );
+    tracing::info!(
+        files = summary.files_processed,
+        skipped = summary.files_skipped,
+        chunks = summary.chunks_upserted,
+        embed_calls = summary.embed_calls,
+        texts_embedded = summary.texts_embedded,
+        bytes_embedded = summary.bytes_embedded,
+        tokens_embedded = ?summary.tokens_embedded,
+        padded_share = ?summary.padded_share,
+        walk_secs = summary.walk_secs,
+        chunk_secs = summary.chunk_secs,
+        embed_secs = summary.embed_secs,
+        store_secs = summary.store_secs,
+        wall_secs = summary.wall_secs,
+        cpu_user_secs = ?summary.resources.cpu_user_secs,
+        cpu_sys_secs = ?summary.resources.cpu_sys_secs,
+        cpu_utilization = ?summary.resources.cpu_utilization,
+        rss_start_kb = ?summary.resources.rss_start_kb,
+        rss_end_kb = ?summary.resources.rss_end_kb,
+        peak_rss_kb = ?summary.resources.peak_rss_kb,
+        disk_read_bytes = ?summary.resources.disk_read_bytes,
+        disk_write_bytes = ?summary.resources.disk_write_bytes,
+        read_syscall_bytes = ?summary.resources.read_syscall_bytes,
+        write_syscall_bytes = ?summary.resources.write_syscall_bytes,
+        source_bytes_read = summary.resources.source_bytes_read,
+        store_bytes_written = summary.resources.store_bytes_written,
+        embed_lock_wait_secs = summary.resources.embed_lock_wait_secs,
+        cores = summary.host.cores,
+        cpu_model = %summary.host.cpu_model,
+        "index summary (stage secs are summed over workers; stages overlap)"
+    );
 
     // Files the pre-index secret scan skipped were already purged with every other file in
     // `to_process` (see "Purge the old rows" above) and produced no chunks, so nothing of an
@@ -365,6 +419,7 @@ pub async fn run_pipeline(
         processed_revisions,
         current_keys,
         secret_skipped,
+        summary,
     })
 }
 

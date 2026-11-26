@@ -33,6 +33,15 @@ pub struct EncodedBatch {
 type InputTensors = (Tensor<i64>, Tensor<i64>, Tensor<i64>);
 
 impl EncodedBatch {
+    /// Tokens that carry text (attention mask 1).
+    pub fn real_tokens(&self) -> u64 {
+        self.attention_mask.iter().filter(|&&m| m != 0).count() as u64
+    }
+    /// Tokens the model computes on, padding included.
+    pub fn total_tokens(&self) -> u64 {
+        (self.batch_size * self.seq_len) as u64
+    }
+
     pub fn to_tensors(&self) -> Result<InputTensors, String> {
         let shape = [self.batch_size, self.seq_len];
         let ids_t = Tensor::from_array((shape, self.input_ids.clone().into_boxed_slice()))
@@ -66,7 +75,10 @@ impl OnnxInferenceSession {
 
     /// Same as [`from_paths`](Self::from_paths) with an explicit intra-op thread count.
     ///
-    /// The ADR-057 reasoning for `1` holds for the embedder, which runs inside the indexing
+    /// The ADR-057 reasoning for `1` held while embedding was assumed memory-bound; the embedder
+    /// now sizes this from `embed_parallelism` (config `threads`, `VIRAGE_EMBED_THREADS`, else cores
+    /// capped at 8) because every embed call is serialized behind one lock and `1` left cores idle.
+    /// Original note: the ADR-057 reasoning for `1` held for the embedder, which runs inside the indexing
     /// pipeline next to other workers. A reranker session is different: one per process, called
     /// on the query path with a single batch (~20 passages), where `1` leaves every other core
     /// idle and makes latency linear in the candidate count.
@@ -94,6 +106,15 @@ impl OnnxInferenceSession {
         let tokenizer = Tokenizer::from_file(tokenizer_path)
             .map_err(|e| format!("tokenizer load error: {e}"))?;
         Ok(Self { session, tokenizer })
+    }
+
+    /// Drop the tokenizer's fixed-length padding so each batch pads to its longest text. Benchmark
+    /// only (`tests/embed_throughput.rs`): it measured no speedup and shifts vectors (min cosine
+    /// 0.983) through the quantized model's batch-dependent scales, so the pipeline keeps the default.
+    #[doc(hidden)]
+    pub fn without_fixed_padding(mut self) -> Self {
+        self.tokenizer.with_padding(None);
+        self
     }
 
     /// Encode a batch of single texts.

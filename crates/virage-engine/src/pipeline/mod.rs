@@ -115,10 +115,15 @@ impl std::fmt::Debug for EmbeddedChunk {
 
 pub mod concurrency;
 pub mod coordinator;
+pub mod resources;
 pub mod worker;
 
+#[cfg(all(test, feature = "source-localfs", feature = "store-lancedb"))]
+mod realistic_tests;
 #[cfg(test)]
 mod secret_tests;
+#[cfg(test)]
+mod synthetic_tests;
 
 pub use concurrency::{ConcurrencyStrategy, FixedWorkers, RamSampling};
 
@@ -170,6 +175,12 @@ pub struct PipelineConfig {
     /// Paths skipped by the secret scan during this run (paths only, never matched text). Shared
     /// by every clone of the config; the coordinator removes these files from the store.
     pub secret_skipped: Arc<std::sync::Mutex<Vec<String>>>,
+    /// Fill each `embed_batch` call from several files instead of one: after chunking a file that
+    /// leaves a micro-batch short, a worker takes more queued files (never waiting for them) until
+    /// the batch is full, embeds once, and routes each vector back to its file. Off by default: the
+    /// quantized model's output depends on what shares a batch, so regrouping chunks shifts vectors
+    /// slightly and turning it on is a decision for the index owner, not a silent speed-up.
+    pub embed_across_files: bool,
 }
 
 /// A single glob → tags rule (IR-037), independent of the `config` feature
@@ -199,6 +210,7 @@ impl std::fmt::Debug for PipelineConfig {
             .field("adaptive_size", &self.adaptive_size)
             .field("strategy", &self.strategy)
             .field("skip_upload", &self.skip_upload)
+            .field("embed_across_files", &self.embed_across_files)
             .field(
                 "symbol_index",
                 &self.symbol_index.as_ref().map(|_| "Some(..)"),
@@ -230,6 +242,7 @@ impl Default for PipelineConfig {
             symbol_index: None,
             secret_scan: false,
             secret_skipped: Arc::new(std::sync::Mutex::new(Vec::new())),
+            embed_across_files: false,
         }
     }
 }
@@ -261,6 +274,58 @@ pub struct PipelineStats {
     pub current_keys: HashSet<String>,
     /// Paths skipped by the pre-index secret scan this run (paths only, never matched text).
     pub secret_skipped: Vec<String>,
+    /// Work and stage times of this run; also logged once as `index summary`.
+    pub summary: IndexSummary,
+}
+
+/// One structured record of what an index run did: counts of work first (they do not depend on
+/// the machine), stage seconds second (summed over workers, so stages overlap and can exceed
+/// wall time), and the host so two runs can be compared.
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct IndexSummary {
+    pub files_processed: usize,
+    pub files_skipped: usize,
+    pub chunks_upserted: usize,
+    /// `embed_batch` calls and the texts and UTF-8 bytes passed to them.
+    pub embed_calls: u64,
+    pub texts_embedded: u64,
+    pub bytes_embedded: u64,
+    /// Tokens embedded and the share of computed tokens that were padding. Both `None` when the
+    /// embedder does not report tokens (the fakes and dylib embedders).
+    pub tokens_embedded: Option<u64>,
+    pub padded_share: Option<f64>,
+    pub walk_secs: f64,
+    pub chunk_secs: f64,
+    pub embed_secs: f64,
+    pub store_secs: f64,
+    pub wall_secs: f64,
+    pub host: HostInfo,
+    pub resources: resources::ResourceUsage,
+}
+
+/// Logical cores and CPU model, so a summary says which machine produced its seconds.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct HostInfo {
+    pub cores: usize,
+    pub cpu_model: String,
+}
+
+impl HostInfo {
+    pub fn detect() -> Self {
+        let cores = std::thread::available_parallelism()
+            .map(|n| n.get())
+            .unwrap_or(1);
+        let cpu_model = std::fs::read_to_string("/proc/cpuinfo")
+            .ok()
+            .and_then(|t| {
+                t.lines()
+                    .find(|l| l.starts_with("model name"))
+                    .and_then(|l| l.split_once(':'))
+                    .map(|(_, v)| v.trim().to_string())
+            })
+            .unwrap_or_else(|| "unknown".to_string());
+        Self { cores, cpu_model }
+    }
 }
 
 // ─── ProgressCounters ────────────────────────────────────────────────────────
@@ -272,6 +337,23 @@ pub struct ProgressCounters {
     pub queued: AtomicUsize,
     pub done: AtomicUsize,
     pub chunks: AtomicUsize,
+    /// Summed wall time (ns) spent per stage across all workers: read+parse+chunk, `embed_batch`
+    /// (compute only, not waiting for the embedder lock), and store upserts. Logged at the end of a
+    /// run so a slow index shows which stage to attack; workers overlap, so these can exceed wall time.
+    pub chunk_nanos: std::sync::atomic::AtomicU64,
+    pub embed_nanos: std::sync::atomic::AtomicU64,
+    pub store_nanos: std::sync::atomic::AtomicU64,
+    /// Listing the sources and building the symbol index, before any worker starts.
+    pub walk_nanos: std::sync::atomic::AtomicU64,
+    /// Work counters: `embed_batch` calls, texts and UTF-8 bytes passed to them.
+    pub embed_calls: std::sync::atomic::AtomicU64,
+    pub embed_texts: std::sync::atomic::AtomicU64,
+    pub embed_bytes: std::sync::atomic::AtomicU64,
+    /// Bytes returned by the sources, bytes handed to the store, and time workers waited for the
+    /// embedder lock.
+    pub source_bytes: std::sync::atomic::AtomicU64,
+    pub store_bytes: std::sync::atomic::AtomicU64,
+    pub embed_lock_wait_nanos: std::sync::atomic::AtomicU64,
 }
 
 impl ProgressCounters {
@@ -288,6 +370,17 @@ impl ProgressCounters {
     pub fn inc_done(&self) {
         self.done.fetch_add(1, Ordering::Relaxed);
     }
+    pub fn add_nanos(counter: &std::sync::atomic::AtomicU64, d: std::time::Duration) {
+        counter.fetch_add(d.as_nanos() as u64, Ordering::Relaxed);
+    }
+    /// Text and vector bytes handed to the store for one upsert batch.
+    pub fn add_store_bytes(&self, docs: &[crate::stores::VectorDocument]) {
+        let n: usize = docs
+            .iter()
+            .map(|d| d.dense_text.len() + d.sparse_text.len() + d.dense_vector.len() * 4)
+            .sum();
+        self.store_bytes.fetch_add(n as u64, Ordering::Relaxed);
+    }
     pub fn add_chunks(&self, n: usize) {
         self.chunks.fetch_add(n, Ordering::Relaxed);
     }
@@ -298,6 +391,63 @@ impl ProgressCounters {
             self.done.load(Ordering::Relaxed),
             self.chunks.load(Ordering::Relaxed),
         )
+    }
+}
+
+/// Builds the run summary from the counters. `tokens_before` and `tokens_after` are the embedder's
+/// cumulative token stats around the run, so only this run's tokens count.
+pub(crate) fn summarize(
+    progress: &ProgressCounters,
+    files_processed: usize,
+    files_skipped: usize,
+    chunks_upserted: usize,
+    tokens_before: Option<crate::embedders::TokenStats>,
+    tokens_after: Option<crate::embedders::TokenStats>,
+    wall: std::time::Duration,
+    proc_before: Option<resources::ProcSnapshot>,
+    proc_after: Option<resources::ProcSnapshot>,
+) -> IndexSummary {
+    let load = |c: &std::sync::atomic::AtomicU64| c.load(Ordering::Relaxed);
+    let secs = |c: &std::sync::atomic::AtomicU64| load(c) as f64 / 1e9;
+    let (tokens_embedded, padded_share) = match (tokens_before, tokens_after) {
+        (Some(b), Some(a)) => {
+            let real = a.real.saturating_sub(b.real);
+            let total = a.padded_total.saturating_sub(b.padded_total);
+            let share = if total == 0 {
+                0.0
+            } else {
+                (total - real.min(total)) as f64 / total as f64
+            };
+            (Some(real), Some(share))
+        }
+        _ => (None, None),
+    };
+    let host = HostInfo::detect();
+    let resources = resources::usage(
+        proc_before,
+        proc_after,
+        wall.as_secs_f64(),
+        host.cores,
+        load(&progress.source_bytes),
+        load(&progress.store_bytes),
+        secs(&progress.embed_lock_wait_nanos),
+    );
+    IndexSummary {
+        files_processed,
+        files_skipped,
+        chunks_upserted,
+        embed_calls: load(&progress.embed_calls),
+        texts_embedded: load(&progress.embed_texts),
+        bytes_embedded: load(&progress.embed_bytes),
+        tokens_embedded,
+        padded_share,
+        walk_secs: secs(&progress.walk_nanos),
+        chunk_secs: secs(&progress.chunk_nanos),
+        embed_secs: secs(&progress.embed_nanos),
+        store_secs: secs(&progress.store_nanos),
+        wall_secs: wall.as_secs_f64(),
+        host,
+        resources,
     }
 }
 

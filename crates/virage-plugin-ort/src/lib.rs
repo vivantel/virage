@@ -47,7 +47,6 @@ use std::panic::{catch_unwind, AssertUnwindSafe};
 use virage_engine::config::resolve::{CrossEncoderOptions, OnnxEmbedderOptions};
 use virage_engine::embedders::onnx::OnnxEmbedder;
 use virage_engine::embedders::Embedder;
-use virage_engine::onnx::{OnnxInferenceSession, Pooling};
 use virage_engine::rerankers::cross_encoder::CrossEncoderReranker;
 use virage_engine::rerankers::Reranker;
 
@@ -110,23 +109,9 @@ pub unsafe extern "C" fn virage_embedder_create(
         let json = read_cstr(config_json).map_err(|e| anyhow::anyhow!(e))?;
         let opts: OnnxEmbedderOptions = serde_json::from_str(json)
             .map_err(|e| anyhow::anyhow!("invalid embedder config JSON: {e}"))?;
-        let (model_path, tokenizer_path) = opts
-            .source
-            .resolve_paths()
-            .map_err(|e| anyhow::anyhow!("failed to resolve ONNX model source: {e}"))?;
-        let session = OnnxInferenceSession::from_paths(&model_path, &tokenizer_path)
+        let embedder = opts
+            .build_embedder()
             .map_err(|e| anyhow::anyhow!("OnnxEmbedder session init error: {e}"))?;
-        let pooling = match opts.pooling.as_deref() {
-            Some("cls") => Pooling::Cls,
-            _ => Pooling::Mean,
-        };
-        let embedder = OnnxEmbedder::new(
-            session,
-            opts.dimensions,
-            opts.max_length.unwrap_or(512),
-            pooling,
-            opts.normalize,
-        );
         let handle = Box::new(Handle { embedder });
         Ok(Box::into_raw(handle) as *mut c_void)
     }));

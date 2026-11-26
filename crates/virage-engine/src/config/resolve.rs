@@ -176,10 +176,69 @@ pub struct OnnxEmbedderOptions {
     pub pooling: Option<String>,
     #[serde(default = "default_true")]
     pub normalize: bool,
+    /// Total ORT intra-op threads for indexing. Default: `VIRAGE_EMBED_THREADS`, else the host's
+    /// core count capped at 8. Split across `sessions`.
+    pub threads: Option<usize>,
+    /// Independent model sessions a batch is fanned out over. Default: `VIRAGE_EMBED_SESSIONS`,
+    /// else 1. More than one session splits each batch, which shortens padding but changes a
+    /// dynamically quantized model's vectors slightly (measured min cosine 0.987 vs one session), so it
+    /// is opt-in. Each session holds one copy of the model (~23MB quantized).
+    pub sessions: Option<usize>,
 }
 
 pub fn default_onnx_dims() -> usize {
     384
+}
+
+/// `(sessions, intra-op threads per session)` for the embedder. Explicit option, then env, then
+/// cores capped at 8 in one session. The pipeline serializes all embed calls behind one lock, so
+/// before this the indexer ran one 1-thread session however many cores were free.
+pub fn embed_parallelism(threads: Option<usize>, sessions: Option<usize>) -> (usize, usize) {
+    let env = |k: &str| std::env::var(k).ok().and_then(|v| v.parse::<usize>().ok());
+    let total = threads
+        .or_else(|| env("VIRAGE_EMBED_THREADS"))
+        .unwrap_or_else(|| {
+            std::thread::available_parallelism()
+                .map(|n| n.get())
+                .unwrap_or(1)
+                .min(8)
+        })
+        .max(1);
+    let sessions = sessions
+        .or_else(|| env("VIRAGE_EMBED_SESSIONS"))
+        .unwrap_or(1)
+        .clamp(1, total);
+    (sessions, (total / sessions).max(1))
+}
+
+#[cfg(any(feature = "embedder-onnx", feature = "download-binaries"))]
+impl OnnxEmbedderOptions {
+    /// Builds the embedder with the configured session fan-out. Shared by the in-process path and
+    /// `virage-plugin-ort` so both parse and size sessions identically.
+    pub fn build_embedder(&self) -> Result<crate::embedders::onnx::OnnxEmbedder, String> {
+        use crate::onnx::{OnnxInferenceSession, Pooling};
+        let (model_path, tokenizer_path) = self
+            .source
+            .resolve_paths()
+            .map_err(|e| format!("failed to resolve ONNX model source: {e}"))?;
+        let (n, intra) = embed_parallelism(self.threads, self.sessions);
+        let sessions = (0..n)
+            .map(|_| {
+                OnnxInferenceSession::from_paths_with_threads(&model_path, &tokenizer_path, intra)
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+        let pooling = match self.pooling.as_deref() {
+            Some("cls") => Pooling::Cls,
+            _ => Pooling::Mean,
+        };
+        Ok(crate::embedders::onnx::OnnxEmbedder::with_sessions(
+            sessions,
+            self.dimensions,
+            self.max_length.unwrap_or(512),
+            pooling,
+            self.normalize,
+        ))
+    }
 }
 
 #[cfg(test)]
@@ -422,22 +481,10 @@ pub fn resolve_embedder(
         p if p.contains("embedder-onnx") || p.contains("embedder-fastembed") => {
             #[cfg(any(feature = "embedder-onnx", feature = "download-binaries"))]
             {
-                use crate::onnx::{OnnxInferenceSession, Pooling};
                 let opts: OnnxEmbedderOptions = parse_options(spec)?;
-                let (model_path, tokenizer_path) = opts.source.resolve_paths()?;
-                let session = OnnxInferenceSession::from_paths(&model_path, &tokenizer_path)
+                let emb = opts
+                    .build_embedder()
                     .map_err(|e| anyhow!("OnnxEmbedder session init error: {e}"))?;
-                let pooling = match opts.pooling.as_deref() {
-                    Some("cls") => Pooling::Cls,
-                    _ => Pooling::Mean,
-                };
-                let emb = crate::embedders::onnx::OnnxEmbedder::new(
-                    session,
-                    opts.dimensions,
-                    opts.max_length.unwrap_or(512),
-                    pooling,
-                    opts.normalize,
-                );
                 Ok(Arc::new(std::sync::Mutex::new(emb)))
             }
             // A binary built with embedder-dylib instead of embedder-onnx/download-binaries (no
@@ -1226,6 +1273,27 @@ mod chunker_resolution_tests {
 }
 
 #[cfg(all(test, any(feature = "embedder-onnx", feature = "download-binaries")))]
+mod embed_parallelism_tests {
+    use super::embed_parallelism;
+
+    #[test]
+    fn explicit_values_split_threads_across_sessions() {
+        assert_eq!(embed_parallelism(Some(8), Some(4)), (4, 2));
+        assert_eq!(embed_parallelism(Some(8), Some(3)), (3, 2));
+        assert_eq!(embed_parallelism(Some(1), None), (1, 1));
+    }
+
+    #[test]
+    fn sessions_never_exceed_threads_and_default_to_one() {
+        assert_eq!(embed_parallelism(Some(2), Some(9)), (2, 1));
+        assert_eq!(embed_parallelism(Some(16), None), (1, 16));
+        let (s, i) = embed_parallelism(None, None);
+        assert_eq!(s, 1);
+        assert!((1..=8).contains(&i));
+    }
+}
+
+#[cfg(test)]
 mod rerank_threads_tests {
     use super::rerank_threads;
 

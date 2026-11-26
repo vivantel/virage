@@ -12,6 +12,21 @@ pub trait Embedder: Send + Sync {
     /// tokenizer's `encode_single` wanted `&[&str]` too), so this also removes a redundant
     /// conversion on that side, not just the caller's clone.
     fn embed_batch(&mut self, texts: &[&str]) -> Result<Vec<f32>, String>;
+
+    /// Cumulative token counts since this embedder was built, for embedders that tokenize
+    /// (`None` for the rest). The pipeline reads it before and after a run to report how many
+    /// tokens were embedded and how many of those were padding.
+    fn token_stats(&self) -> Option<TokenStats> {
+        None
+    }
+}
+
+/// Tokens an embedder has processed: `real` carry text, `padded_total` is everything the model
+/// computed on (real plus padding up to each batch's longest row).
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct TokenStats {
+    pub real: u64,
+    pub padded_total: u64,
 }
 
 #[cfg(feature = "embedder-dylib")]

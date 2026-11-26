@@ -3,11 +3,16 @@ use crate::onnx::{cls_pool, l2_normalize, mean_pool, OnnxInferenceSession, Pooli
 use super::Embedder;
 
 pub struct OnnxEmbedder {
-    session: OnnxInferenceSession,
+    /// One or more independent ORT sessions over the same model. `embed_batch` splits a batch
+    /// across them on scoped threads: the pipeline serializes every embed call behind one
+    /// `Mutex`, so a single 1-thread session left all but one core idle during indexing.
+    sessions: Vec<std::sync::Mutex<OnnxInferenceSession>>,
     dimensions: usize,
     max_length: usize,
     pooling: Pooling,
     normalize: bool,
+    real_tokens: std::sync::atomic::AtomicU64,
+    padded_tokens: std::sync::atomic::AtomicU64,
 }
 
 impl OnnxEmbedder {
@@ -18,17 +23,42 @@ impl OnnxEmbedder {
         pooling: Pooling,
         normalize: bool,
     ) -> Self {
+        Self::with_sessions(vec![session], dimensions, max_length, pooling, normalize)
+    }
+
+    /// Several sessions over the same model; `embed_batch` fans a batch out across them.
+    pub fn with_sessions(
+        sessions: Vec<OnnxInferenceSession>,
+        dimensions: usize,
+        max_length: usize,
+        pooling: Pooling,
+        normalize: bool,
+    ) -> Self {
+        assert!(
+            !sessions.is_empty(),
+            "OnnxEmbedder needs at least one session"
+        );
         Self {
-            session,
+            sessions: sessions.into_iter().map(std::sync::Mutex::new).collect(),
             dimensions,
             max_length,
             pooling,
             normalize,
+            real_tokens: Default::default(),
+            padded_tokens: Default::default(),
         }
     }
 }
 
 impl Embedder for OnnxEmbedder {
+    fn token_stats(&self) -> Option<super::TokenStats> {
+        use std::sync::atomic::Ordering::Relaxed;
+        Some(super::TokenStats {
+            real: self.real_tokens.load(Relaxed),
+            padded_total: self.padded_tokens.load(Relaxed),
+        })
+    }
+
     fn dimensions(&self) -> usize {
         self.dimensions
     }
@@ -37,12 +67,54 @@ impl Embedder for OnnxEmbedder {
         if texts.is_empty() {
             return Ok(vec![]);
         }
+        let k = self.sessions.len().min(texts.len());
+        if k <= 1 {
+            return self.embed_on(&self.sessions[0], texts);
+        }
+        // Contiguous slices keep the output in input order; each text's vector depends only on
+        // that text (padding is masked), so the split never changes what is returned.
+        let per = texts.len().div_ceil(k);
+        let this = &*self;
+        let parts: Vec<Result<Vec<f32>, String>> = std::thread::scope(|scope| {
+            let handles: Vec<_> = texts
+                .chunks(per)
+                .zip(this.sessions.iter())
+                .map(|(part, session)| scope.spawn(move || this.embed_on(session, part)))
+                .collect();
+            handles
+                .into_iter()
+                .map(|h| {
+                    h.join()
+                        .unwrap_or_else(|_| Err("embed worker panicked".to_string()))
+                })
+                .collect()
+        });
+        let mut all = Vec::with_capacity(texts.len() * self.dimensions);
+        for p in parts {
+            all.extend(p?);
+        }
+        Ok(all)
+    }
+}
 
-        let batch = self.session.encode_single(texts, self.max_length)?;
+impl OnnxEmbedder {
+    fn embed_on(
+        &self,
+        session: &std::sync::Mutex<OnnxInferenceSession>,
+        texts: &[&str],
+    ) -> Result<Vec<f32>, String> {
+        // Each thread owns one session, so this lock is never contended.
+        let mut session = session
+            .lock()
+            .map_err(|_| "ORT session lock poisoned".to_string())?;
+        let batch = session.encode_single(texts, self.max_length)?;
+        self.real_tokens
+            .fetch_add(batch.real_tokens(), std::sync::atomic::Ordering::Relaxed);
+        self.padded_tokens
+            .fetch_add(batch.total_tokens(), std::sync::atomic::Ordering::Relaxed);
         let (ids_t, mask_t, types_t) = batch.to_tensors()?;
 
-        let outputs = self
-            .session
+        let outputs = session
             .session
             .run(ort::inputs![
                 "input_ids"      => ids_t,
