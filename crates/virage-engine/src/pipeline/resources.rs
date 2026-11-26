@@ -159,6 +159,8 @@ mod tests {
             peak_rss_kb: 20,
             disk_read_bytes: 5,
             disk_write_bytes: 7,
+            read_syscall_bytes: 0,
+            write_syscall_bytes: 0,
         };
         let u = usage(Some(b), Some(a), 2.0, 4, 100, 200, 0.5);
         assert_eq!(u.cpu_utilization, Some(0.5));
