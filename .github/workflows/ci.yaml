@@ -279,6 +279,9 @@ jobs:
       - name: Test LanceDB store (tag filter semantics)
         run: cargo test -p virage-engine --features "store-lancedb" --lib stores::lancedb
 
+      - name: Index resource figures (real source and LanceDB store, computing fake embedder)
+        run: cargo test -p virage-engine --features "pipeline,source-localfs,store-lancedb" --lib realistic -- --nocapture
+
       - name: Test virage-plugin-lancedb (wire-format unit tests)
         run: cargo test -p virage-plugin-lancedb --lib
 

@@ -118,6 +118,8 @@ pub mod coordinator;
 pub mod resources;
 pub mod worker;
 
+#[cfg(all(test, feature = "source-localfs", feature = "store-lancedb"))]
+mod realistic_tests;
 #[cfg(test)]
 mod secret_tests;
 #[cfg(test)]

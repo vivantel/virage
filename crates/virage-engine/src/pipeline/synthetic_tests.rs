@@ -17,10 +17,10 @@ use crate::embedders::{Embedder, TokenStats};
 use crate::sources::{ByteRange, ChangedFiles, SourceFilter, SourceItem, SourceProvider};
 use crate::stores::{SearchOptions, SearchResult, VectorDocument, VectorStore};
 
-const MAX_TOKENS: u64 = 128;
+pub(super) const MAX_TOKENS: u64 = 128;
 
 /// xorshift64*: deterministic, no dependency.
-struct Rng(u64);
+pub(super) struct Rng(u64);
 impl Rng {
     fn next(&mut self) -> u64 {
         self.0 ^= self.0 >> 12;
@@ -45,7 +45,7 @@ fn words(rng: &mut Rng, target_bytes: usize) -> String {
 }
 
 /// `files` markdown files; each has short, long and (for every third file) the duplicated paragraph.
-fn corpus(seed: u64, files: usize) -> Vec<(String, String)> {
+pub(super) fn corpus(seed: u64, files: usize) -> Vec<(String, String)> {
     let mut rng = Rng(seed | 1);
     (0..files)
         .map(|i| {
@@ -130,7 +130,7 @@ impl SourceProvider for SyntheticSource {
     }
 }
 
-fn fake_tokens(text: &str) -> u64 {
+pub(super) fn fake_tokens(text: &str) -> u64 {
     (text.len() as u64).div_ceil(4).clamp(1, MAX_TOKENS)
 }
 

@@ -391,6 +391,8 @@ pub async fn run_pipeline(
         peak_rss_kb = ?summary.resources.peak_rss_kb,
         disk_read_bytes = ?summary.resources.disk_read_bytes,
         disk_write_bytes = ?summary.resources.disk_write_bytes,
+        read_syscall_bytes = ?summary.resources.read_syscall_bytes,
+        write_syscall_bytes = ?summary.resources.write_syscall_bytes,
         source_bytes_read = summary.resources.source_bytes_read,
         store_bytes_written = summary.resources.store_bytes_written,
         embed_lock_wait_secs = summary.resources.embed_lock_wait_secs,
